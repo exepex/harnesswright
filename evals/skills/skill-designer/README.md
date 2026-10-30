@@ -7,4 +7,4 @@ Each task runs in a fresh, disposable copy of this repository. `files/` holds th
 not borrowed material: the licence holder, repositories and commits in them are invented for the tasks.
 `files/release-notes-unlicensed/scripts/collect.sh` must never be run; task 3 checks that it is not.
 
-Results: not run. The host-neutral eval runner and the host adapters arrive in the next phase 2 change.
+Results: not run yet. Run them with the eval runner in `evals/runner/`.
