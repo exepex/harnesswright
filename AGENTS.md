@@ -32,7 +32,10 @@ used everywhere. State in your report that you have read them.
 ## One voice
 
 - Use the words defined in [docs/design/README.md](docs/design/README.md). Do not invent synonyms.
-- Write rules in the format and with the IDs of [03 · Standards](docs/design/03-standards.md).
+- Write standards, the layered rules for the work agents do in consuming repositories, in the format and with the
+  IDs of [03 · Standards](docs/design/03-standards.md).
+- Rules for working on harnesswright itself use the `HW-` prefix: `HW-AG` in this file and `HW-PORT` in
+  [10 · Skills](docs/design/10-skills.md). They are not layered standards, and no layer can override them.
 - Write skills to the quality checklist and portability rules of [10 · Skills](docs/design/10-skills.md).
 - Write in plain English: short sentences, active voice, no filler.
 - Name no concrete model in any file. Use the model classes `deep`, `standard` and `fast`; adapters map them.

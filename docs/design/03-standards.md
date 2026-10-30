@@ -61,6 +61,9 @@ differently.
 
 ## Rule format
 
+This format is for standards only. Rules for working on harnesswright itself (`HW-AG`, `HW-PORT`) are a separate
+scope, defined in `AGENTS.md` and [10 · Skills](10-skills.md).
+
 Each standards file covers one area and holds several rules. A rule looks like this:
 
 ```markdown

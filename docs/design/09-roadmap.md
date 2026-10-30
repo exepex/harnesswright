@@ -46,7 +46,7 @@ trailofbits/skills.
 | 1 | Do run folders stay in the repository after merge, or only in the pull request? | Kept on the branch, removed before merge, summarised in the pull request |
 | 2 | Should one panel mix models from different vendors, which sends code to more services? | No: a run uses the models of the host it runs on |
 | 3 | Which second language comes first in phase 8? | Python |
-| 4 | How is orchestration (sub-agents, parallel work) provided on each host? | Through host adapters, decided in phase 6; every skill keeps a single-agent fallback |
+| 4 | How is orchestration (sub-agents, parallel work) provided on each host? | Through host adapters, decided in phase 6; steps that need no independence keep a single-agent fallback, and independent steps never run in the implementer's session (`HW-PORT-03`) |
 | 5 | Where do organisation and team layers live once they exist: in this repository, or in their own? | In this repository, under `standards/org/` and `standards/team/` |
 | 6 | Should a small format check (frontmatter, links, file sizes) run in CI or as a local pre-commit hook? | Neither until the owner asks; checked by agents and review |
 | 7 | Which open host runs Kimi and DeepSeek models in phase 2? | Chosen in phase 2, from hosts that read Agent Skills |

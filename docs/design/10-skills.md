@@ -67,15 +67,19 @@ variance:
 
 ### Portability rules
 
+These are rules of harnesswright itself, for writing harness skills, like the `HW-AG` rules in `AGENTS.md`. They
+are not layered standards: they do not use the rule format of [03 · Standards](03-standards.md), no layer of a
+consuming repository can override or loosen them, and they change only through a change to this document.
+
 | ID | Rule |
 |---|---|
-| `PORT-01` | Frontmatter uses only fields from the Agent Skills specification: `name` (matching the folder name), `description`, and optionally `license`, `compatibility` and `metadata` (string values only). The experimental `allowed-tools` field is not used, because hosts treat it differently. Host-specific fields live in adapters. |
-| `PORT-02` | The body names no host tool (such as a host's sub-agent, skill or patch tool). It uses plain verbs: "run the command", "read the file", "start an independent reviewer". |
-| `PORT-03` | A step that needs a host feature, such as sub-agents or parallel work, names the capability and gives a fallback that works in a single agent, in sequence. |
-| `PORT-04` | Logic that must give the same result everywhere goes in a script, not in prose. Scripts use Python 3 with only the standard library, or POSIX `sh`, make no network calls and are deterministic. |
-| `PORT-05` | The repository's `AGENTS.md` lists every skill with its path and trigger, so a host that does not load skills automatically can still find and read them. |
-| `PORT-06` | Outputs follow the contracts, so results from different hosts can be compared field by field. |
-| `PORT-07` | Instructions are explicit. Nothing relies on a habit of one model, such as guessing an unstated output format. |
+| `HW-PORT-01` | Frontmatter uses only fields from the Agent Skills specification: `name` (matching the folder name), `description`, and optionally `license`, `compatibility` and `metadata` (string values only). The experimental `allowed-tools` field is not used, because hosts treat it differently. Host-specific fields live in adapters. |
+| `HW-PORT-02` | The body names no host tool (such as a host's sub-agent, skill or patch tool). It uses plain verbs: "run the command", "read the file", "start an independent reviewer". |
+| `HW-PORT-03` | A step that needs a host feature names the capability. Where the step needs no independence, such as parallel work, the skill gives a fallback that works in a single agent, in sequence. Where it needs independence (a reviewer, judge, verifier or panel voter), there is no in-session fallback: the step runs in a fresh, separate agent that receives only the contracts and the change, as [04 · Roles](04-roles.md) requires. If the host cannot start one, the coordinator stops and escalates to the human. |
+| `HW-PORT-04` | Logic that must give the same result everywhere goes in a script, not in prose. Scripts use Python 3 with only the standard library, or POSIX `sh`, make no network calls and are deterministic. |
+| `HW-PORT-05` | The repository's `AGENTS.md` lists every skill with its path and trigger, so a host that does not load skills automatically can still find and read them. |
+| `HW-PORT-06` | Outputs follow the contracts, so results from different hosts can be compared field by field. |
+| `HW-PORT-07` | Instructions are explicit. Nothing relies on a habit of one model, such as guessing an unstated output format. |
 
 ### Host adapters
 
