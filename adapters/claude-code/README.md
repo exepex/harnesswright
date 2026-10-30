@@ -8,7 +8,7 @@ Claude Code is the reference host. This adapter runs evals through its non-inter
 | Task runs add | `--permission-mode acceptEdits --settings '{"sandbox": {"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false}}' --allowedTools Bash --add-dir <scratch>` |
 | Task powers | Commands run without a prompt inside the host's sandbox: writes only in the workspace and the scratch folder, network blocked. A command the sandbox cannot hold is refused, never run outside it. The same powers as Codex's `workspace-write`. |
 | Needs | On Linux, `bwrap` and `socat` on PATH for the sandbox (`apt install bubblewrap socat`). Without them the host refuses every command, so the runner marks task runs `not run` |
-| Refused when | The `result` event lists `permission_denials`; the runner then fails the task run |
+| Refused when | The `result` event lists `permission_denials`; the runner then fails the task run. A host safety check that says it "cannot be auto-allowed by permission rules" (such as `rm -rf $VAR`) is not counted: no setting can lift it, it is the same for every user, and its message tells the model how to rewrite the command. |
 | Model recorded | The `model` field of the `system` `init` event |
 | Model | `--model <model>` only when the runner is given one; otherwise the host default, read back from the init event |
 | Prompt | Standard input |

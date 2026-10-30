@@ -108,6 +108,16 @@ class ClaudeCodeEventsTest(unittest.TestCase):
         self.assertEqual(CLAUDE.refusals([result]), ["Bash: python3 t.py"])
         self.assertEqual(CLAUDE.refusals([{"type": "result", "permission_denials": []}]), [])
 
+    def test_host_safety_checks_are_not_refusals(self):
+        # Shape seen from Claude Code 2.1.314 on 2026-10-30 in a sandboxed task run, message shortened.
+        blocked = {"type": "user", "message": {"content": [{
+            "type": "tool_result", "tool_use_id": "toolu_2", "is_error": True,
+            "content": "Dangerous rm operation detected in `rm -rf $S/$m`. ... This requires explicit approval "
+                       "and cannot be auto-allowed by permission rules."}]}}
+        result = {"type": "result", "permission_denials": [
+            {"tool_name": "Bash", "tool_use_id": "toolu_2", "tool_input": {"command": "rm -rf $S/$m"}}]}
+        self.assertEqual(CLAUDE.refusals([blocked, result]), [])
+
     def test_resolved_model_comes_from_init_event(self):
         init = {"type": "system", "subtype": "init", "model": "model-x"}
         self.assertEqual(CLAUDE.resolved_model([init]), "model-x")

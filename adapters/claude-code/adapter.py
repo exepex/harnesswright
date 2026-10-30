@@ -104,14 +104,33 @@ def skill_triggered(events, skill_name):
     return False
 
 
+# A host safety check (such as `rm -rf $VAR`) that no permission setting can lift says so in its message.
+# It is the host's own behaviour, the same for every user, not a lack of powers, so it is not a refusal.
+SAFETY_CHECK = "cannot be auto-allowed by permission rules"
+
+
+def _safety_checks(events):
+    ids = set()
+    for event in events:
+        if event.get("type") != "user":
+            continue
+        for item in (event.get("message") or {}).get("content") or []:
+            if isinstance(item, dict) and item.get("type") == "tool_result" and SAFETY_CHECK in str(item.get("content")):
+                ids.add(item.get("tool_use_id"))
+    return ids
+
+
 def refusals(events):
-    """Actions the host refused to run because they needed approval no one could give."""
-    found = []
+    """Actions the host refused to run because they needed approval no one could give.
+
+    Host safety checks that no setting can lift are left out (see SAFETY_CHECK).
+    """
+    found, safety = [], _safety_checks(events)
     for event in events:
         if event.get("type") != "result":
             continue
         for denial in event.get("permission_denials") or []:
-            if isinstance(denial, dict):
+            if isinstance(denial, dict) and denial.get("tool_use_id") not in safety:
                 tool_input = denial.get("tool_input") or {}
                 detail = tool_input.get("command") or tool_input.get("file_path") or ""
                 found.append(f"{denial.get('tool_name', 'tool')}: {detail}".rstrip(": "))
