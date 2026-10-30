@@ -67,7 +67,7 @@ variance:
 3. It releases a skill as portable only when every verified host passes within a set tolerance of the reference
    host.
 
-No one can test every model that exists or will exist, so each host and model pairing carries one of three labels
+No one can test every model that exists or will exist, so each host and model pairing carries one of these labels
 for each skill:
 
 | Label | Meaning |
@@ -75,6 +75,12 @@ for each skill:
 | **Verified** | The skill's evals were run on this host and model and met the thresholds below |
 | **Compatible** | The host reads the Agent Skills standard, but the evals have not been run on it yet |
 | **Unsupported** | The evals were run and did not meet the thresholds; the gap is recorded |
+| **Inconclusive** | The evals were run, but too few times to decide, or the skill showed no lift over the baseline |
+| **Incomplete** | A result is missing, or the model that produced the results is not known |
+
+Every result records what produced it: the harnesswright commit, the host version, the model the host used, the
+host's permissions, and hashes of the skill and the eval files. Each host runs tasks with the same powers: it may run
+commands and write inside the task's workspace, and has no network.
 
 The labels for every skill are kept in `evals/results/` and updated whenever evals run.
 
@@ -111,6 +117,8 @@ change, are:
 | Task eval pass rate on each host | At least 90% |
 | Gap to the reference host | At most 10 percentage points |
 | Trigger accuracy on each host | At least 90% of should-trigger and should-not-trigger cases |
+| Runs behind each result | At least 3 successful runs per trigger query, per task and per baseline task |
+| Lift over the baseline | Task pass rate with the skill above the rate without it |
 
 ## The skill designer
 

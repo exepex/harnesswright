@@ -112,22 +112,76 @@ class ScoringTest(unittest.TestCase):
         self.assertFalse(core.task_passed(checks, grading))
 
 
+def entry(**fields):
+    base = {"model": "m1", "task_pass_rate": 0.9, "trigger_accuracy": 0.9, "baseline_pass_rate": 0.5,
+            "lift": 0.4, "trigger_min_runs": 3, "task_min_runs": 3, "baseline_min_runs": 3}
+    return {**base, **fields}
+
+
 class LabelTest(unittest.TestCase):
     reference = {"task_pass_rate": 1.0, "trigger_accuracy": 0.95}
 
     def test_verified_within_thresholds(self):
-        entry = {"task_pass_rate": 0.9, "trigger_accuracy": 0.9}
-        self.assertEqual(core.label_host(entry, self.reference), {"label": "verified", "gaps": []})
+        self.assertEqual(core.label_host(entry(), self.reference), {"label": "verified", "gaps": []})
 
     def test_gap_to_reference_makes_unsupported(self):
-        entry = {"task_pass_rate": 0.85, "trigger_accuracy": 0.95}
-        result = core.label_host(entry, self.reference)
+        result = core.label_host(entry(task_pass_rate=0.85, trigger_accuracy=0.95), self.reference)
         self.assertEqual(result["label"], "unsupported")
         self.assertEqual(len(result["gaps"]), 2)
 
     def test_missing_results_are_incomplete(self):
-        self.assertEqual(core.label_host({"task_pass_rate": None, "trigger_accuracy": 1.0},
-                                         self.reference)["label"], "incomplete")
+        for missing in ("task_pass_rate", "baseline_pass_rate"):
+            self.assertEqual(core.label_host(entry(**{missing: None}), self.reference)["label"], "incomplete")
+
+    def test_unknown_or_mixed_model_is_incomplete(self):
+        for model in (None, "mixed: a, b"):
+            self.assertEqual(core.label_host(entry(model=model), self.reference)["label"], "incomplete")
+
+    def test_too_few_runs_are_inconclusive_even_when_failing(self):
+        for field in ("trigger_min_runs", "task_min_runs", "baseline_min_runs"):
+            result = core.label_host(entry(**{field: 1}, task_pass_rate=0.5), self.reference)
+            self.assertEqual(result["label"], "inconclusive")
+            self.assertIn("only 1 run(s)", result["gaps"][0])
+
+    def test_no_lift_over_baseline_is_inconclusive(self):
+        result = core.label_host(entry(task_pass_rate=1.0, baseline_pass_rate=1.0, lift=0.0), self.reference)
+        self.assertEqual(result["label"], "inconclusive")
+        self.assertIn("no lift", result["gaps"][0])
+
+
+class TaskStatsTest(unittest.TestCase):
+    def test_per_task_counts_and_spread(self):
+        runs = [{"task_name": "a", "passed": True}, {"task_name": "a", "passed": False},
+                {"task_name": "b", "passed": True}, {"task_name": "b", "passed": None}]
+        stats = core.summarise_task_runs(runs)
+        self.assertEqual(stats["tasks"]["a"], {"runs": 2, "scored": 2, "passed": 1, "pass_rate": 0.5})
+        self.assertEqual(stats["min_runs_per_task"], 1)
+        self.assertEqual(stats["mean"], 0.6667)
+        self.assertEqual(stats["stddev"], 0.5774)
+
+
+class ProvenanceTest(unittest.TestCase):
+    def test_tree_hash_changes_with_content_and_replacement(self):
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, "SKILL.md").write_text(SKILL_MD)
+            first = core.tree_hash(folder)
+            self.assertEqual(first, core.tree_hash(folder))
+            self.assertNotEqual(first, core.tree_hash(folder, {"SKILL.md": "other"}))
+            Path(folder, "extra.txt").write_text("x")
+            self.assertNotEqual(first, core.tree_hash(folder))
+            second = core.tree_hash(folder)
+            Path(folder, "results").mkdir()
+            Path(folder, "results", "run.json").write_text("{}")
+            self.assertEqual(second, core.tree_hash(folder, exclude=[Path(folder, "results")]))
+
+    def test_model_of_prefers_reported_and_flags_mixed(self):
+        self.assertEqual(core.model_of([None, "m1", "m1"], "alias"), "m1")
+        self.assertEqual(core.model_of([None], "alias"), "alias")
+        self.assertIsNone(core.model_of([], None))
+        self.assertEqual(core.model_of(["b", "a"], None), "mixed: a, b")
+
+    def test_repo_commit_is_recorded(self):
+        self.assertRegex(core.repo_commit() or "", r"^[0-9a-f]{40}(-dirty)?$")
 
 
 class AdapterLoadingTest(unittest.TestCase):

@@ -150,7 +150,7 @@ query.
 
 Claude Code is the reference host ([10 · Skills](../../docs/design/10-skills.md)). Use the eval runner,
 `evals/runner/run_evals.py`, with that host's adapter under `adapters/<host>/`; its `README.md` lists the commands.
-Run `triggers` and `tasks` (with `--baseline` too), have each task run graded, then run `score`. Keep the results
+Run `triggers` and `tasks` (with `--baseline` too), have each task run graded, then run `score` for both. Keep the results
 outside the repository until the final run. The runner gives each query and task to the host, records what
 happened and writes the results; it never decides a result by guessing.
 
@@ -159,8 +159,8 @@ If no runner or adapter exists for the host, run each task eval by hand:
 1. Start a fresh agent on the host with the skill installed. Give it only the task prompt and the input files.
 2. Save everything it produces, and its transcript, to a scratch directory outside the repository, one folder per
    task and run.
-3. Also run each task once without the skill (for a new skill) or with the previous version (for an improvement).
-   This baseline shows what the skill adds.
+3. Run each task at least 3 times, and as often without the skill (for a new skill) or with the previous version
+   (for an improvement). This baseline shows what the skill adds; fewer runs cannot decide a label.
 
 If the host cannot start a fresh agent, run the tasks one at a time in your own session and mark those results
 `in-session`. They help you improve the skill, but they do not count toward release. Trigger evals cannot be run
