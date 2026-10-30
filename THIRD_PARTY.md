@@ -45,7 +45,7 @@ eval scripts call the Claude Code command line directly (`claude -p` in `scripts
 
 | harnesswright file | Source file | Changes |
 |---|---|---|
-| `skills/claims-writer/SKILL.md` | `SKILL.md` | Kept the core idea (no completion claim without fresh evidence), the gate of identify, run, read and verify before claiming, and the table of what proves a claim and what is not enough, reworded. Changed the output to the claims contract of [06 · Contracts](docs/design/06-contracts.md). Added purpose and limits, inputs, numbered steps with checks, failure handling, examples and a bundled check script. Removed the rationalisation and red-flag lists and the emphatic wording, in favour of reasons. |
+| `skills/claims-writer/SKILL.md` | `SKILL.md` | Kept the core idea (no completion claim without fresh evidence), the gate of identify, run, read and verify before claiming, and the table of what proves a claim and what is not enough, reworded. Changed the output to the claims contract of [06 · Contracts](docs/design/06-contracts.md). Added purpose and limits, inputs, numbered steps with checks, failure handling, examples, a bundled check script and a fallback for when scripts are forbidden or cannot run (`HW-PORT-08`). The bug-fix row no longer asks to revert the fix in the working tree. Removed the rationalisation and red-flag lists and the emphatic wording, in favour of reasons. |
 | `skills/claims-writer/LICENSE-MIT.txt` | `LICENSE` | Unchanged. |
 
 Not taken: the rest of the repository. Its other skills were read only to choose a candidate.

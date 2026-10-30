@@ -43,8 +43,9 @@ defines it. Copy it, keep the six headings exactly, and replace every part in an
 Notes:
 
 - Write `None.` in a section that has nothing to say. The check rejects an empty section.
-- Put `file:line` references in backticks, such as `` `src/pricing.py:18` ``, so the check can confirm the line
-  exists.
+- Put `file:line` references in backticks, such as `` `src/pricing.py:18` `` or `` `Makefile:3` ``, so the check
+  can confirm the line exists. Paths are relative to the project root, the folder that holds `.harness/`.
+- Give each criterion its own `### AC-n` entry with exactly one **Status**: `met`, `not met` or `not verified`.
 - Quote command output exactly. Shorten long output with `…`, but keep the lines with the counts and the result.
 - A criterion is `not verified` when its evidence could not be produced here, and `not met` when the evidence
   shows it fails.

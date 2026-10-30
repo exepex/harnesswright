@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Expectation check: writing claims changed no file of the project. Every fixture file outside
-.harness/ must be byte-for-byte the same in the run's output folder.
+.harness/ must be byte-for-byte the same in the run's output folder, and no file may be added outside
+.harness/, except caches that running the tests creates.
 
 Argument: the run's output folder. Exit 0 when the expectation holds.
 """
@@ -9,6 +10,7 @@ import sys
 from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parents[1] / "files"
+TEST_CACHES = ("__pycache__", ".pytest_cache")
 
 
 def main(outputs):
@@ -25,7 +27,12 @@ def main(outputs):
             copy = Path(outputs) / "files" / relative
             if not copy.is_file() or copy.read_bytes() != source.read_bytes():
                 changed.append(str(relative))
-    print("changed or missing: " + ", ".join(changed) if changed else "project files unchanged")
+        for copy in sorted((Path(outputs) / "files" / project.name).rglob("*")):
+            relative = copy.relative_to(Path(outputs) / "files")
+            if (copy.is_file() and ".harness" not in relative.parts
+                    and not set(TEST_CACHES) & set(relative.parts) and not (FIXTURES / relative).is_file()):
+                changed.append(f"{relative} (added)")
+    print("changed, missing or added: " + ", ".join(changed) if changed else "project files unchanged")
     return 1 if changed else 0
 
 

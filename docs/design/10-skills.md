@@ -99,6 +99,7 @@ consuming repository can override or loosen them, and they change only through a
 | `HW-PORT-05` | The repository's `AGENTS.md` lists every skill with its path and trigger, so a host that does not load skills automatically can still find and read them. |
 | `HW-PORT-06` | Outputs follow the contracts, so results from different hosts can be compared field by field. |
 | `HW-PORT-07` | Instructions are explicit. Nothing relies on a habit of one model, such as guessing an unstated output format. |
+| `HW-PORT-08` | Every step that runs a bundled script has a no-script fallback. When the repository profile says `scripts: forbidden` ([07 · Repository profile](07-repo-profile.md)), or the script cannot run (no interpreter, the host or the person refuses it), the agent does not run it and never claims its result. It does by reading what it can, marks every result the script would have checked `not verified`, and tells the person first that the check did not run and that the team must do it by hand. |
 
 ### Host adapters
 

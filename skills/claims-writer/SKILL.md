@@ -40,6 +40,10 @@ This skill does not:
 | The change: the files it touched | Yes | With git, run `git diff --name-only <base>` and `git status --short`. Without git, use the files the person names; if none are named, ask which files changed. |
 | The commands that prove the work: build, test, lint | No | Use the profile's `toolchain` in `.harness/profile.yaml`. If there is no profile, use the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
 | The resolved standards for the repository | No | Write "None resolved for this repository." under **Standards**. Never invent a rule ID. |
+| Whether skill scripts may run: `scripts` in `.harness/profile.yaml` | No | `allowed`. When it is `forbidden`, never run `scripts/claims_check.py`; follow the fallback in step 5. |
+
+All paths in the claims file, in **Done**, **Evidence**, `file:line` references and **Files changed**, are relative
+to the project root: the folder that holds `.harness/`. Run every command from there.
 
 ## Steps
 
@@ -62,7 +66,7 @@ For each criterion, write down the evidence that would prove it, before you look
 | Tests pass | The test command's output in this session: the count and 0 failures, exit code 0 | An earlier run, "should pass" |
 | Build or compile succeeds | The build command: exit code 0 | A clean linter, logs that look fine |
 | Lint is clean | The linter's output: 0 errors | A partial run |
-| A bug is fixed | A test of the original symptom passes, and fails when the fix is reverted | The code changed, so it is assumed fixed |
+| A bug is fixed | A test of the original symptom passes now. If the commit before the fix is at hand, the same test fails there; run it in a separate checkout, never by undoing the fix in the working tree. Otherwise record that red-to-green was not shown under **Not verified**. | The code changed, so it is assumed fixed |
 | Behaviour X exists | `file:line` of the code, and a test name that exercises it, with its passing output | The code exists but nothing runs it |
 | A criterion is met | Each part of the criterion matched to its evidence | The test suite passes as a whole |
 
@@ -106,27 +110,46 @@ Check: the file has the six sections in order and every criterion of the story a
 
 ### 5. Count the lines and check the file
 
-Run the bundled script from the repository root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
+First read `scripts` in `.harness/profile.yaml`. If it is `forbidden`, skip to "Without the script" below and do
+not try the script: the team has decided scripts do not run here.
+
+Otherwise run the bundled script from the project root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
 ```sh
 # The Files changed list: name the files, or give the git ref the change started from.
 python3 SKILL_DIR/scripts/claims_check.py lines path/one path/two
 python3 SKILL_DIR/scripts/claims_check.py lines --base main
 
-# The structure check of the finished claims file.
-python3 SKILL_DIR/scripts/claims_check.py check .harness/runs/<run-id>/claims/<story id>.md
+# The check of the finished claims file. Add --base with the same ref when you have one.
+python3 SKILL_DIR/scripts/claims_check.py check [--base main] .harness/runs/<run-id>/claims/<story id>.md
 ```
 
-The check confirms the six sections, the quoted request, each file's line count, that every `` `file:line` ``
-reference points at a line that exists, and that no hedging words remain. It cannot judge whether your evidence
-is true; only fresh runs in step 3 make it true.
+The check confirms the six sections, the quoted request, one entry per acceptance criterion of the story with a
+valid **Status**, each file's line count, that **Files changed** matches the diff (with `--base`), that every
+`` `file:line` `` reference points at a line that exists, and that no hedging words remain. It cannot judge
+whether your evidence is true; only fresh runs in step 3 make it true.
 
-Check: `claims_check.py check` prints `claims check: ok` and exits with 0.
+**Without the script.** When scripts are forbidden, or the script cannot run (no Python, or the host or the person
+refuses it), the check did not happen, and the claims must say so:
+
+1. Count each changed file's lines with the project's own tools if you can, or by reading the file, and check every
+   `file:line` reference by opening the file at that line.
+2. Add one entry under **Not verified**: "`claims_check.py` not run: <scripts are forbidden by the profile | the
+   reason it could not run>. Line counts, `file:line` references and the section structure were checked by
+   reading only; the team must check them by hand." Replace a `None.` that was there.
+3. In step 6, say this first.
+
+Never write that the check passed when it did not run.
+
+Check: `claims_check.py check` prints `claims check: ok` and exits with 0, or, without the script, **Not
+verified** has the entry above.
 
 ### 6. Report
 
-Tell the person where the claims file is, and give one line per criterion with its status. If any criterion is
-`not met` or `not verified`, say so first. Do not call the story done unless every criterion is `met`.
+Tell the person where the claims file is, and give one line per criterion with its status. If the claims check
+did not run, say first that it did not run, why, and that the team must check line counts and references by hand.
+If any criterion is `not met` or `not verified`, say so next. Do not call the story done unless every criterion is
+`met`.
 
 Check: your report matches the statuses in the file.
 
@@ -138,6 +161,7 @@ Check: your report matches the statuses in the file.
 | A command cannot run here | Record it under **Not verified** with what is missing, for example "`go test ./...` not run: no Go toolchain". Never write that it passes. |
 | The story has no testable criteria | Write the claims against the request, and say under **Not verified** that the criteria were not testable. |
 | The claims check fails | Fix the claims file, not the check, and run it again. |
+| The claims check cannot run, or the profile forbids scripts | Follow "Without the script" in step 5. Never claim the check passed. |
 | You cannot tell which story the change delivers | Ask one clear question; do not guess. |
 
 ## Standards applied
@@ -179,4 +203,4 @@ AC-3." Bad: leaving the criterion as `met` because the code looks right.
 
 - [references/claims-template.md](references/claims-template.md): the full layout of a claims file. Read it in
   step 4.
-- `scripts/claims_check.py`: line counts and the structure check. Run it in step 5.
+- `scripts/claims_check.py`: line counts and the structure check. Run it in step 5, unless scripts are forbidden.

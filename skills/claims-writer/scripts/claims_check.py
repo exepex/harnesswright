@@ -3,15 +3,19 @@
 
 Usage:
   python3 claims_check.py lines [--repo DIR] [--base REF] [PATH ...]
-  python3 claims_check.py check [--repo DIR] CLAIMS_FILE
+  python3 claims_check.py check [--repo DIR] [--story STORY_FILE] [--base REF] CLAIMS_FILE
 
 `lines` prints one Markdown list item per changed file, "- `path` (N lines)" or "- `path` (deleted)".
 It takes the paths given, or, with --base, every file git reports as changed since REF, plus untracked
 files. Paths under .harness/runs/ are left out: the run folder is not part of the change.
 
-`check` exits 0 when the claims file has the six contract sections in order, quotes the request, lists
-each changed file with its true line count, points every `file:line` reference at a line that exists,
-and makes no unproven success claim. It prints each problem found and exits 1 otherwise.
+`check` exits 0 when the claims file has the six contract sections in order, quotes the request, has one
+entry under Requirements for each acceptance criterion of the story and no other, gives each entry a valid
+Status, lists each changed file with its true line count, points every `file:line` reference at a line that
+exists, and makes no unproven success claim. With --base it also checks that Files changed lists exactly
+the files git reports as changed. It prints each problem found and exits 1 otherwise. The story is
+--story, or else ../stories/<same name> next to the claims folder; without one, AC mapping is skipped
+with a note. All paths are relative to --repo, the project root that holds .harness/.
 
 A line count is the number of newline characters in the file, the same as `wc -l`.
 Python 3 standard library only, no network calls, deterministic.
@@ -26,7 +30,12 @@ from pathlib import Path
 SECTIONS = ("Request", "Requirements", "Standards", "Out of scope", "Files changed", "Not verified")
 RUN_FOLDER = ".harness/runs/"
 FILE_ENTRY = re.compile(r"^\s*[-*]\s+`([^`]+)`\s+\((\d+) lines?\)|^\s*[-*]\s+`([^`]+)`\s+\(deleted\)")
-FILE_REF = re.compile(r"`([A-Za-z0-9_./-]+\.[A-Za-z0-9]+):(\d+)(?:-(\d+))?`")
+# A `path:line` reference. Paths without an extension (`Makefile:3`) are checked when the file exists, so
+# a value such as `localhost:8080` is not mistaken for a missing file.
+FILE_REF = re.compile(r"`([A-Za-z0-9_./-]+):(\d+)(?:-(\d+))?`")
+AC_ID = re.compile(r"\bAC-(\d+)\b")
+STATUS = re.compile(r"^\s*[-*]\s+\*\*Status:\*\*\s*(.*?)\s*$", re.MULTILINE)
+STATUSES = ("met", "not met", "not verified")
 HEDGES = ("should work", "should pass", "should be fine", "probably", "seems to", "looks correct",
           "looks good", "i think it")
 
@@ -102,12 +111,64 @@ def check_refs(text, repo):
     for path, first, last in FILE_REF.findall(text):
         target = repo / path
         if not target.is_file():
-            problems.append(f"reference `{path}:{first}`: file not found")
+            if "." in Path(path).name:
+                problems.append(f"reference `{path}:{first}`: file not found")
             continue
         lines = max(line_count(target), 1)
         if int(last or first) > lines or int(first) < 1:
             problems.append(f"reference `{path}:{first}{'-' + last if last else ''}`: file has {lines} lines")
     return problems
+
+
+def story_criteria(story_text):
+    """AC IDs in the story's acceptance criteria section, or in the whole story if it has none."""
+    match = re.search(r"^##\s+Acceptance criteria\s*$(.*?)(?=^##\s|\Z)", story_text, re.MULTILINE | re.DOTALL)
+    return sorted(set(AC_ID.findall(match.group(1) if match else story_text)), key=int)
+
+
+def check_requirements(body, story_text):
+    """Each requirement entry (a ### heading) names one AC and has a valid Status; every AC is covered."""
+    problems, claimed = [], []
+    entries = re.split(r"^###\s+", body, flags=re.MULTILINE)[1:]
+    if not entries:
+        return ["Requirements: no entry headed '### AC-n'"]
+    for entry in entries:
+        heading = entry.splitlines()[0].strip()
+        ids = AC_ID.findall(heading)
+        if len(ids) != 1:
+            problems.append(f"Requirements: entry '{heading}' must name exactly one AC-n")
+        claimed += ids
+        statuses = STATUS.findall(entry)
+        if len(statuses) != 1:
+            problems.append(f"Requirements: entry '{heading}' needs exactly one **Status:** line")
+        elif statuses[0].strip("`*_ ").lower() not in STATUSES:
+            problems.append(f"Requirements: entry '{heading}' has Status '{statuses[0]}'; "
+                            f"use one of {', '.join(STATUSES)}")
+    for ac in sorted({a for a in claimed if claimed.count(a) > 1}, key=int):
+        problems.append(f"Requirements: AC-{ac} has more than one entry")
+    if story_text is not None:
+        wanted = story_criteria(story_text)
+        problems += [f"Requirements: AC-{a} of the story has no entry" for a in wanted if a not in claimed]
+        problems += [f"Requirements: AC-{a} is not in the story" for a in sorted(set(claimed) - set(wanted), key=int)]
+    return problems
+
+
+def check_diff(body, repo, base):
+    listed = set()
+    for line in body.splitlines():
+        match = FILE_ENTRY.match(line)
+        if match:
+            listed.add(match.group(1) or match.group(3))
+    changed = set(changed_paths(repo, base))
+    return ([f"Files changed: {p} changed since {base} but is not listed" for p in sorted(changed - listed)] +
+            [f"Files changed: {p} is listed but did not change since {base}" for p in sorted(listed - changed)])
+
+
+def find_story(claims, story):
+    if story:
+        return Path(story)
+    guess = claims.parent.parent / "stories" / claims.name
+    return guess if claims.parent.name == "claims" and guess.is_file() else None
 
 
 def cmd_check(args):
@@ -124,8 +185,16 @@ def cmd_check(args):
             problems.append(f"{heading}: section is empty; write 'None.' when there is nothing")
     if "Request" in bodies and not any(l.startswith(">") for l in bodies["Request"].splitlines()):
         problems.append("Request: the story is not quoted (no line starts with '>')")
+    story = find_story(claims, args.story)
+    if story is None:
+        print("note: no story file found, so acceptance criteria were not matched; pass --story")
+    if "Requirements" in bodies:
+        story_text = story.read_text(encoding="utf-8") if story else None
+        problems += check_requirements(bodies["Requirements"], story_text)
     if "Files changed" in bodies:
         problems += check_files(bodies["Files changed"], repo)
+        if args.base:
+            problems += check_diff(bodies["Files changed"], repo, args.base)
     problems += check_refs(text, repo)
     # The quoted request is the story's own text, so only the implementer's sections are searched.
     lowered = "\n".join(body for heading, body in sections if heading != "Request").lower()
@@ -146,6 +215,8 @@ def main(argv=None):
     lines.set_defaults(func=cmd_lines)
     check = sub.add_parser("check")
     check.add_argument("--repo", default=".")
+    check.add_argument("--story", help="the story file (default: ../stories/<claims file name>)")
+    check.add_argument("--base", help="git ref the change started from; Files changed must match the diff")
     check.add_argument("claims")
     check.set_defaults(func=cmd_check)
     args = top.parse_args(argv)

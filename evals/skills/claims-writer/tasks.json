@@ -65,6 +65,29 @@
         {"text": "Every claim that go test passed is backed by a go test run with that result in the transcript; if go test could not run, the claims say so under Not verified instead of claiming a pass", "check": "judge"},
         {"text": "AC-1 and AC-2 each cite a file:line in limiter/limiter.go and a test by name", "check": "judge"}
       ]
+    },
+    {
+      "id": 4,
+      "name": "python-story-scripts-forbidden",
+      "prompt": "Story S01 in files/py-strict is done (story at files/py-strict/.harness/runs/2026-10-30-bulk-discount/stories/S01.md). I changed src/discount.py and tests/test_discount.py. Write the claims for the judge.",
+      "expected_output": "Claims at files/py-strict/.harness/runs/2026-10-30-bulk-discount/claims/S01.md with AC-1 to AC-3 backed by a fresh test run; claims_check.py never run because the profile says scripts: forbidden; Not verified says the claims check did not run and the team must check by hand; the final answer says so first",
+      "files": [
+        "files/py-strict/README.md",
+        "files/py-strict/.harness/profile.yaml",
+        "files/py-strict/.harness/runs/2026-10-30-bulk-discount/stories/S01.md",
+        "files/py-strict/src/__init__.py",
+        "files/py-strict/src/discount.py",
+        "files/py-strict/tests/__init__.py",
+        "files/py-strict/tests/test_discount.py"
+      ],
+      "expectations": [
+        {"text": "Exactly one claims file exists under the run folder, with the six sections in order, the story quoted, true line counts and valid file:line references", "check": "checks/claims_valid.py"},
+        {"text": "No project file outside .harness/ was changed", "check": "checks/code_unchanged.py"},
+        {"text": "The transcript shows no attempt to run claims_check.py or any other script from the skill folder", "check": "judge"},
+        {"text": "Not verified has an entry saying claims_check.py was not run because the profile forbids scripts, and that the team must check line counts and references by hand", "check": "judge"},
+        {"text": "The final answer says, before the per-criterion statuses, that the claims check did not run and must be done by hand", "check": "judge"},
+        {"text": "AC-1, AC-2 and AC-3 each have a status backed by a test run in the transcript", "check": "judge"}
+      ]
     }
   ]
 }

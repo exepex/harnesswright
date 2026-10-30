@@ -108,6 +108,10 @@ The body follows the quality checklist. Write it so that any model on any host c
   agent and have no in-session fallback (`HW-PORT-03`).
 - Put logic that must give the same result everywhere in a script: Python 3 standard library or POSIX `sh`, no
   network calls, deterministic (`HW-PORT-04`).
+- Give every step that runs a script a no-script fallback (`HW-PORT-08`). Some teams forbid scripts
+  (`scripts: forbidden` in `.harness/profile.yaml`), and some hosts or people refuse them. The fallback says what to
+  check by reading, marks what the script would have proven `not verified`, and tells the person first that the
+  check did not run. Add a task eval with `scripts: forbidden` that checks this.
 - Cite rules by ID; never repeat their text. If a rule the skill needs does not exist yet, do not invent an ID.
   List the missing rule as a proposal for the owner.
 - Explain why a step matters. A model that knows the reason handles cases the text did not foresee better than one
