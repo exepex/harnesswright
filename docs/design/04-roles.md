@@ -38,10 +38,11 @@ make the same mistake, so their agreement proves less.
 | **Scenario tester** | Invents a realistic use case, prepares its data, runs it end to end, and reports how the system behaved | Plan, running system | Scenario report | `standard` | Test data and scripts only |
 | **Release reviewer** | Checks operational readiness: observability, migrations, flags, rollback, runbooks | Change, standards (`OPS`) | Findings, vote | `deep` | No |
 | **Curator** | Turns repeated human corrections into proposed rules in the right layer | Escalations, review history | Rule proposals | `deep` | No |
+| **Skill designer** | Sources, designs, evaluates and improves every skill, borrow-first and portable (see [10 · Skills](10-skills.md)) | Skill request, existing skills, standards | Skill, its evals and results | `deep` | Skills and evals only |
 
 ## What every role must do
 
-These duties come from Stratum's agent rules and apply to every role:
+These duties apply to every role:
 
 1. **Report only what you verified.** Each statement cites a command and its output, a test, or a `file:line`.
    Anything not verified is labelled as such.

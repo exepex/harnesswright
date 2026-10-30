@@ -83,7 +83,7 @@ Why capabilities instead of naming MCP servers in roles:
 
 ## Onboarding a repository
 
-1. Install harnesswright for the agent tool in use: the Claude Code plugin, or the skills folder for other tools.
+1. Install harnesswright with the adapter for the host in use (see `adapters/<host>/`).
 2. Run the onboarding skill. It detects the language and build tool, proposes `profile.yaml`, and infers
    conventions from the existing code into `.harness/standards/` as `inferred` rules.
 3. A human reviews and confirms the profile and the inferred rules once.

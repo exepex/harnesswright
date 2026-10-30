@@ -14,6 +14,7 @@ order; each one builds on the ones before.
 | 07 | [Repository profile](07-repo-profile.md) | How a repository adopts the harness, capabilities and MCP |
 | 08 | [Governance](08-governance.md) | Evals, versions, the learning loop, metrics, security, licences |
 | 09 | [Roadmap](09-roadmap.md) | Phases, the harvest method, open questions |
+| 10 | [Skills](10-skills.md) | Borrow-first sourcing, the quality checklist, portability across hosts, the skill designer |
 
 ## Decisions already made
 
@@ -24,6 +25,10 @@ order; each one builds on the ones before.
 | Organisation and team layers | Designed now, left empty until a real need appears |
 | Repository flow | Work on a branch, reviewed through a pull request |
 | Licence | Apache-2.0 |
+| Where work happens | Everything is built and tested inside harnesswright, on sample projects under `evals/fixtures/` |
+| Hosts | The same skills run on Claude Code, OpenAI Codex and hosts for other models; behaviour is measured per host |
+| Sourcing | Borrow first: adopt, adapt or write new, with source and licence recorded |
+| Skill design | Every skill is made by the skill designer, adapted from Anthropic's skill-creator |
 
 ## Words used throughout
 

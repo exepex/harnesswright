@@ -74,7 +74,7 @@ by at least one story and that no story does anything the plan does not ask for.
 
 ## Claims
 
-Written by the implementer when a story is finished. The format follows Stratum's judge claims.
+Written by the implementer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each acceptance criterion, what was done and the
 evidence (`file:line`, test name, command and output) · **Standards** applied, by rule ID, with any exception and

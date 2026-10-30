@@ -41,8 +41,8 @@ harnesswright/
 ├── skills/                     Agent Skills (SKILL.md folders) for each repeatable task
 ├── process/                    Default change types, risk tiers, pipelines and panel settings
 ├── contracts/                  Templates: plan, story, claims, finding, vote, verdict
-├── evals/                      The harness's own test tasks and expected outcomes
-└── .claude-plugin/             Plugin and marketplace manifests for Claude Code
+├── evals/                      The harness's own test tasks, expected outcomes and sample projects
+└── adapters/<host>/            Everything host-specific: installation, agent definitions, sub-agents, models, eval runs
 ```
 
 The repository layer and the profile live in each consuming repository, under `.harness/`. See
@@ -52,9 +52,10 @@ The repository layer and the profile live in each consuming repository, under `.
 
 - **Skills** follow the open Agent Skills format: a folder holding a `SKILL.md` with `name` and `description`
   frontmatter, plus optional `references/`, `scripts/` and `assets/`. Agents load a skill only when a task needs it,
-  so many skills cost little context. Tools other than Claude Code that read this format can use the same skills.
-- **Roles** are written as Claude Code agent definitions (Markdown with frontmatter for tools and model). The
-  instructions inside are plain Markdown, so another tool can reuse them.
+  so many skills cost little context. The same skill files run on every supported host; see the portability rules
+  in [10 · Skills](10-skills.md).
+- **Roles** are plain Markdown instructions with no host-specific fields. Each host adapter turns them into that
+  host's agent definitions, such as Claude Code agent files, and maps each model class to a model.
 - **Standards and contracts** are Markdown with a small amount of YAML frontmatter, so both people and agents can
   read them.
 - **Process and the profile** are YAML.
