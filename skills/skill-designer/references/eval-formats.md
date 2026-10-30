@@ -14,7 +14,7 @@ evals/skills/<name>/
 └── checks/            Scripts that check expectations
 ```
 
-Results are written by the eval runner, per host. Their format is defined with the runner.
+Results are written by the eval runner, per host. Their formats are in `evals/runner/README.md`.
 
 ## triggers.json
 

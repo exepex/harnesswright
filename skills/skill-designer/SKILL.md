@@ -148,8 +148,10 @@ query.
 
 ### 5. Run the evals on the reference host and improve the skill
 
-Claude Code is the reference host ([10 · Skills](../../docs/design/10-skills.md)). Use the harness eval runner
-with that host's adapter under `adapters/<host>/`. The runner gives each query and task to the host, records what
+Claude Code is the reference host ([10 · Skills](../../docs/design/10-skills.md)). Use the eval runner,
+`evals/runner/run_evals.py`, with that host's adapter under `adapters/<host>/`; its `README.md` lists the commands.
+Run `triggers` and `tasks` (with `--baseline` too), have each task run graded, then run `score`. Keep the results
+outside the repository until the final run. The runner gives each query and task to the host, records what
 happened and writes the results; it never decides a result by guessing.
 
 If no runner or adapter exists for the host, run each task eval by hand:
@@ -177,9 +179,9 @@ Then improve the skill:
 4. **Bundle repeated work.** If several runs wrote the same helper, write it once in `scripts/` and tell the skill
    to use it.
 
-To tune the description, give the trigger results to yourself as data: split the queries into a training set
-(about 60%) and a held-out test set, improve the description on the training failures only, and keep the version
-with the best held-out score. Do not list eval queries in the description; describe the intent behind them.
+To tune the description, give the trigger results to yourself as data: run `triggers` with `--holdout 0.4`, so
+about 60% of the queries train and the rest are held out, improve the description on the training failures only,
+test each new version with `--description`, and keep the version with the best held-out score. Do not list eval queries in the description; describe the intent behind them.
 
 To compare two versions of a skill, use a blind comparison in a fresh agent that follows
 [references/comparator.md](references/comparator.md).
@@ -200,10 +202,13 @@ host against the thresholds in [10 · Skills](../../docs/design/10-skills.md): t
 When a host fails, fix the skill, never the eval, and keep the fix host-neutral. Anything that only one host needs
 belongs in that host's adapter. After a fix, rerun every host, because a fix for one can break another.
 
-If a host cannot run here (no command-line tool or no credentials), record it as `not run` with exactly what is
+If a host cannot run here (no command-line tool or no credentials), record it as not run with exactly what is
 missing. Never estimate, simulate or copy a result from another host.
 
-Check: a result for every supported host, each one `pass`, `fail` or `not run` with a reason.
+Write the labels with the runner's `label` command to `evals/results/<name>.json`: `verified` (run and within the
+thresholds), `unsupported` (run and short of them, with the gap) or `compatible` (reads the standard, not run).
+
+Check: `evals/results/<name>.json` holds a label for every host and model pairing, each with its gaps or reason.
 
 ### 7. Record provenance and hand off to a judge
 
