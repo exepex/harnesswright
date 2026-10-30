@@ -91,6 +91,32 @@ class EnvironmentSealTest(unittest.TestCase):
             shutil.rmtree(home)
 
 
+class HostInstallTest(unittest.TestCase):
+    def test_install_prefix_and_package_folder_are_mounted(self):
+        with tempfile.TemporaryDirectory() as root:
+            prefix = Path(root) / "node-v1"
+            package = prefix / "lib" / "tool"
+            package.mkdir(parents=True)
+            (package / "cli.py").write_text("")
+            (prefix / "bin").mkdir()
+            (prefix / "bin" / "tool").symlink_to(package / "cli.py")
+            with mock.patch.object(seal.shutil, "which", return_value=str(prefix / "bin" / "tool")):
+                self.assertEqual(seal.host_install("tool"), [prefix, package.resolve()])
+
+    def test_program_in_home_bin_mounts_the_file_only(self):
+        with tempfile.TemporaryDirectory() as home:
+            program = Path(home) / "bin" / "tool"
+            program.parent.mkdir()
+            program.write_text("")
+            with mock.patch.dict(os.environ, {"HOME": home}), \
+                    mock.patch.object(seal.shutil, "which", return_value=str(program)):
+                self.assertEqual(seal.host_install("tool"), [program])
+
+    def test_system_programs_need_no_mount(self):
+        with mock.patch.object(seal.shutil, "which", return_value="/usr/bin/python3"):
+            self.assertEqual(seal.host_install("python3"), [])
+
+
 @unittest.skipUnless(seal.jail_available() and sys.platform.startswith("linux"), "needs bwrap on Linux")
 class JailTest(unittest.TestCase):
     """A sealed run of a probe host with the skill planted where earlier baselines found it."""
@@ -129,6 +155,22 @@ class JailTest(unittest.TestCase):
         self.assertFalse([key for key in report["env"] if key.startswith("CLAUDE")])
         self.assertEqual(report["home"], ["tmp"])
         self.assertNotIn(self.planted.name, report["tmp"])
+
+    def test_host_installed_outside_system_folders_runs(self):
+        prefix = Path(tempfile.mkdtemp(prefix="hw-host-"))
+        self.addCleanup(shutil.rmtree, prefix)
+        (prefix / "bin").mkdir()
+        program = prefix / "bin" / "probe-host"
+        program.write_text(f"#!{sys.executable} -I\nimport json; print(json.dumps({{'ran': True}}))\n")
+        program.chmod(0o755)
+        adapter = probe_adapter()
+        adapter.build_command = lambda *a, **k: ["probe-host"]
+        workspace = core.make_workspace(adapter, None, "demo")
+        self.addCleanup(shutil.rmtree, workspace, True)
+        with mock.patch.dict(os.environ, {"PATH": f"{prefix / 'bin'}:{os.environ['PATH']}"}):
+            run = core.run_host(adapter, workspace, "", "task", None, 60)
+        self.assertIsNone(run["failure"], run["stderr"])
+        self.assertEqual(run["events"], [{"ran": True}])
 
     def test_workspace_is_writable_and_system_folders_are_not(self):
         report = self.run_probe()

@@ -65,7 +65,8 @@ run gets:
   `CREDENTIAL_FILES`, such as `~/.claude/.credentials.json`;
 - on Linux with `bwrap`, a jail: system folders are read-only, the workspace, scratch and home folders are
   writable, `/tmp` is empty, and nothing else is mounted, so this repository, other runs and the operator's files
-  are not there. A new user namespace keeps other processes' files out of reach through `/proc`.
+  are not there. A new user namespace keeps other processes' files out of reach through `/proc`. A host program
+  installed outside the system folders, such as under `~/.nvm`, gets its install folder mounted read-only.
 
 Where a host signs in with a file outside the home folder, pass it read-only with `--host-path PATH` (repeatable).
 Without `bwrap`, a run gets the environment and home seal only. `isolation` and `host_paths` in `provenance` record

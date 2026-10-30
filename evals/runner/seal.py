@@ -11,8 +11,9 @@ repository path, and a baseline run then read the skill from the checkout. A sea
   CREDENTIAL_FILES (the host's sign-in);
 - on Linux with `bwrap`, a jail that mounts system folders read-only and the workspace, scratch and
   home folders read-write, with an empty /tmp. The harnesswright checkout, other runs and the
-  operator's files are not there to read. Folders the host needs to sign in on a given machine can
-  be added read-only with `--host-path`; they are recorded in the results.
+  operator's files are not there to read. The host program's own install folder is mounted
+  read-only when it lies outside the system folders (see host_install). Folders the host needs to
+  sign in on a given machine can be added read-only with `--host-path`; they are recorded.
 
 Without `bwrap` the run gets the environment and home seal only, and the results say so.
 """
@@ -74,6 +75,29 @@ def environment(adapter, home, scratch=None, source=None):
     return adapter.environment(env)
 
 
+def host_install(program):
+    """Folders outside the system folders that hold the host program and its runtime, to mount read-only.
+
+    For the program as found on PATH and for its real path after symlinks, that is the folder above its
+    `bin` folder (such as an nvm node version, whose `lib` holds the program's package), else its own
+    folder. A folder that is the home folder, the root or holds this repository is never mounted whole:
+    only the file is.
+    """
+    found = shutil.which(program)
+    if found is None:
+        return []
+    never = {Path("/"), Path(os.path.expanduser("~")).resolve()}
+    repo = Path(__file__).resolve().parents[2]
+    paths = []
+    for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
+        if any(path.is_relative_to(folder) for folder in SYSTEM_FOLDERS):
+            continue
+        folder = path.parent.parent if path.parent.name == "bin" else path.parent
+        whole = folder.resolve() not in never and not repo.is_relative_to(folder.resolve())
+        paths.append(folder if whole else path)
+    return paths
+
+
 def jail(command, workspace, home, scratch=None, host_paths=(), env=None):
     """Wrap a host command in a bwrap jail, or return it unchanged when bwrap is missing."""
     if not jail_available():
@@ -89,7 +113,8 @@ def jail(command, workspace, home, scratch=None, host_paths=(), env=None):
             args += ["--symlink", os.readlink(path), folder]
         elif path.exists():
             args += ["--ro-bind", folder, folder]
-    read_only = [env[key] for key in CA_KEYS if env and env.get(key)] + [str(p) for p in host_paths]
+    read_only = [env[key] for key in CA_KEYS if env and env.get(key)] + \
+        [str(p) for p in list(host_paths) + host_install(command[0])]
     for path in read_only:
         if Path(path).exists():
             args += ["--ro-bind", path, path]
