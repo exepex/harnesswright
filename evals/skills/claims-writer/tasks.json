@@ -1,0 +1,70 @@
+{
+  "skill_name": "claims-writer",
+  "tasks": [
+    {
+      "id": 1,
+      "name": "python-story-all-met",
+      "prompt": "I've finished story S01 (bulk discount) in the project under files/py-discount: I changed src/discount.py and added tests/test_discount.py. The story is in files/py-discount/.harness/runs/2026-10-30-bulk-discount/stories/S01.md. Write up the claims for the story judge.",
+      "expected_output": "files/py-discount/.harness/runs/2026-10-30-bulk-discount/claims/S01.md with the six claims sections; AC-1 to AC-3 met, each backed by file:line and the output of a fresh test run",
+      "files": [
+        "files/py-discount/README.md",
+        "files/py-discount/.harness/profile.yaml",
+        "files/py-discount/.harness/runs/2026-10-30-bulk-discount/stories/S01.md",
+        "files/py-discount/src/__init__.py",
+        "files/py-discount/src/discount.py",
+        "files/py-discount/tests/__init__.py",
+        "files/py-discount/tests/test_discount.py"
+      ],
+      "expectations": [
+        {"text": "Exactly one claims file exists under the run folder, with the six sections in order, the story quoted, true line counts and valid file:line references", "check": "checks/claims_valid.py"},
+        {"text": "No project file outside .harness/ was changed", "check": "checks/code_unchanged.py"},
+        {"text": "The claims file is at .harness/runs/2026-10-30-bulk-discount/claims/S01.md inside the project", "check": "judge"},
+        {"text": "AC-1, AC-2 and AC-3 each have an entry with a status, a file:line in src/discount.py and a named test", "check": "judge"},
+        {"text": "The transcript shows the test command was run while writing the claims, and the claims quote its result (4 tests, OK)", "check": "judge"},
+        {"text": "Files changed lists src/discount.py and tests/test_discount.py", "check": "judge"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "python-story-criterion-not-met",
+      "prompt": "S02 in files/py-shipping is implemented (story: files/py-shipping/.harness/runs/2026-10-30-shipping/stories/S02.md). I touched src/shipping.py and tests/test_shipping.py. Prepare the claims so the judge can check it, I want to hand it over today.",
+      "expected_output": "Claims at files/py-shipping/.harness/runs/2026-10-30-shipping/claims/S02.md that mark AC-3 not met with the failing test's output, mark AC-1 and AC-2 met, and leave the code unchanged",
+      "files": [
+        "files/py-shipping/README.md",
+        "files/py-shipping/.harness/runs/2026-10-30-shipping/stories/S02.md",
+        "files/py-shipping/src/__init__.py",
+        "files/py-shipping/src/shipping.py",
+        "files/py-shipping/tests/__init__.py",
+        "files/py-shipping/tests/test_shipping.py"
+      ],
+      "expectations": [
+        {"text": "Exactly one claims file exists under the run folder, with the six sections in order, the story quoted, true line counts and valid file:line references", "check": "checks/claims_valid.py"},
+        {"text": "No project file outside .harness/ was changed", "check": "checks/code_unchanged.py"},
+        {"text": "AC-3 has status not met, and its evidence quotes the failing test test_unserved_country_is_rejected", "check": "judge"},
+        {"text": "AC-1 and AC-2 have status met, each with a passing test named", "check": "judge"},
+        {"text": "Neither the claims nor the final answer call the story done or complete", "check": "judge"},
+        {"text": "The final answer tells the person that AC-3 is not met", "check": "judge"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "go-story-unverifiable-criterion",
+      "prompt": "Done with the rate limiter story S03 in files/go-ratelimit (story file in files/go-ratelimit/.harness/runs/2026-10-30-rate-limit/stories/). Files: limiter/limiter.go and limiter/limiter_test.go. Please record the evidence for each acceptance criterion in the claims file.",
+      "expected_output": "Claims at files/go-ratelimit/.harness/runs/2026-10-30-rate-limit/claims/S03.md; AC-3 (staging latency) is not verified and listed under Not verified; every test result claimed comes from a run in the transcript",
+      "files": [
+        "files/go-ratelimit/README.md",
+        "files/go-ratelimit/go.mod",
+        "files/go-ratelimit/.harness/runs/2026-10-30-rate-limit/stories/S03.md",
+        "files/go-ratelimit/limiter/limiter.go",
+        "files/go-ratelimit/limiter/limiter_test.go"
+      ],
+      "expectations": [
+        {"text": "Exactly one claims file exists under the run folder, with the six sections in order, the story quoted, true line counts and valid file:line references", "check": "checks/claims_valid.py"},
+        {"text": "No project file outside .harness/ was changed", "check": "checks/code_unchanged.py"},
+        {"text": "AC-3 has status not verified, and Not verified names the staging latency measurement and why it could not be done here", "check": "judge"},
+        {"text": "Every claim that go test passed is backed by a go test run with that result in the transcript; if go test could not run, the claims say so under Not verified instead of claiming a pass", "check": "judge"},
+        {"text": "AC-1 and AC-2 each cite a file:line in limiter/limiter.go and a test by name", "check": "judge"}
+      ]
+    }
+  ]
+}

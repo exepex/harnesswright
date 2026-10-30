@@ -165,8 +165,24 @@ class CodexCommandTest(unittest.TestCase):
     def test_skill_is_installed_in_agents_skills(self):
         self.assertEqual(CODEX.skill_dir(WORKSPACE, "demo"), WORKSPACE / ".agents/skills/demo")
 
+    def test_environment_passes_openai_key_as_codex_key(self):
+        env = CODEX.environment({"OPENAI_API_KEY": "k1", "PATH": "/bin"})
+        self.assertEqual(env["CODEX_API_KEY"], "k1")
+
+    def test_environment_keeps_existing_codex_key(self):
+        env = CODEX.environment({"OPENAI_API_KEY": "k1", "CODEX_API_KEY": "k2"})
+        self.assertEqual(env["CODEX_API_KEY"], "k2")
+
 
 class CodexEventsTest(unittest.TestCase):
+    def test_live_codex_read_triggers(self):
+        # Shape seen from codex-cli 0.166.0 on 2026-10-30, output shortened.
+        event = {"type": "item.completed", "item": {
+            "id": "item_1", "type": "command_execution",
+            "command": "/bin/bash -lc 'cat .agents/skills/demo/SKILL.md'",
+            "aggregated_output": "---\nname: demo\n", "exit_code": 0, "status": "completed"}}
+        self.assertTrue(CODEX.skill_triggered([event], "demo"))
+
     def test_command_reading_skill_triggers(self):
         event = codex_item("command_execution", command="bash -lc 'sed -n 1,200p .agents/skills/demo/SKILL.md'")
         self.assertTrue(CODEX.skill_triggered([event], "demo"))
@@ -228,6 +244,24 @@ class CodexEventsTest(unittest.TestCase):
         self.assertEqual(CODEX.failure(failed, 1, False, "task"), "host reported turn.failed: unauthorized")
         self.assertEqual(CODEX.failure([], 0, False, "task"), "no turn.completed event")
         self.assertEqual(CODEX.failure([], 2, False, "task"), "exit code 2")
+
+    def test_reconnect_errors_do_not_fail_a_completed_turn(self):
+        events = [{"type": "error", "message": "Reconnecting... 2/5 (stream disconnected)"},
+                  codex_item("agent_message", text="done"), {"type": "turn.completed", "usage": {}}]
+        self.assertIsNone(CODEX.failure(events, 0, False, "task"))
+
+    def test_live_unauthorised_run_fails_with_final_error(self):
+        # Shape seen from codex-cli 0.166.0 on 2026-10-30 without a usable key, messages shortened.
+        events = [{"type": "thread.started"}, {"type": "turn.started"},
+                  {"type": "error", "message": "Reconnecting... 2/5 (unexpected status 401 Unauthorized)"},
+                  {"type": "error", "message": "unexpected status 401 Unauthorized"},
+                  {"type": "turn.failed", "error": {"message": "unexpected status 401 Unauthorized"}}]
+        self.assertEqual(CODEX.failure(events, 1, False, "trigger"),
+                         "host reported turn.failed: unexpected status 401 Unauthorized")
+
+    def test_error_without_completed_turn_fails(self):
+        events = [{"type": "error", "message": "stream closed"}]
+        self.assertEqual(CODEX.failure(events, 0, False, "task"), "host reported error: stream closed")
 
     def test_timeouts_fail_tasks_but_not_acted_triggers(self):
         partial = [codex_item("agent_message", text="working")]
