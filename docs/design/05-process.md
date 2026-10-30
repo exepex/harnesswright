@@ -23,9 +23,9 @@ Triage also gives every change a tier. The tier sets how many agents take part.
 
 | Tier | Typical change | Planning | Reviewers | Story judges | Extra |
 |---|---|---|---|---|---|
-| **T0** | Text only, no behaviour | None | None | 1 | None |
-| **T1** | Small, isolated code or configuration | None | 1 code | 1 | None |
-| **T2** | A feature or fix inside one module | Short plan, no panel | Code, tests, security | Panel of 3 | Integration tests |
+| **T0** | Text only, no behaviour | None; triage writes one story from the request | None | 1 | None |
+| **T1** | Small, isolated code or configuration | None; triage writes one story from the request | 1 code | 1 | None |
+| **T2** | A feature or fix inside one module | Short plan by the planner, no panel; story writer splits it | Code, tests, security | Panel of 3 | Integration tests |
 | **T3** | Several modules, public API, security, data, performance-critical paths | Plan panel of 3, human gate | Code, tests, security, release | Panel of 3 | Alignment judges, feature judges, scenario testers, performance tests |
 
 Rules for triage:

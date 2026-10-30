@@ -55,14 +55,19 @@ for a T3 change.
 ```yaml
 ---
 id: S02
-plan: P-order-retry
+plan: P-order-retry         # or "none" for a change with no plan
 depends-on: [S01]
-covers: [AC-1, AC-3]        # the plan's acceptance criteria this story delivers
+covers: [AC-1, AC-3]        # the plan's acceptance criteria this story delivers; empty when plan is "none"
 ---
 ```
 
-Sections: **What** (one paragraph) · **Acceptance criteria** (testable, each linked to the plan) · **Tests
-expected** (unit, integration, performance as relevant) · **Out of scope**.
+Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: the request, quoted) ·
+**Acceptance criteria** (testable, each linked to the plan when there is one) · **Tests expected** (unit,
+integration, performance as relevant) · **Out of scope**.
+
+Where a story comes from depends on the tier. For T2 and T3 the story writer splits the plan. For T0 and T1 there
+is no plan: triage writes a single story, with `plan: none`, straight from the request, and the story judge checks
+the change against that story's own acceptance criteria.
 
 A story is small enough to review in one sitting. The alignment judge checks that every plan criterion is covered
 by at least one story and that no story does anything the plan does not ask for.
@@ -118,8 +123,13 @@ blockers: []                # confirmed blockers; any entry forces fail
 ---
 ```
 
-Body: each claim, checked or refuted with evidence; then what must change for a pass. A verdict applies only to
-the commit it names. Any new commit needs a new verdict.
+Body: each claim, checked or refuted with evidence; then what must change for a pass.
+
+A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
+valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
+removal of the run folder before merge. The coordinator checks this with
+`git diff --name-only <commit> HEAD -- . ':(exclude).harness/runs'`: any file listed means the judged content
+changed, and the change needs a new verdict.
 
 ## Decision record
 

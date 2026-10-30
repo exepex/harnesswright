@@ -23,11 +23,11 @@ make the same mistake, so their agreement proves less.
 | Role | Purpose | Reads | Produces | Model class | Writes code |
 |---|---|---|---|---|---|
 | **Coordinator** | Runs the pipeline: starts roles, counts votes, enforces limits, escalates | Process config, run folder | Run log, escalations | `standard` | No |
-| **Triage** | Chooses the change type and risk tier, and so the pipeline | Request, diff or issue, repository map | Triage record | `fast`, `deep` if uncertain | No |
+| **Triage** | Chooses the change type and risk tier, and so the pipeline | Request, diff or issue, repository map | Triage record; for T0 and T1, one story written from the request | `fast`, `deep` if uncertain | No |
 | **Architect** | Makes and records design decisions for tier 3 changes | Request, codebase, standards | Decision records | `deep` | No |
 | **Planner** | Writes a plan: goal, scope, non-functional targets, risks, acceptance criteria | Request, decisions, standards (`PLAN`) | Plan | `deep` | No |
 | **Plan reviewer** | Reviews a plan and votes on it | Plan, request, standards | Findings, vote | `deep` | No |
-| **Story writer** | Splits an approved plan into small, independent, testable stories with an order | Plan | Stories | `standard` | No |
+| **Story writer** | Splits a plan (approved by its panel at T3) into small, independent, testable stories with an order | Plan | Stories | `standard` | No |
 | **Alignment judge** | Checks that the stories cover the plan, with nothing missing and nothing extra | Plan, stories | Verdict | `deep` | No |
 | **Implementer** | Builds one story: code, tests and documentation, then writes the claims | Story, standards, codebase | Change, claims | `standard` | Yes |
 | **Tester** | Writes or reviews unit, integration and performance tests, and proves each test fails when its code breaks | Story, change, standards (`TEST`, `ITEST`, `PERF`) | Tests, findings | `standard` | Tests only |
