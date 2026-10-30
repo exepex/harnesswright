@@ -50,8 +50,10 @@ A skill is production grade only when it has all of these:
 
 ## Portability
 
-The same skills must run on Claude Code, OpenAI Codex and hosts that run other models, such as Kimi and DeepSeek
-models, with the same behaviour.
+The same skills must work with every frontier model, through any agent host that reads the Agent Skills
+standard, with the same behaviour. A skill runs inside a host, such as Claude Code, OpenAI Codex, Gemini CLI or an
+open host, and the host runs the model. So harnesswright targets the standard, not a list of models or hosts, and a
+new model or host is supported by adding one adapter, never by changing a skill.
 
 ### What can and cannot be promised
 
@@ -62,8 +64,19 @@ variance:
 
 1. It writes skills so that as little as possible depends on the model or host (the rules below).
 2. It measures the behaviour on every supported host with the same evals.
-3. It releases a skill as portable only when every supported host passes within a set tolerance of the reference
-   host. A host that falls short is listed as unsupported for that skill until it passes.
+3. It releases a skill as portable only when every verified host passes within a set tolerance of the reference
+   host.
+
+No one can test every model that exists or will exist, so each host and model pairing carries one of three labels
+for each skill:
+
+| Label | Meaning |
+|---|---|
+| **Verified** | The skill's evals were run on this host and model and met the thresholds below |
+| **Compatible** | The host reads the Agent Skills standard, but the evals have not been run on it yet |
+| **Unsupported** | The evals were run and did not meet the thresholds; the gap is recorded |
+
+The labels for every skill are kept in `evals/results/` and updated whenever evals run.
 
 ### Portability rules
 
@@ -85,8 +98,8 @@ consuming repository can override or loosen them, and they change only through a
 
 Anything host-specific lives in `adapters/<host>/`, never in a skill: how skills are installed, how roles become
 that host's agent definitions, how sub-agents are started, which model each model class maps to, and how evals run.
-The first adapters planned are Claude Code (the reference host), OpenAI Codex, and one open host able to run Kimi
-and DeepSeek models, chosen in phase 2.
+The first adapters planned are Claude Code (the reference host), OpenAI Codex, and one open host that can run
+models from many vendors, chosen in phase 2. More hosts are added one adapter at a time, with the same evals.
 
 ### Portability evals
 

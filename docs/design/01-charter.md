@@ -35,9 +35,10 @@ harnesswright writes those instructions once, in layers, and makes every role ap
    and answers clear questions when agents cannot agree.
 7. **Measure the harness itself.** Every change to a skill or standard is checked against a fixed set of tasks before
    release.
-8. **Run on any agent host.** The same skills, roles and standards run on Claude Code, OpenAI Codex and hosts for
-   other models, such as Kimi and DeepSeek. Behaviour on each host is measured by the same evals and must stay
-   within set limits of the reference host. See [10 · Skills](10-skills.md).
+8. **Run with any frontier model.** The same skills, roles and standards work in every agent host that reads the
+   Agent Skills standard, whichever frontier model it runs: Claude, GPT, Gemini, Grok, Kimi, DeepSeek, Qwen,
+   Mistral, Llama and those still to come. Behaviour on each host is measured by the same evals, and each host is
+   labelled verified, compatible or unsupported. See [10 · Skills](10-skills.md).
 9. **Borrow before building.** Good existing skills, from vendors or the community, are adopted or adapted before
    anything is written from scratch, with their source and licence recorded.
 
