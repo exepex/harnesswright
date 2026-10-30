@@ -19,6 +19,8 @@ PATH_ONLY_COMMANDS = ("ls", "find", "fd", "tree", "stat", "test", "[", "file", "
 # Flags that turn a reading command into a path-only one, such as `rg --files`, which lists files
 # "without actually performing the search".
 PATH_ONLY_FLAGS = {"rg": ("--files",)}
+# Flags that make a path-only command run another command on the file, such as `find ... -exec cat {} ;`.
+RUNS_COMMAND_FLAGS = {"find": ("-exec", "-execdir", "-ok", "-okdir"), "fd": ("-x", "--exec", "-X", "--exec-batch")}
 SHELLS = ("bash", "sh", "zsh", "dash")
 
 
@@ -110,6 +112,8 @@ def _program(segment):
 
 def _path_only(segment):
     program = _program(segment)
+    if any(flag in _split(segment) for flag in RUNS_COMMAND_FLAGS.get(program, ())):
+        return False
     if program in PATH_ONLY_COMMANDS:
         return True
     return any(flag in _split(segment) for flag in PATH_ONLY_FLAGS.get(program, ()))

@@ -186,7 +186,8 @@ class CodexEventsTest(unittest.TestCase):
                         "bash -lc 'python3 -c \"print(open(\\\".agents/skills/demo/SKILL.md\\\").read())\"'",
                         "bash -lc 'ls .agents/skills && cat .agents/skills/demo/SKILL.md | head -50'",
                         "bash -lc 'while read l; do echo $l; done < .agents/skills/demo/SKILL.md'",
-                        "LC_ALL=C wc -l .agents/skills/demo/SKILL.md"):
+                        "LC_ALL=C wc -l .agents/skills/demo/SKILL.md",
+                        "bash -lc 'find .agents/skills/demo/SKILL.md -exec cat {} \\;'"):
             event = codex_item("command_execution", command=command)
             self.assertTrue(CODEX.skill_triggered([event], "demo"), command)
 
