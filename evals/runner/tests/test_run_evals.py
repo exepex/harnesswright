@@ -34,7 +34,7 @@ def fake_adapter(script, available=True, missing=None):
     def build_command(mode, workspace, model, scratch=None):
         return [sys.executable, str(script), mode] + (["--model", model] if model else [])
     return types.SimpleNamespace(
-        NAME="fake", CLI=sys.executable if available else "no-such-host-cli",
+        NAME="fake", CLI=sys.executable if available else "no-such-host-cli", ENV_KEYS=("FAKE_LOG",),
         missing_requirements=lambda mode: missing if mode == "task" else None,
         permission_profile=lambda mode: {"commands": "allowed" if mode == "task" else "refused"},
         refusals=lambda events: [e["what"] for e in events if e.get("type") == "refused"],
@@ -60,6 +60,11 @@ class RunnerEndToEndTest(unittest.TestCase):
         self.env = mock.patch.dict("os.environ", {"FAKE_LOG": str(self.log)})
         self.env.start()
         self.addCleanup(self.env.stop)
+        # The fake host writes its log outside the workspace, so these tests use the environment seal
+        # only; SealTest in test_seal.py checks the jail.
+        jail = mock.patch.object(core.seal, "jail_available", return_value=False)
+        jail.start()
+        self.addCleanup(jail.stop)
 
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()]
@@ -286,6 +291,19 @@ class RunnerEndToEndTest(unittest.TestCase):
                                "--entry", "codex," + self.label_files("b", skill="s2")])
         self.assertEqual(code, 2)
         self.assertFalse(out.exists())
+
+
+class BaselineSawSkillTest(unittest.TestCase):
+    DESCRIPTION = "Writes demos for a finished story. Use for demos."
+
+    def test_description_in_a_command_output_is_seen(self):
+        event = {"type": "item.completed", "item": {"aggregated_output": "name: demo\ndescription: " +
+                                                                     self.DESCRIPTION}}
+        self.assertTrue(run_evals.saw_skill(json.dumps(event), self.DESCRIPTION))
+
+    def test_failed_read_or_path_alone_is_not_seen(self):
+        stdout = json.dumps({"output": "cat: skills/demo/SKILL.md: No such file or directory"})
+        self.assertFalse(run_evals.saw_skill(stdout, self.DESCRIPTION))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Tests for the runner core: eval files, splitting, scoring and labels."""
 
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -182,6 +183,22 @@ class ProvenanceTest(unittest.TestCase):
 
     def test_repo_commit_is_recorded(self):
         self.assertRegex(core.repo_commit() or "", r"^[0-9a-f]{40}(-dirty)?$")
+
+
+class WorkspaceTest(unittest.TestCase):
+    def test_base_copies_of_the_skill_are_removed(self):
+        with tempfile.TemporaryDirectory() as base:
+            for folder in ("skills", ".claude/skills", ".agents/skills"):
+                (Path(base) / folder / "demo").mkdir(parents=True)
+                (Path(base) / folder / "demo" / "SKILL.md").write_text(SKILL_MD)
+            (Path(base) / "skills" / "other").mkdir()
+            workspace = core.make_workspace(core.load_adapter("codex"), None, "demo", base=base)
+            try:
+                left = sorted(str(p.relative_to(workspace)) for p in workspace.rglob("SKILL.md"))
+                self.assertEqual(left, [])
+                self.assertTrue((workspace / "skills" / "other").is_dir())
+            finally:
+                shutil.rmtree(workspace)
 
 
 class AdapterLoadingTest(unittest.TestCase):

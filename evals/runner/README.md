@@ -34,7 +34,8 @@ python3 evals/runner/run_evals.py label --skill NAME --reference claude-code \
 ```
 
 The eval files default to `evals/skills/NAME/triggers.json` and `tasks.json`; `--evals` names another file.
-`--base` copies a folder, such as this repository, into each task workspace before the task's input files.
+`--base` copies a folder into each task workspace before the task's input files. Keep it a small fixture: a copy
+of this repository gives the host everything in it.
 `--baseline` runs the tasks without the skill. `--description` tests a new description without editing the skill;
 with `--holdout`, results are split into train and test sets, stratified by `should_trigger`, so a description is
 tuned on train failures and chosen by its test score.
@@ -51,10 +52,31 @@ such as `go test` can keep a cache) and is deleted after the run. The adapter re
 task run in which the host refused any action fails with `host refused N action(s)`, and is never scored as a
 success.
 
+## Sealed runs
+
+Every host run, trigger or task, with or without the skill, is sealed off from the machine that runs the evals
+(`seal.py`). Unsealed, a Claude Code host started from a Claude Code session joined that session, loaded its
+project memory, learned the skill's name and path, and a baseline run read the skill from the checkout. A sealed
+run gets:
+
+- an environment built from an allow list: `PATH`, locale, proxy and CA settings, and the sign-in variables the
+  adapter names in `ENV_KEYS`, such as `ANTHROPIC_API_KEY` or `CODEX_API_KEY`. No other variable passes;
+- a fresh, empty `HOME` and `TMPDIR`, deleted after the run, holding only copies of the adapter's
+  `CREDENTIAL_FILES`, such as `~/.claude/.credentials.json`;
+- on Linux with `bwrap`, a jail: system folders are read-only, the workspace, scratch and home folders are
+  writable, `/tmp` is empty, and nothing else is mounted, so this repository, other runs and the operator's files
+  are not there. A new user namespace keeps other processes' files out of reach through `/proc`. A host program
+  installed outside the system folders, such as under `~/.nvm`, gets its install folder mounted read-only.
+
+Where a host signs in with a file outside the home folder, pass it read-only with `--host-path PATH` (repeatable).
+Without `bwrap`, a run gets the environment and home seal only. `isolation` and `host_paths` in `provenance` record
+which. `tests/test_seal.py` plants copies of the skill, the repository, session and memory variables and a home
+folder with memory, and checks that a sealed run reaches none of them.
+
 ## Provenance
 
 Every results file records what produced it in `provenance`: `runner_commit` (`-dirty` when tracked files had
-changed), `host_version` (`<CLI> --version`), `requested_model`, `permission_profile`, `skill_sha256` (every file
+changed), `host_version` (`<CLI> --version`), `requested_model`, `permission_profile`, `isolation`, `host_paths`, `skill_sha256` (every file
 of the skill as installed, including a `--description` override) and `evals_sha256` (the trigger file, or the
 task file's folder without `triggers.json` and the results folder), and for task runs `base_sha256` (the `--base`
 folder without `.git` and the results folder). `label` refuses results from different skill versions, or with- and
@@ -73,8 +95,10 @@ without-skill runs from different task files or `--base` contents.
 and `passed`). Script checks run at once; `judge` expectations stay `null` until the grader writes
 `grading.json` in the run folder. Each invocation first deletes earlier results for the same configuration, and
 writes `status-<configuration>.json` with whether the host ran and which runs it made. Workspaces never contain
-the results folder, nor a copy of the skill from `--base` other than the one installed for this run, so baseline
-runs are truly without the skill. A task run that times out is a failed run. `run.json` also holds `model` and
+the results folder, nor a copy of the skill from `--base` (in `skills/` or a host's skills folder) other than the
+one installed for this run. As a backstop to the seal, a baseline run whose host output holds the skill's
+description has seen the skill and fails with `baseline saw the skill under test`. A task run that
+times out is a failed run. `run.json` also holds `model` and
 `refusals`; `status-<configuration>.json` holds `provenance`. Each task runs 3 times by default.
 
 **Task score** (`score`): reads only the runs listed in the status file. `runs[]` with `passed` for each run,
@@ -103,4 +127,5 @@ graded. As in skill-creator's benchmark, it also gives `tasks` (per task: `runs`
 python3 -m unittest discover -s evals/runner/tests
 ```
 
-The tests use a fake host, so they need no network and no credentials.
+The tests use a fake host, so they need no network and no credentials. The jail tests need `bwrap` on Linux and
+are skipped elsewhere.
