@@ -9,7 +9,7 @@ previous one has been reviewed. Everything is built and tested inside harnesswri
 | Phase | Builds | Done when |
 |---|---|---|
 | **1 · Structure** | These design documents and `AGENTS.md` | The owner approves them |
-| **2 · Skill designer** | The skill designer role and skill, adapted from Anthropic's skill-creator; an eval runner that calls host adapters; adapters for Claude Code and OpenAI Codex, and a choice of open host for Kimi and DeepSeek models (see [10 · Skills](10-skills.md)) | The designer produces one small sample skill whose evals pass on two hosts within the portability thresholds |
+| **2 · Skill designer** | The skill designer role and skill, adapted from Anthropic's skill-creator; an eval runner that calls host adapters; adapters for Claude Code and OpenAI Codex, and a choice of one open host that can run models from many vendors (see [10 · Skills](10-skills.md)) | The designer produces one small sample skill whose evals pass on two hosts within the portability thresholds |
 | **3 · Walking skeleton** | Contract templates; triage, implementer and story judge roles; core standards for `NAME`, `DSGN` and `TEST`; the Java profile; one pipeline (T0 and T1); about ten evals; packaging for each supported host; a small sample Java project under `evals/fixtures/` | A T1 change to the sample Java project runs through the harness on two hosts, and the judge's verdict is checked by a human |
 | **4 · Harvest** | A deep read of open-source and vendor skill and agent repositories, each idea scored and recorded with its source and licence | A harvest catalogue the owner has reviewed, mapped onto the rule areas and roles |
 | **5 · Standards** | The remaining core areas (`FUNC`, `CONF`, `ERR`, `DOC`, `ITEST`, `PERF`, `SEC`, `OPS`, `PLAN`), written from the harvest in one voice, each with evals | Every core area has rules, checks and evals |
@@ -49,4 +49,4 @@ trailofbits/skills.
 | 4 | How is orchestration (sub-agents, parallel work) provided on each host? | Through host adapters, decided in phase 6; steps that need no independence keep a single-agent fallback, and independent steps never run in the implementer's session (`HW-PORT-03`) |
 | 5 | Where do organisation and team layers live once they exist: in this repository, or in their own? | In this repository, under `standards/org/` and `standards/team/` |
 | 6 | Should a small format check (frontmatter, links, file sizes) run in CI or as a local pre-commit hook? | Neither until the owner asks; checked by agents and review |
-| 7 | Which open host runs Kimi and DeepSeek models in phase 2? | Chosen in phase 2, from hosts that read Agent Skills |
+| 7 | Which open host runs models from many vendors in phase 2? | Chosen in phase 2, from hosts that read Agent Skills and can run many vendors' models |
