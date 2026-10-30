@@ -5,7 +5,7 @@ Claude Code is the reference host. This adapter runs evals through its non-inter
 | Item | Value |
 |---|---|
 | Command | `claude -p --output-format stream-json --verbose --setting-sources project --no-session-persistence` |
-| Task runs add | `--permission-mode acceptEdits --settings '{"sandbox": {"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false}}' --add-dir <scratch>` |
+| Task runs add | `--permission-mode acceptEdits --settings '{"sandbox": {"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false}}' --allowedTools Bash --add-dir <scratch>` |
 | Task powers | Commands run without a prompt inside the host's sandbox: writes only in the workspace and the scratch folder, network blocked. A command the sandbox cannot hold is refused, never run outside it. The same powers as Codex's `workspace-write`. |
 | Needs | On Linux, `bwrap` and `socat` on PATH for the sandbox (`apt install bubblewrap socat`). Without them the host refuses every command, so the runner marks task runs `not run` |
 | Refused when | The `result` event lists `permission_denials`; the runner then fails the task run |
@@ -26,7 +26,11 @@ so a trigger eval measures the skill against them, as a real user would see it.
   "This command requires approval" in `permission_denials` and the run still exited 0. With the sandbox settings
   above, `python3 t.py` and `go test ./...` ran, `touch /tmp/outside` failed with "Read-only file system", and
   `curl https://example.com` was blocked by the sandbox. Without `bwrap` and `socat` the host printed "Sandbox
-  disabled" and refused the commands again. Go's build cache needs the scratch folder (`XDG_CACHE_HOME`, added
+  disabled" and refused the commands again. The sandbox's auto-approval alone still refused compound commands
+  such as `cd sub; python3 t.py; echo "exit=$?"` and a `cat > file <<EOF` heredoc ("This Bash command contains
+  multiple operations. The following parts require approval"), which made two of two live claims-writer runs
+  fail. With `--allowedTools Bash` added, both ran, and `touch /tmp/outside` still failed with "Read-only file
+  system": the sandbox, not the prompt, is what confines commands. Go's build cache needs the scratch folder (`XDG_CACHE_HOME`, added
   with `--add-dir`); without it `go test` fails on the read-only home folder.
 - Runner, live: a throwaway skill whose task runs `go test` passed its script check through `run_evals.py tasks`,
   with no refusals and the host default model recorded from the init event.

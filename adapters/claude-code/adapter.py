@@ -14,6 +14,8 @@ CLI = "claude"
 # Task runs: commands run in the host's sandbox, which allows writes only inside the workspace and the
 # scratch folder and blocks the network, so they are approved without a prompt. The same powers as
 # Codex's workspace-write sandbox. Commands that cannot run in the sandbox are refused, never run outside it.
+# The sandbox's own auto-approval still asks about some compound commands (`cd x; a; b`, heredocs), so the
+# command tool is allowed too; every command it runs stays inside the sandbox.
 TASK_SETTINGS = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True,
                              "allowUnsandboxedCommands": False}}
 # The sandbox needs these on Linux; without them Claude Code turns it off and refuses every command.
@@ -35,7 +37,8 @@ def build_command(mode, workspace, model, scratch=None):
     command = [CLI, "-p", "--output-format", "stream-json", "--verbose",
                "--setting-sources", "project", "--no-session-persistence"]
     if mode == "task":
-        command += ["--permission-mode", "acceptEdits", "--settings", json.dumps(TASK_SETTINGS)]
+        command += ["--permission-mode", "acceptEdits", "--settings", json.dumps(TASK_SETTINGS),
+                    "--allowedTools", "Bash"]
         if scratch:
             command += ["--add-dir", str(scratch)]
     if model:

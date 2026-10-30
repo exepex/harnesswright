@@ -33,7 +33,7 @@ class ClaudeCodeCommandTest(unittest.TestCase):
         self.assertEqual(command[8:], [
             "--permission-mode", "acceptEdits", "--settings",
             '{"sandbox": {"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false}}',
-            "--add-dir", "/tmp/scratch"])
+            "--allowedTools", "Bash", "--add-dir", "/tmp/scratch"])
         self.assertNotIn("bypassPermissions", command)
         self.assertNotIn("--dangerously-skip-permissions", command)
 

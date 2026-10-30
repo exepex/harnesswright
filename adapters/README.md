@@ -36,7 +36,8 @@ Rules for every adapter:
 - Python 3 standard library only, no network calls of its own, the same output for the same input (`HW-PORT-04`).
 - Name no concrete model. The model is passed in at run time.
 - Task runs get the same powers on every host: run commands, write only inside the disposable workspace and the
-  scratch folder, no network. Use the host's own sandbox for this. Never pass a flag that approves everything.
+  scratch folder, no network. Use the host's own sandbox for this: it, not a permission prompt, confines
+  commands. Never pass a flag that approves everything or lets a command run outside the sandbox.
 - Detect triggering from what the host did, never from what its answer says.
 - Unit tests in `evals/runner/tests/` must fail when the command an adapter builds is wrong.
 
