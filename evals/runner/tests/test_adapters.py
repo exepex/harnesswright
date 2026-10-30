@@ -71,12 +71,18 @@ class ClaudeCodeEventsTest(unittest.TestCase):
 
     def test_failure_cases(self):
         ok = [{"type": "result", "is_error": False, "result": "done"}]
-        self.assertIsNone(CLAUDE.failure(ok, 0, False))
+        self.assertIsNone(CLAUDE.failure(ok, 0, False, "task"))
         self.assertEqual(CLAUDE.final_message(ok), "done")
-        self.assertIn("error", CLAUDE.failure([{"type": "result", "is_error": True}], 1, False))
-        self.assertEqual(CLAUDE.failure([], 1, False), "exit code 1")
-        self.assertEqual(CLAUDE.failure([], None, True), "timed out with no output")
-        self.assertIsNone(CLAUDE.failure([claude_tool("Skill", {"skill": "demo"})], None, True))
+        self.assertIn("error", CLAUDE.failure([{"type": "result", "is_error": True}], 1, False, "task"))
+        self.assertEqual(CLAUDE.failure([], 1, False, "task"), "exit code 1")
+        self.assertEqual(CLAUDE.failure([], None, True, "trigger"), "timed out")
+
+    def test_timed_out_trigger_run_counts_after_host_acted(self):
+        self.assertIsNone(CLAUDE.failure([claude_tool("Skill", {"skill": "demo"})], None, True, "trigger"))
+
+    def test_timed_out_task_run_always_fails(self):
+        partial = [{"type": "assistant", "message": {"content": [{"type": "text", "text": "working"}]}}]
+        self.assertEqual(CLAUDE.failure(partial, None, True, "task"), "timed out")
 
 
 class CodexCommandTest(unittest.TestCase):
@@ -111,6 +117,25 @@ class CodexEventsTest(unittest.TestCase):
         event = codex_item("command_execution", command="bash -lc 'sed -n 1,200p .agents/skills/demo/SKILL.md'")
         self.assertTrue(CODEX.skill_triggered([event], "demo"))
 
+    def test_listing_whose_output_shows_skill_does_not_trigger(self):
+        event = codex_item("command_execution", command="bash -lc 'find . -name SKILL.md'",
+                           aggregated_output="./.agents/skills/demo/SKILL.md\n", status="completed")
+        self.assertFalse(CODEX.skill_triggered([event], "demo"))
+
+    def test_listing_the_skill_path_itself_does_not_trigger(self):
+        event = codex_item("command_execution", command="ls -l .agents/skills/demo/SKILL.md")
+        self.assertFalse(CODEX.skill_triggered([event], "demo"))
+
+    def test_tool_call_reading_skill_triggers(self):
+        event = codex_item("mcp_tool_call", tool="read_file", arguments={"path": ".agents/skills/demo/SKILL.md"},
+                           result="name: demo")
+        self.assertTrue(CODEX.skill_triggered([event], "demo"))
+
+    def test_tool_result_mentioning_skill_does_not_trigger(self):
+        event = codex_item("mcp_tool_call", tool="list", arguments={"path": "."},
+                           result=".agents/skills/demo/SKILL.md")
+        self.assertFalse(CODEX.skill_triggered([event], "demo"))
+
     def test_message_mentioning_skill_does_not_trigger(self):
         event = codex_item("agent_message", text="see .agents/skills/demo/SKILL.md")
         self.assertFalse(CODEX.skill_triggered([event], "demo"))
@@ -125,11 +150,17 @@ class CodexEventsTest(unittest.TestCase):
 
     def test_failure_cases(self):
         done = [{"type": "turn.completed", "usage": {}}]
-        self.assertIsNone(CODEX.failure(done, 0, False))
+        self.assertIsNone(CODEX.failure(done, 0, False, "task"))
         failed = [{"type": "turn.failed", "error": {"message": "unauthorized"}}]
-        self.assertEqual(CODEX.failure(failed, 1, False), "host reported turn.failed: unauthorized")
-        self.assertEqual(CODEX.failure([], 0, False), "no turn.completed event")
-        self.assertEqual(CODEX.failure([], 2, False), "exit code 2")
+        self.assertEqual(CODEX.failure(failed, 1, False, "task"), "host reported turn.failed: unauthorized")
+        self.assertEqual(CODEX.failure([], 0, False, "task"), "no turn.completed event")
+        self.assertEqual(CODEX.failure([], 2, False, "task"), "exit code 2")
+
+    def test_timeouts_fail_tasks_but_not_acted_triggers(self):
+        partial = [codex_item("agent_message", text="working")]
+        self.assertEqual(CODEX.failure(partial, None, True, "task"), "timed out")
+        self.assertIsNone(CODEX.failure(partial, None, True, "trigger"))
+        self.assertEqual(CODEX.failure([], None, True, "trigger"), "timed out")
 
     def test_parse_reads_documented_example(self):
         line = json.dumps({"type": "item.started", "item": {"id": "item_1", "type": "command_execution",

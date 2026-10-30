@@ -25,7 +25,7 @@ names. The runner checks that all of them exist.
 | `parse_events(stdout)` | The host's machine-readable events, as a list of dictionaries |
 | `skill_triggered(events, skill_name)` | `True` only when the events show the host loaded that skill's `SKILL.md` |
 | `final_message(events)` | The host's last answer, as text |
-| `failure(events, returncode, timed_out)` | Why the run failed, or `None`. A failed run is never scored. |
+| `failure(events, returncode, timed_out, mode)` | Why the run failed, or `None`. A failed run is never scored. A timed-out task run always fails. |
 
 Rules for every adapter:
 

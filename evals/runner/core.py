@@ -19,6 +19,9 @@ ADAPTERS_DIR = REPO_ROOT / "adapters"
 ADAPTER_FUNCTIONS = ("skill_dir", "build_command", "environment", "parse_events",
                      "skill_triggered", "final_message", "failure")
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9}
+# Project folders where known hosts discover skills. A copied base folder may hold the skill under test
+# in any of them, which would leak it into a baseline run or mix it with the installed copy.
+SKILL_FOLDERS = (".claude/skills", ".agents/skills", ".opencode/skills", ".goose/skills")
 
 
 class EvalError(Exception):
@@ -154,11 +157,27 @@ def split_queries(queries, holdout, seed=42):
 
 # ---- workspaces and host runs -----------------------------------------------
 
-def make_workspace(adapter, skill_path, skill_name, skill_text=None, base=None):
-    """Create a disposable workspace, copy `base` into it and install the skill."""
+def _copy_ignore(excluded):
+    """copytree ignore function: skip .git and every path in `excluded` (resolved paths)."""
+    excluded = {Path(p).resolve() for p in excluded}
+
+    def ignore(folder, names):
+        here = Path(folder).resolve()
+        return {n for n in names if n == ".git" or (here / n).resolve() in excluded}
+    return ignore
+
+
+def make_workspace(adapter, skill_path, skill_name, skill_text=None, base=None, exclude=()):
+    """Create a disposable workspace, copy `base` into it (without `exclude`) and install the skill.
+
+    Any copy of the skill that came with `base` is removed first, so a baseline run never sees it.
+    """
     workspace = Path(tempfile.mkdtemp(prefix="hw-eval-"))
     if base is not None:
-        shutil.copytree(base, workspace, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git"))
+        shutil.copytree(base, workspace, dirs_exist_ok=True, ignore=_copy_ignore(exclude))
+    for folder in SKILL_FOLDERS:
+        shutil.rmtree(workspace / folder / skill_name, ignore_errors=True)
+    shutil.rmtree(adapter.skill_dir(workspace, skill_name), ignore_errors=True)
     if skill_path is not None:
         target = adapter.skill_dir(workspace, skill_name)
         shutil.copytree(skill_path, target, dirs_exist_ok=True)
@@ -183,7 +202,7 @@ def run_host(adapter, workspace, prompt, mode, model, timeout):
     events = adapter.parse_events(stdout)
     return {"command": command, "events": events, "stdout": stdout, "stderr": stderr,
             "returncode": returncode, "timed_out": timed_out,
-            "failure": adapter.failure(events, returncode, timed_out)}
+            "failure": adapter.failure(events, returncode, timed_out, mode)}
 
 
 def _text(value):
@@ -232,7 +251,7 @@ def label_host(entry, reference, thresholds=THRESHOLDS):
     """Label one host and model pairing: verified or unsupported, with the gaps found."""
     gaps = []
     task_rate, trigger = entry.get("task_pass_rate"), entry.get("trigger_accuracy")
-    if task_rate is None or trigger is None:
+    if task_rate is None or trigger is None or entry.get("trigger_not_run", 0) > 0:
         return {"label": "incomplete", "gaps": ["not every eval has a result"]}
     if task_rate < thresholds["task_pass_rate"]:
         gaps.append(f"task pass rate {task_rate:.0%} below {thresholds['task_pass_rate']:.0%}")

@@ -9,8 +9,8 @@ Runs evals through the Codex command line in non-interactive mode, `codex exec`.
 | Model | `--model <model>` only when the runner is given one; otherwise the host default |
 | Prompt | Standard input (the final `-`) |
 | Skill location | `<workspace>/.agents/skills/<name>/SKILL.md` |
-| Triggered when | A `command_execution` or `mcp_tool_call` item names `skills/<name>/SKILL.md` |
-| Failed when | A `turn.failed` or `error` event arrives, there is no `turn.completed` event, or the exit code is not 0 |
+| Triggered when | A `command_execution` item whose command runs a file-printing command (`cat`, `sed`, `head` and similar) on `skills/<name>/SKILL.md`, or an `mcp_tool_call` whose arguments name that file. Command output is never inspected. |
+| Failed when | A `turn.failed` or `error` event arrives, there is no `turn.completed` event, the exit code is not 0, or a task run times out |
 
 Codex has no separate skill tool. Its skill instructions tell the agent to open the listed `SKILL.md` before acting,
 so reading that file is the trigger signal. An agent message that only mentions the path does not count.

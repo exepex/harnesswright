@@ -9,7 +9,8 @@ from pathlib import Path
 
 NAME = "codex"
 CLI = "codex"
-READ_ITEM_TYPES = ("command_execution", "mcp_tool_call")
+# Commands that print a file. Listing or searching commands can show a path without reading it.
+READ_COMMANDS = ("cat", "sed", "head", "tail", "less", "more", "nl", "awk", "bat", "type", "get-content")
 
 
 def skill_dir(workspace, skill_name):
@@ -54,10 +55,21 @@ def _items(events):
             yield event["item"]
 
 
+def _reads_file(command, marker):
+    """True when a shell command runs a file-printing command on the path. Output is never inspected."""
+    if marker not in command:
+        return False
+    words = command.replace("'", " ").replace('"', " ").replace(";", " ").replace("|", " ").split()
+    return any(word.rsplit("/", 1)[-1].lower() in READ_COMMANDS for word in words)
+
+
 def skill_triggered(events, skill_name):
+    """True when Codex ran a command that reads the skill's SKILL.md, or a tool call whose arguments name it."""
     marker = f"skills/{skill_name}/SKILL.md"
     for item in _items(events):
-        if item.get("type") in READ_ITEM_TYPES and marker in json.dumps(item):
+        if item.get("type") == "command_execution" and _reads_file(str(item.get("command", "")), marker):
+            return True
+        if item.get("type") == "mcp_tool_call" and marker in json.dumps(item.get("arguments", {})):
             return True
     return False
 
@@ -70,8 +82,12 @@ def final_message(events):
     return text
 
 
-def failure(events, returncode, timed_out):
-    """Return why the run failed, or None. A timed-out run still counts if items arrived."""
+def failure(events, returncode, timed_out, mode):
+    """Return why the run failed, or None.
+
+    A timed-out task run always fails: partial work is not a finished task. A timed-out trigger run
+    counts when items already arrived, because the trigger decision comes first.
+    """
     for event in events:
         if event.get("type") in ("turn.failed", "error"):
             detail = event.get("error") or event.get("message") or ""
@@ -79,7 +95,9 @@ def failure(events, returncode, timed_out):
                 detail = detail.get("message", "")
             return f"host reported {event['type']}: {detail}".rstrip(": ")
     if timed_out:
-        return None if any(True for _ in _items(events)) else "timed out with no output"
+        if mode == "trigger" and any(True for _ in _items(events)):
+            return None
+        return "timed out"
     if returncode not in (0, None):
         return f"exit code {returncode}"
     if not any(e.get("type") == "turn.completed" for e in events):

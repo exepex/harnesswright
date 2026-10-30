@@ -89,13 +89,19 @@ def cmd_tasks(args):
     if reason:
         core.warn(f"{args.host}: not run: {reason}")
     out_dir = Path(args.out_dir)
+    # Results of an earlier invocation must never be scored as this one's.
+    for task in tasks:
+        shutil.rmtree(out_dir / task["name"] / config, ignore_errors=True)
+    core.write_json(out_dir / f"status-{config}.json", {
+        "host": args.host, "status": "not run" if reason else "run", "not_run_reason": reason,
+        "runs": [{"task_name": t["name"], "run": n} for t in sorted(tasks, key=lambda t: t["id"])
+                 for n in range(1, (args.runs if not reason else 0) + 1)]})
     for task in sorted(tasks, key=lambda t: t["id"]):
         for number in range(1, (args.runs if not reason else 0) + 1):
             run_dir = out_dir / task["name"] / config / f"run-{number}"
-            if run_dir.exists():
-                shutil.rmtree(run_dir)
+            # Earlier results under --base must not leak into a later workspace.
             workspace = core.make_workspace(adapter, None if args.baseline else args.skill, name,
-                                            text, base=args.base)
+                                            text, base=args.base, exclude=[out_dir])
             for relative in task.get("files", []):
                 target = workspace / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -118,24 +124,30 @@ def cmd_tasks(args):
                 "run": number, "failure": run["failure"], "returncode": run["returncode"],
                 "checks": checks})
             core.warn(f"{task['name']} run {number}: {run['failure'] or 'done'}")
-    core.write_json(out_dir / "status.json", {"host": args.host, "status": "not run" if reason else "run",
-                                              "not_run_reason": reason})
     return 0
 
 
 def cmd_score(args):
     tasks_dir = Path(args.tasks_dir)
+    status_file = tasks_dir / f"status-{args.configuration}.json"
+    if not status_file.exists():
+        raise core.EvalError(f"{status_file} not found; run the tasks command first")
+    status = json.loads(status_file.read_text(encoding="utf-8"))
     runs = []
-    for run_file in sorted(tasks_dir.glob(f"*/{args.configuration}/run-*/run.json")):
-        run = json.loads(run_file.read_text(encoding="utf-8"))
-        grading_file = run_file.parent / "grading.json"
+    # Score exactly the runs the latest invocation made, never leftovers.
+    for expected in status["runs"]:
+        run_dir = tasks_dir / expected["task_name"] / args.configuration / f"run-{expected['run']}"
+        run_file, grading_file = run_dir / "run.json", run_dir / "grading.json"
+        run = json.loads(run_file.read_text(encoding="utf-8")) if run_file.exists() else None
         grading = json.loads(grading_file.read_text(encoding="utf-8")) if grading_file.exists() else None
-        passed = None if run["failure"] else core.task_passed(run["checks"], grading)
-        runs.append({"task_name": run["task_name"], "run": run["run"], "failure": run["failure"],
-                     "passed": passed})
+        failure = "run.json missing" if run is None else run["failure"]
+        passed = None if failure else core.task_passed(run["checks"], grading)
+        runs.append({**expected, "failure": failure, "passed": passed})
     scored = [r for r in runs if r["passed"] is not None]
-    rate = round(sum(r["passed"] for r in scored) / len(scored), 4) if scored and len(scored) == len(runs) else None
-    output = {"configuration": args.configuration, "runs": runs, "task_pass_rate": rate,
+    complete = status["status"] == "run" and scored and len(scored) == len(runs)
+    rate = round(sum(r["passed"] for r in scored) / len(scored), 4) if complete else None
+    output = {"configuration": args.configuration, "status": status["status"],
+              "not_run_reason": status["not_run_reason"], "runs": runs, "task_pass_rate": rate,
               "ungraded_or_failed": len(runs) - len(scored)}
     core.write_json(args.out, output)
     print(json.dumps({"task_pass_rate": rate, "ungraded_or_failed": output["ungraded_or_failed"]}))
@@ -150,6 +162,7 @@ def cmd_label(args):
         score = json.loads(Path(score_file).read_text(encoding="utf-8"))
         entries.append({"host": host, "model": model,
                         "trigger_accuracy": triggers["summary"]["all"]["accuracy"],
+                        "trigger_not_run": triggers["summary"]["all"]["not_run"],
                         "task_pass_rate": score["task_pass_rate"]})
     reference = next((e for e in entries if e["host"] == args.reference), None)
     if reference is None:

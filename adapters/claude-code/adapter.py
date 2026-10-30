@@ -76,13 +76,19 @@ def final_message(events):
     return ""
 
 
-def failure(events, returncode, timed_out):
-    """Return why the run failed, or None. A timed-out run still counts if events arrived."""
+def failure(events, returncode, timed_out, mode):
+    """Return why the run failed, or None.
+
+    A timed-out task run always fails: partial work is not a finished task. A timed-out trigger run
+    counts when the host already acted, because the trigger decision comes first.
+    """
     for event in events:
         if event.get("type") == "result" and event.get("is_error"):
             return f"host reported an error: {event.get('subtype', 'error')}"
     if timed_out:
-        return None if any(e.get("type") == "assistant" for e in events) else "timed out with no output"
+        if mode == "trigger" and any(e.get("type") == "assistant" for e in events):
+            return None
+        return "timed out"
     if returncode not in (0, None):
         return f"exit code {returncode}"
     if not any(e.get("type") == "result" for e in events):

@@ -10,7 +10,7 @@ Claude Code is the reference host. This adapter runs evals through its non-inter
 | Prompt | Standard input |
 | Skill location | `<workspace>/.claude/skills/<name>/SKILL.md` |
 | Triggered when | An assistant `tool_use` event calls `Skill` with that skill's name, or `Read` on its `SKILL.md` |
-| Failed when | A `result` event has `is_error: true`, there is no `result` event, or the exit code is not 0 |
+| Failed when | A `result` event has `is_error: true`, there is no `result` event, the exit code is not 0, or a task run times out |
 | Environment | `CLAUDECODE` is removed, so a run can start from inside a Claude Code session |
 
 `--setting-sources project` keeps the user's own settings out of the run. Skills the host bundles are still listed,

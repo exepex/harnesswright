@@ -16,7 +16,8 @@ import run_evals  # noqa: E402
 FAKE_HOST = textwrap.dedent("""
     import json, os, sys
     prompt = sys.stdin.read()
-    record = {"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt}
+    record = {"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt,
+              "files": sorted(os.path.join(d, f) for d, _, fs in os.walk(".") for f in fs)}
     with open(os.environ["FAKE_LOG"], "a") as log:
         log.write(json.dumps(record) + "\\n")
     if "haiku" in prompt:
@@ -38,7 +39,7 @@ def fake_adapter(script, available=True):
         parse_events=lambda out: [json.loads(line) for line in out.splitlines() if line.strip()],
         skill_triggered=lambda events, name: any(e.get("skill") == name for e in events),
         final_message=lambda events: events[-1]["text"] if events else "",
-        failure=lambda events, code, timed_out: None if code == 0 else f"exit code {code}")
+        failure=lambda events, code, timed_out, mode: None if code == 0 else f"exit code {code}")
 
 
 class RunnerEndToEndTest(unittest.TestCase):
@@ -134,20 +135,72 @@ class RunnerEndToEndTest(unittest.TestCase):
         run_evals.main(["score", "--tasks-dir", str(out_dir), "--out", str(score)])
         self.assertEqual(json.loads(score.read_text())["task_pass_rate"], 1.0)
 
+    def task_evals(self):
+        evals_dir = self.tmp / "evals"
+        evals_dir.mkdir(exist_ok=True)
+        (evals_dir / "tasks.json").write_text(json.dumps({"skill_name": "demo", "tasks": [{
+            "id": 1, "name": "write-result", "prompt": "write it",
+            "expectations": [{"text": "result is good", "check": "judge"}]}]}))
+        return str(evals_dir / "tasks.json")
+
+    def run_tasks(self, adapter, out_dir, *extra):
+        return self.run_cli(adapter, ["tasks", "--skill", str(self.skill), "--host", "fake",
+                                      "--evals", self.task_evals(), "--out-dir", str(out_dir), *extra])
+
+    def score(self, out_dir):
+        out = self.tmp / "score.json"
+        run_evals.main(["score", "--tasks-dir", str(out_dir), "--out", str(out)])
+        return json.loads(out.read_text())
+
+    def test_unavailable_host_clears_and_does_not_score_old_results(self):
+        out_dir = self.tmp / "out"
+        self.run_tasks(fake_adapter(self.script), out_dir, "--runs", "2")
+        for run in ("run-1", "run-2"):
+            (out_dir / "write-result" / "with_skill" / run / "grading.json").write_text(json.dumps(
+                {"expectations": [{"text": "result is good", "passed": True}]}))
+        self.assertEqual(self.score(out_dir)["task_pass_rate"], 1.0)
+        self.run_tasks(fake_adapter(self.script), out_dir, "--runs", "1")
+        self.assertEqual([r["run"] for r in self.score(out_dir)["runs"]], [1], "surplus runs must not count")
+        self.run_tasks(fake_adapter(self.script, available=False), out_dir)
+        score = self.score(out_dir)
+        self.assertEqual((score["status"], score["task_pass_rate"]), ("not run", None))
+        self.assertFalse((out_dir / "write-result" / "with_skill").exists())
+
+    def test_baseline_removes_skill_inherited_from_base(self):
+        base = self.tmp / "base"
+        for folder in (".fake", ".agents/skills", ".claude/skills"):
+            (base / folder / "demo").mkdir(parents=True)
+            (base / folder / "demo" / "SKILL.md").write_text("old copy")
+        (base / "keep.txt").write_text("kept")
+        self.run_tasks(fake_adapter(self.script), self.tmp / "out", "--base", str(base), "--baseline")
+        files = self.calls()[0]["files"]
+        self.assertIn("./keep.txt", files)
+        self.assertFalse([f for f in files if "SKILL.md" in f], files)
+
+    def test_results_under_base_are_not_copied_into_workspaces(self):
+        base = self.tmp / "base"
+        base.mkdir()
+        self.run_tasks(fake_adapter(self.script), base / "results", "--base", str(base), "--runs", "3")
+        for call in self.calls():
+            self.assertFalse([f for f in call["files"] if f.startswith("./results")], call["files"])
+
     def test_label_combines_hosts(self):
         def write(name, data):
             path = self.tmp / name
             path.write_text(json.dumps(data))
             return str(path)
-        good = write("t1.json", {"summary": {"all": {"accuracy": 0.95}}})
-        weak = write("t2.json", {"summary": {"all": {"accuracy": 0.7}}})
+        good = write("t1.json", {"summary": {"all": {"accuracy": 0.95, "not_run": 0}}})
+        weak = write("t2.json", {"summary": {"all": {"accuracy": 0.7, "not_run": 0}}})
+        partial = write("t3.json", {"summary": {"all": {"accuracy": 1.0, "not_run": 19}}})
         score = write("s.json", {"task_pass_rate": 1.0})
         out = self.tmp / "labels.json"
         run_evals.main(["label", "--skill", "demo", "--reference", "ref",
                         "--entry", f"ref,default,{good},{score}", "--entry", f"other,m2,{weak},{score}",
+                        "--entry", f"third,m3,{partial},{score}",
                         "--compatible", "open-host,no credentials", "--out", str(out)])
         labels = {h["host"]: h["label"] for h in json.loads(out.read_text())["hosts"]}
-        self.assertEqual(labels, {"ref": "verified", "other": "unsupported", "open-host": "compatible"})
+        self.assertEqual(labels, {"ref": "verified", "other": "unsupported", "third": "incomplete",
+                                  "open-host": "compatible"})
 
 
 if __name__ == "__main__":

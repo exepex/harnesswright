@@ -49,16 +49,20 @@ Without `--model`, the host uses its own default and results record `host defaul
 `outputs/` (the workspace after the run, without the installed skill), `transcript.jsonl` (the host's events),
 `final-message.md` and `run.json` (`failure`, `returncode`, and `checks[]` with each expectation's `text`, `check`
 and `passed`). Script checks run at once; `judge` expectations stay `null` until the grader writes
-`grading.json` in the run folder. `status.json` records whether the host ran.
+`grading.json` in the run folder. Each invocation first deletes earlier results for the same configuration, and
+writes `status-<configuration>.json` with whether the host ran and which runs it made. Workspaces never contain
+the results folder, nor a copy of the skill from `--base` other than the one installed for this run, so baseline
+runs are truly without the skill. A task run that times out is a failed run.
 
-**Task score** (`score`): `runs[]` with `passed` for each run, and `task_pass_rate`, which stays `null` while any
-run failed or is not fully graded.
+**Task score** (`score`): reads only the runs listed in the status file. `runs[]` with `passed` for each run,
+and `task_pass_rate`, which stays `null` when the host did not run, or while any run failed or is not fully
+graded.
 
 **Labels** (`label`): for each host and model, `trigger_accuracy`, `task_pass_rate`, `label` and `gaps`. The labels
 and thresholds are those of [10 · Skills](../../docs/design/10-skills.md): `verified` when task pass rate and
 trigger accuracy are each at least 90% and the task pass rate is at most 10 points below the reference host;
 `unsupported` otherwise, with the gaps listed; `compatible` for a host that reads the standard but was not run;
-`incomplete` while a result is missing.
+`incomplete` while a result is missing, including any trigger query that has no successful run.
 
 ## Tests
 
