@@ -206,6 +206,28 @@ class RunnerEndToEndTest(unittest.TestCase):
                   for c in ("with_skill", "without_skill")]
         self.assertEqual(hashes[0], hashes[1])
 
+    def test_label_refuses_runs_from_different_base_contents(self):
+        files = self.label_files("a").split(",")
+        baseline = json.loads(Path(files[2]).read_text())
+        baseline["provenance"]["base_sha256"] = "other"
+        Path(files[2]).write_text(json.dumps(baseline))
+        out = self.tmp / "labels.json"
+        self.assertEqual(run_evals.main(["label", "--skill", "demo", "--reference", "a", "--out", str(out),
+                                         "--entry", "a," + ",".join(files)]), 2)
+
+    def test_base_contents_are_hashed_without_results(self):
+        base = self.tmp / "base"
+        base.mkdir()
+        (base / "keep.txt").write_text("v1")
+        self.run_tasks(fake_adapter(self.script), base / "results", "--base", str(base), "--runs", "1")
+        status = base / "results" / "status-with_skill.json"
+        first = json.loads(status.read_text())["provenance"]["base_sha256"]
+        self.run_tasks(fake_adapter(self.script), base / "results", "--base", str(base), "--runs", "1")
+        self.assertEqual(first, json.loads(status.read_text())["provenance"]["base_sha256"])
+        (base / "keep.txt").write_text("v2")
+        self.run_tasks(fake_adapter(self.script), base / "results", "--base", str(base), "--runs", "1")
+        self.assertNotEqual(first, json.loads(status.read_text())["provenance"]["base_sha256"])
+
     def test_refused_action_fails_a_task_run(self):
         evals = self.task_evals()
         Path(evals).write_text(json.dumps({"skill_name": "demo", "tasks": [{

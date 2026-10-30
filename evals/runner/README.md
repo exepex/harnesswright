@@ -56,8 +56,9 @@ success.
 Every results file records what produced it in `provenance`: `runner_commit` (`-dirty` when tracked files had
 changed), `host_version` (`<CLI> --version`), `requested_model`, `permission_profile`, `skill_sha256` (every file
 of the skill as installed, including a `--description` override) and `evals_sha256` (the trigger file, or the
-task file's folder without `triggers.json`). `label` refuses results from different skill versions, or with- and
-without-skill runs from different task files.
+task file's folder without `triggers.json` and the results folder), and for task runs `base_sha256` (the `--base`
+folder without `.git` and the results folder). `label` refuses results from different skill versions, or with- and
+without-skill runs from different task files or `--base` contents.
 
 ## Results
 

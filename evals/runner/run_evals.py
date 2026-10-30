@@ -100,7 +100,8 @@ def cmd_tasks(args):
         shutil.rmtree(out_dir / task["name"] / config, ignore_errors=True)
     core.write_json(out_dir / f"status-{config}.json", {
         "host": args.host, "status": "not run" if reason else "run", "not_run_reason": reason,
-        "provenance": core.provenance(adapter, "task", args.model, args.skill, text, tasks_file, out_dir),
+        "provenance": {**core.provenance(adapter, "task", args.model, args.skill, text, tasks_file, out_dir),
+                       "base_sha256": core.tree_hash(args.base, exclude=[out_dir]) if args.base else None},
         "runs": [{"task_name": t["name"], "run": n} for t in sorted(tasks, key=lambda t: t["id"])
                  for n in range(1, (args.runs if not reason else 0) + 1)]})
     for task in sorted(tasks, key=lambda t: t["id"]):
@@ -187,6 +188,8 @@ def cmd_label(args):
         sources = [(f.get("provenance") or {}) for f in (triggers, score, baseline)]
         skill_hashes.append(_same([p.get("skill_sha256") for p in sources], "skill versions", host))
         _same([p.get("evals_sha256") for p in sources[1:]], "task eval files", host)
+        if len({p.get("base_sha256") for p in sources[1:]}) > 1:
+            raise core.EvalError(f"{host}: with- and without-skill task runs used different --base contents")
         models = [f.get("model") for f in (triggers, score, baseline)]
         model = models[0] if len(set(models)) == 1 else "mixed: " + ", ".join(sorted(map(str, set(models))))
         rate, base = score["task_pass_rate"], baseline["task_pass_rate"]

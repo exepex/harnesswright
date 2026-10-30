@@ -65,7 +65,8 @@ def tree_hash(folder, replace=None, skip=(), exclude=()):
     """
     folder, replace, digest = Path(folder), replace or {}, hashlib.sha256()
     excluded = [Path(e).resolve() for e in exclude]
-    for path in sorted(p for p in folder.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+    for path in sorted(p for p in folder.rglob("*")
+                       if p.is_file() and not {"__pycache__", ".git"} & set(p.relative_to(folder).parts)):
         relative = path.relative_to(folder).as_posix()
         if relative in skip or any(path.resolve().is_relative_to(e) for e in excluded):
             continue
