@@ -72,4 +72,6 @@ used everywhere. State in your report that you have read them.
 
 Every skill in this repository is listed here with its path and when to use it, so that any host can find it.
 
-None yet.
+| Skill | Path | Use when |
+|---|---|---|
+| skill-designer | [skills/skill-designer/SKILL.md](skills/skill-designer/SKILL.md) | Creating, adopting, adapting or improving a harnesswright skill, writing or running its trigger and task evals, or preparing it to run on several hosts. Not for standards, roles, contracts or application code, and not for judging a finished skill. |
