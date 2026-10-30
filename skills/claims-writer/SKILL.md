@@ -106,7 +106,11 @@ for the full layout.
 Write plainly. Words such as "should work", "probably" or "seems to" mean the evidence is missing: either get the
 evidence or move the claim to **Not verified**.
 
-Check: the file has the six sections in order and every criterion of the story appears under **Requirements**.
+Write the claims file with your host's file-writing tool, not through a shell heredoc or `echo`. A quoting slip in
+a shell command can create stray files in the project, and the claims file is the only file this skill writes.
+
+Check: the file has the six sections in order, every criterion of the story appears under **Requirements**, and no
+other file in the project was created or changed.
 
 ### 5. Count the lines and check the file
 
