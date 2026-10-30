@@ -34,7 +34,7 @@ def fake_adapter(script, available=True, missing=None):
     def build_command(mode, workspace, model, scratch=None):
         return [sys.executable, str(script), mode] + (["--model", model] if model else [])
     return types.SimpleNamespace(
-        NAME="fake", CLI=sys.executable if available else "no-such-host-cli",
+        NAME="fake", CLI=sys.executable if available else "no-such-host-cli", ENV_KEYS=("FAKE_LOG",),
         missing_requirements=lambda mode: missing if mode == "task" else None,
         permission_profile=lambda mode: {"commands": "allowed" if mode == "task" else "refused"},
         refusals=lambda events: [e["what"] for e in events if e.get("type") == "refused"],
@@ -60,6 +60,11 @@ class RunnerEndToEndTest(unittest.TestCase):
         self.env = mock.patch.dict("os.environ", {"FAKE_LOG": str(self.log)})
         self.env.start()
         self.addCleanup(self.env.stop)
+        # The fake host writes its log outside the workspace, so these tests use the environment seal
+        # only; SealTest in test_seal.py checks the jail.
+        jail = mock.patch.object(core.seal, "jail_available", return_value=False)
+        jail.start()
+        self.addCleanup(jail.stop)
 
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()]

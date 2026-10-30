@@ -13,7 +13,7 @@ model mapping are added per host when a later phase needs them.
 ## The eval adapter interface
 
 The eval runner ([evals/runner](../evals/runner/README.md)) loads `adapters/<host>/adapter.py` and uses only these
-names. The runner checks that all of them exist.
+names. The runner checks that the functions exist; `ENV_KEYS` and `CREDENTIAL_FILES` default to empty.
 
 | Name | Meaning |
 |---|---|
@@ -23,7 +23,9 @@ names. The runner checks that all of them exist.
 | `build_command(mode, workspace, model, scratch)` | The command for one non-interactive run. `mode` is `trigger` or `task`. The prompt always goes on standard input. `model` is `None` for the host's own default. `scratch` is a folder outside the workspace that a task run may also write to, or `None`. |
 | `missing_requirements(mode)` | Why the host cannot give a run in this mode its full powers here, or `None`. The runner then marks the host `not run`. |
 | `permission_profile(mode)` | What a run in this mode may do (reads, commands, writes, network), recorded with every result |
-| `environment(env)` | The environment for the run, given the current one |
+| `ENV_KEYS` | The variables a sealed run passes on so the host can sign in, such as its API key. Every other variable is dropped ([sealed runs](../evals/runner/README.md#sealed-runs)). |
+| `CREDENTIAL_FILES` | Sign-in files, relative to the home folder, copied into the run's private home |
+| `environment(env)` | The environment for the run, given the sealed one |
 | `parse_events(stdout)` | The host's machine-readable events, as a list of dictionaries |
 | `skill_triggered(events, skill_name)` | `True` only when the events show the host loaded that skill's `SKILL.md` |
 | `refusals(events)` | Actions the host refused to run for lack of approval, as text. Any refusal fails a task run. |

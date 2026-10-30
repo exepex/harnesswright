@@ -12,6 +12,9 @@ from pathlib import Path
 
 NAME = "codex"
 CLI = "codex"
+# What a sealed run passes on to sign in: these variables, and copies of these files from the real home.
+ENV_KEYS = ("CODEX_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL")
+CREDENTIAL_FILES = (".codex/auth.json",)
 # Commands that can name a file without reading its content. Any other command that names
 # SKILL.md (cat, sed, rg, grep, python, ...) counts as reading it.
 PATH_ONLY_COMMANDS = ("ls", "find", "fd", "tree", "stat", "test", "[", "file", "du", "realpath",

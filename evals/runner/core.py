@@ -7,13 +7,14 @@ command it starts does. Everything here is deterministic for the same inputs and
 import hashlib
 import importlib.util
 import json
-import os
 import random
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+import seal
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADAPTERS_DIR = REPO_ROOT / "adapters"
@@ -110,6 +111,7 @@ def provenance(adapter, mode, model, skill_path, skill_text, evals_file, results
         tree_hash(evals_file.parent, skip={"triggers.json"}, exclude=[results] if results else [])
     return {"runner_commit": repo_commit(), "host_version": host_version(adapter),
             "requested_model": model, "permission_profile": adapter.permission_profile(mode),
+            "isolation": seal.isolation(), "host_paths": [str(p) for p in seal.HOST_PATHS],
             "skill_sha256": tree_hash(skill_path, {"SKILL.md": skill_text}), "evals_sha256": evals}
 
 
@@ -257,17 +259,16 @@ def make_workspace(adapter, skill_path, skill_name, skill_text=None, base=None, 
 
 
 def run_host(adapter, workspace, prompt, mode, model, timeout):
-    """Run the host once with the prompt on stdin. Returns a dict; never raises on host failure.
+    """Run the host once, sealed (see seal.py), with the prompt on stdin. Never raises on host failure.
 
-    A task run gets a scratch folder outside the workspace for tool caches (XDG_CACHE_HOME), so
-    tools such as `go test` work inside every host's sandbox. A task run in which the host refused
-    any action is a failed run: it did not have the powers the task needs.
+    A task run gets a scratch folder for tool caches, so tools such as `go test` work in every host's
+    sandbox. A task run in which the host refused any action failed: it lacked the powers it needs.
     """
     scratch = Path(tempfile.mkdtemp(prefix="hw-scratch-")) if mode == "task" else None
-    command = adapter.build_command(mode, Path(workspace), model, scratch)
-    env = adapter.environment(dict(os.environ))
-    if scratch:
-        env["XDG_CACHE_HOME"] = str(scratch / "cache")
+    home = seal.make_home(adapter)
+    env = seal.environment(adapter, home, scratch)
+    command = seal.jail(adapter.build_command(mode, Path(workspace), model, scratch), workspace, home,
+                        scratch, seal.HOST_PATHS, env)
     timed_out = False
     try:
         done = subprocess.run(command, input=prompt, capture_output=True, text=True,
@@ -278,8 +279,9 @@ def run_host(adapter, workspace, prompt, mode, model, timeout):
         stderr = _text(expired.stderr)
         returncode, timed_out = None, True
     finally:
-        if scratch:
-            shutil.rmtree(scratch, ignore_errors=True)
+        for folder in (scratch, home):
+            if folder:
+                shutil.rmtree(folder, ignore_errors=True)
     events = adapter.parse_events(stdout)
     refused = adapter.refusals(events)
     failure = adapter.failure(events, returncode, timed_out, mode)

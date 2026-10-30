@@ -237,6 +237,8 @@ def parser():
         p.add_argument("--evals", type=Path, help="eval file (default: evals/skills/NAME/...)")
         p.add_argument("--model", help="model for the host (default: the host's own)")
         p.add_argument("--timeout", type=int, default=120 if name == "triggers" else 900)
+        p.add_argument("--host-path", action="append", default=[], type=Path,
+                       help="folder or file the host needs read-only to sign in on this machine")
     trig = sub.choices["triggers"]
     trig.add_argument("--out", required=True, type=Path)
     trig.add_argument("--runs", type=int, default=3)
@@ -269,6 +271,7 @@ def parser():
 
 def main(argv=None):
     args = parser().parse_args(argv)
+    core.seal.HOST_PATHS[:] = [path.resolve() for path in getattr(args, "host_path", [])]
     try:
         return args.func(args)
     except core.EvalError as error:
