@@ -5,11 +5,13 @@ Runs evals through the Codex command line in non-interactive mode, `codex exec`.
 | Item | Value |
 |---|---|
 | Command | `codex exec --json --ephemeral --skip-git-repo-check --sandbox <mode> --cd <workspace> -` |
-| Sandbox | `read-only` for trigger runs; `workspace-write` for task runs. Never `danger-full-access`. |
+| Sandbox | `read-only` for trigger runs; `workspace-write` for task runs, plus `--add-dir <scratch>` for tool caches. Never `danger-full-access`. |
+| Refused when | Never: `codex exec` asks no one for approval. A command the sandbox blocks fails, and the model sees the error, as on Claude Code |
+| Model recorded | A `model` field in any event; codex-cli 0.166.0 emits none, so pass `--model` or the label stays `incomplete` |
 | Model | `--model <model>` only when the runner is given one; otherwise the host default |
 | Prompt | Standard input (the final `-`) |
 | Skill location | `<workspace>/.agents/skills/<name>/SKILL.md` |
-| Triggered when | A `command_execution` item whose command runs a file-printing command (`cat`, `sed`, `head` and similar) on `skills/<name>/SKILL.md`, or an `mcp_tool_call` whose arguments name that file. Command output is never inspected. |
+| Triggered when | A `command_execution` item with a simple command that names `skills/<name>/SKILL.md` and can read it: anything except path-only commands such as `ls`, `find`, `stat`, `test` and `echo`. So `cat`, `sed`, `rg`, `grep`, `wc` and `python3 -c "open(...)"` all count. `bash -lc '...'` wrappers are unwrapped and `&&`, `;` and `|` split the commands. An `mcp_tool_call` whose arguments name that file also counts. Command output is never inspected. |
 | Failed when | A `turn.failed` or `error` event arrives, there is no `turn.completed` event, the exit code is not 0, or a task run times out |
 
 Codex has no separate skill tool. Its skill instructions tell the agent to open the listed `SKILL.md` before acting,
@@ -30,8 +32,9 @@ Sources read on 2026-10-30:
   file skills, the agent must "open and read its `SKILL.md` completely before taking task actions".
 - npm reports `@openai/codex` 0.166.0 under Apache-2.0.
 
-## Not run
+## Not run here
 
-There is no `codex` command and no OpenAI credential in this container. The adapter is unit-tested against the
-documented command and event format only. Its trigger detection still needs a live run, which needs the owner to
-provide the command and a credential.
+The phase-2 sample-skill work ran this adapter live. This change was tested without an OpenAI credential:
+`codex exec --help` of codex-cli 0.166.0 lists `--add-dir` ("Additional directories that should be writable
+alongside the primary workspace"), and the item statuses in that binary are `in_progress`, `completed` and
+`failed`, with no declined status. The command and trigger detection are unit-tested.

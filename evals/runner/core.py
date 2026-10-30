@@ -4,6 +4,7 @@ Python 3 standard library only. The runner makes no network calls of its own; th
 command it starts does. Everything here is deterministic for the same inputs and host output.
 """
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -16,9 +17,13 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADAPTERS_DIR = REPO_ROOT / "adapters"
-ADAPTER_FUNCTIONS = ("skill_dir", "build_command", "environment", "parse_events",
-                     "skill_triggered", "final_message", "failure")
-THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9}
+ADAPTER_FUNCTIONS = ("skill_dir", "build_command", "environment", "parse_events", "skill_triggered",
+                     "final_message", "failure", "missing_requirements", "permission_profile",
+                     "refusals", "resolved_model")
+# min_runs follows skill-creator's benchmark (runs_per_configuration 3); min_lift is the least gain over
+# the baseline (with skill minus without) that shows the skill does something.
+THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3,
+              "min_lift": 0.0}
 # Project folders where known hosts discover skills. A copied base folder may hold the skill under test
 # in any of them, which would leak it into a baseline run or mix it with the installed copy.
 SKILL_FOLDERS = (".claude/skills", ".agents/skills", ".opencode/skills", ".goose/skills")
@@ -44,11 +49,70 @@ def load_adapter(host, adapters_dir=ADAPTERS_DIR):
     return module
 
 
-def host_available(adapter):
-    """Return None when the host command exists, else the reason it cannot run."""
+def host_available(adapter, mode):
+    """Return None when the host can run this mode with its full powers, else the reason it cannot."""
     if shutil.which(adapter.CLI) is None:
         return f"command '{adapter.CLI}' not found on PATH"
-    return None
+    return adapter.missing_requirements(mode)
+
+
+# ---- provenance -------------------------------------------------------------
+
+def tree_hash(folder, replace=None, skip=()):
+    """sha256 over every file's relative path and bytes. `replace` maps a relative path to new text."""
+    folder, replace, digest = Path(folder), replace or {}, hashlib.sha256()
+    for path in sorted(p for p in folder.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+        relative = path.relative_to(folder).as_posix()
+        if relative in skip:
+            continue
+        data = replace[relative].encode("utf-8") if relative in replace else path.read_bytes()
+        digest.update(relative.encode("utf-8") + b"\0" + hashlib.sha256(data).digest())
+    return digest.hexdigest()
+
+
+def repo_commit(repo=REPO_ROOT):
+    """HEAD of the harnesswright checkout, with '-dirty' when tracked files changed, or None."""
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True)
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=repo,
+                               capture_output=True, text=True)
+    except OSError:
+        return None
+    if head.returncode != 0:
+        return None
+    return head.stdout.strip() + ("-dirty" if dirty.stdout.strip() else "")
+
+
+def host_version(adapter):
+    """First line of `<CLI> --version`, or None."""
+    try:
+        done = subprocess.run([adapter.CLI, "--version"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    lines = (done.stdout or done.stderr).strip().splitlines()
+    return lines[0].strip() if done.returncode == 0 and lines else None
+
+
+def provenance(adapter, mode, model, skill_path, skill_text, evals_file):
+    """What produced a set of results, so a label can be traced and reproduced.
+
+    The eval hash covers the trigger file for trigger runs, and for task runs the task file's folder
+    (task file, input files and checks) without the trigger file.
+    """
+    evals_file = Path(evals_file)
+    evals = hashlib.sha256(evals_file.read_bytes()).hexdigest() if mode == "trigger" else \
+        tree_hash(evals_file.parent, skip={"triggers.json"})
+    return {"runner_commit": repo_commit(), "host_version": host_version(adapter),
+            "requested_model": model, "permission_profile": adapter.permission_profile(mode),
+            "skill_sha256": tree_hash(skill_path, {"SKILL.md": skill_text}), "evals_sha256": evals}
+
+
+def model_of(seen, requested):
+    """The one model that produced results: what the host reported, else what was requested."""
+    seen = sorted(set(m for m in seen if m))
+    if len(seen) > 1:
+        return "mixed: " + ", ".join(seen)
+    return seen[0] if seen else requested
 
 
 # ---- skill and eval files ---------------------------------------------------
@@ -187,9 +251,17 @@ def make_workspace(adapter, skill_path, skill_name, skill_text=None, base=None, 
 
 
 def run_host(adapter, workspace, prompt, mode, model, timeout):
-    """Run the host once with the prompt on stdin. Returns a dict; never raises on host failure."""
-    command = adapter.build_command(mode, Path(workspace), model)
+    """Run the host once with the prompt on stdin. Returns a dict; never raises on host failure.
+
+    A task run gets a scratch folder outside the workspace for tool caches (XDG_CACHE_HOME), so
+    tools such as `go test` work inside every host's sandbox. A task run in which the host refused
+    any action is a failed run: it did not have the powers the task needs.
+    """
+    scratch = Path(tempfile.mkdtemp(prefix="hw-scratch-")) if mode == "task" else None
+    command = adapter.build_command(mode, Path(workspace), model, scratch)
     env = adapter.environment(dict(os.environ))
+    if scratch:
+        env["XDG_CACHE_HOME"] = str(scratch / "cache")
     timed_out = False
     try:
         done = subprocess.run(command, input=prompt, capture_output=True, text=True,
@@ -199,10 +271,17 @@ def run_host(adapter, workspace, prompt, mode, model, timeout):
         stdout = _text(expired.stdout)
         stderr = _text(expired.stderr)
         returncode, timed_out = None, True
+    finally:
+        if scratch:
+            shutil.rmtree(scratch, ignore_errors=True)
     events = adapter.parse_events(stdout)
+    refused = adapter.refusals(events)
+    failure = adapter.failure(events, returncode, timed_out, mode)
+    if failure is None and mode == "task" and refused:
+        failure = f"host refused {len(refused)} action(s), first: {refused[0]}"
     return {"command": command, "events": events, "stdout": stdout, "stderr": stderr,
-            "returncode": returncode, "timed_out": timed_out,
-            "failure": adapter.failure(events, returncode, timed_out, mode)}
+            "returncode": returncode, "timed_out": timed_out, "refusals": refused,
+            "model": adapter.resolved_model(events), "failure": failure}
 
 
 def _text(value):
@@ -247,12 +326,45 @@ def task_passed(check_results, grading):
     return None if None in verdicts.values() else all(verdicts.values())
 
 
+def summarise_task_runs(runs):
+    """Per-task and overall statistics of scored runs, like skill-creator's benchmark (mean, stddev)."""
+    tasks = {}
+    for run in runs:
+        tasks.setdefault(run["task_name"], []).append(run["passed"])
+    per_task = {}
+    for name, outcomes in sorted(tasks.items()):
+        scored = [1.0 if o else 0.0 for o in outcomes if o is not None]
+        per_task[name] = {"runs": len(outcomes), "scored": len(scored), "passed": int(sum(scored)),
+                          "pass_rate": round(sum(scored) / len(scored), 4) if scored else None}
+    outcomes = [1.0 if r["passed"] else 0.0 for r in runs if r["passed"] is not None]
+    mean = sum(outcomes) / len(outcomes) if outcomes else None
+    stddev = (sum((o - mean) ** 2 for o in outcomes) / (len(outcomes) - 1)) ** 0.5 \
+        if len(outcomes) > 1 else None
+    return {"tasks": per_task, "min_runs_per_task": min((t["scored"] for t in per_task.values()), default=0),
+            "mean": round(mean, 4) if mean is not None else None,
+            "stddev": round(stddev, 4) if stddev is not None else None}
+
+
 def label_host(entry, reference, thresholds=THRESHOLDS):
-    """Label one host and model pairing: verified or unsupported, with the gaps found."""
+    """Label one host and model pairing: verified, unsupported, inconclusive or incomplete, with gaps.
+
+    incomplete: a result is missing, or the model that produced it is unknown or mixed.
+    inconclusive: too few runs to decide, or no lift over the baseline, so the evals cannot show the
+    skill works. unsupported: enough runs, and a threshold is missed.
+    """
+    task_rate, trigger, baseline = (entry.get("task_pass_rate"), entry.get("trigger_accuracy"),
+                                    entry.get("baseline_pass_rate"))
+    if None in (task_rate, trigger, baseline) or entry.get("trigger_not_run", 0) > 0:
+        return {"label": "incomplete", "gaps": ["not every eval has a result, baseline included"]}
+    model = entry.get("model")
+    if not model or model.startswith("mixed"):
+        return {"label": "incomplete", "gaps": [f"the model behind the results is {model or 'unknown'}"]}
+    few = [f"{kind} has only {count} run(s) where {thresholds['min_runs']} are needed"
+           for kind, count in (("a trigger query", entry.get("trigger_min_runs", 0)),
+                               ("a task", entry.get("task_min_runs", 0)),
+                               ("a baseline task", entry.get("baseline_min_runs", 0)))
+           if count < thresholds["min_runs"]]
     gaps = []
-    task_rate, trigger = entry.get("task_pass_rate"), entry.get("trigger_accuracy")
-    if task_rate is None or trigger is None or entry.get("trigger_not_run", 0) > 0:
-        return {"label": "incomplete", "gaps": ["not every eval has a result"]}
     if task_rate < thresholds["task_pass_rate"]:
         gaps.append(f"task pass rate {task_rate:.0%} below {thresholds['task_pass_rate']:.0%}")
     ref_rate = reference.get("task_pass_rate")
@@ -260,7 +372,14 @@ def label_host(entry, reference, thresholds=THRESHOLDS):
         gaps.append(f"task pass rate {ref_rate - task_rate:.0%} below the reference host")
     if trigger < thresholds["trigger_accuracy"]:
         gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
-    return {"label": "unsupported" if gaps else "verified", "gaps": gaps}
+    if few:
+        return {"label": "inconclusive", "gaps": few + gaps}
+    if gaps:
+        return {"label": "unsupported", "gaps": gaps}
+    if entry["lift"] <= thresholds["min_lift"] + 1e-9:
+        return {"label": "inconclusive", "gaps": [
+            f"no lift over the baseline ({task_rate:.0%} with the skill, {baseline:.0%} without)"]}
+    return {"label": "verified", "gaps": []}
 
 
 def write_json(path, data):

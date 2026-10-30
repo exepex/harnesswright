@@ -4,6 +4,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import core  # noqa: E402
@@ -27,11 +28,26 @@ class ClaudeCodeCommandTest(unittest.TestCase):
                          ["claude", "-p", "--output-format", "stream-json", "--verbose",
                           "--setting-sources", "project", "--no-session-persistence"])
 
-    def test_task_command_allows_edits_only(self):
-        command = CLAUDE.build_command("task", WORKSPACE, None)
-        self.assertEqual(command[-2:], ["--permission-mode", "acceptEdits"])
+    def test_task_command_runs_commands_in_the_sandbox_only(self):
+        command = CLAUDE.build_command("task", WORKSPACE, None, Path("/tmp/scratch"))
+        self.assertEqual(command[8:], [
+            "--permission-mode", "acceptEdits", "--settings",
+            '{"sandbox": {"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false}}',
+            "--add-dir", "/tmp/scratch"])
         self.assertNotIn("bypassPermissions", command)
         self.assertNotIn("--dangerously-skip-permissions", command)
+
+    def test_trigger_command_gets_no_sandbox_or_scratch(self):
+        command = CLAUDE.build_command("trigger", WORKSPACE, None, Path("/tmp/scratch"))
+        self.assertNotIn("--settings", command)
+        self.assertNotIn("--add-dir", command)
+
+    def test_sandbox_tools_are_required_for_tasks_on_linux(self):
+        with mock.patch.object(CLAUDE.shutil, "which", return_value=None):
+            self.assertEqual(CLAUDE.missing_requirements("task", "linux"),
+                             "the Claude Code sandbox needs bwrap, socat on PATH")
+            self.assertIsNone(CLAUDE.missing_requirements("trigger", "linux"))
+            self.assertIsNone(CLAUDE.missing_requirements("task", "darwin"))
 
     def test_model_is_passed_through(self):
         command = CLAUDE.build_command("trigger", WORKSPACE, "some-model")
@@ -84,6 +100,23 @@ class ClaudeCodeEventsTest(unittest.TestCase):
         partial = [{"type": "assistant", "message": {"content": [{"type": "text", "text": "working"}]}}]
         self.assertEqual(CLAUDE.failure(partial, None, True, "task"), "timed out")
 
+    def test_live_refusals_are_reported(self):
+        # Shape seen from Claude Code 2.1.314 on 2026-10-30 under acceptEdits without the sandbox.
+        result = {"type": "result", "is_error": False, "result": "Neither command ran.", "permission_denials": [
+            {"tool_name": "Bash", "tool_use_id": "toolu_1",
+             "tool_input": {"command": "python3 t.py", "description": "Run t.py script"}}]}
+        self.assertEqual(CLAUDE.refusals([result]), ["Bash: python3 t.py"])
+        self.assertEqual(CLAUDE.refusals([{"type": "result", "permission_denials": []}]), [])
+
+    def test_resolved_model_comes_from_init_event(self):
+        init = {"type": "system", "subtype": "init", "model": "claude-sonnet-5-5"}
+        self.assertEqual(CLAUDE.resolved_model([init]), "claude-sonnet-5-5")
+        self.assertIsNone(CLAUDE.resolved_model([]))
+
+    def test_task_profile_names_the_sandbox(self):
+        self.assertEqual(CLAUDE.permission_profile("task")["network"], "blocked")
+        self.assertEqual(CLAUDE.permission_profile("trigger")["commands"], "refused")
+
 
 class CodexCommandTest(unittest.TestCase):
     def test_trigger_command_is_exact(self):
@@ -96,6 +129,17 @@ class CodexCommandTest(unittest.TestCase):
         self.assertEqual(command[command.index("--sandbox") + 1], "workspace-write")
         self.assertNotIn("danger-full-access", command)
         self.assertNotIn("--full-auto", command)
+
+    def test_task_command_adds_scratch_as_writable(self):
+        command = CODEX.build_command("task", WORKSPACE, "m", Path("/tmp/scratch"))
+        self.assertEqual(command[-5:], ["--add-dir", "/tmp/scratch", "--model", "m", "-"])
+        self.assertNotIn("--add-dir", CODEX.build_command("trigger", WORKSPACE, None, Path("/tmp/s")))
+
+    def test_codex_needs_nothing_extra_and_refuses_nothing(self):
+        self.assertIsNone(CODEX.missing_requirements("task"))
+        self.assertEqual(CODEX.refusals([codex_item("command_execution", command="ls")]), [])
+        self.assertEqual(CODEX.permission_profile("task")["setting"], "sandbox workspace-write")
+        self.assertIsNone(CODEX.resolved_model([{"type": "thread.started", "thread_id": "t"}]))
 
     def test_prompt_comes_from_stdin_last(self):
         self.assertEqual(CODEX.build_command("task", WORKSPACE, "some-model")[-1], "-")
@@ -125,6 +169,23 @@ class CodexEventsTest(unittest.TestCase):
     def test_listing_the_skill_path_itself_does_not_trigger(self):
         event = codex_item("command_execution", command="ls -l .agents/skills/demo/SKILL.md")
         self.assertFalse(CODEX.skill_triggered([event], "demo"))
+
+    def test_any_reading_command_triggers(self):
+        for command in ("bash -lc 'rg -n \"Steps\" .agents/skills/demo/SKILL.md'",
+                        "/bin/bash -lc \"grep -c x ./.agents/skills/demo/SKILL.md\"",
+                        "bash -lc 'python3 -c \"print(open(\\\".agents/skills/demo/SKILL.md\\\").read())\"'",
+                        "bash -lc 'ls .agents/skills && cat .agents/skills/demo/SKILL.md | head -50'",
+                        "bash -lc 'while read l; do echo $l; done < .agents/skills/demo/SKILL.md'",
+                        "LC_ALL=C wc -l .agents/skills/demo/SKILL.md"):
+            event = codex_item("command_execution", command=command)
+            self.assertTrue(CODEX.skill_triggered([event], "demo"), command)
+
+    def test_path_only_commands_do_not_trigger(self):
+        for command in ("bash -lc 'ls .agents/skills/demo/SKILL.md && echo found'",
+                        "bash -lc 'test -f .agents/skills/demo/SKILL.md'",
+                        "stat .agents/skills/demo/SKILL.md"):
+            event = codex_item("command_execution", command=command)
+            self.assertFalse(CODEX.skill_triggered([event], "demo"), command)
 
     def test_tool_call_reading_skill_triggers(self):
         event = codex_item("mcp_tool_call", tool="read_file", arguments={"path": ".agents/skills/demo/SKILL.md"},

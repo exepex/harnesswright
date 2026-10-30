@@ -24,15 +24,21 @@ FAKE_HOST = textwrap.dedent("""
         print(json.dumps({"type": "load", "skill": "demo"}))
     if "write" in prompt:
         open("result.txt", "w").write("done")
-    print(json.dumps({"type": "end", "text": "finished"}))
+    if "refuse" in prompt:
+        print(json.dumps({"type": "refused", "what": "Bash: make test"}))
+    print(json.dumps({"type": "end", "text": "finished", "model": "fake-model-1"}))
 """)
 
 
-def fake_adapter(script, available=True):
-    def build_command(mode, workspace, model):
+def fake_adapter(script, available=True, missing=None):
+    def build_command(mode, workspace, model, scratch=None):
         return [sys.executable, str(script), mode] + (["--model", model] if model else [])
     return types.SimpleNamespace(
         NAME="fake", CLI=sys.executable if available else "no-such-host-cli",
+        missing_requirements=lambda mode: missing if mode == "task" else None,
+        permission_profile=lambda mode: {"commands": "allowed" if mode == "task" else "refused"},
+        refusals=lambda events: [e["what"] for e in events if e.get("type") == "refused"],
+        resolved_model=lambda events: next((e["model"] for e in events if e.get("model")), None),
         skill_dir=lambda workspace, name: Path(workspace) / ".fake" / name,
         build_command=build_command,
         environment=lambda env: env,
@@ -126,14 +132,22 @@ class RunnerEndToEndTest(unittest.TestCase):
         self.assertFalse((run_dir / "outputs" / ".fake" / "demo").exists(), "skill must not be graded")
         self.assertEqual((run_dir / "final-message.md").read_text(), "finished")
         self.assertEqual(self.calls()[0]["argv"], ["task"])
+        self.assertEqual(run["model"], "fake-model-1")
+        status = json.loads((out_dir / "status-with_skill.json").read_text())
+        self.assertEqual(status["provenance"]["permission_profile"], {"commands": "allowed"})
+        self.assertEqual(len(status["provenance"]["skill_sha256"]), 64)
 
         score = self.tmp / "score.json"
         run_evals.main(["score", "--tasks-dir", str(out_dir), "--out", str(score)])
         self.assertIsNone(json.loads(score.read_text())["task_pass_rate"], "ungraded must not pass")
-        (run_dir / "grading.json").write_text(json.dumps(
-            {"expectations": [{"text": "result is good", "passed": True, "evidence": "x"}]}))
+        for number in (1, 2, 3):
+            (run_dir.parent / f"run-{number}" / "grading.json").write_text(json.dumps(
+                {"expectations": [{"text": "result is good", "passed": True, "evidence": "x"}]}))
         run_evals.main(["score", "--tasks-dir", str(out_dir), "--out", str(score)])
-        self.assertEqual(json.loads(score.read_text())["task_pass_rate"], 1.0)
+        scored = json.loads(score.read_text())
+        self.assertEqual((scored["task_pass_rate"], scored["model"]), (1.0, "fake-model-1"))
+        self.assertEqual(scored["min_runs_per_task"], 3)
+        self.assertEqual(len(self.calls()), 3, "tasks run 3 times by default")
 
     def task_evals(self):
         evals_dir = self.tmp / "evals"
@@ -184,23 +198,64 @@ class RunnerEndToEndTest(unittest.TestCase):
         for call in self.calls():
             self.assertFalse([f for f in call["files"] if f.startswith("./results")], call["files"])
 
+    def test_refused_action_fails_a_task_run(self):
+        evals = self.task_evals()
+        Path(evals).write_text(json.dumps({"skill_name": "demo", "tasks": [{
+            "id": 1, "name": "write-result", "prompt": "refuse it",
+            "expectations": [{"text": "result is good", "check": "judge"}]}]}))
+        out_dir = self.tmp / "out"
+        self.run_cli(fake_adapter(self.script), ["tasks", "--skill", str(self.skill), "--host", "fake",
+                                                 "--evals", evals, "--out-dir", str(out_dir), "--runs", "1"])
+        run = json.loads((out_dir / "write-result" / "with_skill" / "run-1" / "run.json").read_text())
+        self.assertEqual(run["failure"], "host refused 1 action(s), first: Bash: make test")
+        self.assertEqual(run["refusals"], ["Bash: make test"])
+
+    def test_host_without_task_powers_is_not_run(self):
+        out_dir = self.tmp / "out"
+        self.run_tasks(fake_adapter(self.script, missing="sandbox needs bwrap"), out_dir)
+        score = self.score(out_dir)
+        self.assertEqual((score["status"], score["not_run_reason"]), ("not run", "sandbox needs bwrap"))
+        self.assertFalse(self.log.exists())
+
+    def write(self, name, data):
+        path = self.tmp / name
+        path.write_text(json.dumps(data))
+        return str(path)
+
+    def label_files(self, prefix, accuracy=1.0, not_run=0, rate=1.0, base=0.5, runs=3, model="m1", skill="s1"):
+        source = {"provenance": {"skill_sha256": skill, "evals_sha256": "e1"}, "model": model}
+        triggers = self.write(f"{prefix}-t.json", {**source, "summary": {"all": {
+            "accuracy": accuracy, "not_run": not_run}}, "results": [{"runs": runs}]})
+        score = self.write(f"{prefix}-s.json", {**source, "configuration": "with_skill",
+                                                "task_pass_rate": rate, "min_runs_per_task": runs})
+        baseline = self.write(f"{prefix}-b.json", {**source, "configuration": "without_skill",
+                                                   "task_pass_rate": base, "min_runs_per_task": runs})
+        return f"{triggers},{score},{baseline}"
+
     def test_label_combines_hosts(self):
-        def write(name, data):
-            path = self.tmp / name
-            path.write_text(json.dumps(data))
-            return str(path)
-        good = write("t1.json", {"summary": {"all": {"accuracy": 0.95, "not_run": 0}}})
-        weak = write("t2.json", {"summary": {"all": {"accuracy": 0.7, "not_run": 0}}})
-        partial = write("t3.json", {"summary": {"all": {"accuracy": 1.0, "not_run": 19}}})
-        score = write("s.json", {"task_pass_rate": 1.0})
         out = self.tmp / "labels.json"
-        run_evals.main(["label", "--skill", "demo", "--reference", "ref",
-                        "--entry", f"ref,default,{good},{score}", "--entry", f"other,m2,{weak},{score}",
-                        "--entry", f"third,m3,{partial},{score}",
-                        "--compatible", "open-host,no credentials", "--out", str(out)])
-        labels = {h["host"]: h["label"] for h in json.loads(out.read_text())["hosts"]}
-        self.assertEqual(labels, {"ref": "verified", "other": "unsupported", "third": "incomplete",
-                                  "open-host": "compatible"})
+        code = run_evals.main([
+            "label", "--skill", "demo", "--reference", "ref", "--out", str(out),
+            "--entry", "ref," + self.label_files("ref"),
+            "--entry", "weak," + self.label_files("weak", accuracy=0.7),
+            "--entry", "partial," + self.label_files("partial", not_run=19),
+            "--entry", "few," + self.label_files("few", runs=1),
+            "--entry", "nolift," + self.label_files("nolift", base=1.0),
+            "--compatible", "open-host,no credentials"])
+        self.assertEqual(code, 0)
+        hosts = {h["host"]: h for h in json.loads(out.read_text())["hosts"]}
+        self.assertEqual({h: e["label"] for h, e in hosts.items()}, {
+            "ref": "verified", "weak": "unsupported", "partial": "incomplete", "few": "inconclusive",
+            "nolift": "inconclusive", "open-host": "compatible"})
+        self.assertEqual((hosts["ref"]["model"], hosts["ref"]["lift"]), ("m1", 0.5))
+
+    def test_label_refuses_results_from_different_skill_versions(self):
+        out = self.tmp / "labels.json"
+        code = run_evals.main(["label", "--skill", "demo", "--out", str(out),
+                               "--entry", "claude-code," + self.label_files("a"),
+                               "--entry", "codex," + self.label_files("b", skill="s2")])
+        self.assertEqual(code, 2)
+        self.assertFalse(out.exists())
 
 
 if __name__ == "__main__":
