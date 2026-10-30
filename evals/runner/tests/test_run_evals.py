@@ -288,5 +288,18 @@ class RunnerEndToEndTest(unittest.TestCase):
         self.assertFalse(out.exists())
 
 
+class BaselineSawSkillTest(unittest.TestCase):
+    DESCRIPTION = "Writes demos for a finished story. Use for demos."
+
+    def test_description_in_a_command_output_is_seen(self):
+        event = {"type": "item.completed", "item": {"aggregated_output": "name: demo\ndescription: " +
+                                                                     self.DESCRIPTION}}
+        self.assertTrue(run_evals.saw_skill(json.dumps(event), self.DESCRIPTION))
+
+    def test_failed_read_or_path_alone_is_not_seen(self):
+        stdout = json.dumps({"output": "cat: skills/demo/SKILL.md: No such file or directory"})
+        self.assertFalse(run_evals.saw_skill(stdout, self.DESCRIPTION))
+
+
 if __name__ == "__main__":
     unittest.main()

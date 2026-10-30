@@ -84,9 +84,15 @@ def run_checks(task, evals_dir, outputs, timeout):
     return checks
 
 
+def saw_skill(stdout, description):
+    """True when the host's output holds the skill's description, as read from its SKILL.md."""
+    probe = description[:80]
+    return probe in stdout or json.dumps(probe)[1:-1] in stdout
+
+
 def cmd_tasks(args):
     adapter = core.load_adapter(args.host)
-    name, _, text = core.read_skill(args.skill)
+    name, description, text = core.read_skill(args.skill)
     evals_dir = Path(args.evals).parent if args.evals else core.REPO_ROOT / "evals" / "skills" / name
     tasks_file = args.evals or evals_dir / "tasks.json"
     tasks = core.load_tasks(tasks_file, name)
@@ -116,6 +122,10 @@ def cmd_tasks(args):
                 shutil.copy2(evals_dir / relative, target)
             try:
                 run = core.run_host(adapter, workspace, task["prompt"], "task", args.model, args.timeout)
+                # Task runs may read outside the workspace, so a baseline can still find a copy of the skill.
+                # Its description in the host's output means the run saw the skill: it is not a baseline.
+                if args.baseline and not run["failure"] and saw_skill(run["stdout"], description):
+                    run["failure"] = "baseline saw the skill under test"
                 if not args.baseline:
                     shutil.rmtree(adapter.skill_dir(workspace, name), ignore_errors=True)
                 shutil.copytree(workspace, run_dir / "outputs")

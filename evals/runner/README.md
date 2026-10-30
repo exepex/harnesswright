@@ -73,8 +73,11 @@ without-skill runs from different task files or `--base` contents.
 and `passed`). Script checks run at once; `judge` expectations stay `null` until the grader writes
 `grading.json` in the run folder. Each invocation first deletes earlier results for the same configuration, and
 writes `status-<configuration>.json` with whether the host ran and which runs it made. Workspaces never contain
-the results folder, nor a copy of the skill from `--base` other than the one installed for this run, so baseline
-runs are truly without the skill. A task run that times out is a failed run. `run.json` also holds `model` and
+the results folder, nor a copy of the skill from `--base` (in `skills/` or a host's skills folder) other than the
+one installed for this run. A task run can still read outside its workspace, so a baseline run whose host output
+holds the skill's description has seen the skill and fails with `baseline saw the skill under test`. Run
+baselines with no other copy of the skill in reach, such as one in a parallel run's workspace. A task run that
+times out is a failed run. `run.json` also holds `model` and
 `refusals`; `status-<configuration>.json` holds `provenance`. Each task runs 3 times by default.
 
 **Task score** (`score`): reads only the runs listed in the status file. `runs[]` with `passed` for each run,
