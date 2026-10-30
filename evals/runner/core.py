@@ -24,9 +24,10 @@ ADAPTER_FUNCTIONS = ("skill_dir", "build_command", "environment", "parse_events"
 # the baseline (with skill minus without) that shows the skill does something.
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3,
               "min_lift": 0.0}
-# Project folders where known hosts discover skills. A copied base folder may hold the skill under test
-# in any of them, which would leak it into a baseline run or mix it with the installed copy.
-SKILL_FOLDERS = (".claude/skills", ".agents/skills", ".opencode/skills", ".goose/skills")
+# Project folders where known hosts discover skills, and `skills/`, where this repository keeps its skill
+# sources. A copied base folder may hold the skill under test in any of them, which would leak it into a
+# baseline run or mix it with the installed copy.
+SKILL_FOLDERS = ("skills", ".claude/skills", ".agents/skills", ".opencode/skills", ".goose/skills")
 
 
 class EvalError(Exception):
