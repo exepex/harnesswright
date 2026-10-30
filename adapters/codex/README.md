@@ -11,7 +11,7 @@ Runs evals through the Codex command line in non-interactive mode, `codex exec`.
 | Model | `--model <model>` only when the runner is given one; otherwise the host default |
 | Prompt | Standard input (the final `-`) |
 | Skill location | `<workspace>/.agents/skills/<name>/SKILL.md` |
-| Triggered when | A `command_execution` item with a simple command that names `skills/<name>/SKILL.md` and can read it: anything except path-only commands such as `ls`, `find`, `stat`, `test` and `echo`. So `cat`, `sed`, `rg`, `grep`, `wc` and `python3 -c "open(...)"` all count. `bash -lc '...'` wrappers are unwrapped and `&&`, `;` and `|` split the commands. An `mcp_tool_call` whose arguments name that file also counts. Command output is never inspected. |
+| Triggered when | A `command_execution` item with a simple command that names `skills/<name>/SKILL.md` and can read it: anything except path-only commands such as `ls`, `find`, `stat`, `test`, `echo` and `rg --files`. So `cat`, `sed`, `rg`, `grep`, `wc` and `python3 -c "open(...)"` all count. `bash -lc '...'` wrappers are unwrapped and `&&`, `;` and `|` split the commands. An `mcp_tool_call` whose arguments name that file also counts. Command output is never inspected. |
 | Failed when | A `turn.failed` or `error` event arrives, there is no `turn.completed` event, the exit code is not 0, or a task run times out |
 
 Codex has no separate skill tool. Its skill instructions tell the agent to open the listed `SKILL.md` before acting,

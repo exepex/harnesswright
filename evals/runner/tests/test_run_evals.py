@@ -198,6 +198,14 @@ class RunnerEndToEndTest(unittest.TestCase):
         for call in self.calls():
             self.assertFalse([f for f in call["files"] if f.startswith("./results")], call["files"])
 
+    def test_results_inside_the_eval_folder_do_not_change_the_eval_hash(self):
+        out_dir = Path(self.task_evals()).parent / "results"
+        self.run_tasks(fake_adapter(self.script), out_dir, "--runs", "1")
+        self.run_tasks(fake_adapter(self.script), out_dir, "--runs", "1", "--baseline")
+        hashes = [json.loads((out_dir / f"status-{c}.json").read_text())["provenance"]["evals_sha256"]
+                  for c in ("with_skill", "without_skill")]
+        self.assertEqual(hashes[0], hashes[1])
+
     def test_refused_action_fails_a_task_run(self):
         evals = self.task_evals()
         Path(evals).write_text(json.dumps({"skill_name": "demo", "tasks": [{

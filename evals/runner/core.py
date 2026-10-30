@@ -58,12 +58,16 @@ def host_available(adapter, mode):
 
 # ---- provenance -------------------------------------------------------------
 
-def tree_hash(folder, replace=None, skip=()):
-    """sha256 over every file's relative path and bytes. `replace` maps a relative path to new text."""
+def tree_hash(folder, replace=None, skip=(), exclude=()):
+    """sha256 over every file's relative path and bytes. `replace` maps a relative path to new text.
+
+    `skip` holds relative paths to leave out, `exclude` folders (such as a results folder) to leave out.
+    """
     folder, replace, digest = Path(folder), replace or {}, hashlib.sha256()
+    excluded = [Path(e).resolve() for e in exclude]
     for path in sorted(p for p in folder.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
         relative = path.relative_to(folder).as_posix()
-        if relative in skip:
+        if relative in skip or any(path.resolve().is_relative_to(e) for e in excluded):
             continue
         data = replace[relative].encode("utf-8") if relative in replace else path.read_bytes()
         digest.update(relative.encode("utf-8") + b"\0" + hashlib.sha256(data).digest())
@@ -93,15 +97,15 @@ def host_version(adapter):
     return lines[0].strip() if done.returncode == 0 and lines else None
 
 
-def provenance(adapter, mode, model, skill_path, skill_text, evals_file):
+def provenance(adapter, mode, model, skill_path, skill_text, evals_file, results=None):
     """What produced a set of results, so a label can be traced and reproduced.
 
     The eval hash covers the trigger file for trigger runs, and for task runs the task file's folder
-    (task file, input files and checks) without the trigger file.
+    (task file, input files and checks) without the trigger file and the `results` folder.
     """
     evals_file = Path(evals_file)
     evals = hashlib.sha256(evals_file.read_bytes()).hexdigest() if mode == "trigger" else \
-        tree_hash(evals_file.parent, skip={"triggers.json"})
+        tree_hash(evals_file.parent, skip={"triggers.json"}, exclude=[results] if results else [])
     return {"runner_commit": repo_commit(), "host_version": host_version(adapter),
             "requested_model": model, "permission_profile": adapter.permission_profile(mode),
             "skill_sha256": tree_hash(skill_path, {"SKILL.md": skill_text}), "evals_sha256": evals}

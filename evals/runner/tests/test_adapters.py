@@ -109,8 +109,8 @@ class ClaudeCodeEventsTest(unittest.TestCase):
         self.assertEqual(CLAUDE.refusals([{"type": "result", "permission_denials": []}]), [])
 
     def test_resolved_model_comes_from_init_event(self):
-        init = {"type": "system", "subtype": "init", "model": "claude-sonnet-5-5"}
-        self.assertEqual(CLAUDE.resolved_model([init]), "claude-sonnet-5-5")
+        init = {"type": "system", "subtype": "init", "model": "model-x"}
+        self.assertEqual(CLAUDE.resolved_model([init]), "model-x")
         self.assertIsNone(CLAUDE.resolved_model([]))
 
     def test_task_profile_names_the_sandbox(self):
@@ -183,7 +183,8 @@ class CodexEventsTest(unittest.TestCase):
     def test_path_only_commands_do_not_trigger(self):
         for command in ("bash -lc 'ls .agents/skills/demo/SKILL.md && echo found'",
                         "bash -lc 'test -f .agents/skills/demo/SKILL.md'",
-                        "stat .agents/skills/demo/SKILL.md"):
+                        "stat .agents/skills/demo/SKILL.md",
+                        "bash -lc 'rg --files .agents/skills/demo/SKILL.md'"):
             event = codex_item("command_execution", command=command)
             self.assertFalse(CODEX.skill_triggered([event], "demo"), command)
 

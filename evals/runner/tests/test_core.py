@@ -169,6 +169,10 @@ class ProvenanceTest(unittest.TestCase):
             self.assertNotEqual(first, core.tree_hash(folder, {"SKILL.md": "other"}))
             Path(folder, "extra.txt").write_text("x")
             self.assertNotEqual(first, core.tree_hash(folder))
+            second = core.tree_hash(folder)
+            Path(folder, "results").mkdir()
+            Path(folder, "results", "run.json").write_text("{}")
+            self.assertEqual(second, core.tree_hash(folder, exclude=[Path(folder, "results")]))
 
     def test_model_of_prefers_reported_and_flags_mixed(self):
         self.assertEqual(core.model_of([None, "m1", "m1"], "alias"), "m1")

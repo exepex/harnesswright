@@ -16,6 +16,9 @@ CLI = "codex"
 # SKILL.md (cat, sed, rg, grep, python, ...) counts as reading it.
 PATH_ONLY_COMMANDS = ("ls", "find", "fd", "tree", "stat", "test", "[", "file", "du", "realpath",
                       "readlink", "dirname", "basename", "echo", "printf", "touch", "mkdir", "cd")
+# Flags that turn a reading command into a path-only one, such as `rg --files`, which lists files
+# "without actually performing the search".
+PATH_ONLY_FLAGS = {"rg": ("--files",)}
 SHELLS = ("bash", "sh", "zsh", "dash")
 
 
@@ -105,12 +108,18 @@ def _program(segment):
     return ""
 
 
+def _path_only(segment):
+    program = _program(segment)
+    if program in PATH_ONLY_COMMANDS:
+        return True
+    return any(flag in _split(segment) for flag in PATH_ONLY_FLAGS.get(program, ()))
+
+
 def _reads_file(command, marker):
     """True when a simple command that names the path can read it. Output is never inspected."""
     if marker not in command:
         return False
-    return any(marker in segment and _program(segment) not in PATH_ONLY_COMMANDS
-               for segment in _segments(command))
+    return any(marker in segment and not _path_only(segment) for segment in _segments(command))
 
 
 def skill_triggered(events, skill_name):

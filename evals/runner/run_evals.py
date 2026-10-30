@@ -100,7 +100,7 @@ def cmd_tasks(args):
         shutil.rmtree(out_dir / task["name"] / config, ignore_errors=True)
     core.write_json(out_dir / f"status-{config}.json", {
         "host": args.host, "status": "not run" if reason else "run", "not_run_reason": reason,
-        "provenance": core.provenance(adapter, "task", args.model, args.skill, text, tasks_file),
+        "provenance": core.provenance(adapter, "task", args.model, args.skill, text, tasks_file, out_dir),
         "runs": [{"task_name": t["name"], "run": n} for t in sorted(tasks, key=lambda t: t["id"])
                  for n in range(1, (args.runs if not reason else 0) + 1)]})
     for task in sorted(tasks, key=lambda t: t["id"]):

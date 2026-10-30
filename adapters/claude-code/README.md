@@ -29,7 +29,7 @@ so a trigger eval measures the skill against them, as a real user would see it.
   disabled" and refused the commands again. Go's build cache needs the scratch folder (`XDG_CACHE_HOME`, added
   with `--add-dir`); without it `go test` fails on the read-only home folder.
 - Runner, live: a throwaway skill whose task runs `go test` passed its script check through `run_evals.py tasks`,
-  with no refusals and the model `claude-sonnet-5-5` recorded from the init event.
+  with no refusals and the host default model recorded from the init event.
 
 - Flags: `claude --help` of Claude Code 2.1.314 in this container lists every flag above.
 - Events: a live run on 2026-10-30 of a throwaway `haiku-writer` skill emitted a `system` `init` event listing the
