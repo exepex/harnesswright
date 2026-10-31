@@ -167,7 +167,7 @@ host counts as reached only when the gate opens a tunnel to one.
 | Write | Private home and temp only, never the world | World, scratch, private home and temp |
 | Run commands | Yes, in the jail | Yes, in the jail |
 | Network from commands | Only the model hosts, through the gate | Only the model hosts, through the gate |
-| Host tools | Read, write, command, load a skill, start a sub-agent in the same jail | The same |
+| Host tools | Read, write, command, load a skill, start a sub-agent in the same jail, and wait | The same |
 
 ### Probes
 

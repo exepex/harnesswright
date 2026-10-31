@@ -42,8 +42,10 @@ TABLE = {
 }
 
 # The kinds of host tool a run may have, in both modes. A sub-agent runs in the same jail, so it has the same
-# powers. Each adapter names its host's tools by kind (`host.CONTRACT`); a tool of any other kind stops the round.
-TOOLS = ("read", "write", "command", "skill", "agent")
+# powers. A `wait` tool has no power at all: it sleeps, waits for its own command or sub-agent, or asks a question
+# no one answers in a run. Each adapter names its host's tools by kind (`host.CONTRACT`); a tool of any other kind
+# stops the round.
+TOOLS = ("read", "write", "command", "skill", "agent", "wait")
 
 PROBE = r'''
 import json, os, re, socket, stat, sys, tempfile

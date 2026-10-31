@@ -84,9 +84,11 @@ class FakeHost(TempCase):
         return host.run(contained, json.dumps(actions), skills=["haiku-writer"], timeout=120), world
 
     def test_a_sound_run_gives_one_host_neutral_log(self):
-        actions = [{"do": "read", "path": "README.md"}, {"do": "write", "path": "notes.txt", "text": "hi\n"},
+        notes = str((self.tmp / "world-task").resolve() / "notes.txt")  # an absolute path is logged in world terms
+        actions = [{"do": "read", "path": "README.md"}, {"do": "write", "path": notes, "text": "hi\n"},
                    {"do": "command", "command": "cat README.md"}, {"do": "skill", "name": "haiku-writer"},
-                   {"do": "agent", "task": "judge the change"},
+                   {"do": "agent", "task": "judge the change"}, {"do": "read", "path": "missing.txt"},
+                   {"do": "write", "path": "no-folder/x.txt", "text": "x"},  # failed, but the run may write there
                    {"do": "command", "command": "rm -r .", "block": "no"}, {"do": "say", "text": "Done."}]
         result, world = self.run_of("task", fake_adapter(), actions)
         self.assertIsNone(result.failure, result.stderr)
@@ -104,7 +106,7 @@ class FakeHost(TempCase):
         result, world = self.run_of("trigger", fake_adapter(), [{"do": "write", "path": "notes.txt", "text": "x"}])
         # The host's sandbox is off; the jail refused the write, and the log says so.
         self.assertEqual([(e["kind"], e["action"]) for e in result.log], [("blocked", "write_file: notes.txt")])
-        self.assertIn("Read-only file system", result.log[0]["reason"])
+        self.assertIn("does not let a trigger run write it: [Errno 30]", result.log[0]["reason"])
         self.assertFalse((world / "notes.txt").exists())
         sandboxed = changed(fake_adapter(), jail_command=lambda mode, world, model: [
             "fakehost", "--world", str(world), "--no-bundled", "--tools", "write_file"])
@@ -129,7 +131,7 @@ class FakeHost(TempCase):
         with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in .*notes.txt"):
             self.run_of("task", adapter, [], tokens=[token])
         (self.tmp / "world-task" / "notes.txt").unlink()
-        bad = changed(adapter, action_log=lambda stdout: [{"kind": "read", "source": "observed", "path": 1}])
+        bad = changed(adapter, action_log=lambda stdout, home: [{"kind": "read", "source": "observed", "path": 1}])
         with self.assertRaisesRegex(host.HostError, "action log: entry 0 \\(read\\): path"):
             self.run_of("task", bad, [])
         hiding = changed(adapter, exposure=lambda stdout, home: {"skills": ["haiku-writer"], "tools": []},

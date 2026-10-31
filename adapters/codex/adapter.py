@@ -5,6 +5,7 @@ shell command, so a skill counts as triggered when a command in the JSON event s
 file, or a tool call's arguments name it.
 """
 
+import hashlib
 import json
 import re
 import shlex
@@ -193,3 +194,105 @@ def failure(events, returncode, timed_out, mode):
     if not completed:
         return "no turn.completed event"
     return None
+
+
+# The eval harness contract (evals/harness/host.py). The jail enforces the power table, so Codex's own sandbox and
+# approvals are off, and its bundled skills are off. Every thread, sub-agents included, writes a session file in
+# the run's home, which holds each finished item with its full detail, so the action log is read from there: the
+# `--json` stream on stdout leaves out what sub-agents do.
+RUN_ENV = {}
+TOOLS = {"functions.exec": "command", "collaboration.spawn_agent": "agent", "collaboration.followup_task": "agent",
+         "collaboration.send_message": "agent", "collaboration.interrupt_agent": "agent",
+         "collaboration.list_agents": "agent", "collaboration.wait_agent": "wait", "functions.wait": "wait",
+         "clock.sleep": "wait", "functions.request_user_input": "wait",
+         "functions.request_user_input_async": "wait"}  # `exec` mode answers no question
+SKILL_ROW = re.compile(r"^- ([A-Za-z0-9._-]+): .*\(file: \S+\)$")
+
+
+def jail_command(mode, world, model):
+    command = [CLI, "exec", "--json", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox",
+               "-c", "skills.bundled.enabled=false", "--cd", str(world)]
+    return command + (["--model", model] if model else []) + ["-"]
+
+
+def _session_lines(home):
+    for path in sorted(Path(home).glob(".codex/sessions/**/rollout-*.jsonl")):
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict) and isinstance(record.get("payload"), dict):
+                yield record
+
+
+def _finished_items(home):
+    found = [(record["payload"].get("started_at_ms") or 0, record["payload"]["item"])
+             for record in _session_lines(home)
+             if record.get("type") == "event_msg" and record["payload"].get("type") == "item_completed"
+             and isinstance(record["payload"].get("item"), dict)]
+    return [item for _, item in sorted(found, key=lambda pair: pair[0])]
+
+
+def _command_text(command):
+    if isinstance(command, list):
+        if len(command) == 3 and command[0].rsplit("/", 1)[-1] in SHELLS and command[1].startswith("-"):
+            return command[2]
+        return shlex.join(str(word) for word in command)
+    return str(command)
+
+
+def action_log(stdout, home):
+    log = []
+    for item in _finished_items(home):
+        kind = item.get("type")
+        if kind == "CommandExecution":
+            exit_code = item.get("exit_code")
+            log.append({"kind": "command", "source": "observed", "command": _command_text(item.get("command")),
+                        "exit_code": exit_code if isinstance(exit_code, int) else None,
+                        "output": str(item.get("aggregated_output") or "")[:4000]})
+            for parsed in item.get("parsed_cmd") or []:  # Codex's own reading of the command, so inferred
+                if isinstance(parsed, dict) and parsed.get("type") == "read" and isinstance(parsed.get("path"), str):
+                    log.append({"kind": "read", "source": "inferred", "path": parsed["path"]})
+                    found = re.search(r"skills/([^/]+)/SKILL\.md$", parsed["path"])
+                    if found:
+                        log.append({"kind": "skill", "source": "inferred", "name": found.group(1)})
+        elif kind == "FileChange":
+            for path, change in (item.get("changes") or {}).items():
+                if item.get("status") != "completed":
+                    log.append({"kind": "failed", "source": "observed", "action": f"write: {path}", "path": str(path),
+                                "reason": str(item.get("stderr") or item.get("stdout") or "").strip()})
+                    continue
+                content = change.get("content") if isinstance(change, dict) else None
+                digest = hashlib.sha256(content.encode()).hexdigest() if isinstance(content, str) else None
+                log.append({"kind": "write", "source": "observed", "path": str(path),
+                            "sha256": digest if change.get("type") != "delete" else None})
+        elif kind == "SubAgentActivity" and item.get("kind") == "started":
+            log.append({"kind": "agent", "source": "observed", "task": str(item.get("agent_path") or "")})
+        elif kind == "AgentMessage":
+            text = "".join(part.get("text", "") for part in item.get("content") or [] if isinstance(part, dict))
+            log.append({"kind": "message", "source": "observed", "text": text})
+    return log
+
+
+def exposure(stdout, home):
+    """Every skill and tool any thread was given, from the `world_state` records of its session files; None when
+    there are none."""
+    skills, tools, seen = set(), set(), False
+    for record in _session_lines(home):
+        if record.get("type") != "world_state":
+            continue
+        state = record["payload"].get("state") or {}
+        seen = True
+        body = (state.get("host_skills") or {}).get("body") or ""
+        skills |= {found.group(1) for found in map(SKILL_ROW.match, body.splitlines()) if found}
+        tools |= set(state.get("top_level_tools") or {})
+    if not seen:
+        return None
+    # A namespace such as `functions` is listed beside its tools (`functions.exec`); only the tools are tools.
+    leaves = [tool for tool in tools if not any(other.startswith(tool + ".") for other in tools)]
+    return {"skills": sorted(skills), "tools": sorted(leaves)}
+
+
+def run_failure(stdout, returncode, timed_out):
+    return failure(parse_events(stdout), returncode, timed_out, "task")

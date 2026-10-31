@@ -6,8 +6,8 @@ system folders and the `/etc` entries in `ETC` (read-only), the host's install a
 minimal `/dev`, and the gate's socket. The jail has no network of its own: every connection goes through the gate
 (`gate.py`), which allows only the host's model hosts. The jail is built from the list, and `audit.py` checks the
 jail against the same list from inside it before the host starts. Any problem raises ContainmentError: the run is
-void and the round stops. The environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS` and
-the run's folders), never inherited.
+void and the round stops. The environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS`, its
+fixed `RUN_ENV` and the run's folders), never inherited.
 """
 
 import json
@@ -164,8 +164,10 @@ class Containment:
         env.update(HOME=str(self.home), PWD=str(self.world), TMPDIR=str((self.scratch or self.home) / "tmp"),
                    XDG_CONFIG_HOME=str(self.home / ".config"),
                    XDG_CACHE_HOME=str(self.scratch / "cache" if self.scratch else self.home / ".cache"))
+        fixed = dict(getattr(self.adapter, "RUN_ENV", {}))  # set by the adapter, never taken from the operator
+        env.update(fixed)
         env = dict(self.adapter.environment(env))
-        extra = sorted(set(env) - set(keys) - set(RUN_KEYS))
+        extra = sorted(set(env) - set(keys) - set(RUN_KEYS) - set(fixed))
         if extra:
             raise ContainmentError(f"the adapter added variables outside the allow list: {extra}")
         return env

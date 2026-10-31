@@ -11,6 +11,7 @@ Standard library only.
 """
 
 import hashlib
+import os
 import re
 import subprocess
 
@@ -23,17 +24,20 @@ CONTRACT = {
     "MODEL_HOSTS": tuple,  # the gate's allow list (doc 11, The gate)
     "ENV_KEYS": tuple,
     "CREDENTIAL_FILES": tuple,
+    "RUN_ENV": dict,  # fixed variables the adapter sets for every run, never taken from the operator (contain.py)
     "TOOLS": dict,  # each tool the host may expose, by the host's name, with its kind in powers.TOOLS
     "skill_dir": callable,  # (world, name): where the host discovers a skill in the world
     "environment": callable,  # (env): the run's environment, given the one the harness built (contain.py)
     # (mode, world, model): the command for one run, with the prompt on stdin. The host's own sandbox is off (the
     # jail enforces the table), its bundled skills are off where it allows, and it exposes only its TOOLS.
     "jail_command": callable,
-    "action_log": callable,  # (stdout): the host-neutral action log, a list of ENTRIES
+    # (stdout, home): the host-neutral action log, a list of ENTRIES, where a write that failed may also be
+    # {"kind": "failed", "source", "action", "path", "reason"} and the harness decides what it was (`settle`)
+    "action_log": callable,
     # (stdout, home): {"skills": [names], "tools": [host tool names]} as the host reported them, or None when it
     # did not report them, which only a failed run may do
     "exposure": callable,
-    "failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
+    "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
 }
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
 OUTPUT_LIMIT = 4000  # characters of a command's output the log keeps
@@ -145,8 +149,9 @@ def run(contained, prompt, skills, model=None, timeout=900):
             stdout, stderr, returncode, timed_out = done.stdout, done.stderr, done.returncode, False
         except subprocess.TimeoutExpired as expired:
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
-    failure = adapter.failure(stdout, returncode, timed_out)
-    log = adapter.action_log(stdout)
+    failure = adapter.run_failure(stdout, returncode, timed_out)
+    log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
+    log = [item for item in log if item is not None]
     check_log(log, skills)
     exposure = adapter.exposure(stdout, contained.home)
     if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
@@ -154,6 +159,29 @@ def run(contained, prompt, skills, model=None, timeout=900):
     if exposure is not None:
         check_exposure(adapter, exposure, skills)
     return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log))
+
+
+def settle(item, contained):
+    """One entry as the log keeps it, for a run in `contained`. An adapter reports a write that failed as `failed`:
+    it is `blocked` when the jail's mount list does not let the run write its path, since the jail then refused it,
+    and is otherwise left out, as the world diff shows what happened. A path inside the world is written relative to
+    it, as every host's log then says it."""
+    if not isinstance(item, dict):
+        return item
+    world = contained.world
+    if item.get("kind") == "failed":
+        path = os.path.normpath(os.path.join(world, str(item.get("path", ""))))  # an absolute path stays as it is
+        # The nearest mount above the path is the one the jail applies; only `rw` and `tmpfs` mounts are writable.
+        above = [m for m in contained.mounts(contained.adapter.CLI)
+                 if (path + "/").startswith(m.path.rstrip("/") + "/")]
+        if above and max(above, key=lambda m: len(m.path)).how in ("rw", "tmpfs"):
+            return None
+        return entry("blocked", item.get("source", "observed"), action=str(item.get("action", "")),
+                     reason=f"the jail does not let a {contained.mode} run write it: {item.get('reason', '')}")
+    path = item.get("path")
+    if isinstance(path, str) and (path + "/").startswith(str(world) + "/"):
+        return {**item, "path": path[len(str(world)) + 1:] or "."}
+    return item
 
 
 def _text(data):

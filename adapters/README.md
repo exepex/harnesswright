@@ -49,7 +49,14 @@ The new eval harness ([evals/harness](../evals/harness/README.md#the-host-contra
 `host.CONTRACT`. There the jail, not the host, confines commands: an adapter turns its host's own sandbox off,
 turns off the skills the host ships where it allows, keeps only tools of a kind on the power table, and reports
 an action log of the entries the contract lists. The sandbox rule above is for the phase 2 runner only, which
-runs hosts without a jail. Codex and Claude Code take the harness contract in the next pull request.
+runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 runner is removed.
+
+- **Codex** runs with `--dangerously-bypass-approvals-and-sandbox` and `-c skills.bundled.enabled=false`. Its
+  action log and exposure are read from the session files every thread writes in the run's home, since its
+  `--json` stream leaves out what sub-agents do.
+- **Claude Code** runs with `--dangerously-skip-permissions`, `--tools` set to its `TOOLS`, and settings that turn
+  off its bundled skills, its built-in plugins and the two skills that survive the bundled-skill switch. Its
+  exposure is its start-up event. `IS_SANDBOX=1` lets it skip permissions as root, as the jail is its sandbox.
 
 ## Adding a host
 
