@@ -142,9 +142,13 @@ def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=(), skill_
     source = bundle_dir / "files"
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source).as_posix()
-        if not outside(relative) or path.is_dir():
+        if not outside(relative):
             continue
         target = out_dir / "files" / relative
+        if path.is_dir() and not path.is_symlink():
+            # Empty folders are kept: making a folder can be what the task asked for.
+            target.mkdir(parents=True, exist_ok=True)
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         if path.is_symlink():
             target.symlink_to(path.readlink())

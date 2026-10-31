@@ -60,13 +60,21 @@ class LintFaults(TempCase):
         self.assertEqual(self.problems(files, {"allow_words": {"docs/testing.md": ["fixture"]}}), [])
 
     def test_git_folders_outside_symlinks_and_drifted_copies(self):
-        with self.assertRaisesRegex(cases.CaseError, "git metadata"):
+        with self.assertRaisesRegex(cases.CaseError, "a .git folder"):
             self.problems({"README.md": "x\n", ".git/HEAD": "ref: x\n"})
         case = self.case({"README.md": "x\n"}, name="link")
-        (case.world / "secrets").symlink_to("/etc")
-        self.assertTrue(any("outside the world" in p for p in lint._structure(case.world)))
+        (case.world / "secrets").symlink_to("../../..")
+        self.assertTrue(any("outside the world" in p for p in cases.structure(case.world)))
         stale = {"world": "README.md", "source": "LICENSE", "source_sha256": "0" * 64}
         self.assertTrue(any("changed since" in p for p in self.problems({"README.md": "x\n"}, {"copies": [stale]})))
+
+    def test_an_absolute_symlink_is_refused_even_into_the_world(self):
+        case = self.case({"README.md": "x\n"}, name="absolute")
+        (case.world / "readme-link").symlink_to(case.world / "README.md")
+        self.assertTrue(any("absolute symlink" in p for p in cases.structure(case.world)))
+        self.skill()
+        with self.assertRaisesRegex(cases.CaseError, "absolute symlink"):
+            world.build(case, Adapter, self.tmp / "built", False, self.tmp / "skills")
 
     def test_a_planted_git_hook_never_runs(self):
         marker = self.tmp / "hook-ran"

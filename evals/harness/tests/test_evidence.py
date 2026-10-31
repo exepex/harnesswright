@@ -79,6 +79,14 @@ class Bundles(TempCase):
         self.assertEqual([e["kind"] for e in data["actions"]], ["write"])
         self.assertEqual(data["diff"]["added"], [])
 
+    def test_the_grader_view_keeps_empty_folders(self):
+        folder = self.world()
+        (folder / "out" / "empty").mkdir(parents=True)
+        evidence.write_bundle(self.tmp / "b", {"final": ""}, folder, [], [])
+        view = evidence.grader_view(self.tmp / "b", self.tmp / "v", ["skills/haiku-writer"], ["haiku-writer"])
+        self.assertTrue((view / "files" / "out" / "empty").is_dir())
+        self.assertFalse((view / "files" / "skills" / "haiku-writer").exists())
+
     def test_credentials_with_escaped_characters_are_redacted(self):
         folder = self.world()
         for secret in ('sk-back\\slash-0123', 'sk-"quote"-0123', "sk-new\nline-0123", "sk-ünï-0123"):

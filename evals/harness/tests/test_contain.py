@@ -109,6 +109,21 @@ class ContainmentFaults(TempCase):
         with self.assertRaisesRegex(contain.ContainmentError, "repository"):
             box.mounts(adapter.CLI)
 
+    def test_no_folder_that_holds_the_repository_is_mounted(self):
+        adapter = self.fake_adapter()
+        box = self.box(adapter, host_paths=[str(contain.REPO.parent)])
+        with self.assertRaisesRegex(contain.ContainmentError, "repository"):
+            box.mounts(adapter.CLI)
+
+    def test_proxy_credentials_are_secrets(self):
+        adapter = self.fake_adapter()
+        url = "http://proxy-user:pa%40ss-0123@proxy.example.invalid:3128"
+        box = self.box(adapter, operator_env=self.operator_env(HTTPS_PROXY=url, http_proxy="proxy.example.invalid:80"))
+        found = box.secrets()
+        for value in (url, "proxy-user:pa%40ss-0123", "pa%40ss-0123", "pa@ss-0123"):
+            self.assertIn(value, found)
+        self.assertFalse(any("proxy.example.invalid:80" in v for v in found))
+
     @needs_jail
     def test_the_audit_names_variables_outside_the_allow_list(self):
         adapter = self.fake_adapter()

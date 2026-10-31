@@ -12,7 +12,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 |---|---|
 | `cases.py` | Reads and checks `evals/skills/NAME/cases/<case>/case.json`; hashes file trees |
 | `world.py` | Builds both arms of a case from its world, and proves they differ only by the skill |
-| `lint.py` | The world lint: skill name, path or own text, eval files, test tells, `.git`, outside symlinks, drifted copies |
+| `lint.py` | The world lint: skill name, path or own text, eval files, test tells, `.git`, absolute or outside symlinks, drifted copies |
 | `contain.py` | Each run's folders, allow-listed environment and `bwrap` jail; canaries |
 | `audit.py` | The visibility audit, run inside the jail before the host starts |
 | `powers.py` | The power table for each mode, and the probe script that measures it |
@@ -87,4 +87,4 @@ each harness fault against it: a negative control shows each fault is caught whe
   TMPDIR; the adapter now denies writes to the home folder (which holds TMPDIR) and `/tmp` in trigger runs, and
   the probe then passed. Its self-writes in an empty run are files under `.claude/`, `.claude.json` and `.npm/`
   in the private home and nothing in the world.
-- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 47 tests, all passing.
+- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 52 tests, all passing.

@@ -64,6 +64,17 @@ class Arms(TempCase):
         self.assertIsNotNone(base.head)
         self.assertEqual(base.head, with_arm.head)
 
+    def test_skill_files_keep_their_permission_bits(self):
+        script = self.skill() / "scripts" / "count.py"
+        script.parent.mkdir()
+        script.write_text("print(1)\n")
+        script.chmod(0o755)
+        _, _, with_arm = self.build_pair()
+        for root in ("skills", ".host/skills"):
+            with self.subTest(root=root):
+                self.assertEqual((with_arm.path / root / "haiku-writer/scripts/count.py").stat().st_mode & 0o777,
+                                 0o755)
+
     def test_siblings_are_installed_in_both_arms(self):
         self.skill("note-taker")
         _, base, with_arm = self.build_pair({"siblings": ["note-taker"]})

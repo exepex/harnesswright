@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cases import REPO, CaseError, load_cases, sha256_file  # noqa: E402
+from cases import REPO, CaseError, load_cases, sha256_file, structure  # noqa: E402
 
 SHINGLE = 8
 # Words that tell an agent it is being tested. A file may allow some of them through `allow_words`.
@@ -110,7 +110,7 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
         if expectation_runs & shingles(text, 6):
             problems.append(f"{path}: holds expectation text")
 
-    problems += _structure(case.world)
+    problems += structure(case.world)
     for copy in case.copies:
         source = Path(repo) / copy["source"]
         if not (case.world / copy["world"]).is_file():
@@ -123,21 +123,6 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     return [f"{case.id}: {p}" for p in problems]
 
 
-def _structure(world):
-    """A `.git` folder, or a symlink that points outside the world, in the written world."""
-    problems = []
-    root = Path(world).resolve()
-    for path in sorted(Path(world).rglob("*")):
-        relative = path.relative_to(world).as_posix()
-        if path.name == ".git":
-            problems.append(f"{relative}: a .git folder; declare history as commits in case.json")
-        if path.is_symlink():
-            target = (path.parent / path.readlink()).resolve()
-            if not target.is_relative_to(root):
-                problems.append(f"{relative}: a symlink that points outside the world")
-    return problems
-
-
 def lint_skill(skill, adapter, cases_root=None, skills_root=None):
     """Lint every case of a skill for one host. Returns the problems."""
     import world as world_builder
@@ -145,9 +130,9 @@ def lint_skill(skill, adapter, cases_root=None, skills_root=None):
     upstream = REPO / "evals" / "skills" / skill / "upstream"
     problems = []
     for case in load_cases(skill, cases_root):
-        structure = [f"{case.id}: {p}" for p in _structure(case.world)]
-        if structure:
-            problems += structure
+        unsound = [f"{case.id}: {p}" for p in structure(case.world)]
+        if unsound:
+            problems += unsound
             continue
         with tempfile.TemporaryDirectory(prefix="hw-lint-") as folder:
             try:

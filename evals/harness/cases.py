@@ -186,3 +186,23 @@ def frontmatter(text):
             key, value = line.split(":", 1)
             meta[key.strip()] = value.strip().strip('"')
     return meta
+
+
+def structure(world):
+    """A `.git` folder, an absolute symlink or a symlink that points outside the world, in a written world.
+
+    A copied absolute symlink still points at the source world, so writes through it would reach the case.
+    """
+    problems = []
+    root = Path(world).resolve()
+    for path in sorted(Path(world).rglob("*")):
+        relative = path.relative_to(world).as_posix()
+        if path.name == ".git":
+            problems.append(f"{relative}: a .git folder; declare history as commits in case.json")
+        if path.is_symlink():
+            link = path.readlink()
+            if link.is_absolute():
+                problems.append(f"{relative}: an absolute symlink; use a relative one inside the world")
+            elif not (path.parent / link).resolve().is_relative_to(root):
+                problems.append(f"{relative}: a symlink that points outside the world")
+    return problems

@@ -8,10 +8,11 @@ skills, and one generated index row. Nothing is ever removed, so there is no lis
 
 import os
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 
-from cases import REPO, CaseError, sha256_bytes, skill_files, tree, tree_hash
+from cases import REPO, CaseError, sha256_bytes, skill_files, structure, tree, tree_hash
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
 GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@example.invalid",
@@ -44,10 +45,11 @@ def build(case, adapter, out, with_skill, skills_root=None, skill_dir=None):
     out = Path(out)
     if out.exists() and any(out.iterdir()):
         raise CaseError(f"{out} is not empty")
-    # A written world never holds git metadata: hooks in it would run when the history is built.
-    planted = [p.relative_to(case.world).as_posix() for p in case.world.rglob(".git")]
-    if planted:
-        raise CaseError(f"{case.id}: the world holds git metadata {planted}; declare history as commits")
+    # A written world never holds git metadata, whose hooks would run when the history is built, nor a symlink
+    # that leads out of it, which would point the arm back at the source or the machine.
+    problems = structure(case.world)
+    if problems:
+        raise CaseError(f"{case.id}: the world is unsound: {problems}")
     shutil.copytree(case.world, out, symlinks=True, dirs_exist_ok=True)
     head = _history(out, case.commits)
     skills_root = Path(skills_root) if skills_root else REPO / "skills"
@@ -73,6 +75,8 @@ def _install(world, case, adapter, source, rel, overlay):
             path = world / target / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
+            # Keep the source's permission bits, so a skill's executable script stays executable.
+            path.chmod(stat.S_IMODE((Path(source) / name).stat().st_mode))
     row = None
     if case.index:
         row = case.index["row"].format(name=meta["name"], path=f"{rel}/SKILL.md", description=meta["description"])

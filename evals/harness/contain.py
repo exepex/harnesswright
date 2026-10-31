@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runner"))
 import seal  # noqa: E402
@@ -105,6 +106,10 @@ class Containment:
     def secrets(self):
         """Every credential value a bundle must never hold: sign-in variables and strings in credential files."""
         values = [self.env[key] for key in getattr(self.adapter, "ENV_KEYS", ()) if len(self.env.get(key, "")) >= 8]
+        # A proxy variable can carry a user and password: the whole value and its user part are credentials.
+        for key in seal.BASE_KEYS:
+            if "proxy" in key.lower() and self.env.get(key):
+                values += _proxy_secrets(self.env[key])
         for relative in self.credentials:
             try:
                 values += [v for v in _strings(json.loads((self.home / relative).read_text())) if len(v) >= 16]
@@ -121,7 +126,10 @@ class Containment:
             writable.append(str(self.world))
         else:
             read_only.append(str(self.world))
-        inside = [p for p in read_only + writable if Path(p).resolve().is_relative_to(REPO.resolve())]
+        # Neither a folder inside the repository nor one that holds it, such as its parent or /home.
+        repo = REPO.resolve()
+        inside = [p for p in read_only + writable
+                  if Path(p).resolve().is_relative_to(repo) or repo.is_relative_to(Path(p).resolve())]
         if inside:
             raise ContainmentError(f"a run may not mount anything of this repository: {inside}")
         return [p for p in read_only if Path(p).exists()], writable
@@ -199,6 +207,20 @@ class Containment:
 def _overlaps(path, mount):
     path, mount = Path(path), Path(mount)
     return path == mount or path.is_relative_to(mount) or mount.is_relative_to(path)
+
+
+def _proxy_secrets(value):
+    """The credential parts of a proxy URL: the whole value, its user part and its password, raw and decoded."""
+    try:
+        parts = urlsplit(value if "://" in value else "http://" + value)
+        user, password = parts.username, parts.password
+    except ValueError:
+        return [value]
+    if user is None and password is None:
+        return []
+    userinfo = parts.netloc.rpartition("@")[0]
+    found = [value, userinfo] + [v for v in (password, user) if v and len(v) >= 4]
+    return found + [unquote(v) for v in found]
 
 
 def _strings(value):
