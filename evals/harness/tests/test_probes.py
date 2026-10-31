@@ -5,6 +5,7 @@ import os
 import re
 import shlex
 import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -177,15 +178,40 @@ class Memory(ProbeCase):
             # No file of the operator's but the credential files, and the fake host has none.
             self.assertEqual(sorted(manifest.manifest(folder / "operator")), [".fake", ".fake/MEMORY.md"])
 
-    def test_a_jail_that_can_see_a_decoy_is_refused_by_the_audit(self):
+    def test_a_jail_that_can_see_a_memory_place_fails_before_the_host_runs(self):
         leaky = fake_adapter()
         leaky.memory_files = lambda home, world: [self.tool / "MEMORY.md"]  # a place the jail mounts
-        with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in"):
-            self.probe("memory", "trigger", SOUND["memory"], leaky)
+        self.assertIn(f"the run can see {self.tool / 'MEMORY.md'}", self.probe("memory", "trigger", SOUND["memory"],
+                                                                               leaky))
+        self.assertEqual(list((self.tmp / "pro bes").glob("memory-trigger-*/run/probe-out/*")), [])  # no host run
         inside = fake_adapter()
         inside.memory_files = lambda home, world: [Path(world) / "MEMORY.md"]
         with self.assertRaisesRegex(ValueError, "inside the world"):
             self.probe("memory", "trigger", SOUND["memory"], inside)
+
+    def test_a_memory_place_the_operator_lets_in_fails_and_an_adapter_must_name_one(self):
+        own = self.tmp / "operator" / ".fake"  # the operator's real memory folder, named as a host path
+        own.mkdir(parents=True)
+        found = probes.probe(fake_adapter(), "memory", "task", self.tmp / "pro bes", prompt=SOUND["memory"],
+                             timeout=120, operator_env={"PATH": f"{self.tool}:/usr/bin:/bin",
+                                                        "HTTPS_PROXY": self.upstream.url},
+                             operator_home=self.tmp / "operator", host_paths=[self.tool, own])
+        self.assertIn(f"the run can see {own / 'MEMORY.md'}, where the host reads memory", found)
+        silent = fake_adapter()
+        silent.memory_files = lambda home, world: []
+        with self.assertRaisesRegex(ValueError, "names no memory place"):
+            self.probe("memory", "trigger", SOUND["memory"], silent)
+
+    def test_a_signed_in_host_passes_and_its_credential_copy_brings_no_decoy(self):
+        (self.tmp / "operator" / ".fake").mkdir(parents=True)
+        (self.tmp / "operator" / ".fake" / "auth.json").write_text("{}\n")  # beside the decoy MEMORY.md
+        signed = fake_adapter()
+        signed.CREDENTIAL_FILES = (".fake/auth.json",)
+        for mode in probes.MODES:
+            self.assertIsNone(self.probe("memory", mode, SOUND["memory"], signed))
+        homes = sorted((self.tmp / "pro bes").glob("memory-*/run/home"))
+        self.assertTrue(homes and all(sorted(manifest.manifest(h)) == [".fake", ".fake/auth.json", "tmp"]
+                                      for h in homes))
 
     def test_the_decoy_home_holds_only_copies_of_the_credential_files(self):
         operator = self.tmp / "operator"
@@ -206,8 +232,13 @@ class Drift(ProbeCase):
                             operator_home=self.tmp / "operator", host_paths=[self.tool])
 
     def test_it_records_the_tools_and_the_files_the_host_writes_for_itself(self):
-        prompt = acts(command('touch "$HOME/state.json"'))(None)
-        reason, record = self.drift(prompt, tools=["python3", "hw-no-such-tool"])
+        prompt = acts(command('touch "$HOME/state.json" "$TMPDIR/cache"; echo x >> "$HOME/.fake/auth.json"; '
+                              'touch made.txt 2>/dev/null; true'))(None)  # the world only takes it in a task run
+        (self.tmp / "operator" / ".fake").mkdir(parents=True)
+        (self.tmp / "operator" / ".fake" / "auth.json").write_text("{}\n")
+        signed = fake_adapter()
+        signed.CREDENTIAL_FILES = (".fake/auth.json",)
+        reason, record = self.drift(prompt, signed, tools=["python3", "hw-no-such-tool"])
         self.assertIsNone(reason)
         self.assertEqual(sorted(record["tools"]), ["fakehost", "hw-no-such-tool", "python3"])
         self.assertIsNone(record["tools"]["hw-no-such-tool"])
@@ -215,7 +246,19 @@ class Drift(ProbeCase):
         fake = record["tools"]["fakehost"]
         self.assertEqual((fake["path"], fake["sha256"]), (str(self.tool / "fakehost"), manifest.entry(
             self.tool / "fakehost").split()[1]))
-        self.assertEqual(record["own files"], {"trigger": ["home/state.json"], "task": ["home/state.json"]})
+        self.assertEqual(record["own files"], {  # added and changed, in the home, the scratch and the world
+            "trigger": ["home/.fake/auth.json", "home/state.json", "home/tmp/cache"],
+            "task": ["home/.fake/auth.json", "home/state.json", "scratch/tmp/cache", "world/made.txt"]})
+
+    def test_the_tools_probe_runs_only_in_an_audited_jail(self):
+        world = self.tmp / "empty"
+        world.mkdir()
+        planted = contain.plant_canaries([self.tool])  # a canary the jail can see, through a host path
+        run = contain.Containment(fake_adapter(), "trigger", world, {}, root=self.tmp / "run", tokens=planted,
+                                  operator_env={"PATH": f"{self.tool}:/usr/bin:/bin"},
+                                  operator_home=self.tmp / "operator", host_paths=[self.tool])
+        with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in"):
+            probes.versions(run, ["python3"])
 
     def test_a_host_that_fails_its_empty_run_is_not_run(self):
         crashed = fake_adapter()
@@ -260,6 +303,16 @@ class Folder(TempCase):
                                   operator_env={"PATH": "/usr/bin:/bin"}, operator_home=self.tmp / "decoy",
                                   host_paths=[Path(os.path.expanduser("~"))])
         with self.assertRaisesRegex(contain.ContainmentError, "operator's home"):
+            run.mounts("fakehost")
+        # A host installed in the real home and found on PATH, not named: refused, as in a run with the real home.
+        installed = Path(tempfile.mkdtemp(prefix=".hw-test-", dir=os.path.expanduser("~")))
+        self.addCleanup(shutil.rmtree, installed)
+        (installed / "bin").mkdir()
+        shutil.copy(FAKE / "fakehost", installed / "bin" / "fakehost")
+        run = contain.Containment(fake_adapter(), "trigger", world, {}, root=self.tmp / "run2",
+                                  operator_env={"PATH": f"{installed / 'bin'}:/usr/bin:/bin"},
+                                  operator_home=self.tmp / "decoy")
+        with self.assertRaisesRegex(contain.ContainmentError, "is in the operator's home: name the files"):
             run.mounts("fakehost")
 
 

@@ -37,11 +37,11 @@ def skill_dir(workspace, skill_name):
 def memory_files(home, world):
     """Where Claude Code reads memory and the user's own instructions outside the world, for a home and a world:
     the user's CLAUDE.md and rules, the project's auto memory under `~/.claude/projects`, and the CLAUDE.md files
-    of a folder above the project."""
+    of a folder above the project, at its top and in its `.claude` folder."""
     claude, above = Path(home) / ".claude", Path(world).parent
     project = re.sub(r"[^A-Za-z0-9]", "-", str(world))
     return [claude / "CLAUDE.md", claude / "rules" / "hw-probe.md", claude / "projects" / project / "memory" /
-            "MEMORY.md", above / "CLAUDE.md", above / "CLAUDE.local.md"]
+            "MEMORY.md", above / "CLAUDE.md", above / "CLAUDE.local.md", above / ".claude" / "CLAUDE.md"]
 
 
 def build_command(mode, workspace, model, scratch=None):
