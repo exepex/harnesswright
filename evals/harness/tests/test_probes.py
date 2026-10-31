@@ -24,9 +24,9 @@ def acts(*actions):
     return lambda out: json.dumps(list(actions))
 
 
-def loaded(out):
-    """The token of the probe world's instructions, as a host that loaded them would have it."""
-    return probes.TOKEN.search((Path(out).parent.parent / "world" / "AGENTS.md").read_text()).group()
+def loaded(out, name="AGENTS.md"):
+    """The token of a file in the probe world, as a host that loaded it would have it."""
+    return probes.TOKEN.search((Path(out).parent.parent / "world" / name).read_text()).group()
 
 
 def q(out, name):
@@ -50,10 +50,12 @@ SOUND = {
 UNSOUND = {
     "sign-in": (lambda out: acts({"do": "say", "text": "ready"})(out), "sign-in.txt holds None"),
     "powers": (lambda out: acts(command(f"echo '{{\"write the world\": true}}' > {q(out, 'powers.json')}"))(out),
-               "no command that ran the powers probe"),
+               "did more than the probe asks"),
     "discovery": (lambda out: acts({"do": "say", "text": "Done."})(out), f"no load of {probes.SKILL}"),
-    # Every token in the world, the skill's too: not the instructions the host loaded.
-    "instructions": (lambda out: acts(command(f"grep -rho '{TOKEN}' . > {q(out, 'instructions.txt')}"))(out),
+    # A token besides the instructions' one, the skill's: not the instructions the host loaded.
+    "instructions": (lambda out: acts(command(
+        f"echo '{loaded(out)} {loaded(out, f'.fake/skills/{probes.SKILL}/SKILL.md')}' > "
+        f"{q(out, 'instructions.txt')}"))(out),
                      "not the one token of the instruction files"),
 }
 
@@ -99,15 +101,21 @@ class Probes(TempCase):
                 ("sign-in", lambda out: acts(command(f"echo not ready > {q(out, 'sign-in.txt')}"))(out),
                  "sign-in.txt holds 'not ready"),
                 ("powers", lambda out: acts(command(f"echo '{json.dumps(right)}' > {q(out, 'powers.json')}"))(out),
-                 "no command that ran the powers probe"),
-                ("powers", lambda out: acts(command(f"echo '{json.dumps(right)}' > {q(out, 'powers.json')}; "
-                                                    "echo powers.py"))(out), "not from this run's probe"),
+                 "did more than the probe asks"),
+                ("powers", lambda out: acts(command(  # the command as given, with the spec changed first
+                    f"echo '{{}}' > {q(out, 'powers-spec.json')}"), command(probes.powers_command(out)))(out),
+                 "did more than the probe asks"),
+                ("powers", lambda out: acts(command(probes.powers_command(out)), {"do": "write", "path": str(
+                    out / "powers.json"), "text": json.dumps(right)})(out), "did more than the probe asks"),
                 ("discovery", lambda out: acts(command(  # read, never loaded as a skill
                     f"grep -o '{TOKEN}' .fake/skills/{probes.SKILL}/SKILL.md > {q(out, 'discovery.txt')}"))(out),
                  f"no load of {probes.SKILL}"),
                 ("instructions", lambda out: acts(command(  # read, never loaded as instructions
                     f"grep -o '{TOKEN}' AGENTS.md > {q(out, 'instructions.txt')}"))(out),
-                 "read an instruction file")):
+                 "did more than the probe asks"),
+                ("instructions", lambda out: acts(command(  # read through a wildcard, naming no file
+                    f"grep -ho '{TOKEN}' ./*.md > {q(out, 'instructions.txt')}"))(out),
+                 "did more than the probe asks")):
             with self.subTest(probe=name, reason=reason):
                 self.assertIn(reason, self.probe(name, "trigger", prompt))
 

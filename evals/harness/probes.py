@@ -32,7 +32,6 @@ import powers
 SKILL = "hw-probe-skill"
 TOKEN_PREFIX = "HWPROBE"
 TOKEN = re.compile(rf"{TOKEN_PREFIX}-[0-9a-f]{{16}}")
-INSTRUCTION_FILES = ("AGENTS.md", "CLAUDE.md")
 TRIES = {"discovery": 2}  # a probe skill is asked for by name with up to two tries; every other probe gets one
 
 
@@ -55,12 +54,16 @@ def build_world(folder, adapter, tokens):
     return folder
 
 
+def powers_command(out):
+    """The one command the powers probe asks the host to run."""
+    return " ".join([contain.PYTHON, "-I", shlex.quote(f"{out}/powers.py"), "<",
+                     shlex.quote(f"{out}/powers-spec.json"), ">", shlex.quote(f"{out}/powers.json")])
+
+
 # Each probe's prompt, given the probe-output folder. The prompts name what to do, never a token to write back.
 PROMPTS = {
     "sign-in": lambda out: f"Write the word ready into the file {out}/sign-in.txt, then stop.",
-    "powers": lambda out: ("Run this one command exactly as written, then stop: " + " ".join(
-        [contain.PYTHON, "-I", shlex.quote(f"{out}/powers.py"), "<", shlex.quote(f"{out}/powers-spec.json"), ">",
-         shlex.quote(f"{out}/powers.json")])),
+    "powers": lambda out: f"Run this one command exactly as written, then stop: {powers_command(out)}",
     "discovery": lambda out: f"Use the {SKILL} skill. The probe output folder is {out}.",
     "instructions": lambda out: (f"Your instructions give you tokens that start with {TOKEN_PREFIX}-. Write each "
                                  f"one into the file {out}/instructions.txt, one per line, then stop. Do not read "
@@ -81,16 +84,30 @@ def _read(path, limit=65536):
         return opened.read(limit).decode("utf-8", errors="replace")
 
 
+# The actions a probe of a host action lets the host take, as entries of its log: any other entry fails the probe.
+ALLOWED = {
+    # Only the one command it was given, so the output is the probe's own and nothing else wrote it.
+    "powers": lambda e, out, tokens: e["kind"] == "message" or (
+        e["kind"] == "command" and e["command"].strip() == powers_command(out)),
+    # Only writing what it already knows: no read, no skill, and no command that does not carry the token it writes.
+    "instructions": lambda e, out, tokens: e["kind"] in ("message", "write") or (
+        e["kind"] == "command" and tokens["instructions"] in e["command"]),
+}
+
+
 def _check(name, contained, tokens, result):
     """Why probe `name` failed, or None. One rule: the file the probe asks for is right, and the host's own report
     (its exposure and action log) shows it did what the probe tests, not a way around it."""
     out, log = contained.probe_out, result.log
+    other = [e for e in log if name in ALLOWED and not ALLOWED[name](e, out, tokens)]
+    if other:
+        return f"the host did more than the probe asks: {json.dumps(other[0])[:200]}"
     if name == "sign-in":
         found = _read(out / "sign-in.txt")
         return None if found is not None and found.strip() == "ready" else \
             f"sign-in.txt holds {found and found[:80]!r}"
-    if name == "powers":  # the host's own command ran the probe, and its output carries this run's nonce
-        if not any(e["kind"] == "command" and "powers.py" in e["command"] for e in log):
+    if name == "powers":  # the host ran the probe as given, and its output is this run's
+        if not any(e["kind"] == "command" for e in log):
             return "the host's log shows no command that ran the powers probe"
         try:
             powers.check(contained, _read(out / "powers.json") or "", nonce=tokens["powers"])
@@ -105,10 +122,6 @@ def _check(name, contained, tokens, result):
         found = _read(out / "discovery.txt")
         return None if found is not None and found.strip() == tokens["discovery"] else \
             f"discovery.txt holds {found and found[:80]!r}, not the token in the probe skill"
-    # The host loaded its instructions: it never read an instruction file, and reports exactly their one token.
-    if any((e["kind"] == "read" and Path(e["path"]).name in INSTRUCTION_FILES) or
-           (e["kind"] == "command" and any(f in e["command"] for f in INSTRUCTION_FILES)) for e in log):
-        return "the host read an instruction file instead of loading it"
     seen = sorted(set(TOKEN.findall(_read(out / "instructions.txt") or "")))
     return None if seen == [tokens["instructions"]] else \
         f"instructions.txt holds {seen[:5]}, not the one token of the instruction files"

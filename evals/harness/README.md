@@ -216,7 +216,8 @@ adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never 
 ## Probes
 
 A probe is a probe world, a prompt and a check (doc 11, Probes), with one rule: the file the probe asks for is right,
-and the host's own report, its exposure and action log, shows it did what the probe tests, not a way around it. The
+and the host's own report, its exposure and action log, shows it did what the probe tests, not a way around it. A
+probe of a host action allows only the actions it asks for (`probes.ALLOWED`): any other log entry fails it. The
 check never reads what the model says. `probes.probe(adapter, name, mode, root)` runs one probe through `host.run`,
 in a containment made with `probe=True`, and returns why it failed, or `None`; `probes.probe_host` runs every probe
 in both modes and returns the reasons the host is `not run`. The probe-output folder is the one place a probe run
@@ -225,13 +226,13 @@ powers probe allows only when it is there. A file there is read only when it is 
 made is never followed out of the jail.
 
 - **Sign-in:** the host writes `ready` into `sign-in.txt`.
-- **Powers:** the host's own command runs `powers.PROBE` with the spec the harness put in the folder, and its output,
-  which must carry the spec's nonce, is checked against the table with `powers.check`. So its commands are shown to
-  get the jail's powers, and a result written by hand fails.
+- **Powers:** the host runs exactly the one command it is given, which runs `powers.PROBE` with the spec the harness
+  put in the folder, and nothing else; its output, which must carry the spec's nonce, is checked against the table
+  with `powers.check`. So its commands are shown to get the jail's powers, and a result written by hand fails.
 - **Discovery:** asked for the probe skill by name, with up to two tries, the host exposes it, loads it and writes
   the token that only the skill's `SKILL.md` holds. A host that found the file some other way fails.
-- **Instructions:** the host writes back the tokens its instructions give it, without reading an instruction file.
-  The probe world has an `AGENTS.md` with one token and a `CLAUDE.md` that imports it, so every host must report
-  exactly that one token.
+- **Instructions:** the host writes back the tokens its instructions give it, and may do nothing but write what it
+  already knows: no read, no skill, and no command that does not carry the token. The probe world has an `AGENTS.md`
+  with one token and a `CLAUDE.md` that imports it, so every host must report exactly that one token.
 
 Every token is fresh for each run. A host or containment that breaks its contract raises, as in any run.
