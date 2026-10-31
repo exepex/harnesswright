@@ -1,0 +1,151 @@
+{
+  "hosts": [
+    {
+      "baseline_min_runs": 3,
+      "baseline_pass_rate": 0.5,
+      "gaps": [
+        "task pass rate 83% below 90%"
+      ],
+      "host": "claude-code",
+      "label": "unsupported",
+      "lift": 0.3333,
+      "model": "claude-sonnet-5-5",
+      "provenance": {
+        "baseline": {
+          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
+          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "host_paths": [
+            "/home/claude/.claude"
+          ],
+          "host_version": "2.1.314 (Claude Code)",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "allowed, sandboxed",
+            "network": "blocked",
+            "reads": "any",
+            "setting": "acceptEdits, sandbox on, unsandboxed commands refused",
+            "writes": "workspace and scratch"
+          },
+          "requested_model": null,
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        },
+        "tasks": {
+          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
+          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "host_paths": [
+            "/home/claude/.claude"
+          ],
+          "host_version": "2.1.314 (Claude Code)",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "allowed, sandboxed",
+            "network": "blocked",
+            "reads": "any",
+            "setting": "acceptEdits, sandbox on, unsandboxed commands refused",
+            "writes": "workspace and scratch"
+          },
+          "requested_model": null,
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        },
+        "triggers": {
+          "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
+          "host_paths": [
+            "/home/claude/.claude"
+          ],
+          "host_version": "2.1.314 (Claude Code)",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "refused",
+            "reads": "workspace",
+            "setting": "default permission mode, no one to approve",
+            "writes": "refused"
+          },
+          "requested_model": null,
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        }
+      },
+      "task_min_runs": 3,
+      "task_pass_rate": 0.8333,
+      "trigger_accuracy": 0.95,
+      "trigger_min_runs": 3,
+      "trigger_not_run": 0
+    },
+    {
+      "baseline_min_runs": 3,
+      "baseline_pass_rate": 0.25,
+      "gaps": [],
+      "host": "codex",
+      "label": "verified",
+      "lift": 0.6667,
+      "model": "gpt-6.1-sol",
+      "provenance": {
+        "baseline": {
+          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
+          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "host_paths": [],
+          "host_version": "codex-cli 0.166.0",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "allowed, sandboxed",
+            "network": "blocked",
+            "reads": "any",
+            "setting": "sandbox workspace-write",
+            "writes": "workspace, scratch and /tmp"
+          },
+          "requested_model": "gpt-6.1-sol",
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        },
+        "tasks": {
+          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
+          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "host_paths": [],
+          "host_version": "codex-cli 0.166.0",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "allowed, sandboxed",
+            "network": "blocked",
+            "reads": "any",
+            "setting": "sandbox workspace-write",
+            "writes": "workspace, scratch and /tmp"
+          },
+          "requested_model": "gpt-6.1-sol",
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        },
+        "triggers": {
+          "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
+          "host_paths": [],
+          "host_version": "codex-cli 0.166.0",
+          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
+          "permission_profile": {
+            "commands": "allowed, sandboxed",
+            "reads": "any",
+            "setting": "sandbox read-only",
+            "writes": "refused"
+          },
+          "requested_model": "gpt-6.1-sol",
+          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
+          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+        }
+      },
+      "task_min_runs": 3,
+      "task_pass_rate": 0.9167,
+      "trigger_accuracy": 0.95,
+      "trigger_min_runs": 3,
+      "trigger_not_run": 0
+    }
+  ],
+  "reference_host": "claude-code",
+  "skill_name": "skill-designer",
+  "thresholds": {
+    "max_gap": 0.1,
+    "min_lift": 0.0,
+    "min_runs": 3,
+    "task_pass_rate": 0.9,
+    "trigger_accuracy": 0.9
+  }
+}

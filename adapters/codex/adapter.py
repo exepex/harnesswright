@@ -64,7 +64,11 @@ def permission_profile(mode):
 
 
 def environment(env):
-    return dict(env)
+    """`codex exec` reads its API key from CODEX_API_KEY, not OPENAI_API_KEY; copy the key over if needed."""
+    env = dict(env)
+    if not env.get("CODEX_API_KEY") and env.get("OPENAI_API_KEY"):
+        env["CODEX_API_KEY"] = env["OPENAI_API_KEY"]
+    return env
 
 
 def parse_events(stdout):
@@ -165,21 +169,25 @@ def final_message(events):
 def failure(events, returncode, timed_out, mode):
     """Return why the run failed, or None.
 
-    A timed-out task run always fails: partial work is not a finished task. A timed-out trigger run
-    counts when items already arrived, because the trigger decision comes first.
+    Codex also emits `error` events while it retries a connection ("Reconnecting... 2/5"). They fail
+    the run only when the turn never completed. A timed-out task run always fails: partial work is not
+    a finished task. A timed-out trigger run counts when items already arrived, because the trigger
+    decision comes first.
     """
-    for event in events:
-        if event.get("type") in ("turn.failed", "error"):
-            detail = event.get("error") or event.get("message") or ""
-            if isinstance(detail, dict):
-                detail = detail.get("message", "")
-            return f"host reported {event['type']}: {detail}".rstrip(": ")
+    completed = any(e.get("type") == "turn.completed" for e in events)
+    for wanted in ("turn.failed",) if completed else ("turn.failed", "error"):
+        for event in reversed(events):
+            if event.get("type") == wanted:
+                detail = event.get("error") or event.get("message") or ""
+                if isinstance(detail, dict):
+                    detail = detail.get("message", "")
+                return f"host reported {wanted}: {detail}".rstrip(": ")
     if timed_out:
         if mode == "trigger" and any(True for _ in _items(events)):
             return None
         return "timed out"
     if returncode not in (0, None):
         return f"exit code {returncode}"
-    if not any(e.get("type") == "turn.completed" for e in events):
+    if not completed:
         return "no turn.completed event"
     return None

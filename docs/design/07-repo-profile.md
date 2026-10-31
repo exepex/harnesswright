@@ -24,6 +24,8 @@ toolchain:                          # commands the language profile's checks map
   test: ./mvnw -q test
   format-check: ./mvnw -q spotless:check
 
+scripts: allowed                    # allowed | forbidden: may skills run the scripts they bundle?
+
 models:                             # model class -> concrete model, changed in one place
   deep: <model id>
   standard: <model id>
@@ -51,8 +53,25 @@ process:
 | `decisions` | No | Bindings for decision points. Unbound points use the language default, then the core default. |
 | `toolchain` | Yes | The real commands for each check the language profile requires |
 | `models` | Yes | The concrete model for each model class |
+| `scripts` | No | `allowed` (default) or `forbidden`: whether skills may run the scripts they bundle. See below. |
 | `capabilities` | No | How roles reach outside systems. Missing means not available. |
 | `process` | No | Changes to process defaults, within the limits in [05 · Process](05-process.md) |
+
+## Scripts
+
+Some skills bundle a small script for a check that must give the same answer on every host, such as the line counts
+in a claims file (`HW-PORT-04`). The development team decides whether such scripts may run in its environment, and
+owns that choice.
+
+- `allowed`, the default: skills run their scripts. The default is `allowed` because these scripts only read files,
+  use Python 3's standard library or POSIX `sh`, make no network calls and are reviewed in harnesswright. Forbidding
+  them by default would turn every such check into `not verified` for every team.
+- `forbidden`: skills never try to run their scripts. They follow their no-script fallback (`HW-PORT-08`): do what
+  they can by reading, mark every result the script would have checked `not verified`, and tell the person first
+  that the check did not run and that the team must do it by hand.
+
+The setting covers only scripts that skills bring with them. The repository's own `toolchain` commands still run.
+When a script is allowed but the host or the person refuses it, the skill falls back in the same way.
 
 ## Capabilities
 

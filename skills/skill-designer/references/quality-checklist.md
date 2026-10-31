@@ -33,6 +33,7 @@ claims for your own skill. An item without evidence is not met.
 | `HW-PORT-05` | `AGENTS.md` lists the skill with its path and when to use it. |
 | `HW-PORT-06` | The output follows a contract, so results from different hosts compare field by field. |
 | `HW-PORT-07` | Every output format is stated; nothing relies on a model guessing. |
+| `HW-PORT-08` | Each step that runs a script says what to do when `scripts: forbidden` is set or the script cannot run: check by reading, mark the result `not verified`, warn the person first. A task eval covers `scripts: forbidden`. |
 
 ## Scoring a candidate
 

@@ -1,0 +1,25 @@
+{
+  "skill_name": "claims-writer",
+  "queries": [
+    {"id": "t01", "query": "story S04 is finished, the retry logic is in src/orders/retry.py with tests. write the claims for the judge so they can check each acceptance criterion", "should_trigger": true},
+    {"id": "t02", "query": "I'm done implementing S02 (password reset email). Before the story judge looks at it, put together the evidence for every AC: which file:line, which test, what the test run printed", "should_trigger": true},
+    {"id": "t03", "query": "can you prepare this change for the judge? it's the T1 fix for the null customer name in CustomerMapper.java, story is in .harness/runs/2026-10-29-null-name/stories/S01.md", "should_trigger": true},
+    {"id": "t04", "query": "Prove the pagination story is actually done — run what needs running and write it up in the claims file under the run folder, including anything you couldn't verify", "should_trigger": true},
+    {"id": "t05", "query": "finished the go migration for the config loader (S07). need the claims.md: request quoted, each criterion with evidence, files changed with line counts, not verified section", "should_trigger": true},
+    {"id": "t06", "query": "The implementer for S03 says everything passes but didn't leave any evidence. As the implementer's follow-up, write the claims for S03 from the diff against main and fresh test runs", "should_trigger": true},
+    {"id": "t07", "query": "wrapping up the rust parser story; tests are green on my machine. record per acceptance criterion what was done and the proof, so the judge can verify without asking me", "should_trigger": true},
+    {"id": "t08", "query": "write the claims for the Groovy pipeline change in vars/deploy.groovy. one AC needs a real Jenkins to check, so that one probably goes under not verified", "should_trigger": true},
+    {"id": "t09", "query": "S05 is implemented (rate limits on /search). produce the hand-off file for the story judge listing the evidence for AC-1 to AC-4 and every changed file with its line count", "should_trigger": true},
+    {"id": "t10", "query": "Here are the story S01 and the claims the implementer wrote. Act as the story judge: check each claim against the change and write the verdict", "should_trigger": false},
+    {"id": "t11", "query": "the discount test in tests/test_pricing.py fails on main since yesterday, find out why and fix the code", "should_trigger": false},
+    {"id": "t12", "query": "split the approved plan P-order-retry into stories with acceptance criteria and dependencies, one file per story", "should_trigger": false},
+    {"id": "t13", "query": "write the pull request description for this branch: what changed, why, and how it was tested", "should_trigger": false},
+    {"id": "t14", "query": "write a commit message for the staged changes to src/orders/retry.py", "should_trigger": false},
+    {"id": "t15", "query": "review the change in src/billing/ against our naming and test standards and report findings with severity", "should_trigger": false},
+    {"id": "t16", "query": "add the claims template to contracts/claims.md with the sections from doc 06", "should_trigger": false},
+    {"id": "t17", "query": "implement story S06: add an export-to-CSV button to the reports page, with unit tests", "should_trigger": false},
+    {"id": "t18", "query": "what does the claims contract in 06-contracts.md require? just explain the sections to me, don't write anything", "should_trigger": false},
+    {"id": "t19", "query": "write acceptance criteria for the story about locking an account after five failed logins", "should_trigger": false},
+    {"id": "t20", "query": "run the full test suite and the linter and tell me if anything is red before I push", "should_trigger": false}
+  ]
+}
