@@ -215,6 +215,7 @@ TOOLS = {"functions.exec": "command", "functions.exec/exec_command": "command",
          "clock.sleep": "wait", "functions.request_user_input": "wait",
          "functions.request_user_input_async": "wait"}  # `exec` mode answers no question
 SKILL_ROW = re.compile(r"^- ([A-Za-z0-9._-]+): .*\(file: \S+\)$")
+SKILL_ROOT = re.compile(r"^- `r\d+` = `[^`]+`$")
 NESTED = re.compile(r"^### `([^`]+)`", re.M)
 
 
@@ -294,28 +295,37 @@ def action_log(stdout, home):
 
 
 def exposure(stdout, home):
-    """Every skill and tool any thread was given, from the session files. A thread's `world_state` records hold its
-    state, each later one only the keys that changed; its `additional_tools` record describes the tools nested in
-    `functions.exec`. None when there is no thread, or when a thread does not report both lists, or the nested
-    tools of an `exec` it has, as no report is never 'nothing'."""
+    """One rule: the exposure is every skill and tool named in any record of any thread, and each thread must have
+    given one full report. A thread's first `world_state` record lists its skills and top-level tools, and later ones
+    list only what changed, so nothing is ever taken away. Its `additional_tools` records describe the tools nested
+    in `functions.exec`. None when a thread gave no full report, a record lists one in another form, or a thread has
+    `exec` without its nested tools, as no report is never 'nothing'."""
     skills, tools, threads = set(), set(), 0
     for records in _threads(home):
-        state, nested = {}, None
+        named, nested, full = set(), None, False
         for record in records:
             payload = record["payload"]
             if payload.get("type") == "additional_tools":
-                nested = (nested or set()) | _nested_tools(payload.get("tools"))
-            if record.get("type") == "world_state" and isinstance(payload.get("state"), dict):
-                state.update(payload["state"])
+                found = _nested_tools(payload.get("tools"))
+                if found is None:
+                    return None
+                nested = (nested or set()) | found
+            state = payload.get("state") if record.get("type") == "world_state" else None
+            if not isinstance(state, dict):
+                continue
+            listed, top = state.get("host_skills", {"body": ""}), state.get("top_level_tools", {})
+            body = listed.get("body") if isinstance(listed, dict) else None
+            if not isinstance(body, str) or not isinstance(top, dict):
+                return None
+            full = full or ("host_skills" in state and "top_level_tools" in state)
+            skills |= _skill_rows(body)
+            named |= set(top)
         if not records:
             continue
-        listed, given = state.get("host_skills"), state.get("top_level_tools")
-        body = listed.get("body") if isinstance(listed, dict) else None
-        if not isinstance(body, str) or not isinstance(given, dict) or ("functions.exec" in given and nested is None):
+        if not full or ("functions.exec" in named and nested is None):
             return None
         threads += 1
-        skills |= _skill_rows(body)
-        tools |= set(given) | {f"functions.exec/{name}" for name in nested or ()}
+        tools |= named | {f"functions.exec/{name}" for name in nested or ()}
     if not threads:
         return None
     # A namespace such as `functions` is listed beside its tools (`functions.exec`); only the tools are tools.
@@ -324,24 +334,29 @@ def exposure(stdout, home):
 
 
 def _skill_rows(body):
-    """The skills of the "Available skills" section. Every row there counts: one that does not parse is kept whole,
-    so it is never a declared skill and stops the round."""
-    section, rows = False, []
+    """The skills in a skill list. Every row counts but a skill root's row under "Skill roots": a row that does not
+    parse is kept whole, so it is never a declared skill and stops the round, whatever the layout."""
+    section, skills = None, set()
     for line in body.splitlines():
         if line.startswith("#"):
-            section = line.strip() == "### Available skills"
-        elif section and line.startswith("- "):
-            rows.append(line)
-    return {found.group(1) if found else row for row, found in zip(rows, map(SKILL_ROW.match, rows))}
+            section = line.strip()
+        elif line.startswith("- ") and not (section == "### Skill roots" and SKILL_ROOT.match(line)):
+            found = SKILL_ROW.match(line)
+            skills.add(found.group(1) if found else line)
+    return skills
 
 
 def _nested_tools(declared):
-    """The tools nested in `functions.exec`, from the headings of its description."""
+    """The tools nested in `functions.exec`, from the headings of its description; None when it has an `exec` that
+    names none, as it always nests at least `exec_command`."""
     names = set()
     for space in declared if isinstance(declared, list) else []:
         for tool in space.get("tools") or [] if isinstance(space, dict) and space.get("name") == "functions" else []:
             if isinstance(tool, dict) and tool.get("name") == "exec":
-                names |= set(NESTED.findall(str(tool.get("description", ""))))
+                found = set(NESTED.findall(str(tool.get("description", ""))))
+                if not found:
+                    return None
+                names |= found
     return names
 
 

@@ -92,15 +92,24 @@ class Codex(TempCase):
         nested = {"type": "additional_tools", "tools": [{"type": "namespace", "name": "functions", "tools": [
             {"type": "custom", "name": "exec", "description": described}]}]}
         state = {"host_skills": {"body": body}, "top_level_tools": tools}
+        changes = [{"environments": {}}, {"top_level_tools": {"clock.sleep": "x"}}]
         self.session("main", [{"type": "response_item", "payload": nested},
-                              {"type": "world_state", "payload": {"state": state}},
-                              {"type": "world_state", "payload": {"state": {"environments": {}}}}])  # a change only
-        sleep = {"host_skills": {"body": ""}, "top_level_tools": {"clock.sleep": "d"}}
+                              {"type": "world_state", "payload": {"state": state}}] +
+                     [{"type": "world_state", "payload": {"state": change}} for change in changes])
+        # Each later record lists only what changed, so nothing listed earlier is dropped.
+        sleep = {"host_skills": {"body": ""}, "top_level_tools": {"functions.wait": "d"}}
         self.session("sub", [{"type": "world_state", "payload": {"state": sleep}}])
         odd = "- odd: a row in another format"  # kept whole, so it can never pass as a declared skill
         self.assertEqual(CODEX.exposure("", self.tmp), {"skills": [odd, "probe-skill"], "tools": [
             "clock.sleep", "collaboration.spawn_agent", "functions.exec", "functions.exec/exec_command",
-            "functions.exec/web__run"]})
+            "functions.exec/web__run", "functions.wait"]})
+        drifted = {"host_skills": {"body": "## Available skills\n- x: y\n"}, "top_level_tools": {}}
+        self.session("sub", [{"type": "world_state", "payload": {"state": drifted}}])
+        self.assertEqual(CODEX.exposure("", self.tmp)["skills"], [odd, "- x: y", "probe-skill"])  # any layout counts
+        self.session("main", [{"type": "response_item", "payload": {"type": "additional_tools", "tools": [
+            {"name": "functions", "tools": [{"name": "exec", "description": "no headings"}]}]}},
+            {"type": "world_state", "payload": {"state": state}}])
+        self.assertIsNone(CODEX.exposure("", self.tmp))  # an exec that names no nested tool is no report
         for state in ({"top_level_tools": {}}, {"host_skills": {"body": ""}}, {"host_skills": "x"}, None,
                       {"host_skills": {"body": ""}, "top_level_tools": {"functions.exec": "b"}}):
             with self.subTest(state=state):  # a thread that does not report all of it is no report, never "nothing"
