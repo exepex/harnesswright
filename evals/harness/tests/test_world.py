@@ -31,6 +31,10 @@ class CaseChecks(TempCase):
         with self.assertRaisesRegex(cases.CaseError, "unknown fields.*skill_path"):
             self.case({"README.md": "x"}, {"colour": 1, "skill_path": "../out"})
 
+    def test_siblings_are_names_not_paths(self):
+        with self.assertRaisesRegex(cases.CaseError, "skill name"):
+            self.case({"README.md": "x"}, {"siblings": ["../../payload"]})
+
     def test_frontmatter(self):
         self.assertEqual(cases.frontmatter("---\nname: a\ndescription: b c\n---\nbody")["description"], "b c")
         folded = "---\nname: demo\ndescription: >\n  Writes demos.\n  Use for demos.\nlicense: MIT\n---\n# Demo\n"
@@ -133,6 +137,17 @@ class Arms(TempCase):
         (self.tmp / "skills/haiku-writer/out").symlink_to("../../outside")
         with self.assertRaisesRegex(cases.CaseError, "unsound"):
             world.build(self.case({"README.md": "x\n"}), Adapter, self.tmp / "unsound", True, self.tmp / "skills")
+
+    def test_a_relative_output_folder_works_with_history(self):
+        import os
+        case = self.case({"README.md": "x\n"}, {"commits": [{"message": "Start", "paths": ["README.md"]}]})
+        here = os.getcwd()
+        os.chdir(self.tmp)
+        try:
+            built = world.build(case, Adapter, "relative-arm", False, self.skill().parent)
+        finally:
+            os.chdir(here)
+        self.assertIsNotNone(built.head)
 
     def test_history_is_left_out_of_the_manifest(self):
         _, base, with_arm = self.build_pair({"commits": [{"message": "Start", "paths": ["README.md"]}]})

@@ -89,6 +89,11 @@ class LintFaults(TempCase):
         for files in ({"notes/haiku-writer.md": "x\n"}, {"haiku-writer/.keep": ""}):
             with self.subTest(files=files):
                 self.assertTrue(any("<name " in p for p in self.problems(dict(files, **{"README.md": "x\n"}))))
+        skills = self.skill().parent
+        case = self.case({"README.md": "x\n"}, name="linked")
+        (case.world / "helper").symlink_to("skills/haiku-writer/SKILL.md")
+        arm = world.build(case, Adapter, self.tmp / "linked-arm", False, skills)
+        self.assertTrue(any("<name helper>" in p for p in lint.lint(case, arm.path, skills / "haiku-writer")))
 
     def test_no_file_is_skipped_unscanned(self):
         case = self.case({"README.md": "x\n"}, name="big")

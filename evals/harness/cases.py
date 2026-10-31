@@ -22,6 +22,7 @@ case.json fields:
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import manifest
@@ -32,6 +33,7 @@ SPLITS = ("train", "test")
 FIELDS = {"prompt", "kind", "skill_path", "index", "siblings", "tools", "expectations", "should_trigger",
           "split", "commits", "copies", "allow_words"}
 PROMPT_KEY = "<prompt>"
+SKILL_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 
 
 class CaseError(ValueError):
@@ -105,6 +107,10 @@ def check(data, case_id):
     for key in ("siblings", "tools", "expectations"):
         if key in data and not (isinstance(data[key], list) and all(isinstance(v, (str, dict)) for v in data[key])):
             problems.append(f"{key} must be a list")
+    # A sibling is a skill name, never a path: it names both the source and the install folder.
+    for name in data.get("siblings") or []:
+        if not (isinstance(name, str) and SKILL_NAME.fullmatch(name)):
+            problems.append(f"sibling {name!r} must be a skill name (lower-case letters, digits and hyphens)")
     for commit in data.get("commits") or []:
         if not (isinstance(commit, dict) and isinstance(commit.get("message"), str)
                 and isinstance(commit.get("paths"), list)):

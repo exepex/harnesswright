@@ -42,7 +42,7 @@ def build(case, adapter, out, with_skill, skills_root=None, skill_dir=None):
     `skills_root` holds the skills by name (default this repository's `skills/`); `skill_dir` overrides the
     folder of the skill under test, such as a candidate version.
     """
-    out = Path(out)
+    out = Path(out).resolve()
     if out.exists() and any(out.iterdir()):
         raise CaseError(f"{out} is not empty")
     # A written world never holds git metadata, whose hooks would run when the history is built, nor a symlink

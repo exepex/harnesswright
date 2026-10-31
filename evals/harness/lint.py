@@ -83,8 +83,9 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     given = [("<prompt>", prompt)] + [(f"<commit {n}>", str(c.get("message", "")))
                                       for n, c in enumerate(case.commits, 1)]
     leaks = [case.skill.lower(), case.skill_rel.lower()]
-    # Names are seen too: every path in the arm, folders and links included, is checked like text.
-    names = [(f"<name {path}>", path) for path in manifest.manifest(base_world, skip=(".git",))]
+    # Names are seen too: every path in the arm, folders and links included, with each link's target.
+    entries = manifest.manifest(base_world, skip=(".git",))
+    names = [(f"<name {path}>", f"{path} {entry}") for path, entry in entries.items()]
     for path, text in list(files.items()) + given + names:
         for leak in leaks:
             if leak in text.lower():
