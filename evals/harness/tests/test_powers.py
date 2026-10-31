@@ -1,5 +1,6 @@
 """Powers: the power table is the one statement of what a run may do, and the probe proves the jail gives it."""
 
+import os
 import socket
 import types
 import unittest
@@ -42,7 +43,7 @@ class Probe(TempCase):
         host = types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=(), environment=lambda env: env,
                                      MODEL_HOSTS=("api.example.test", "model.example.test"))
         env = {"PATH": "/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url}
-        root = self.tmp / f"run-{len(list(self.tmp.glob('run-*')))}"
+        root = self.tmp / f"run-café-{len(list(self.tmp.glob('run-*')))}"  # a run folder need not be ASCII
         return contain.Containment(host, mode, world, manifest.manifest(world), root=root, operator_env=env,
                                    operator_home=self.tmp / "operator", **kwargs)
 
@@ -50,8 +51,10 @@ class Probe(TempCase):
         for mode in ("trigger", "task"):
             with self.subTest(mode=mode):
                 run = self.run_of(mode)
+                os.utime(run.world, (1767607200, 1767607200))
                 self.assertEqual(powers.probe(run), powers.expected(mode))
                 self.assertEqual(manifest.manifest(run.world), run.world_entries)
+                self.assertEqual(os.stat(run.world).st_mtime, 1767607200)  # the probe's write left no trace
 
     def test_a_jail_that_gives_more_than_the_table_is_refused(self):
         run = self.run_of("trigger")

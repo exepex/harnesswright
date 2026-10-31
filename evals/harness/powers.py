@@ -37,7 +37,7 @@ TABLE = {
 }
 
 PROBE = r'''
-import json, os, socket, stat, sys, tempfile
+import json, os, re, socket, stat, sys, tempfile
 
 spec = json.loads(sys.stdin.read())
 
@@ -62,9 +62,11 @@ def write(path):
     """Create a new file with a unique name in a folder, and remove it; or open a mounted file for writing without
     writing to it."""
     if os.path.isdir(path):
+        before = os.stat(path)
         handle, name = tempfile.mkstemp(dir=path, prefix=".hw-power-probe-")
         os.close(handle)
         os.unlink(name)
+        os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))  # the world keeps its normalised times
     else:
         open(path, "r+b").close()
 
@@ -74,11 +76,13 @@ def writable_mounts():
     table lets this mode write, a device file (such as /dev/null), or a kernel view of the jail itself (proc,
     devpts)."""
     found = []
-    with open("/proc/self/mountinfo") as handle:
+    with open("/proc/self/mountinfo", "rb") as handle:
         for line in handle:
             fields = line.split()
-            point = fields[4].encode().decode("unicode_escape")
-            kind = fields[fields.index("-") + 1]
+            # The kernel escapes only space, tab, newline and backslash, as octal; every other byte is the path's own.
+            point = os.fsdecode(re.sub(rb"\\([0-7]{3})", lambda m: bytes([int(m.group(1), 8)]), fields[4]))
+            kind = fields[fields.index(b"-") + 1].decode()
+            fields = [field.decode(errors="replace") for field in fields]
             if "rw" not in fields[5].split(","):
                 continue
             if point in spec["writable"] or kind in ("proc", "devpts"):
