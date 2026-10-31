@@ -75,6 +75,10 @@ class Lint(TempCase):
         self.assertTrue(any("<sibling rows>: names" in p for p in problems), problems)
         shared = f"---\nname: note-taker\ndescription: Takes notes and runs evals with a fixture.\n---\n{OWN_TEXT}\n"
         self.assertEqual(self.problems(files, data, siblings={"note-taker": shared}), [])
+        row = dict(INDEX, row=f"| {{name}} | {{path}} | {OWN_TEXT} |")
+        problems = self.problems(dict(files, **{"README.md": f"{OWN_TEXT}\n"}), dict(data, index=row),
+                                 siblings={"note-taker": shared.replace(OWN_TEXT, "Notes.")})
+        self.assertTrue(any("README.md: holds" in p for p in problems), problems)
 
     def test_text_shared_with_copies_upstream_or_prompt_is_the_projects(self):
         repo, copy = self.source(f"{OWN_TEXT}\n")

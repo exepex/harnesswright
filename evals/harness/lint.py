@@ -138,11 +138,12 @@ def kit_texts(repo=REPO):
 
 
 def shared_runs(places, copied, upstream, size, prompt=True):
-    """Runs of project text: verified copies, installed siblings, the upstream source and, unless `prompt` is
+    """Runs of project text: verified copies, installed sibling files, the upstream source and, unless `prompt` is
     false, the prompt. A run found there belongs to the project and stays in both arms, so the run rule does not
-    count it. Kit text is never the project's, so the prompt is not shared for it."""
-    project = [p.text for p in places if p.text and (p.key in copied or p.author == "harness"
-                                                     or (prompt and p.key == PROMPT_KEY))]
+    count it. Kit text is never the project's, so the prompt is not shared for it. Sibling rows are not project
+    text: the case writes their template, and their descriptions are already in the sibling files."""
+    project = [p.text for p in places if p.text and (p.key in copied or (p.author == "harness" and p.key !=
+                                                     SIBLING_ROWS) or (prompt and p.key == PROMPT_KEY))]
     found = set()
     for text in project + list(upstream):
         found |= {r for n in range(1, size + 1) for r in runs(text, n)} if size < RUN else runs(text, size)
