@@ -71,11 +71,16 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   sees, including instruction files such as `AGENTS.md` and `CLAUDE.md` when the case wants them.
 - **`case.json`** holds the prompt, the kind (`trigger` or `task`), where the skill goes (default `skills/NAME`),
   the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
-  trigger cases the `train` or `test` split.
+  trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
+  outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
+  world. A document declared as copied names a source outside `skills/` and `evals/`, since neither is project
+  text.
 - **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. The manifest
   records both world hashes and the overlay.
+- **One description of a folder.** Every world, arm and output is described by one manifest: each folder, each
+  file with its hash and executable bit, and each link with its target. A change to any of them is a change.
 - **Trigger worlds install the full skill set** with its index, as in real use. Should-not-trigger queries
   include near misses that belong to a sibling skill.
 - **Git history**, when a case needs it, is declared as commits in `case.json` and built with fixed authors and
