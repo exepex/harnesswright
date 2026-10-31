@@ -53,7 +53,8 @@ def _git(repo, *args):
 
 
 def changed_paths(repo, base):
-    paths = set(_git(repo, "diff", "--name-only", "-z", base, "--"))
+    # --relative: in a project below the git root, diff paths are relative to the project, as ls-files gives them.
+    paths = set(_git(repo, "diff", "--name-only", "--relative", "-z", base, "--"))
     paths |= set(_git(repo, "ls-files", "-z", "--others", "--exclude-standard"))
     return sorted(p for p in paths if not p.startswith(RUN_FOLDER))
 
@@ -71,10 +72,12 @@ def cmd_lines(args):
 
 
 def split_sections(text):
-    """Return [(heading, body)] for each level-2 heading, in order."""
-    sections, heading, body = [], None, []
+    """Return [(heading, body)] for each level-2 heading, in order. Headings inside code fences are output."""
+    sections, heading, body, fenced = [], None, [], False
     for line in text.splitlines():
-        if line.startswith("## "):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        if line.startswith("## ") and not fenced:
             if heading is not None:
                 sections.append((heading, "\n".join(body).strip()))
             heading, body = line[3:].strip(), []
@@ -137,7 +140,8 @@ def story_criteria(story_text):
 def check_requirements(body, story_text):
     """Each requirement entry (a ### heading) names one AC and has a valid Status; every AC is covered."""
     problems, claimed = [], []
-    entries = re.split(r"^###\s+", body, flags=re.MULTILINE)[1:]
+    entries = re.split(r"^###\s+", re.sub(r"^\s*```.*?^\s*```", "", body, flags=re.MULTILINE | re.DOTALL),
+                       flags=re.MULTILINE)[1:]
     if not entries:
         return ["Requirements: no entry headed '### AC-n'"]
     for entry in entries:

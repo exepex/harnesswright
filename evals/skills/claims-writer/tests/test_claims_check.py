@@ -149,6 +149,26 @@ class ClaimsCheckTest(unittest.TestCase):
         code, out = self.check(claims(entry(1) + entry(2, "not met") + quoted))
         self.assertEqual(code, 0, out)
 
+    def test_headings_in_fenced_output_are_not_sections(self):
+        fenced = "- **Output:**\n\n```\n## Requirements\n### AC-7\n```\n"
+        code, out = self.check(claims(entry(1) + fenced + entry(2)))
+        self.assertEqual(code, 0, out)
+
+    def test_project_below_the_git_root_gets_project_paths(self):
+        project = self.repo
+        self.repo = Path(tempfile.mkdtemp())
+        project.rename(self.repo / "project")
+        project = self.repo / "project"
+        subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "."], cwd=self.repo, check=True)
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"],
+                       cwd=self.repo, check=True)
+        (project / "src" / "a.py").write_text("x = 1\ny = 3\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            claims_check.main(["lines", "--repo", str(project), "--base", "HEAD"])
+        self.assertEqual(out.getvalue(), "- `src/a.py` (2 lines)\n")
+
     def test_non_ascii_paths_are_read_raw(self):
         def git(*args):
             subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args], cwd=self.repo,
