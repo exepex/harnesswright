@@ -55,6 +55,7 @@ class Lint(TempCase):
             "name in world": ({"README.md": "Try the haiku writer helper.\n"}, None),
             "camel case": ({"app/poems.py": "class HaikuWriter:\n    pass\n"}, None),
             "plural": ({"README.md": "For haiku writers.\n"}, None),
+            "next to kana": ({"README.md": "HaikuWriterを使う。请使用haiku-writer技能。\n"}, None),
             "soft hyphen": ({"README.md": "Try hai­ku-writer.\n"}, None),
             "full width": ({"README.md": "Try ｈａｉｋｕ-writer.\n"}, None),
             "path in world": ({"notes.md": "See skills/haiku-writer for poems.\n"}, None),

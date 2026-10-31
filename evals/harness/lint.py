@@ -46,7 +46,9 @@ def words(text):
     """The words of `text` after compatibility folding, with format characters removed: lower-case runs of
     letters and digits in any script. `haiku-writer`, `Haiku_Writer` and `haiku writer` are the same words."""
     folded = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf")
-    return re.findall(r"[^\W_]+", folded.casefold())
+    # ASCII letters and digits form words of their own, so a name written flush against text in another script,
+    # as in Chinese or Japanese prose, is still a word.
+    return re.findall(r"[a-z0-9]+|[^\W_a-z0-9]+", folded.casefold())
 
 
 def runs(text, size):
