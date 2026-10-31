@@ -4,8 +4,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, building and proving the two arms, the world lint, containment and the network
-gate**. Powers and probes, evidence, and the measuring kit come next.
+eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate
+and the power table**. Probes, evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -22,6 +22,7 @@ allowed connections.
 | `contain.py` | Builds one run's environment, home and jail from one list of mounts |
 | `audit.py` | Runs inside the jail before the host starts and checks it against the same list |
 | `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |
+| `powers.py` | The power table of each mode, and the probe that proves the jail gives exactly that |
 
 ## Commands
 
@@ -169,3 +170,11 @@ and every jail of the run runs inside it: the jail's first program, `gate.FORWAR
 `127.0.0.1:3128`, passes each connection to the gate's socket, and starts the host with every proxy variable set
 to it. The gate allows only `CONNECT` on port 443 to `Containment.hosts`, records each request in `log`, and goes
 through the operator's own proxy when there is one.
+
+## The power table
+
+`powers.TABLE` is the one statement of what a run may do: each row is an action, with whether it must work in a
+trigger run and in a task run. `powers.probe(run)` runs `powers.PROBE` in the run's jail, inside its gate, and
+raises `PowersError` naming every row that differs (doc 11, Powers). A task-run write to the world removes its file
+again, so the world stays the proved arm. The jail remounts the folders it creates read-only, so nothing outside
+the list can be written.

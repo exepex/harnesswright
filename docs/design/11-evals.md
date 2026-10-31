@@ -150,14 +150,16 @@ host's own install. The runner proves this in every run.
 
 ## Powers: what a run can do
 
-Equal powers are defined once, in the runner, for each mode. Each adapter configures its host to match and removes
-every host tool outside the table, so nothing is left for the host to refuse.
+Equal powers are defined once, in the runner (`evals/harness/powers.py`), for each mode. The jail enforces them
+for the host and its commands alike, so each adapter turns its host's own sandbox off and removes every host tool
+outside the table: nothing is left for the host to refuse. Before any host runs, the powers probe tries every row
+directly in the jail; any row that differs makes the host `not run`. The folders the jail creates are read-only.
 
 | Power | Trigger runs | Task runs |
 |---|---|---|
 | Read | World and system folders | World, scratch and system folders |
-| Write | Nothing | World, scratch, private home and temp |
-| Run commands | Yes, read-only sandbox | Yes, sandboxed |
+| Write | Private home and temp only, never the world | World, scratch, private home and temp |
+| Run commands | Yes, in the jail | Yes, in the jail |
 | Network from commands | Only the model hosts, through the gate | Only the model hosts, through the gate |
 | Host tools beyond read, write and command | None | None |
 
@@ -169,8 +171,8 @@ Probes get one probe-output folder that the host may write even in trigger mode.
 real runs never have it, and the powers probe proves that a trigger run cannot write anywhere else.
 
 1. **Sign-in:** a one-line prompt returns an answer.
-2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`. The outcome
-   is read from the files it leaves.
+2. **Powers:** the host runs the same probe script that tries every row of the power table, including `/tmp`, so
+   its commands are shown to get the jail's powers. The outcome is read from the files it leaves.
 3. **Discovery:** a probe skill, asked for by name with up to two tries, writes a token file.
 4. **Instructions:** each instruction file in a probe world holds a token; the host writes back every token it saw,
    so every host is shown to load the same instructions.

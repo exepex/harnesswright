@@ -234,7 +234,9 @@ class Containment:
                 "--unshare-uts", "--unshare-cgroup-try", "--unshare-net"]
         for mount in self.mounts(program or command[0]):
             args += mount.args()
-        return args + ["--chdir", str(self.world), "--", PYTHON, "-I", "-c", gate.FORWARDER, GATE] + list(command)
+        # The folders the jail creates on the way to its mounts are read-only, so nothing off the list is written.
+        args += ["--remount-ro", "/", "--chdir", str(self.world), "--"]
+        return args + [PYTHON, "-I", "-c", gate.FORWARDER, GATE] + list(command)
 
     def audit(self, program):
         """Run the visibility audit in this run's jail, for a run of `program`. Return its report, or raise
