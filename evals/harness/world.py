@@ -64,6 +64,9 @@ def build(case, adapter, out, with_skill, skills_root=None, skill_dir=None):
 
 def _install(world, case, adapter, source, rel, overlay):
     _, meta = skill_files(source)
+    unsound = structure(source)
+    if unsound:
+        raise CaseError(f"{case.id}: the skill at {source} is unsound: {unsound}")
     targets = [rel]
     discovery = Path(adapter.skill_dir(world, meta["name"])).relative_to(world).as_posix()
     if discovery != rel:
@@ -71,8 +74,8 @@ def _install(world, case, adapter, source, rel, overlay):
     for target in targets:
         if (world / target).exists():
             raise CaseError(f"{case.id}: {target} already exists in the world")
-        # Copied with its modes, so a skill's executable script stays executable.
-        shutil.copytree(source, world / target)
+        # Copied as it is: modes kept, so a script stays executable, and links kept as links.
+        shutil.copytree(source, world / target, symlinks=True)
     row = None
     if case.index:
         row = case.index["row"].format(name=meta["name"], path=f"{rel}/SKILL.md", description=meta["description"])

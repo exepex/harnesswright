@@ -125,6 +125,15 @@ class Arms(TempCase):
             with self.subTest(tamper=tamper), self.assertRaises(cases.CaseError):
                 world.prove(base, tampered)
 
+    def test_skill_links_stay_links_and_must_stay_inside(self):
+        (self.skill() / "alias.md").symlink_to("SKILL.md")
+        _, base, with_arm = self.build_pair()
+        self.assertEqual(with_arm.files["skills/haiku-writer/alias.md"], "link SKILL.md")
+        world.prove(base, with_arm)
+        (self.tmp / "skills/haiku-writer/out").symlink_to("../../outside")
+        with self.assertRaisesRegex(cases.CaseError, "unsound"):
+            world.build(self.case({"README.md": "x\n"}), Adapter, self.tmp / "unsound", True, self.tmp / "skills")
+
     def test_history_is_left_out_of_the_manifest(self):
         _, base, with_arm = self.build_pair({"commits": [{"message": "Start", "paths": ["README.md"]}]})
         self.assertFalse(any(p.startswith(".git") for p in base.files))
