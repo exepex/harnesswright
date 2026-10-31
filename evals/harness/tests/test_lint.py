@@ -10,16 +10,17 @@ import world
 from test_world import AGENTS, INDEX, Adapter
 
 OWN_TEXT = "Count the syllables of every line twice before you answer, five then seven then five."
+KIT_TEXT = "The grader opens each bundle and answers every expectation with quoted evidence from the run."
 
 
 class Lint(TempCase):
-    def problems(self, files, data=None, upstream=(), repo=cases.REPO, siblings=()):
+    def problems(self, files, data=None, upstream=(), kit=(), repo=cases.REPO, siblings=()):
         skills = self.skill().parent
         for name, text in dict(siblings).items():
             (self.skill(name) / "SKILL.md").write_text(text)
         case = self.case(files, data)
         arm = world.build(case, Adapter, self.tmp / f"arm-{case.id}", skills)
-        return lint.lint(case, arm, skills / "haiku-writer", upstream, repo)
+        return lint.lint(case, arm, skills / "haiku-writer", upstream, kit, repo)
 
     def source(self, text):
         """A stand-in repository holding one document, STYLE.md, and its copy entry."""
@@ -29,26 +30,32 @@ class Lint(TempCase):
         return repo, {"world": "STYLE.md", "source": "STYLE.md", "source_sha256": cases.sha256_file(repo / "STYLE.md")}
 
     def test_a_clean_case_passes(self):
-        self.assertEqual(self.problems({"README.md": "A notes app with tags and search.\n"}), [])
+        self.assertEqual(self.problems({"README.md": "A notes app with tags and search.\n"}, kit=[KIT_TEXT]), [])
 
-    def test_every_place_is_read_whatever_its_encoding_or_kind(self):
+    def test_every_place_is_read_and_unreadable_text_is_refused(self):
         case = self.case({"README.md": "x\n"}, {"commits": [{"message": "Start", "paths": ["README.md"]}]})
-        (case.world / "notes.bin").write_bytes(b"\xff\xfe binary haiku_writer \x00")
         (case.world / "Haiku-Writer.md").write_text("x\n")
         (case.world / "link").symlink_to("Haiku-Writer.md")
         (case.world / "fixtures").mkdir()
+        for name, data in {"utf16.txt": "Try haiku-writer.\n".encode("utf-16"), "zipped.gz": b"\x1f\x8b\x08\x00",
+                           "nul.txt": b"haiku\x00writer\n"}.items():
+            (case.world / name).write_bytes(data)
         arm = world.build(case, Adapter, self.tmp / "arm", self.skill().parent)
         keys = {place.key for place in lint.visible(case, arm)}
-        self.assertEqual(keys, {"<prompt>", "<commit 1>", "README.md", "notes.bin", "Haiku-Writer.md", "link",
-                                "fixtures"})
+        self.assertEqual(keys, {"<prompt>", "<commit 1>", "README.md", "Haiku-Writer.md", "link", "fixtures",
+                                "utf16.txt", "zipped.gz", "nul.txt"})
         found = " ".join(lint.lint(case, arm, self.tmp / "skills/haiku-writer"))
-        for where in ("notes.bin: names", "Haiku-Writer.md: names", "link: names", "fixtures: test-tell"):
+        for where in ("Haiku-Writer.md: names", "link: names", "fixtures: test-tell", "utf16.txt: not UTF-8",
+                      "zipped.gz: not UTF-8", "nul.txt: not UTF-8"):
             with self.subTest(where=where):
                 self.assertIn(where, found)
 
     def test_the_skill_is_never_in_what_the_run_sees(self):
         planted = {
             "name in world": ({"README.md": "Try the haiku writer helper.\n"}, None),
+            "camel case": ({"app/poems.py": "class HaikuWriter:\n    pass\n"}, None),
+            "soft hyphen": ({"README.md": "Try hai­ku-writer.\n"}, None),
+            "full width": ({"README.md": "Try ｈａｉｋｕ-writer.\n"}, None),
             "path in world": ({"notes.md": "See skills/haiku-writer for poems.\n"}, None),
             "custom path": ({"notes.md": "See tools/poems.\n"}, {"skill_path": "tools/poems"}),
             "name in prompt": ({"README.md": "x\n"}, {"prompt": "Use Haiku_Writer to write a poem."}),
@@ -59,18 +66,14 @@ class Lint(TempCase):
             with self.subTest(label):
                 self.assertNotEqual(self.problems(files, data), [])
 
-    def test_a_sibling_that_names_the_skill_is_found(self):
-        sibling = "---\nname: note-taker\ndescription: Takes notes. Use with haiku-writer.\n---\n# Notes\n"
-        problems = self.problems({"README.md": "x\n", "AGENTS.md": AGENTS},
-                                 {"siblings": ["note-taker"], "index": INDEX}, siblings={"note-taker": sibling})
+    def test_installed_siblings_are_checked_for_the_skill_only(self):
+        files, data = {"README.md": "x\n", "AGENTS.md": AGENTS}, {"siblings": ["note-taker"], "index": INDEX}
+        naming = "---\nname: note-taker\ndescription: Takes notes. Use with haiku-writer.\n---\n# Notes\n"
+        problems = self.problems(files, data, siblings={"note-taker": naming})
         self.assertTrue(any("skills/note-taker/SKILL.md: names" in p for p in problems), problems)
-        self.assertTrue(any("<index rows>: names" in p for p in problems), problems)
-
-    def test_installed_skills_may_use_test_words(self):
-        sibling = "---\nname: note-taker\ndescription: Takes notes and runs evals with a fixture.\n---\n# Notes\n"
-        self.assertEqual(self.problems({"README.md": "x\n", "AGENTS.md": AGENTS},
-                                       {"siblings": ["note-taker"], "index": INDEX},
-                                       siblings={"note-taker": sibling}), [])
+        self.assertTrue(any("<sibling rows>: names" in p for p in problems), problems)
+        shared = f"---\nname: note-taker\ndescription: Takes notes and runs evals with a fixture.\n---\n{OWN_TEXT}\n"
+        self.assertEqual(self.problems(files, data, siblings={"note-taker": shared}), [])
 
     def test_text_shared_with_copies_upstream_or_prompt_is_the_projects(self):
         repo, copy = self.source(f"{OWN_TEXT}\n")
@@ -78,20 +81,29 @@ class Lint(TempCase):
         self.assertEqual(self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, upstream=[OWN_TEXT]), [])
         self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": f"Write a poem. {OWN_TEXT}"}), [])
 
-    def test_eval_files_tells_and_expectation_text_are_refused(self):
+    def test_tells_kit_text_and_expectations_are_refused_wherever_the_author_put_them(self):
+        repo, copy = self.source("The evaluator reads each case.\n")
+        data = {"expectations": ["The reply is a poem of three lines about notes", "Ends with one question"]}
         planted = {
-            "eval folder": {"README.md": "x\n", "evals/expected.txt": "a poem\n"},
-            "case file": {"README.md": "x\n", "case.json": "{}"},
-            "test tell": {"README.md": "This fixture checks the grader.\n"},
-            "expectation text": {"README.md": "The reply is a poem of three lines about notes.\n"},
+            "tell stem": ({"README.md": "The evaluator compares with the goldens.\n"}, {}),
+            "tell in a copy": ({"STYLE.md": "The evaluator reads each case.\n"}, {"copies": [copy]}),
+            "tell in the row": ({"README.md": "x\n", "AGENTS.md": AGENTS},
+                                {"index": dict(INDEX, row="| {name} | {path} | graded |")}),
+            "kit text": ({"notes/how.md": f"Note: {KIT_TEXT}\n"}, {}),
+            "expectation": ({"README.md": "The reply is a poem of three lines about notes.\n"}, {}),
+            "short expectation": ({"TODO.md": "Reply ends with one question.\n"}, {}),
         }
-        data = {"expectations": ["The reply is a poem of three lines about notes"]}
-        for label, files in planted.items():
+        for label, (files, extra) in planted.items():
             with self.subTest(label):
-                self.assertNotEqual(self.problems(files, data), [])
+                self.assertNotEqual(self.problems(files, dict(data, **extra), kit=[KIT_TEXT], repo=repo), [])
+
+    def test_the_prompt_may_state_what_is_expected(self):
+        data = {"prompt": "Write a poem of three lines about notes.",
+                "expectations": ["The reply is a poem of three lines about notes"]}
+        self.assertEqual(self.problems({"README.md": "x\n", "src/cases/list.py": "x = 1\n"}, data), [])
 
     def test_a_place_may_allow_a_tell_word(self):
-        files = {"docs/testing.md": "Run the fixture before each release.\n"}
+        files = {"docs/testing.md": "Run the fixtures before each release.\n"}
         self.assertNotEqual(self.problems(files), [])
         self.assertEqual(self.problems(files, {"allow_words": {"docs/testing.md": ["fixture"]}}), [])
         self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": "Write a poem for the eval.",
@@ -106,6 +118,14 @@ class Lint(TempCase):
         problems = self.problems({"OTHER.md": SKILL_MD}, {"copies": [fake]}, repo=repo)
         self.assertTrue(any("not in the world as the regular file" in p for p in problems))
         self.assertTrue(any("OTHER.md: holds" in p for p in problems))
+
+    def test_the_kit_is_its_code_and_checks_not_its_worlds(self):
+        evals = self.tmp / "repo" / "evals"
+        for path in ("harness/README.md", "skills/x/checks/c.py", "skills/x/cases/a/world/README.md",
+                     "skills/x/files/old/README.md", "skills/x/upstream/SKILL.md", "results/r.json"):
+            (evals / path).parent.mkdir(parents=True, exist_ok=True)
+            (evals / path).write_text(path)
+        self.assertEqual(sorted(lint.kit_texts(self.tmp / "repo")), ["harness/README.md", "skills/x/checks/c.py"])
 
     def test_lint_skill_reports_an_unbuildable_case(self):
         self.skill()

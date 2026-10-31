@@ -222,7 +222,8 @@ def _history(world, commits):
     """Build the declared commits in `world`. Without commits, the world gets no `.git` at all."""
     if not commits:
         return
-    _git(world, "init", "-q")
+    # No templates: `.git` holds only what the case declares, with no sample hooks or descriptions for a run to read.
+    _git(world, "init", "-q", "--template=")
     for commit in commits:
         for path in commit["paths"]:
             if not (world / path).exists():
