@@ -24,9 +24,14 @@ META = re.compile(r"  ([A-Za-z0-9_-]+): (.+)")
 BLOCK = (">", ">-", "|", "|-")
 # A plain one-line value: words separated by single spaces. A word holds no space or tab, never starts with `#`,
 # and holds a colon only between two other characters (`file:line`). The first word starts with a letter, a digit
-# or `(`. YAML reads every value of this shape as the same text.
+# or `(`. YAML reads every value of this shape as the same text, unless it is spelled like a typed value (TYPED).
 WORD = r"[^\s:#][^\s:]*(?::[^\s:]+)*"
 PLAIN = re.compile(rf"[\w(][^\s:]*(?::[^\s:]+)*(?: {WORD})*")
+# The plain spellings that YAML reads as null, a boolean, a number or a date, from the YAML 1.1 and 1.2 schemas.
+# A value spelled like one of these is not text, so it must be quoted.
+TYPED = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n)|[-+]?(?:\.inf|\.Inf|\.INF)|\.nan|\.NaN|\.NAN"
+                   r"|[-+]?(?:[0-9][0-9_]*(?::[0-5]?[0-9])*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?"
+                   r"|0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:[Tt ].*)?")
 
 
 def skill_files(skill_dir, name=None):
@@ -121,7 +126,7 @@ def _text(value, number):
             decoded = None
         if isinstance(decoded, str):
             return decoded
-    elif PLAIN.fullmatch(value):
+    elif PLAIN.fullmatch(value) and not TYPED.fullmatch(value):
         return value
     raise CaseError(f"frontmatter line {number}: {value!r} is not plain one-line text or a quoted string")
 

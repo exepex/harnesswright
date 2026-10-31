@@ -20,6 +20,8 @@ class Frontmatter(TempCase):
                                                       "metadata": {"source": "x", "sourcing": "adapted"}})
         self.assertEqual(skills.frontmatter('---\nname: "a"\ndescription: \'b: c\'\n---\n')["description"], "b: c")
         self.assertEqual(skills.frontmatter("---\nname: 'it''s'\n---\n")["name"], "it's")
+        self.assertEqual(skills.frontmatter("---\nmetadata:\n  count: '123'\n  note: no way\n---\n")["metadata"],
+                         {"count": "123", "note": "no way"})
 
     def test_the_real_skills_are_read(self):
         for folder in sorted((cases.REPO / "skills").iterdir()):
@@ -44,9 +46,13 @@ class Frontmatter(TempCase):
             "---\nname: a\ndescription: a: b\n---\n": "not plain",
             "---\nmetadata: x\n---\n": "holds indented",
             "---\nmetadata:\n  a: [1]\n---\n": "not plain",
-            "---\nmetadata:\n  a: 1\n  a: 2\n---\n": "appears twice",
+            "---\nmetadata:\n  a: x\n  a: y\n---\n": "appears twice",
             "---\nmetadata:\n    deep: x\n---\n": "indented line",
             "---\nname: a\ndescription: Use when:\n---\n": "not plain",
+            "---\nname: a\ndescription: null\n---\n": "not plain",
+            "---\nname: a\nmetadata:\n  enabled: true\n---\n": "not plain",
+            "---\nname: a\nmetadata:\n  count: 123\n---\n": "not plain",
+            "---\nname: a\nmetadata:\n  when: 2026-10-31\n---\n": "not plain",
             "---\nname: a\ndescription: x\t# note\n---\n": "not plain",
             "---\nname: a\ndescription: Writes demos.\u2028---\nx\n---\n": "line-break",
             "---\nname: a\ndescription: Writes\x0cdemos.\n---\n": "line-break",
