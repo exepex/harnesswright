@@ -160,6 +160,7 @@ def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=(), skill_
         try:
             lines = [line for line in path.read_text().split("\n") if line not in rows]
             target.write_text(_neutral("\n".join(lines), overlay_paths, skill_names))
+            shutil.copymode(path, target)
         except UnicodeDecodeError:
             shutil.copy2(path, target)
     # A folder on the way to an overlay path that holds nothing else is left out, in both arms alike, so the

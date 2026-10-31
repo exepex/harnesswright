@@ -80,21 +80,24 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     allow = {path: {w.lower() for w in allowed} for path, allowed in case.allow_words.items()}
 
     authored = text_files(case.world)
+    # Text the agent sees besides the files: the prompt, and the declared commit messages in the git history.
+    given = [("<prompt>", prompt)] + [(f"<commit {n}>", str(c.get("message", "")))
+                                      for n, c in enumerate(case.commits, 1)]
     leaks = [case.skill.lower(), case.skill_rel.lower()]
-    for path, text in list(files.items()) + [("<prompt>", prompt)]:
+    for path, text in list(files.items()) + given:
         for leak in leaks:
             if leak in text.lower():
                 problems.append(f"{path}: names the skill ({leak!r})")
     # Test tells and eval files are looked for in what the case author wrote. Installed sibling skills are
     # real project content and may talk about evals; they are checked for the skill's name and text above.
-    for path, text in list(authored.items()) + [("<prompt>", prompt)]:
+    for path, text in list(authored.items()) + given:
         lowered = text.lower()
         for tell in TELLS:
             if tell not in allow.get(path, set()) and re.search(rf"\b{re.escape(tell)}\b", lowered):
                 problems.append(f"{path}: test-tell word {tell!r}")
 
     marks = fingerprint(skill_dir, [files[p] for p in copied if p in files], upstream_dir, prompt)
-    for path, text in files.items():
+    for path, text in list(files.items()) + given[1:]:
         if path in copied:
             continue
         hits = marks & shingles(text)
@@ -105,9 +108,9 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     for expectation in case.expectations:
         text = expectation if isinstance(expectation, str) else str(expectation.get("text", ""))
         expectation_runs |= shingles(text, 6)
-    for path, text in authored.items():
+    for path, text in list(authored.items()) + given:
         parts = Path(path).parts
-        if Path(path).name in KIT_NAMES or any(part in KIT_FOLDERS for part in parts[:-1]):
+        if path in authored and (Path(path).name in KIT_NAMES or any(part in KIT_FOLDERS for part in parts[:-1])):
             problems.append(f"{path}: an eval file inside the world")
         if expectation_runs & shingles(text, 6):
             problems.append(f"{path}: holds expectation text")

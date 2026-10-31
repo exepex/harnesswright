@@ -106,6 +106,14 @@ class Bundles(TempCase):
         self.assertEqual(views[0], views[1])
         self.assertIn("files/docs/empty", views[0])
 
+    def test_the_grader_view_keeps_file_permissions(self):
+        folder = self.world()
+        (folder / "run.sh").write_text("#!/bin/sh\necho ok\n")
+        (folder / "run.sh").chmod(0o755)
+        evidence.write_bundle(self.tmp / "b", {"final": ""}, folder, [], [])
+        view = evidence.grader_view(self.tmp / "b", self.tmp / "v", ["skills/haiku-writer"], ["haiku-writer"])
+        self.assertEqual((view / "files" / "run.sh").stat().st_mode & 0o777, 0o755)
+
     def test_symlinks_never_reach_a_bundle(self):
         folder = self.world()
         outside = self.tmp / "outside.txt"

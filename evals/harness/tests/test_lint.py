@@ -76,6 +76,15 @@ class LintFaults(TempCase):
         drifted = self.problems({"STYLE.md": "Old style.\n"}, {"copies": [copy]}, repo=repo)
         self.assertTrue(any("changed since" in p for p in drifted))
 
+    def test_commit_messages_are_linted_like_files(self):
+        planted = {"name": "Add the haiku-writer helper", "own text": f"Style: {OWN_TEXT}",
+                   "tell": "Add fixture for the grader"}
+        for label, message in planted.items():
+            with self.subTest(label):
+                commits = [{"message": message, "paths": ["README.md"]}]
+                problems = self.problems({"README.md": "x\n"}, {"commits": commits})
+                self.assertTrue(any("<commit 1>" in p for p in problems), problems)
+
     def test_a_copy_must_match_the_source_it_names(self):
         license_sha = cases.sha256_file(cases.REPO / "LICENSE")
         fake = {"world": "STYLE.md", "source": "LICENSE", "source_sha256": license_sha}

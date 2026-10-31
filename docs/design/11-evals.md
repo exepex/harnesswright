@@ -83,7 +83,8 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
 
 ### World lint
 
-The lint runs before any run. A case that fails it cannot run. It rejects:
+The lint runs before any run. A case that fails it cannot run. It reads the world, the prompt and the declared
+commit messages, since the agent sees all three. It rejects:
 
 - the skill's name or path in the without-skill world or in the prompt;
 - any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
