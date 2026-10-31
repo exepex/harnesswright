@@ -4,17 +4,16 @@ One rule: the power table below is the only statement of what a run may do, and 
 gives exactly that. The jail enforces the table for the host and its commands alike, so each host's own sandbox is
 turned off and nothing is left for a host to refuse.
 
-`PROBE` runs inside the run's jail as one `python3 -I -c` program text, like the audit, so no harness file is
-mounted for it. It tries every row and prints one JSON object: {row: true when the action worked}. Each write makes
-a file with a unique name and removes it again, so the world is unchanged. "Write outside the run" reads the jail's
-own mount table from the kernel: any mount it lets the run write must be one of the places the table lets the mode
-write (the private home, `/tmp` and `/dev/shm`, and the world and scratch in task runs), a device file, or a kernel
-view of the jail (proc, devpts). So it covers every mount and everything below one, never a list of places to try.
-"Connect directly" never trusts a failed connection alone: the harness holds a listener open on the machine's
-loopback, which any jail sharing the machine's network reaches, and the jail must also have its own network
-namespace with loopback only. A model host counts as reached only when the gate opens a tunnel to one of the
-allowed hosts. `probe` compares the
-outcome with the table.
+`PROBE` runs inside the run's jail as one `python3 -I -c` program text, like the audit, so no harness file is mounted
+for it. It tries every row and prints one JSON object: {row: true when the action worked}. Each write makes a file
+with a unique name and removes it again, so the world is unchanged. "Write outside the run" reads the jail's own mount
+table from the kernel: any mount it lets the run write must be one of the places the table lets the mode write (the
+private home, `/tmp` and `/dev/shm`, the world and scratch in task runs, and the probe-output folder in probe runs), a
+device file, or a kernel view of the jail (proc, devpts). So it covers every mount and everything below one, never a
+list of places to try. "Connect directly" never trusts a failed connection alone: the harness holds a listener open on
+the machine's loopback, which any jail sharing the machine's network reaches, and the jail must also have its own
+network namespace with loopback only. A model host counts as reached only when the gate opens a tunnel to one of the
+allowed hosts. `probe` compares the outcome with the table.
 
 Standard library only.
 """
@@ -153,26 +152,26 @@ def expected(mode):
     return {row: modes[column] for row, modes in TABLE.items()}
 
 
-def probe(run, program="python3"):
-    """Run the powers probe in `run`'s jail (a `contain.Containment`) and return what it found. Raise PowersError
-    with every row that differs from the table."""
+def spec(run):
+    """What the probe needs to know about `run`, besides the address of the listener it must not reach."""
     may = expected(run.mode)
     writable = [str(run.home), "/tmp", "/dev/shm"] + ([str(run.world)] if may["write the world"] else []) + \
-        ([str(run.scratch)] if may["write scratch"] and run.scratch else [])
-    spec = {"world": str(run.world), "scratch": str(run.scratch) if run.scratch else None, "home": str(run.home),
-            "writable": writable,
-            "port": contain.gate.PORT, "model_hosts": list(run.hosts),
+        ([str(run.scratch)] if may["write scratch"] and run.scratch else []) + \
+        ([str(run.probe_out)] if run.probe_out else [])  # the probe-output folder, in probe runs only
+    return {"world": str(run.world), "scratch": str(run.scratch) if run.scratch else None, "home": str(run.home),
+            "writable": writable, "port": contain.gate.PORT, "model_hosts": list(run.hosts),
             "network": os.stat("/proc/self/ns/net").st_ino}
-    command = run.jail([contain.PYTHON, "-I", "-c", PROBE], program=program)
-    # A control the probe can always reach unless the jail has its own network: so a refused connection proves it.
-    with socket.create_server(("127.0.0.1", 0)) as listener, run.gate():
-        spec["direct"] = listener.getsockname()
-        result = subprocess.run(command, input=json.dumps(spec), capture_output=True, text=True, env=run.env,
-                                timeout=120)
+
+
+def check(run, output, stderr=""):
+    """The probe's `output` (its printed JSON) for `run`, compared with the table. Return what it found, or raise
+    PowersError with every row that differs."""
     try:
-        found = json.loads(result.stdout)
+        found = json.loads(output)
     except json.JSONDecodeError:
-        raise PowersError(f"the powers probe did not run: {result.stderr.strip()[-400:]}") from None
+        raise PowersError(f"the powers probe did not run: {stderr.strip()[-400:]}") from None
+    if not isinstance(found, dict):
+        raise PowersError(f"the powers probe printed {output[:200]!r}")
     off = found.pop("writable mounts off the table", [])
     wrong = [f"{row}: {'works' if found.get(row) else 'does not work'}, the table says it "
              f"{'must' if must else 'must not'}"
@@ -183,3 +182,14 @@ def probe(run, program="python3"):
         raise PowersError("; ".join(wrong))
     return found
 
+
+def probe(run, program="python3"):
+    """Run the powers probe in `run`'s jail (a `contain.Containment`) and return what it found. Raise PowersError
+    with every row that differs from the table."""
+    command = run.jail([contain.PYTHON, "-I", "-c", PROBE], program=program)
+    # A control the probe can always reach unless the jail has its own network: so a refused connection proves it.
+    with socket.create_server(("127.0.0.1", 0)) as listener, run.gate():
+        given = {**spec(run), "direct": listener.getsockname()}
+        result = subprocess.run(command, input=json.dumps(given), capture_output=True, text=True, env=run.env,
+                                timeout=120)
+    return check(run, result.stdout, result.stderr)

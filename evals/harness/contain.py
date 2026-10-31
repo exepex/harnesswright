@@ -2,12 +2,12 @@
 
 One rule: a run sees exactly one list of mounts, and nothing else. `Containment.mounts` builds the list once: the
 system folders and the `/etc` entries in `ETC` (read-only), the host's install and CA files (read-only), the world
-(read-only in trigger runs), a fresh home, a scratch folder in task runs, an empty `/tmp`, a fresh `/proc` and a
-minimal `/dev`, and the gate's socket. The jail has no network of its own: every connection goes through the gate
-(`gate.py`), which allows only the host's model hosts. The jail is built from the list, and `audit.py` checks the
-jail against the same list from inside it before the host starts. Any problem raises ContainmentError: the run is
-void and the round stops. The environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS`, its
-fixed `RUN_ENV` and the run's folders), never inherited.
+(read-only in trigger runs), a fresh home, a scratch folder in task runs, the probe-output folder in probe runs only,
+an empty `/tmp`, a fresh `/proc` and a minimal `/dev`, and the gate's socket. The jail has no network of its own:
+every connection goes through the gate (`gate.py`), which allows only the host's model hosts. The jail is built from
+the list, and `audit.py` checks the jail against the same list from inside it before the host starts. Any problem
+raises ContainmentError: the run is void and the round stops. The environment is built from an allow list
+(`BASE_KEYS`, the adapter's `ENV_KEYS`, its fixed `RUN_ENV` and the run's folders), never inherited.
 """
 
 import json
@@ -88,11 +88,12 @@ class Containment:
 
     `operator_env` and `operator_home` are where sign-in values and credential files come from: the real ones in a
     round, a decoy in fault tests. `world_entries` is the manifest of the proved arm. `tokens` are the canary tokens
-    planted for the round. `host_paths` are extra folders the host needs to sign in on this machine.
+    planted for the round. `host_paths` are extra folders the host needs to sign in on this machine. `probe` gives
+    the run the probe-output folder, which it may write in both modes (doc 11, Probes); real runs never have it.
     """
 
     def __init__(self, adapter, mode, world, world_entries, root, operator_env=None, operator_home=None,
-                 host_paths=(), tokens=()):
+                 host_paths=(), tokens=(), probe=False):
         if mode not in ("trigger", "task"):
             raise ValueError(f"unknown mode: {mode}")
         self.adapter, self.mode, self.world = adapter, mode, Path(world).resolve()
@@ -110,6 +111,10 @@ class Containment:
         self.hosts = self._hosts()
         self.home_entries = self._make_home()
         self.scratch_entries = self._make_scratch()
+        self.probe_out = self.root / "probe-out" if probe else None
+        self.probe_entries = {}
+        if probe:
+            self.probe_out.mkdir()
         self.env = self._environment()
 
     def _hosts(self):
@@ -157,6 +162,13 @@ class Containment:
             (self.scratch / name).mkdir(parents=True)
         return {"tmp": "dir", "cache": "dir"}
 
+    def put_probe(self, name, text):
+        """Put a file the probe hands the host, such as the powers probe, in the probe-output folder."""
+        path = self.probe_out / name
+        path.write_text(text)
+        self.probe_entries[name] = manifest.entry(path)
+        return path
+
     def _environment(self):
         keys = BASE_KEYS + tuple(getattr(self.adapter, "ENV_KEYS", ()))
         env = {key: self.operator_env[key] for key in keys if key in self.operator_env}
@@ -190,6 +202,8 @@ class Containment:
         found.append(Mount(self.home, "rw", filled=self.home_entries, scan=True))
         if self.scratch:
             found.append(Mount(self.scratch, "rw", filled=self.scratch_entries, scan=True))
+        if self.probe_out:
+            found.append(Mount(self.probe_out, "rw", filled=self.probe_entries, scan=True))
         self._refuse_overlaps(found, named)
         return found
 
