@@ -18,6 +18,8 @@ class Commands(unittest.TestCase):
         self.assertEqual(trigger[trigger.index("--tools") + 1], "Bash,Read,Glob,Grep,Skill")
         self.assertEqual(task[task.index("--tools") + 1], "Bash,Read,Glob,Grep,Skill,Edit,Write")
         self.assertNotIn("--add-dir", trigger)
+        trigger_settings = json.loads(trigger[trigger.index("--settings") + 1])
+        self.assertEqual(trigger_settings["sandbox"]["filesystem"]["denyWrite"], ["~", "/tmp"])
         self.assertEqual(task[task.index("--add-dir") + 1], "/s")
         settings = json.loads(task[task.index("--settings") + 1])
         self.assertTrue(settings["disableBundledSkills"])
