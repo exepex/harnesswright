@@ -5,7 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table and the host contract, with a fake host**. Probes, evidence, and the measuring kit come next.
+the power table, the host contract, with a fake host, and the first four probes**. The memory and drift probes,
+evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -24,6 +25,7 @@ allowed connections.
 | `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |
 | `powers.py` | The power table of each mode, and the probe that proves the jail gives exactly that |
 | `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
+| `probes.py` | The probes each host passes before real runs: sign-in, powers, discovery and instructions |
 
 ## Commands
 
@@ -175,15 +177,15 @@ through the operator's own proxy when there is one.
 ## The power table
 
 `powers.TABLE` is the one statement of what a run may do: each row is an action, with whether it must work in a
-trigger run and in a task run. `powers.probe(run)` runs `powers.PROBE` in the run's jail, inside its gate, and
-raises `PowersError` naming every row that differs (doc 11, Powers). Each write makes a file with a unique name and
-removes it again, so the world stays the proved arm. The places a mode may write are one set, from the table: the
-private home, `/tmp`, `/dev/shm`, and the world and scratch in task runs. "Write outside the run" reads the jail's
-mount table from `/proc/self/mountinfo`: any other mount the kernel lets the run write is named, unless it is a
-device file or a kernel view (proc, devpts). The jail remounts its root and `/dev` read-only for this.
-"Connect directly" works when the jail shares any of the machine's network: the runner's network namespace, an
-interface other than loopback, or a listener the probe holds open on the machine's loopback. So it never rests on
-an outside address failing.
+trigger run and in a task run. `powers.probe(run)` runs `powers.PROBE` in the run's jail, inside its gate, and raises
+`PowersError` naming every row that differs (doc 11, Powers). Each write makes a file with a unique name and removes
+it again, so the world stays the proved arm. The places a mode may write are one set, from the table: the private
+home, `/tmp`, `/dev/shm`, the world and scratch in task runs, and the probe-output folder in probe runs. "Write
+outside the run" reads the jail's mount table from `/proc/self/mountinfo`: any other mount the kernel lets the run
+write is named, unless it is a device file or a kernel view (proc, devpts). The jail remounts its root and `/dev`
+read-only for this. "Connect directly" works when the jail shares any of the machine's network: the runner's network
+namespace, an interface other than loopback, or a listener the probe holds open on the machine's loopback. So it never
+rests on an outside address failing.
 
 ## The host contract
 
@@ -210,3 +212,27 @@ An adapter reports a write that failed as `failed`, and `host.run` decides what 
 list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
 is left out, as the world diff shows. Paths inside the world are logged relative to it, on every host. An
 adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator.
+
+## Probes
+
+A probe is a probe world, a prompt and a check (doc 11, Probes), with one rule: the file the probe asks for is right,
+and the host's own report, its exposure and action log, shows it did what the probe tests, not a way around it. A
+probe of a host action allows only the actions it asks for (`probes.ALLOWED`): any other log entry fails it. The
+check never reads what the model says. `probes.probe(adapter, name, mode, root)` runs one probe through `host.run`,
+in a containment made with `probe=True`, and returns why it failed, or `None`; `probes.probe_host` runs every probe
+in both modes and returns the reasons the host is `not run`. The probe-output folder is the one place a probe run
+may write beyond the table, in both modes; real runs never have it, and `powers.spec` adds it to the places the
+powers probe allows only when it is there. A file there is read only when it is a regular file, so a link the host
+made is never followed out of the jail.
+
+- **Sign-in:** the host writes `ready` into `sign-in.txt`.
+- **Powers:** the host runs exactly the one command it is given, which runs `powers.PROBE` with the spec the harness
+  put in the folder, and nothing else; its output, which must carry the spec's nonce, is checked against the table
+  with `powers.check`. So its commands are shown to get the jail's powers, and a result written by hand fails.
+- **Discovery:** asked for the probe skill by name, with up to two tries, the host exposes it, loads it and writes
+  the token that only the skill's `SKILL.md` holds. A host that found the file some other way fails.
+- **Instructions:** the host writes back the tokens its instructions give it, and may do nothing but write what it
+  already knows: no read, no skill, and no command that does not carry the token. The probe world has an `AGENTS.md`
+  with one token and a `CLAUDE.md` that imports it, so every host must report exactly that one token.
+
+Every token is fresh for each run. A host or containment that breaks its contract raises, as in any run.
