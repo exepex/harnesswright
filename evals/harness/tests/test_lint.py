@@ -165,6 +165,8 @@ class Lint(TempCase):
     def test_the_projects_run_folder_is_not_a_tell(self):
         story = ".harness/runs/2026-10-30-notes/stories/S01.md"
         self.assertEqual(self.problems({story: "Tags sort by name.\n"}, {"prompt": f"Write claims for {story}."}), [])
+        old = [(self.tmp / "tasks.json", f'{{"prompt": "Write claims for {story} now."}}')]
+        self.assertEqual(self.problems({story: "Tags sort by name.\n"}, case_data=old), [])
 
     def test_lint_skill_reports_an_unbuildable_case(self):
         self.skill()
