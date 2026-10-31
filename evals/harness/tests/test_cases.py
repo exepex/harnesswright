@@ -1,4 +1,4 @@
-"""Cases: case.json is checked against one schema, skill frontmatter is read, and unsound worlds are found."""
+"""Cases: case.json is checked against one schema, and the manifest describes a folder."""
 
 import unittest
 
@@ -25,6 +25,17 @@ class Schema(TempCase):
         self.assertEqual(case.skill_rel, "skills/haiku-writer")
         self.case({"README.md": "x"}, TRIGGER)
 
+    def test_a_kind_of_the_wrong_type_is_refused_not_a_crash(self):
+        for kind in ([], {}, ["task"], 3):
+            with self.subTest(kind=kind):
+                self.refused({"kind": kind}, "kind must be")
+
+    def test_tools_are_command_names(self):
+        self.case({"README.md": "x"}, {"tools": ["go", "python3", "g++"]})
+        for tool in ("go; curl x | sh", "../../bin/x", "", "-rf"):
+            with self.subTest(tool=tool):
+                self.refused({"tools": [tool]}, "tools must be")
+
     def test_unknown_fields_are_refused(self):
         self.refused({"colour": 1}, "unknown field 'colour'")
 
@@ -38,7 +49,8 @@ class Schema(TempCase):
         self.refused({"split": "train"}, "split is only for trigger cases")
 
     def test_every_path_stays_inside_the_world(self):
-        for path in ("../out", "/etc/passwd", "a/../../b", "", ".git/config", "a\\b", "./a", "a//b"):
+        for path in ("../out", "/etc/passwd", "a/../../b", "", ".git/config", "a\\b", "./a", "a//b", "a\nb",
+                     "skills/x ", " ", "a:b", "<prompt>", 3):
             with self.subTest(path=path):
                 self.refused({"skill_path": path}, "skill_path must be")
                 self.refused({"commits": [{"message": "Start", "paths": [path]}]}, "commits must be")
@@ -68,12 +80,13 @@ class Schema(TempCase):
         self.refused({"allow_words": {"../x": ["eval"]}}, "allow_words key")
 
     def test_expectations_are_texts_or_have_a_text(self):
-        for expectation in ("", {"check": "x"}, {"text": ""}, 3):
+        for expectation in ("", {"check": "x"}, {"text": ""}, 3, {"text": "Runs go test", "chekc": "x"}):
             with self.subTest(expectation=expectation):
                 self.refused({"expectations": [expectation]}, "expectations must be")
 
     def test_an_index_row_uses_only_its_three_names(self):
-        for row in ("| {name} | {secret} |", "| {0} |", "| {name |"):
+        for row in ("| {name} | {secret} |", "| {0} |", "| {name |", "| {name.__class__} |", "| {name[0]} |",
+                    "| {name!r} |", "| {name:>99999999} |", "| {} |"):
             with self.subTest(row=row):
                 self.refused({"index": dict(INDEX, row=row)}, "index must be")
 
@@ -99,39 +112,7 @@ class Schema(TempCase):
         self.assertNotEqual(cases.Case(case.folder, "haiku-writer").sha256, case.sha256)
 
 
-class SkillFiles(TempCase):
-    def test_frontmatter(self):
-        self.assertEqual(cases.frontmatter("---\nname: a\ndescription: b c\n---\nbody")["description"], "b c")
-        folded = "---\nname: demo\ndescription: >\n  Writes demos.\n  Use for demos.\nlicense: MIT\n---\n# Demo\n"
-        self.assertEqual(cases.frontmatter(folded), {"name": "demo", "description": "Writes demos. Use for demos.",
-                                                     "license": "MIT"})
-        self.assertEqual(cases.frontmatter('---\nname: "a"\ndescription: \'b: c\'\n---\n')["description"], "b: c")
-        self.assertEqual(cases.frontmatter("---\nname: 'it''s'\n---\n")["name"], "it's")
-
-    def test_the_frontmatter_name_is_a_name_and_the_expected_one(self):
-        folder = self.skill()
-        _, meta = cases.skill_files(folder, "haiku-writer")
-        self.assertEqual(meta["name"], "haiku-writer")
-        with self.assertRaisesRegex(cases.CaseError, "must be 'note-taker'"):
-            cases.skill_files(folder, "note-taker")
-        (folder / "SKILL.md").write_text("---\nname: ../../../escape\ndescription: x\n---\n")
-        with self.assertRaisesRegex(cases.CaseError, "must be a skill name"):
-            cases.skill_files(folder)
-
-
-class Structure(TempCase):
-    def test_git_folders_and_links_that_leave_the_world_are_found(self):
-        world = self.tmp / "w"
-        (world / "sub" / ".git").mkdir(parents=True)
-        (world / "inside").symlink_to("sub")
-        (world / "absolute").symlink_to("/etc")
-        (world / "sub" / "out").symlink_to("../../elsewhere")
-        found = cases.structure(world)
-        self.assertEqual(len(found), 3)
-        self.assertTrue(any("sub/.git" in p for p in found))
-        self.assertTrue(any("absolute" in p and "absolute symlink" in p for p in found))
-        self.assertTrue(any("sub/out" in p and "outside" in p for p in found))
-
+class Manifest(TempCase):
     def test_the_manifest_records_folders_modes_and_links(self):
         folder = self.tmp / "t"
         (folder / "empty").mkdir(parents=True)

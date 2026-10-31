@@ -14,7 +14,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | File | Does |
 |---|---|
 | `manifest.py` | The one description of a folder: every path with its kind (folder, file, link), mode and hash |
-| `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema; reads skill frontmatter; finds unsound worlds |
+| `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
 
 ## Commands
 
@@ -27,19 +27,16 @@ python3 -m unittest discover -s evals/harness/tests
 
 ## How a case is checked
 
-`cases.SCHEMA` lists every field `case.json` may hold, each with the one shape it may take. Anything else is
-refused with the reason, so a malformed case stops before a world is built instead of failing part way:
+`cases.SCHEMA` lists every field `case.json` may hold, each with the one shape it may take. Each shape is a list of
+what is allowed, never a list of known bad values. Anything else is refused with the reason, so a malformed case
+stops before a world is built instead of failing part way:
 
-- every path is relative, written with `/`, and has no `.`, `..` or `.git` part;
+- every path is relative: parts of letters, digits and `. _ + @ -`, joined by `/`, never `.`, `..` or `.git`;
 - a trigger case needs `should_trigger`, `split` and `index`; a task case may not have the first two;
 - a commit needs a non-empty message and a list of paths;
 - a copy names a source outside `skills/` and `evals/` and its 64-character sha256;
-- an index row may use only `{name}`, `{path}` and `{description}`;
+- an index row may use only `{name}`, `{path}` and `{description}`, with no index, attribute or format spec;
+- an expectation is a text, or an object holding only a text;
+- a tool is a command name;
 - siblings are distinct skill names, never paths and never the skill under test;
 - `allow_words` keys are world paths, `<prompt>` or `<commit N>` for a declared commit.
-
-A skill's frontmatter name must be a skill name, and the expected one when the caller names it, because the name
-chooses where a host discovers the skill.
-
-`structure` finds a `.git` folder, an absolute symlink or a symlink that leads out of a world. The arm builder,
-the next part, refuses a world or skill with any of them.

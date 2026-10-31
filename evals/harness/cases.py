@@ -3,7 +3,7 @@
 `world/` is the whole project the agent works in, written without the skill. `case.json` says what the run is
 given on top of it. This module reads `case.json` and checks it against one schema, `SCHEMA`: every field the
 file may hold, each with the one shape it may take. A field that is not in the schema, or does not have its
-shape, is refused with the reason. Nothing is checked by looking for known bad values.
+shape, is refused with the reason.
 
 case.json fields:
 
@@ -22,16 +22,17 @@ case.json fields:
   "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is never under
   `skills/` or `evals/`: a skill's text or the measuring kit is not project text.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
-  the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`. A key that starts with `<` is
-  always a place, never a path.
+  the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
-Every path is relative, inside the world, written with `/`, and never names `.git`.
+Every path is relative and inside the world: parts of letters, digits and `. _ + @ -`, joined by `/`, and never
+`.`, `..` or `.git`. Every shape is a list of what is allowed, never a list of known bad values.
 """
 
 import hashlib
 import json
 import re
-from pathlib import Path, PurePosixPath
+import string
+from pathlib import Path
 
 import manifest
 
@@ -41,8 +42,12 @@ SPLITS = ("train", "test")
 PROMPT_KEY = "<prompt>"
 SKILL_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 SHA256 = re.compile(r"[0-9a-f]{64}")
+# One part of a path: letters, digits and . _ + @ -, never `.`, `..` or `.git`.
+PATH_PART = re.compile(r"[A-Za-z0-9._+@-]+")
+NOT_PARTS = (".", "..", ".git")
+COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
+ROW_FIELDS = ("name", "path", "description")
 NOT_PROJECT_TEXT = ("skills", "evals")
-ROW_KEYS = {"name": "n", "path": "p", "description": "d"}
 
 
 class CaseError(ValueError):
@@ -68,11 +73,13 @@ def is_name(value):
 
 
 def is_path(value):
-    """A relative path inside the world, written with `/`, with no `.`, `..` or `.git` part."""
-    if not (isinstance(value, str) and value and "\\" not in value and "\0" not in value):
-        return False
-    parts = value.split("/")
-    return all(part not in ("", ".", "..", ".git") for part in parts) and not PurePosixPath(value).is_absolute()
+    """A relative path inside the world: parts of PATH_PART joined by `/`, with no `.`, `..` or `.git` part."""
+    return isinstance(value, str) and all(PATH_PART.fullmatch(part) and part not in NOT_PARTS
+                                          for part in value.split("/"))
+
+
+def is_command(value):
+    return isinstance(value, str) and COMMAND.fullmatch(value) is not None
 
 
 def is_source(value):
@@ -80,19 +87,21 @@ def is_source(value):
 
 
 def is_row(value):
+    """A row whose every replacement field is exactly `{name}`, `{path}` or `{description}`: no index,
+    attribute, conversion or format spec."""
     if not is_text(value):
         return False
     try:
-        value.format(**ROW_KEYS)
-    except (KeyError, IndexError, ValueError, AttributeError):
+        fields = list(string.Formatter().parse(value))
+    except ValueError:
         return False
-    return True
+    return all(field is None or (field in ROW_FIELDS and not spec and conversion is None)
+               for _, field, spec, conversion in fields)
 
 
 def is_expectation(value):
-    if isinstance(value, dict):
-        return is_text(value.get("text"))
-    return is_text(value)
+    """A text, or an object holding only a text. Later parts add the fields of checks."""
+    return is_text(value) or record(text=is_text)(value)
 
 
 def list_of(shape):
@@ -115,13 +124,13 @@ SCHEMA = {
     "kind": (lambda v: v in KINDS, f"one of {KINDS}"),
     "should_trigger": (lambda v: isinstance(v, bool), "true or false"),
     "split": (lambda v: v in SPLITS, f"one of {SPLITS}"),
-    "skill_path": (is_path, "a relative path inside the world"),
+    "skill_path": (is_path, "a relative path inside the world (letters, digits and . _ + @ - in each part)"),
     "index": (record(file=is_path, after=is_text, row=is_row),
               "{file, after, row}: a path in the world, the header line, and a row using only {name}, {path} "
               "and {description}"),
     "siblings": (list_of(is_name), "a list of skill names (lower-case letters, digits and hyphens)"),
-    "tools": (list_of(is_text), "a list of command names"),
-    "expectations": (list_of(is_expectation), "a list of texts, or of objects with a non-empty text"),
+    "tools": (list_of(is_command), "a list of command names (letters, digits and . _ + -)"),
+    "expectations": (list_of(is_expectation), "a list of texts, or of objects holding only a non-empty text"),
     "commits": (list_of(record(message=is_text, paths=list_of(is_path))),
                 "a list of {message, paths}: non-empty text and a list of paths in the world"),
     "copies": (list_of(record(world=is_path, source=is_source, source_sha256=lambda v: isinstance(v, str)
@@ -143,7 +152,7 @@ def check(data, case_id, skill=None):
     for key, (shape, wanted) in SCHEMA.items():
         if key in data and not shape(data[key]):
             problems.append(f"{key} must be {wanted}")
-    kind = data.get("kind")
+    kind = data.get("kind") if data.get("kind") in KINDS else None
     for key in REQUIRED.get(kind, ("prompt", "kind")):
         if key not in data:
             problems.append(f"a {kind or 'case'} needs {key}")
@@ -168,7 +177,7 @@ def _allow_keys(data):
     count = len(commits) if isinstance(commits, list) else 0
     places = {PROMPT_KEY} | {commit_key(n) for n in range(1, count + 1)}
     return [f"allow_words key {key!r} must be a world path, {PROMPT_KEY} or <commit N> for a declared commit"
-            for key in allow if not (key in places or (is_path(key) and not key.startswith("<")))]
+            for key in allow if not (key in places or is_path(key))]
 
 
 def commit_key(number):
@@ -214,77 +223,3 @@ def load_cases(skill, root=None):
     if not root.is_dir():
         raise CaseError(f"{skill}: no cases folder at {root}")
     return [Case(folder, skill) for folder in sorted(root.iterdir()) if folder.is_dir()]
-
-
-def skill_files(skill_dir, name=None):
-    """The skill's files as {relative path: bytes}, and its name and description from the frontmatter.
-
-    The frontmatter name must be a skill name, and `name` when one is given: the name chooses where the host
-    discovers the skill, so it must never be a path.
-    """
-    skill_dir = Path(skill_dir)
-    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes()
-             for p in sorted(skill_dir.rglob("*")) if p.is_file() and not p.is_symlink()}
-    if "SKILL.md" not in files:
-        raise CaseError(f"{skill_dir}: no SKILL.md")
-    meta = frontmatter(files["SKILL.md"].decode("utf-8", errors="replace"))
-    if not meta.get("name") or not meta.get("description"):
-        raise CaseError(f"{skill_dir}: SKILL.md frontmatter needs name and description")
-    if not is_name(meta["name"]) or (name is not None and meta["name"] != name):
-        wanted = repr(name) if name is not None else "a skill name"
-        raise CaseError(f"{skill_dir}: frontmatter name {meta['name']!r} must be {wanted}")
-    return files, meta
-
-
-def frontmatter(text):
-    """The top-level `key: value` pairs of a SKILL.md frontmatter block. A block scalar (`>` or `|`) is joined
-    into one line, and a quoted value loses its quotes."""
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}
-    meta, key = {}, None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        if key and line[:1] in (" ", "\t"):
-            meta[key] = f"{meta[key]} {line.strip()}".strip()
-            continue
-        key = None
-        if line and not line[0].isspace() and ":" in line:
-            name, value = (part.strip() for part in line.split(":", 1))
-            if value in (">", "|", ">-", "|-", ">+", "|+"):
-                meta[name], key = "", name
-            elif len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-                meta[name] = _unquote(value)
-            else:
-                meta[name] = value
-    return meta
-
-
-def _unquote(value):
-    if value[0] == "'":
-        return value[1:-1].replace("''", "'")
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        return value[1:-1]
-
-
-def structure(world):
-    """A `.git` folder, an absolute symlink or a symlink that points outside the world, in a written world.
-
-    A copied absolute symlink still points at the source world, so writes through it would reach the case.
-    """
-    problems = []
-    root = Path(world).resolve()
-    for path in sorted(Path(world).rglob("*")):
-        relative = path.relative_to(world).as_posix()
-        if path.name == ".git":
-            problems.append(f"{relative}: a .git folder; declare history as commits in case.json")
-        if path.is_symlink():
-            link = path.readlink()
-            if link.is_absolute():
-                problems.append(f"{relative}: an absolute symlink; use a relative one inside the world")
-            elif not (path.parent / link).resolve().is_relative_to(root):
-                problems.append(f"{relative}: a symlink that points outside the world")
-    return problems
