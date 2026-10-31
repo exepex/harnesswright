@@ -117,17 +117,20 @@ host's own install. The runner proves this in every run.
 
 - **One list of mounts.** A run sees exactly one list: the system program and library folders, the `/etc` entries
   a program needs to start and reach the network, the host's install and CA files (all read-only), the world, a
-  fresh private home, a scratch folder in task runs, an empty private `/tmp`, and the jail's own `/proc` and `/dev`.
-  Nothing else is mounted, so machine-wide host config such as `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`,
-  the repository and the operator's home are never there to read. No mount may hold or sit inside the repository,
-  or hold the operator's home.
+  fresh private home, a scratch folder in task runs, an empty private `/tmp`, a fresh `/proc` of the jail's own
+  processes and a minimal `/dev`. A host installed in the operator's home brings only its own link and file. The
+  jail has its own user, process, IPC, host name and cgroup namespaces; the network is shared, because the host must
+  reach its model, and the host's sandbox cuts commands off from it (Powers). Nothing else is mounted, so
+  machine-wide host config such as `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`, the repository and the
+  operator's home are never there to read. No mount may hold or sit inside the repository, or hold the operator's
+  home.
 - **Visibility audit.** Before the host starts, a script runs inside the jail and checks it against the same list:
   every folder the jail creates holds only the way to the mounts below it, every folder the harness fills holds
-  exactly what it put there (the world is the proved arm), no process root leads outside the jail, and the
+  exactly what it put there (the world is the proved arm), no process outside the run is visible, and the
   environment holds only the keys the harness built. Any problem voids the run and stops the round.
 - **Canary tokens.** Unique tokens are planted where leaks came from before: a decoy operator home, the runner's
-  temp folder, the repository checkout, other runs' folders. The audit scans every mount outside the system folders
-  for them, reading every file, and every bundle is scanned for them.
+  temp folder, the repository checkout, other runs' folders. The audit scans the world, home, scratch, host install, CA
+  files and host paths for them, reading every file, and every bundle is scanned for them.
 - **Mechanism.** The default is `evals/harness/contain.py`: an allow-listed environment, a fresh private `HOME`
   and `TMPDIR`, and a `bwrap` jail built from the list. Any other containment that passes the audit, such as a
   throwaway container, is accepted, and the manifest records which was used. A machine with no passing containment

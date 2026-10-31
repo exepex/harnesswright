@@ -10,7 +10,7 @@ The checks, each from the one list:
 
 - every folder the jail creates (the root, the folders on the way to a mount, and an empty `/tmp`) holds exactly
   the next steps to the mounts below it, and each mount is there as the kind the list says;
-- no process root leads outside the jail;
+- no process outside the run is visible: `/proc` holds only the audit and the processes it runs under;
 - no canary token is in any mount marked for scanning; a file that cannot be read is a problem, so a scan is never
   partial.
 
@@ -61,16 +61,16 @@ def _inside(path, folder):
     return path.startswith(folder.rstrip("/") + "/")
 
 
-def process_roots(problems):
-    """Every process root this run can open must be the jail's own root."""
-    own = os.stat("/")
-    for pid in (name for name in os.listdir("/proc") if name.isdigit()):
-        try:
-            root = os.stat(f"/proc/{pid}/root")
-        except OSError:
-            continue  # gone, or not ours to open
-        if (root.st_dev, root.st_ino) != (own.st_dev, own.st_ino):
-            problems.append(f"process {pid} has a root outside the jail, and this run can open it")
+def processes(problems):
+    """The only processes this run can see are itself and the processes it runs under, up to the jail's first."""
+    allowed, pid = set(), os.getpid()
+    while pid > 0 and pid not in allowed:
+        allowed.add(pid)
+        with open(f"/proc/{pid}/stat") as handle:
+            pid = int(handle.read().rpartition(")")[2].split()[1])
+    seen = {int(name) for name in os.listdir("/proc") if name.isdigit()}
+    if seen - allowed:
+        problems.append(f"{len(seen - allowed)} processes outside the run are visible in /proc")
 
 
 def canaries(spec, problems):
@@ -116,7 +116,7 @@ def audit(spec):
             filled[mount["path"]] = digest(manifest(mount["path"]))
         except Unreadable as error:
             problems.append(str(error))
-    process_roots(problems)
+    processes(problems)
     canaries(spec, problems)
     return {"problems": problems, "env": environment(), "filled": filled}
 

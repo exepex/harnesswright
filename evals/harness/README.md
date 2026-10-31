@@ -156,19 +156,9 @@ reason. The history is built with no git templates, so `.git` holds only what th
 
 ## How a run is contained
 
-`contain.Containment` sets up one run under its own folder: a fresh `home/` holding `tmp/` and copies of the
-adapter's `CREDENTIAL_FILES` (regular files only), and in task runs a `scratch/` holding `tmp/` and `cache/`. The
-environment is the allow list (`BASE_KEYS`, the adapter's `ENV_KEYS`) and the run's folders, never inherited; an
-adapter that adds any other variable is refused.
-
-`Containment.mounts` is the one list of what the run sees: the system folders, the `/etc` entries in `ETC`, the
-host's install, the CA files the environment names, any `host_paths`, the world (read-only in trigger runs), the
-home and the scratch folder, an empty `/tmp`, and the jail's `/proc` and `/dev`. No mount may hold or sit inside
-the repository, hold the operator's home, or sit inside a folder the harness fills. `Containment.jail` builds the
-`bwrap` command from the list.
-
-`Containment.audit` runs `audit.py` in the same jail and environment, as one program text after `manifest.py`, so
-no harness file is mounted for it. It checks the jail against the list: every folder the jail creates holds only
-the way to the mounts below it, the world, home and scratch hold exactly their manifests (the world's is the proved
-arm's), no process root leads outside the jail, no canary token is in any mount outside the system folders, and the
-environment keys are exactly the ones built. Every problem is listed, and any one raises `ContainmentError`.
+`contain.Containment` sets up one run: a fresh `home/` with copies of the adapter's `CREDENTIAL_FILES`, a
+`scratch/` in task runs, and an environment built from the allow list. `Containment.mounts` is the one list of what
+the run sees, and `Containment.jail` builds the `bwrap` command from it. A host installed in the operator's home
+brings only its own link and file. `Containment.audit` runs `audit.py` in the same jail, after `manifest.py`'s
+source, and checks the jail against the same list. Every problem is listed, and any one raises `ContainmentError`.
+The rules are in [11 · Evals](../../docs/design/11-evals.md) (Containment) and the two modules' docstrings.

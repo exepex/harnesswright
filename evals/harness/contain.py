@@ -1,22 +1,11 @@
 """Containment: what a run can see (doc 11, Containment).
 
-One rule: a run sees exactly one list of mounts, and nothing else. `Containment.mounts` builds the list once:
-
-- the system program and library folders, read-only;
-- the `/etc` entries a program needs to start and reach the network (`ETC`), read-only. Nothing else in `/etc`,
-  so machine-wide host config such as `/etc/claude-code` or `/etc/gitconfig` is never there to read;
-- the host's install and the CA files the environment names, read-only;
-- the world (read-only in trigger runs, writable in task runs), a fresh private home, and in task runs a scratch
-  folder, each filled by the harness with known contents;
-- an empty private `/tmp`, and the jail's own `/proc` and `/dev`.
-
-The jail is built from the list, and the visibility audit (`audit.py`) checks the jail against the same list from
-inside it, before the host starts: every folder the jail creates holds only the way to the mounts below it, every
-filled mount holds exactly what the harness put there, no process root leads outside the jail, no canary token is
-in any mount but the system folders, and the environment holds only the keys the harness built. Any problem
-raises ContainmentError: the run is void and the round stops.
-
-The environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS` and the run's folders), never
+One rule: a run sees exactly one list of mounts, and nothing else. `Containment.mounts` builds the list once: the
+system folders and the `/etc` entries in `ETC` (read-only), the host's install and CA files (read-only), the world
+(read-only in trigger runs), a fresh home, a scratch folder in task runs, an empty `/tmp`, a fresh `/proc` and a
+minimal `/dev`. The jail is built from the list, and `audit.py` checks the jail against the same list from inside
+it before the host starts. Any problem raises ContainmentError: the run is void and the round stops. The
+environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS` and the run's folders), never
 inherited.
 """
 
@@ -69,19 +58,6 @@ def new_token():
     return f"{TOKEN_PREFIX}-{secrets.token_hex(8)}"
 
 
-def host_install(program):
-    """The folders outside the system folders that hold `program` and its runtime, found on PATH and after links:
-    the folder above its `bin` folder (such as a node install, whose `lib` holds the program), else its own folder."""
-    found = shutil.which(program)
-    if found is None:
-        return []
-    paths = []
-    for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
-        if not any(path.is_relative_to(folder) for folder in SYSTEM):
-            paths.append(path.parent.parent if path.parent.name == "bin" else path.parent)
-    return paths
-
-
 class Mount:
     """One entry of the list: `how` is `ro`, `rw`, `link` (a symlink to `source`), `tmpfs`, `proc` or `dev`."""
 
@@ -95,7 +71,7 @@ class Mount:
             return ["--ro-bind" if self.how == "ro" else "--bind", self.source or self.path, self.path]
         if self.how == "link":
             return ["--symlink", self.source, self.path]
-        return {"tmpfs": ["--tmpfs"], "proc": ["--dev-bind", "/proc"], "dev": ["--dev"]}[self.how] + [self.path]
+        return {"tmpfs": ["--tmpfs"], "proc": ["--proc"], "dev": ["--dev"]}[self.how] + [self.path]
 
     def spec(self):
         return {"path": self.path, "how": self.how, "source": self.source if self.how == "link" else None,
@@ -176,14 +152,35 @@ class Containment:
                 found.append(Mount(folder, "ro"))
         found += [Mount(f"/etc/{name}", "ro") for name in ETC if os.path.exists(f"/etc/{name}")]
         outside = [Path(self.env[key]) for key in CA_KEYS if self.env.get(key)]
-        outside += host_install(program) + self.host_paths
+        outside += self.host_paths
         found += [Mount(path, "ro", scan=True) for path in dict.fromkeys(outside) if path.exists()]
+        found += self._install(program)
         found.append(Mount(self.world, "rw" if self.mode == "task" else "ro", filled=self.world_entries, scan=True))
         found.append(Mount(self.home, "rw", filled=self.home_entries, scan=True))
         if self.scratch:
             found.append(Mount(self.scratch, "rw", filled=self.scratch_entries, scan=True))
         self._refuse_overlaps(found)
         return found
+
+    def _install(self, program):
+        """The host's install, for `program` as found on the run's PATH and after links. Outside the operator's home:
+        the folder above its `bin` folder (such as a node install, whose `lib` holds the program), else its own
+        folder. Inside the operator's home nothing is mounted whole, only the program's own link and file, so the
+        rest of the home stays out of reach. Inside the system folders nothing more is needed."""
+        found = shutil.which(program, path=self.env.get("PATH"))
+        if found is None:
+            return []
+        home, mounts = self.operator_home.resolve(), []
+        for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
+            if any(path.is_relative_to(folder) for folder in SYSTEM):
+                continue
+            if path.is_relative_to(home):
+                link = path.is_symlink()
+                mounts.append(Mount(path, "link" if link else "ro", source=os.readlink(path) if link else None,
+                                    scan=not link))
+            else:
+                mounts.append(Mount(path.parent.parent if path.parent.name == "bin" else path.parent, "ro", scan=True))
+        return mounts
 
     def _refuse_overlaps(self, mounts):
         """No mount may lie inside the repository or hold it, hold the operator's home, or sit inside another
@@ -205,7 +202,10 @@ class Containment:
         reason = available()
         if reason:
             raise ContainmentError(reason)
-        args = [BWRAP, "--die-with-parent", "--unshare-user", "--new-session"]
+        # Its own user, process, IPC, host name and cgroup namespaces. The network is shared, because the host must
+        # reach its model; the host's own sandbox cuts commands off from it (doc 11, Powers).
+        args = [BWRAP, "--die-with-parent", "--new-session", "--unshare-user", "--unshare-pid", "--unshare-ipc",
+                "--unshare-uts", "--unshare-cgroup-try"]
         for mount in self.mounts(program or command[0]):
             args += mount.args()
         return args + ["--chdir", str(self.world), "--"] + list(command)

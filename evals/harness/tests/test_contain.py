@@ -78,6 +78,14 @@ class Setup(TempCase):
         self.assertIn("/ holds", problems[0])
         self.assertIn("'etc'", problems[0])
 
+    def test_the_process_rule_finds_processes_outside_the_run(self):
+        decoy = subprocess.Popen(["sleep", "60"])
+        self.addCleanup(decoy.wait)
+        self.addCleanup(decoy.kill)
+        problems = []
+        audit.processes(problems)
+        self.assertIn("processes outside the run are visible", " ".join(problems))
+
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Jail(Setup):
@@ -108,6 +116,33 @@ class Jail(Setup):
         run.world_entries = manifest.manifest(world)
         with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in .*world/docs"):
             run.audit("python3")
+
+    def test_processes_outside_the_run_are_unseen(self):
+        token = contain.new_token()
+        decoy = subprocess.Popen(["sh", "-c", f"sleep 60 # {token}"])
+        self.addCleanup(decoy.wait)
+        self.addCleanup(decoy.kill)
+        run = self.run_of()
+        self.assertEqual(run.audit("python3")["problems"], [])
+        seen = self.inside(run, "/bin/sh", "-c", "cat /proc/[0-9]*/cmdline; ls /proc")
+        self.assertNotIn(token, seen.stdout)
+        self.assertNotIn(str(decoy.pid), seen.stdout.split())
+
+    def test_a_host_installed_in_the_operator_home_brings_only_its_own_files(self):
+        versions = self.tmp / "operator" / ".local" / "share" / "host" / "versions"
+        versions.mkdir(parents=True)
+        (versions / "1.0").write_text("#!/bin/sh\necho host ran\n")
+        (versions / "1.0").chmod(0o755)
+        (self.tmp / "operator" / ".local" / "share" / "history").write_text("operator history\n")
+        (self.tmp / "operator" / ".local" / "bin").mkdir()
+        (self.tmp / "operator" / ".local" / "bin" / "host").symlink_to(versions / "1.0")
+        run = self.run_of()
+        run.env["PATH"] = f"{self.tmp / 'operator' / '.local' / 'bin'}:/usr/bin:/bin"
+        self.assertEqual(run.audit("host")["problems"], [])
+        self.assertEqual(subprocess.run(run.jail(["host"]), capture_output=True, text=True, env=run.env,
+                                        timeout=60).stdout, "host ran\n")
+        listing = self.inside(run, "/bin/ls", "-a", str(self.tmp / "operator" / ".local" / "share")).stdout.split()
+        self.assertNotIn("history", listing)
 
     def test_a_canary_in_a_credential_file_is_found(self):
         (self.tmp / "operator" / ".host").mkdir(parents=True)
