@@ -129,6 +129,33 @@ class ClaimsCheckTest(unittest.TestCase):
         self.assertIn("Makefile is listed but did not change since HEAD", out)
         self.assertNotIn("src/a.py", out)
 
+    def test_criteria_without_ids_are_numbered_in_order(self):
+        story = self.claims.parent.parent / "stories" / "S01.md"
+        story.write_text("## Acceptance criteria\n\n1. Discount at 100.00.\n2. Negative quantity raises.\n")
+        code, out = self.check(claims(entry(1) + entry(2)))
+        self.assertEqual(code, 0, out)
+        code, out = self.check(claims(entry(1) + entry(2) + entry(3)))
+        self.assertIn("AC-3 is not in the story", out)
+
+    def test_quoted_story_may_cite_a_removed_file(self):
+        text = claims(entry(1) + entry(2)).replace("> Give a discount.", "> Remove `src/legacy.py:1`.")
+        code, out = self.check(text)
+        self.assertEqual(code, 0, out)
+
+    def test_non_ascii_paths_are_read_raw(self):
+        def git(*args):
+            subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args], cwd=self.repo,
+                           check=True, capture_output=True)
+        git("init", "-q")
+        git("config", "core.quotePath", "true")
+        git("add", "src", "Makefile")
+        git("commit", "-qm", "base")
+        (self.repo / "src" / "café.py").write_text("a = 1\nb = 2\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            claims_check.main(["lines", "--repo", str(self.repo), "--base", "HEAD"])
+        self.assertEqual(out.getvalue(), "- `src/café.py` (2 lines)\n")
+
 
 if __name__ == "__main__":
     unittest.main()

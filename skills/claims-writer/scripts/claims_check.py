@@ -48,12 +48,13 @@ def _git(repo, *args):
     done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
     if done.returncode != 0:
         raise SystemExit(f"git {' '.join(args)} failed: {done.stderr.strip()}")
-    return [line for line in done.stdout.splitlines() if line]
+    # -z gives raw paths: without it, git quotes and escapes names with non-ASCII characters.
+    return [path for path in done.stdout.split("\0") if path]
 
 
 def changed_paths(repo, base):
-    paths = set(_git(repo, "diff", "--name-only", base, "--"))
-    paths |= set(_git(repo, "ls-files", "--others", "--exclude-standard"))
+    paths = set(_git(repo, "diff", "--name-only", "-z", base, "--"))
+    paths |= set(_git(repo, "ls-files", "-z", "--others", "--exclude-standard"))
     return sorted(p for p in paths if not p.startswith(RUN_FOLDER))
 
 
@@ -121,9 +122,16 @@ def check_refs(text, repo):
 
 
 def story_criteria(story_text):
-    """AC IDs in the story's acceptance criteria section, or in the whole story if it has none."""
+    """AC IDs in the story's acceptance criteria section, or in the whole story if it has none.
+
+    Criteria listed without IDs are numbered in the order written, as step 1 of the skill tells the writer to.
+    """
     match = re.search(r"^##\s+Acceptance criteria\s*$(.*?)(?=^##\s|\Z)", story_text, re.MULTILINE | re.DOTALL)
-    return sorted(set(AC_ID.findall(match.group(1) if match else story_text)), key=int)
+    ids = sorted(set(AC_ID.findall(match.group(1) if match else story_text)), key=int)
+    if match and not ids:
+        items = re.findall(r"^(?:[-*+]|\d+[.)])\s+\S", match.group(1), re.MULTILINE)
+        ids = [str(n) for n in range(1, len(items) + 1)]
+    return ids
 
 
 def check_requirements(body, story_text):
@@ -195,9 +203,11 @@ def cmd_check(args):
         problems += check_files(bodies["Files changed"], repo)
         if args.base:
             problems += check_diff(bodies["Files changed"], repo, args.base)
-    problems += check_refs(text, repo)
-    # The quoted request is the story's own text, so only the implementer's sections are searched.
-    lowered = "\n".join(body for heading, body in sections if heading != "Request").lower()
+    # The quoted request is the story's own text, which may cite code the change removed, so only the
+    # implementer's sections are checked.
+    own = "\n".join(body for heading, body in sections if heading != "Request")
+    problems += check_refs(own, repo)
+    lowered = own.lower()
     problems += [f"unproven success wording: '{h}'" for h in HEDGES if h in lowered]
     for problem in problems:
         print(problem)
