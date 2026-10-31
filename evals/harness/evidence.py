@@ -92,10 +92,16 @@ def write_bundle(folder, record, world_after, secrets, tokens):
     folder.mkdir(parents=True, exist_ok=True)
     # Values are redacted before serialization, so JSON escaping cannot hide a credential from the match.
     text = json.dumps(scrub(record, secrets), indent=1, sort_keys=True)
-    hits = tokens_in(text, tokens)
+    hits = list(tokens_in(text, tokens))
     (folder / "bundle.json").write_text(text + "\n")
     files = folder / "files"
     shutil.copytree(world_after, files, symlinks=True, ignore=shutil.ignore_patterns(".git"))
+    # Names are evidence too: a canary in a file or folder name is a hit, and a credential in one is redacted.
+    for path in sorted(files.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        hits += tokens_in(path.name, tokens)
+        clean = redact(path.name, secrets)
+        if clean != path.name:
+            path.rename(path.with_name(clean))
     # A bundle holds no symlinks: each becomes a text file naming its target, so nothing in the bundle can lead
     # outside it or carry an unscrubbed file.
     for path in sorted(files.rglob("*")):

@@ -58,6 +58,18 @@ class Kit(TempCase):
                      "evals/harness/tests/test_probes.py"):
             self.assertIn(path, names)
 
+    def test_a_verdict_must_name_its_judge(self):
+        repo, store = self.repo(), self.tmp / "store"
+        self.approve(repo, store)
+        folder = kit.approval_dir(store, kit.kit_hash(repo))
+        for judge in (None, "", "judge-9"):
+            with self.subTest(judge=judge):
+                data = json.loads((folder / "judge-0.json").read_text())
+                data.pop("judge") if judge is None else data.update(judge=judge)
+                (folder / "judge-0.json").write_text(json.dumps(data))
+                with self.assertRaisesRegex(kit.KitError, "name its judge"):
+                    kit.check(store, repo)
+
 
 if __name__ == "__main__":
     unittest.main()

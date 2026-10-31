@@ -114,6 +114,16 @@ class Bundles(TempCase):
         view = evidence.grader_view(self.tmp / "b", self.tmp / "v", ["skills/haiku-writer"], ["haiku-writer"])
         self.assertEqual((view / "files" / "run.sh").stat().st_mode & 0o777, 0o755)
 
+    def test_names_are_scrubbed_and_scanned_too(self):
+        folder = self.world()
+        (folder / "HWCANARY-dir").mkdir()
+        (folder / "HWCANARY-dir" / "key-sk-secret-value.txt").write_text("x\n")
+        hits = evidence.write_bundle(self.tmp / "b", {"final": ""}, folder, ["sk-secret-value"], ["HWCANARY-dir"])
+        self.assertEqual(hits, ["HWCANARY-dir"])
+        names = [p.name for p in (self.tmp / "b" / "files").rglob("*")]
+        self.assertFalse(any("sk-secret-value" in n for n in names))
+        self.assertIn(f"key-{evidence.REDACTED}.txt", names)
+
     def test_symlinks_never_reach_a_bundle(self):
         folder = self.world()
         outside = self.tmp / "outside.txt"

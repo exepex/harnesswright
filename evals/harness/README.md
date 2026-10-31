@@ -87,4 +87,4 @@ each harness fault against it: a negative control shows each fault is caught whe
   TMPDIR; the adapter now denies writes to the home folder (which holds TMPDIR) and `/tmp` in trigger runs, and
   the probe then passed. Its self-writes in an empty run are files under `.claude/`, `.claude.json` and `.npm/`
   in the private home and nothing in the world.
-- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 63 tests, all passing.
+- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 65 tests, all passing.

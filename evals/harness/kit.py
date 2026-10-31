@@ -55,9 +55,16 @@ def check(store, repo=REPO, min_judges=MIN_JUDGES):
     """
     digest = kit_hash(repo)
     folder = approval_dir(store, digest)
-    verdicts = [json.loads(p.read_text()) for p in sorted(folder.glob("*.json"))] if folder.is_dir() else []
-    if not verdicts:
+    paths = sorted(folder.glob("*.json")) if folder.is_dir() else []
+    if not paths:
         raise KitError(f"no judge has approved kit {digest[:12]} ({folder})")
+    verdicts = []
+    for path in paths:
+        verdict = json.loads(path.read_text())
+        # One file per judge, named by the judge: a verdict without its judge's name is not counted.
+        if not isinstance(verdict.get("judge"), str) or verdict["judge"].strip() != path.stem or not path.stem:
+            raise KitError(f"{path.name}: a verdict must name its judge, and be stored as <judge>.json")
+        verdicts.append(verdict)
     current = files(repo)
     for verdict in verdicts:
         if verdict.get("kit_sha256") != digest or verdict.get("files") != current:
