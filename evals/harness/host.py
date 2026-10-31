@@ -27,6 +27,9 @@ CONTRACT = {
     "RUN_ENV": dict,  # fixed variables the adapter sets for every run, never taken from the operator (contain.py)
     "TOOLS": dict,  # each tool the host may expose, by the host's name, with its kind in powers.TOOLS
     "skill_dir": callable,  # (world, name): where the host discovers a skill in the world
+    # (home, world): the files outside the world where the host reads memory or the user's own instructions, for a
+    # home and a world; the memory probe plants a decoy in each, and none may reach a run (probes.py)
+    "memory_files": callable,
     "environment": callable,  # (env): the run's environment, given the one the harness built (contain.py)
     # (mode, world, model): the command for one run, with the prompt on stdin. The host's own sandbox is off (the
     # jail enforces the table), its bundled skills are off where it allows, and it exposes only its TOOLS.

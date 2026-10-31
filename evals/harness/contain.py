@@ -222,16 +222,18 @@ class Containment:
     def _refuse_overlaps(self, mounts, named):
         """The one check of where mounts may be, on resolved paths: never in or holding the repository, never holding
         the operator's home, in it only when the operator names it or the harness fills it (a folder found there, such
-        as `~/.local`, holds the operator's files), and never inside a mount the harness fills."""
-        repo, home = REPO.resolve(), self.operator_home.resolve()
+        as `~/.local`, holds the operator's files), and never inside a mount the harness fills. The operator's home is
+        both `operator_home` and the real one, so a decoy home (as the memory probe uses) never opens the real one."""
+        repo = REPO.resolve()
+        homes = {self.operator_home.resolve(), Path(os.path.expanduser("~")).resolve()}
         bound = [m for m in mounts if m.how in ("ro", "rw", "socket")]
         for mount in bound:
             path = Path(mount.source or mount.path).resolve()
-            if path.is_relative_to(repo) or repo.is_relative_to(path) or home.is_relative_to(path):
+            if path.is_relative_to(repo) or repo.is_relative_to(path) or any(h.is_relative_to(path) for h in homes):
                 raise ContainmentError(f"a run may not mount {mount.path}: it holds or is inside the repository "
                                        "or the operator's home")
             made = mount.filled is not None or mount.how == "socket"  # by the harness, so it holds nothing else
-            if path.is_relative_to(home) and mount not in named and not made:
+            if any(path.is_relative_to(h) for h in homes) and mount not in named and not made:
                 raise ContainmentError(f"{mount.path} is in the operator's home: name the files and folders the host "
                                        "needs in host_paths")
             for other in bound:

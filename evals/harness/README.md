@@ -5,8 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table, the host contract, with a fake host, and the first four probes**. The memory and drift probes,
-evidence, and the measuring kit come next.
+the power table, the host contract, with a fake host, and the probes**. Evidence and the measuring kit come
+next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -25,7 +25,7 @@ allowed connections.
 | `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |
 | `powers.py` | The power table of each mode, and the probe that proves the jail gives exactly that |
 | `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
-| `probes.py` | The probes each host passes before real runs: sign-in, powers, discovery and instructions |
+| `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 
 ## Commands
 
@@ -211,7 +211,10 @@ the contract too ([adapters](../../adapters/README.md#the-harness-contract)), be
 An adapter reports a write that failed as `failed`, and `host.run` decides what it was from the jail's own mount
 list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
 is left out, as the world diff shows. Paths inside the world are logged relative to it, on every host. An
-adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator.
+adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator. Its
+`memory_files(home, world)` names where its host reads memory and the user's own instructions outside the world,
+for the memory probe. The containment refuses a mount in or above the operator's home, which is both the
+`operator_home` it is given and the real one.
 
 ## Probes
 
@@ -220,7 +223,8 @@ and the host's own report, its exposure and action log, shows it did what the pr
 probe of a host action allows only the actions it asks for (`probes.ALLOWED`): any other log entry fails it. The
 check never reads what the model says. `probes.probe(adapter, name, mode, root)` runs one probe through `host.run`,
 in a containment made with `probe=True`, and returns why it failed, or `None`; `probes.probe_host` runs every probe
-in both modes and returns the reasons the host is `not run`. The probe-output folder is the one place a probe run
+in both modes, and the tools and drift probe, and returns the reasons the host is `not run` and the drift record.
+The probe-output folder is the one place a probe run
 may write beyond the table, in both modes; real runs never have it, and `powers.spec` adds it to the places the
 powers probe allows only when it is there. A file there is read only when it is a regular file, so a link the host
 made is never followed out of the jail.
@@ -234,5 +238,14 @@ made is never followed out of the jail.
 - **Instructions:** the host writes back the tokens its instructions give it, and may do nothing but write what it
   already knows: no read, no skill, and no command that does not carry the token. The probe world has an `AGENTS.md`
   with one token and a `CLAUDE.md` that imports it, so every host must report exactly that one token.
+- **Memory:** the host writes `ready` into `memory.txt`, while a decoy memory sits in every place the adapter's
+  `memory_files` names: a decoy operator's home, holding only copies of the credential files, and the folder above
+  the world. Each decoy asks for its token in `remembered.txt`. The token is a canary, so the audit refuses a jail
+  that can see a decoy; and the probe fails when the folder holds any file but `memory.txt`, or the log the token.
+- **Tools and drift** (`probes.drift`): no pass or fail of its own, only a record. The jail runs `probes.TOOLS_PROBE`
+  for the host's program and each tool a case declares: where the run finds it, its hash and its version line, or
+  `null` when the run has none. Then the host has an empty run in each mode, and every file it added or changed in
+  its home, scratch and world is listed. A host that fails that run is `not run`. Comparing records between host
+  versions, and storing them, belongs to the evidence step.
 
 Every token is fresh for each run. A host or containment that breaks its contract raises, as in any run.

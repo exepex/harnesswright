@@ -25,6 +25,10 @@ def skill_dir(world, name):
     return Path(world) / ".fake" / "skills" / name
 
 
+def memory_files(home, world):
+    return [Path(home) / ".fake" / "MEMORY.md", Path(world).parent / "AGENTS.md"]
+
+
 def environment(env):
     return env
 

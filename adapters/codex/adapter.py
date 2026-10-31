@@ -37,6 +37,14 @@ def skill_dir(workspace, skill_name):
     return Path(workspace) / ".agents" / "skills" / skill_name
 
 
+def memory_files(home, world):
+    """Where Codex reads memory and the user's own instructions outside the world, for a home and a world: its
+    global AGENTS.md and memories under CODEX_HOME (`~/.codex`), and AGENTS.md in a folder above the project."""
+    codex = Path(home) / ".codex"
+    return [codex / "AGENTS.md", codex / "memories" / "MEMORY.md", codex / "memories" / "memory_summary.md",
+            Path(world).parent / "AGENTS.md"]
+
+
 def build_command(mode, workspace, model, scratch=None):
     """Command for one run. The trailing '-' makes Codex read the prompt from stdin.
 
@@ -318,7 +326,7 @@ def exposure(stdout, home):
             if not isinstance(state, dict):
                 continue
             listed, top = state.get("host_skills", {"body": ""}), state.get("top_level_tools", {})
-            body = listed.get("body") if isinstance(listed, dict) else None
+            body = listed.get("body", "") if isinstance(listed, dict) else None  # no body when it has no skills
             if not isinstance(body, str) or not isinstance(top, dict):
                 return None
             full = full or ("host_skills" in state and "top_level_tools" in state)

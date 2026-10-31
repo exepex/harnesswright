@@ -109,6 +109,9 @@ class Codex(TempCase):
         self.assertEqual(CODEX.exposure("", self.tmp), {"skills": [odd, "probe-skill"], "tools": [
             "clock.sleep", "collaboration.spawn_agent", "functions.exec", "functions.exec/exec_command",
             "functions.exec/web__run", "functions.wait"]})
+        none = {"host_skills": {"includeInstructions": True}, "top_level_tools": {"functions.wait": "d"}}
+        self.session("sub", [{"type": "world_state", "payload": {"state": none}}])  # a thread with no skills, live
+        self.assertEqual(CODEX.exposure("", self.tmp)["skills"], [odd, "probe-skill"])
         drifted = {"host_skills": {"body": "## Available skills\n- x: y\n"}, "top_level_tools": {}}
         self.session("sub", [{"type": "world_state", "payload": {"state": drifted}}])
         self.assertEqual(CODEX.exposure("", self.tmp)["skills"], [odd, "- x: y", "probe-skill"])  # any layout counts
