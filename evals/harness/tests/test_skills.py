@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import subprocess
 import unittest
 
 from helpers import TempCase
@@ -82,10 +83,30 @@ class Frontmatter(TempCase):
         with self.assertRaisesRegex(cases.CaseError, "must be a skill name"):
             skills.skill_files(folder)
 
-    def test_a_skill_folder_holds_no_links(self):
+    def test_a_skill_is_the_regular_files_git_tracks(self):
         folder = self.skill()
+        (folder / ".venv").mkdir()
+        (folder / ".venv" / "python").symlink_to("/usr/bin/python3")
+        (self.tmp / "skills" / "draft").mkdir()
+        (self.tmp / "skills" / "draft" / "SKILL.md").write_text("---\nname: draft\ndescription: x\n---\n")
+        files, _ = skills.skill_files(folder, "haiku-writer")
+        self.assertEqual(list(files), ["SKILL.md"])
+        self.assertEqual(skills.skill_names(self.tmp / "skills"), ["haiku-writer"])
+        (folder / "real").mkdir()
+        (folder / "real" / "ref.md").write_text("x\n")
+        (folder / "docs").symlink_to("real")
         (folder / "guide.md").symlink_to("SKILL.md")
-        with self.assertRaisesRegex(cases.CaseError, "a link"):
+        git = lambda *args: subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True)
+        for rel in ("guide.md", "docs/ref.md"):
+            # The index says the path is a file, at the path from the top of the repository.
+            blob = git("hash-object", "-w", "SKILL.md").stdout.decode().strip()
+            git("update-index", "--add", "--cacheinfo", f"100644,{blob},haiku-writer/{rel}")
+            with self.subTest(rel=rel), self.assertRaisesRegex(cases.CaseError, f"{rel} .*not a regular file"):
+                skills.skill_files(folder)
+            git("update-index", "--force-remove", rel)
+        git("add", "real/ref.md")
+        (folder / "real" / "ref.md").unlink()
+        with self.assertRaisesRegex(cases.CaseError, "real/ref.md is tracked by git but cannot be read"):
             skills.skill_files(folder)
 
 

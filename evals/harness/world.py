@@ -4,7 +4,7 @@ Each arm is the world exactly as written, plus its declared git history and the 
 without-skill arm installs the siblings. The with-skill arm installs them too, plus the skill: its folder at the
 declared path, a copy where the host discovers skills, and one generated index row. A skill brings only the files
 git tracks in its folder. When the world has a history, the installs and the index go into one setup commit with
-the same message, author and date in both arms, so `git status` is clean in each and the logs have the same shape.
+the same message, author and date in both arms, so `git status` is the same in both and the logs have the same shape.
 
 What goes into each arm is worked out once, by `plan`, from the case, the adapter and the skill sources. The
 builder carries out the plan. The proof rebuilds what each arm must hold from the case alone: the manifest from the
@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath
 
 import manifest
 from cases import REPO, CaseError, is_path, sha256_bytes
-from skills import skill_files, structure
+from skills import skill_files, skill_names, structure
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
 GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@example.invalid",
@@ -29,6 +29,8 @@ GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@exam
            "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
 # The one commit that holds what the harness adds to a world with a history. It reads as ordinary project work.
 SETUP_MESSAGE = "Set up the project"
+# Every entry of an arm gets this time, so no file looks newer in one arm than in the other.
+ARM_TIME = 1767607200  # 2026-01-05T10:00:00+00:00, as GIT_ENV
 
 
 class Install:
@@ -52,7 +54,7 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
     skills_root = Path(skills_root) if skills_root else REPO / "skills"
     if case.kind == "trigger":
         # Trigger worlds install the full skill set, as in real use.
-        every = {p.name for p in skills_root.iterdir() if (p / "SKILL.md").is_file()} - {case.skill}
+        every = set(skill_names(skills_root)) - {case.skill}
         if set(case.siblings) != every:
             raise CaseError(f"{case.id}: a trigger case installs every other skill as a sibling: missing "
                             f"{sorted(every - set(case.siblings))}, unknown {sorted(set(case.siblings) - every)}")
@@ -214,6 +216,8 @@ def _write(folder, case, installs):
         # The index is rebuilt from the head tree with no file times or flags, so it is the same bytes in every
         # copy and is compared like any other file. git refreshes the times on its first status in the arm.
         _git(folder, "read-tree", "HEAD")
+    for path in [folder / p for p in manifest.manifest(folder)] + [folder]:
+        os.utime(path, (ARM_TIME, ARM_TIME), follow_symlinks=False)
 
 
 def _git(world, *args):

@@ -89,7 +89,7 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   include near misses that belong to a sibling skill.
 - **Git history**, when a case needs it, is declared as commits in `case.json` and built with fixed authors and
   dates. What the harness adds, the installed skills and the index, goes into one setup commit with the same
-  message, author and date in both arms. So `git status` is clean in each, and the logs have the same shape.
+  message, author and date in both arms. So `git status` is the same in both arms, and the logs have the same shape.
 
 ### World lint
 

@@ -46,7 +46,7 @@ built instead of failing part way:
 
 ## How a skill is read
 
-`skills.py` works from two rules, each a list of what is allowed.
+`skills.py` works from three rules, each a list of what is allowed.
 
 `skills.frontmatter` reads one stated subset of YAML, with only the fields of `HW-PORT-01`: `name`, `description`,
 `license` and `compatibility` hold one plain line, and `metadata` holds `  key: value` lines whose keys are
@@ -61,8 +61,15 @@ caller names it, because the name chooses where a host discovers the skill.
 `skills.structure` allows folders, regular files and relative links whose target is made only of `..` and name
 steps, and leads step by step through real folders to a real folder or file inside the folder. A link is judged by
 its text against the folder's manifest, never by resolving it on disk, so a link through another link, or one that
-leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed, and a skill
-folder holds no links at all.
+leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed.
+
+`skills.tracked` is what a skill is: the files git tracks in its folder, staged ones included. `skills.skill_files`
+reads only those, and each must be a regular file reached through real folders, never a link. `skills.skill_names`
+reads which skills exist from the same list: each folder whose `SKILL.md` git tracks. So a cache, a virtual
+environment or a draft skill on disk never enters an arm and never decides whether a case can be built. A skill
+folder git does not track, such as a candidate copied to a temporary folder, is refused until it is added.
+git reads the checkout with no system or global config, so the operator's settings never take part. git's own
+refusal of a checkout owned by another user is kept: run as the owner of the checkout.
 
 ## How the arms are built and proved
 
@@ -72,12 +79,12 @@ would overlap the world or another skill, a discovery path outside the arm, an i
 file, and a trigger case that does not install every other skill as a sibling.
 
 `world.build` makes one arm from the world: the world as written, its git history, and the arm's installs, the
-siblings and, in the with-skill arm, the skill. A skill brings only the files git tracks in its folder, staged ones
-included, so a cache or draft beside them never enters an arm; a skill folder git does not track, such as a
-candidate copied to a temporary folder, is refused until it is added. The index is written in one step from the
-written world with every row of the arm, as the proof expects it. It is edited as bytes, so its encoding and line
-endings are kept. When the world has a history, the installs and the index go into one setup commit, with the same
-message, author and date in both arms, so `git status` is clean in each and the logs have the same shape.
+siblings and, in the with-skill arm, the skill. A skill brings only its tracked files. The index is written in one
+step from the written world with every row of the arm, as the proof expects it. It is edited as bytes, so its
+encoding and line endings are kept. When the world has a history, the installs and the index go into one setup
+commit, with the same message, author and date in both arms, so `git status` is the same in both arms and the
+logs have the same shape. Every entry of an arm then gets one fixed time, so no file looks newer in one arm than in
+the other.
 
 `world.prove` reads both arms from disk again. It rebuilds each expected manifest from the written world and the
 plan, never from what the builder recorded, and each arm must equal it entry for entry, the index file included.

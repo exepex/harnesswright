@@ -113,6 +113,8 @@ class Arms(TempCase):
                     self.assertEqual(world._git(arm.path, "log", "--format=%s").split(), ["Set", "up", "the",
                                                                                          "project", "Start"])
                     self.assertEqual(world._git(arm.path, "status", "--porcelain"), "")
+                    self.assertEqual({os.lstat(arm.path / p).st_mtime for p in ("", "README.md", "AGENTS.md")},
+                                     {world.ARM_TIME})
 
     def test_a_skill_brings_only_the_files_git_tracks(self):
         folder = self.skill()
@@ -170,7 +172,8 @@ class Arms(TempCase):
         self.assertEqual(with_arm.files["readme"], "link README.md")
         self.prove(case, base, with_arm)
         (self.tmp / "skills/haiku-writer/alias.md").symlink_to("SKILL.md")
-        with self.assertRaisesRegex(cases.CaseError, "a link"):
+        self.track(self.tmp / "skills")
+        with self.assertRaisesRegex(cases.CaseError, "alias.md is tracked by git but is not a regular file"):
             world.build(case, Adapter, self.tmp / "unsound", self.tmp / "skills", True)
 
     def test_a_relative_output_folder_works_with_history(self):
