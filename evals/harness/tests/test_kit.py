@@ -19,19 +19,22 @@ class Kit(TempCase):
 
     def approve(self, repo, store, verdicts=("approve",) * 3):
         digest = kit.kit_hash(repo)
-        path = kit.approval_path(store, digest)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"kit_sha256": digest, "files": kit.files(repo),
-                                    "judges": [{"name": f"judge-{i}", "verdict": v} for i, v in enumerate(verdicts)]}))
+        folder = kit.approval_dir(store, digest)
+        folder.mkdir(parents=True, exist_ok=True)
+        for old in folder.glob("*.json"):
+            old.unlink()
+        for number, verdict in enumerate(verdicts):
+            (folder / f"judge-{number}.json").write_text(json.dumps({
+                "judge": f"judge-{number}", "kit_sha256": digest, "files": kit.files(repo), "verdict": verdict}))
 
     def test_an_approved_kit_passes_and_any_change_needs_a_new_approval(self):
         repo, store = self.repo(), self.tmp / "store"
-        with self.assertRaisesRegex(kit.KitError, "no approval"):
+        with self.assertRaisesRegex(kit.KitError, "no judge"):
             kit.check(store, repo)
         self.approve(repo, store)
         self.assertEqual(kit.check(store, repo)["kit_sha256"], kit.kit_hash(repo))
         (repo / "evals" / "harness" / "lint.py").write_text("rules = 0\n")
-        with self.assertRaisesRegex(kit.KitError, "no approval"):
+        with self.assertRaisesRegex(kit.KitError, "no judge"):
             kit.check(store, repo)
 
     def test_every_judge_must_approve(self):
@@ -41,6 +44,10 @@ class Kit(TempCase):
             kit.check(store, repo)
         self.approve(repo, store, ("approve", "approve", "changes"))
         with self.assertRaisesRegex(kit.KitError, "all approve"):
+            kit.check(store, repo)
+        self.approve(repo, store)
+        (repo / "evals" / "faults" / "new.json").write_text("{}\n")
+        with self.assertRaisesRegex(kit.KitError, "no judge"):
             kit.check(store, repo)
 
     def test_the_real_kit_holds_the_harness_adapters_and_faults(self):

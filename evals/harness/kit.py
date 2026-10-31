@@ -2,8 +2,9 @@
 
 Its hash covers the lint, the containment and its audit, the power table and probes, the evidence format, the
 adapters that configure each host to the table, the fault catalogue, and (as later pull requests add them) the
-checks with their answer keys, the goldens and the grader prompt. Independent judges approve one hash. A round
-refuses to start unless the store holds an approval of the current hash.
+checks with their answer keys, the goldens and the grader prompt. Independent judges approve one hash: each judge
+writes its own verdict to `STORE/kit-approvals/<hash>/<judge>.json`. A round refuses to start unless at least three
+judges approved the current hash and none asked for changes.
 
     python3 evals/harness/kit.py hash
     python3 evals/harness/kit.py check --store STORE
@@ -44,26 +45,31 @@ def kit_hash(repo=REPO):
     return tree_hash(files(repo))
 
 
-def approval_path(store, digest):
-    return Path(store) / "kit-approvals" / f"{digest}.json"
+def approval_dir(store, digest):
+    """Each judge writes its own verdict here, as `<judge>.json`; the builder writes nothing in it."""
+    return Path(store) / "kit-approvals" / digest
 
 
 def check(store, repo=REPO, min_judges=MIN_JUDGES):
-    """Return the approval record of the current kit, or raise KitError saying why there is none."""
+    """Return the judges' verdicts on the current kit, or raise KitError saying why it is not approved.
+
+    A verdict is {"judge", "kit_sha256", "files", "verdict": "approve" or "changes", "findings"}.
+    """
     digest = kit_hash(repo)
-    path = approval_path(store, digest)
-    if not path.is_file():
-        raise KitError(f"no approval of kit {digest[:12]} in {Path(store) / 'kit-approvals'}")
-    record = json.loads(path.read_text())
-    if record.get("kit_sha256") != digest:
-        raise KitError("the approval record names another kit")
-    approving = [j for j in record.get("judges", []) if j.get("verdict") == "approve"]
-    if len(approving) < min_judges or len(approving) != len(record.get("judges", [])):
-        raise KitError(f"the kit needs {min_judges} independent judges who all approve; the record has "
-                       f"{len(approving)} of {len(record.get('judges', []))}")
-    if set(record.get("files", {})) != set(files(repo)):
-        raise KitError("the approval record lists other files than the kit")
-    return record
+    folder = approval_dir(store, digest)
+    verdicts = [json.loads(p.read_text()) for p in sorted(folder.glob("*.json"))] if folder.is_dir() else []
+    if not verdicts:
+        raise KitError(f"no judge has approved kit {digest[:12]} ({folder})")
+    current = files(repo)
+    for verdict in verdicts:
+        if verdict.get("kit_sha256") != digest or verdict.get("files") != current:
+            raise KitError(f"the verdict of {verdict.get('judge')} names another kit")
+    judges = {v.get("judge") for v in verdicts}
+    approving = [v for v in verdicts if v.get("verdict") == "approve"]
+    if len(judges) < min_judges or len(approving) != len(verdicts):
+        raise KitError(f"the kit needs {min_judges} independent judges who all approve; {len(approving)} of "
+                       f"{len(verdicts)} verdicts approve, from {len(judges)} judges")
+    return {"kit_sha256": digest, "judges": verdicts}
 
 
 def main(argv=None):

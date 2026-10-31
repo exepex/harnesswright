@@ -24,6 +24,9 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 
 The fault catalogue is `evals/faults/harness.json`. Each harness fault names the unit test that plants it.
 
+Judges approve the kit by writing their own verdict files to the round store. The store is a folder the builder's
+session can also write today, so keeping out of it is a working rule, not yet a lock.
+
 ## Commands
 
 Run from the repository root.
