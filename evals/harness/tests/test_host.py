@@ -48,9 +48,11 @@ class Contract(unittest.TestCase):
         self.assertEqual(len(good[4]["output"]), host.OUTPUT_LIMIT)
         for bad in ({"kind": "web", "source": "observed"}, {**good[0], "extra": 1}, {**good[0], "source": "guessed"},
                     {**good[2], "sha256": "abc"}, {**good[4], "exit_code": True}, {**good[4], "output": "x" * 4001},
-                    {"kind": "read", "source": "observed"}, "read a"):
+                    {"kind": "read", "source": "observed"}, "read a", {"kind": ["read"], "source": "observed"}):
             with self.subTest(bad=bad), self.assertRaises(host.HostError):
                 host.check_log([bad])
+        with self.assertRaisesRegex(host.HostError, "not a list"):
+            host.check_log(good[0])
 
     def test_a_host_may_expose_only_the_declared_skills_and_the_adapters_tools(self):
         adapter = fake_adapter()
@@ -66,7 +68,7 @@ class Contract(unittest.TestCase):
 class FakeHost(TempCase):
     """The fake host runs in a real jail, so the contract is shown end to end without a model."""
 
-    def run_of(self, mode, adapter, actions):
+    def run_of(self, mode, adapter, actions, tokens=()):
         tool = self.tmp / "tool"
         if not tool.exists():
             shutil.copytree(FAKE, tool, ignore=shutil.ignore_patterns("adapter.py", "__pycache__"))
@@ -78,8 +80,8 @@ class FakeHost(TempCase):
         root = self.tmp / f"run-{len(list(self.tmp.glob('run-*')))}"
         contained = contain.Containment(adapter, mode, world, manifest.manifest(world), root=root,
                                         operator_env={"PATH": f"{tool}:/usr/bin:/bin"},
-                                        operator_home=self.tmp / "operator", host_paths=[tool])
-        return host.run(adapter, contained, json.dumps(actions), skills=["haiku-writer"], timeout=120), world
+                                        operator_home=self.tmp / "operator", host_paths=[tool], tokens=tokens)
+        return host.run(contained, json.dumps(actions), skills=["haiku-writer"], timeout=120), world
 
     def test_a_sound_run_gives_one_host_neutral_log(self):
         actions = [{"do": "read", "path": "README.md"}, {"do": "write", "path": "notes.txt", "text": "hi\n"},
@@ -100,7 +102,9 @@ class FakeHost(TempCase):
 
     def test_the_jail_not_the_host_decides_what_a_run_may_write(self):
         result, world = self.run_of("trigger", fake_adapter(), [{"do": "write", "path": "notes.txt", "text": "x"}])
-        self.assertEqual(result.log, [])  # the host's sandbox is off; the jail refused the write
+        # The host's sandbox is off; the jail refused the write, and the log says so.
+        self.assertEqual([(e["kind"], e["action"]) for e in result.log], [("blocked", "write_file: notes.txt")])
+        self.assertIn("Read-only file system", result.log[0]["reason"])
         self.assertFalse((world / "notes.txt").exists())
         sandboxed = changed(fake_adapter(), jail_command=lambda mode, world, model: [
             "fakehost", "--world", str(world), "--no-bundled", "--tools", "write_file"])
@@ -115,6 +119,29 @@ class FakeHost(TempCase):
                 "fakehost", "--world", str(world)] + c)
             with self.subTest(reason=reason), self.assertRaisesRegex(host.HostError, reason):
                 self.run_of("task", faulty, [])
+
+    def test_run_checks_the_adapter_the_jail_the_log_and_records_the_gate(self):
+        adapter = fake_adapter()
+        with self.assertRaisesRegex(host.HostError, "tool web_search has kind 'web'"):
+            self.run_of("task", changed(adapter, TOOLS={**adapter.TOOLS, "web_search": "web"}), [])
+        token = contain.new_token()
+        (self.tmp / "world-task" / "notes.txt").write_text(f"left here: {token}\n")  # a leak the audit must find
+        with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in .*notes.txt"):
+            self.run_of("task", adapter, [], tokens=[token])
+        (self.tmp / "world-task" / "notes.txt").unlink()
+        bad = changed(adapter, action_log=lambda stdout: [{"kind": "read", "source": "observed", "path": 1}])
+        with self.assertRaisesRegex(host.HostError, "action log: entry 0 \\(read\\): path"):
+            self.run_of("task", bad, [])
+        hiding = changed(adapter, exposure=lambda stdout, home: {"skills": ["haiku-writer"], "tools": []},
+                         jail_command=lambda mode, world, model: ["fakehost", "--world", str(world)])
+        with self.assertRaisesRegex(host.HostError, "skill fake-helper was loaded but the case does not declare"):
+            self.run_of("task", hiding, [{"do": "skill", "name": "fake-helper"}])
+        with self.assertRaisesRegex(host.HostError, "did not report the skills and tools it exposed"):
+            self.run_of("task", changed(adapter, exposure=lambda stdout, home: None), [])
+        call = ("import socket; s = socket.create_connection(('127.0.0.1', 3128)); "
+                "s.sendall(b'CONNECT off.example:443 HTTP/1.1\\r\\n\\r\\n'); s.recv(99)")
+        result, _ = self.run_of("task", adapter, [{"do": "command", "command": f'python3 -c "{call}"'}])
+        self.assertEqual(result.requests, [{"request": "CONNECT off.example:443 HTTP/1.1", "status": 403}])
 
     def test_a_host_that_crashes_is_a_failure(self):
         crashed = changed(fake_adapter(), jail_command=lambda mode, world, model: ["fakehost", "--no-such-flag"])

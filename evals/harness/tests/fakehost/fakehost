@@ -81,7 +81,7 @@ def act(tool, action, exposed):
         elif tool == "spawn":
             emit(event="tool", tool=tool, task=action["task"])
     except (OSError, KeyError) as error:
-        emit(event="error", message=f"{tool}: {error}")
+        emit(event="error", tool=tool, detail=action.get("path") or action.get("name", ""), message=str(error))
 
 
 if __name__ == "__main__":

@@ -30,7 +30,9 @@ CONTRACT = {
     # jail enforces the table), its bundled skills are off where it allows, and it exposes only its TOOLS.
     "jail_command": callable,
     "action_log": callable,  # (stdout): the host-neutral action log, a list of ENTRIES
-    "exposure": callable,  # (stdout, home): {"skills": [names], "tools": [host tool names]}, as the host reported
+    # (stdout, home): {"skills": [names], "tools": [host tool names]} as the host reported them, or None when it
+    # did not report them, which only a failed run may do
+    "exposure": callable,
     "failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
 }
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
@@ -41,7 +43,7 @@ ENTRIES = {
     "read": {"path": str},
     "write": {"path": str, "sha256": (str, type(None))},  # None when the host did not report the content
     "command": {"command": str, "exit_code": (int, type(None)), "output": str},
-    "blocked": {"action": str, "reason": str},  # an action the host itself refused
+    "blocked": {"action": str, "reason": str},  # an action refused, by the host or by the jail (the reason says)
     "skill": {"name": str},  # the host loaded a skill
     "agent": {"task": str},  # the host started a sub-agent, in the same jail
     "message": {"text": str},  # the last one is the final message
@@ -77,11 +79,15 @@ def check_adapter(adapter):
         raise HostError(f"adapter {getattr(adapter, 'NAME', adapter)}: " + "; ".join(wrong))
 
 
-def check_log(entries):
-    """Raise HostError naming every entry that is not exactly one of ENTRIES."""
+def check_log(entries, skills=None):
+    """Raise HostError naming every entry that is not exactly one of ENTRIES, and every skill load of a skill not in
+    `skills` (the skills the arm installs), when given."""
+    if not isinstance(entries, list):
+        raise HostError(f"action log: not a list: {entries!r}"[:200])
     wrong = []
-    for number, item in enumerate(entries if isinstance(entries, list) else [entries]):
-        fields = ENTRIES.get(item.get("kind")) if isinstance(item, dict) else None
+    for number, item in enumerate(entries):
+        kind = item.get("kind") if isinstance(item, dict) else None
+        fields = ENTRIES.get(kind) if isinstance(kind, str) else None
         if fields is None:
             wrong.append(f"entry {number} is not a known kind")
             continue
@@ -97,6 +103,8 @@ def check_log(entries):
             wrong.append(f"entry {number} (write): sha256 is not a hash")
         if item["kind"] == "command" and len(item["output"]) > OUTPUT_LIMIT:
             wrong.append(f"entry {number} (command): output longer than {OUTPUT_LIMIT}")
+        if item["kind"] == "skill" and skills is not None and item["name"] not in skills:
+            wrong.append(f"entry {number}: skill {item['name']} was loaded but the case does not declare it")
     if wrong:
         raise HostError("action log: " + "; ".join(wrong))
 
@@ -122,10 +130,11 @@ class Result:
         self.failure, self.log, self.exposure, self.requests = failure, log, exposure, requests
 
 
-def run(adapter, contained, prompt, skills, model=None, timeout=900):
-    """Run the host of `adapter` once in `contained` (a `contain.Containment`) with `prompt` on stdin. `skills` are
-    the skills the arm installs. Return a Result, whose `failure` says why the host failed (a void run), or raise
-    HostError when the log or the exposure breaks the contract."""
+def run(contained, prompt, skills, model=None, timeout=900):
+    """Run the host of `contained` (a `contain.Containment`, whose adapter also built its environment and gate)
+    once, with `prompt` on stdin. `skills` are the skills the arm installs. Return a Result, whose `failure` says
+    why the host failed (a void run), or raise HostError when the log or the exposure breaks the contract."""
+    adapter = contained.adapter
     check_adapter(adapter)
     command = contained.jail(adapter.jail_command(contained.mode, contained.world, model), program=adapter.CLI)
     contained.audit(adapter.CLI)  # the jail is checked against its list before the host starts
@@ -136,11 +145,14 @@ def run(adapter, contained, prompt, skills, model=None, timeout=900):
             stdout, stderr, returncode, timed_out = done.stdout, done.stderr, done.returncode, False
         except subprocess.TimeoutExpired as expired:
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
-    log = adapter.action_log(stdout)
-    check_log(log)
-    exposure = adapter.exposure(stdout, contained.home)
-    check_exposure(adapter, exposure, skills)
     failure = adapter.failure(stdout, returncode, timed_out)
+    log = adapter.action_log(stdout)
+    check_log(log, skills)
+    exposure = adapter.exposure(stdout, contained.home)
+    if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
+        raise HostError("exposure: the host did not report the skills and tools it exposed")
+    if exposure is not None:
+        check_exposure(adapter, exposure, skills)
     return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log))
 
 

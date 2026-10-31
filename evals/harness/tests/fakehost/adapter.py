@@ -52,6 +52,8 @@ def action_log(stdout):
             log.append(host.entry("message", text=event["text"]))
         elif kind == "refused":
             log.append(host.entry("blocked", action=f"{tool}: {event['detail']}", reason=event["reason"]))
+        elif kind == "error" and tool:  # the action failed, such as a write the jail refused
+            log.append(host.entry("blocked", action=f"{tool}: {event['detail']}", reason=event["message"]))
         elif kind == "tool" and tool == "read_file":
             log.append(host.entry("read", path=event["path"]))
         elif kind == "tool" and tool == "write_file":
@@ -79,7 +81,7 @@ def exposure(stdout, home):
     for event in events(stdout):
         if event.get("event") == "start":
             return {"skills": list(event["skills"]), "tools": list(event["tools"])}
-    return {"skills": [], "tools": []}
+    return None
 
 
 def failure(stdout, returncode, timed_out):
