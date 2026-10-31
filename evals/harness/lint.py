@@ -30,9 +30,10 @@ SHORTEST = 3
 # hold the words it names. `.harness/runs/` is the project's own run folder (doc 06), so no stem matches it.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
          "ground truth", "expected output")
-# The parts of the measuring kit (doc 11) that hold text about skills: each skill's checks and answer keys, and
-# the fault catalogue. Old task and trigger lists are case data, and their expectations are checked as such.
-KIT = ("evals/skills/*/checks", "evals/faults")
+# The parts of the measuring kit (doc 11) that hold text about skills: the check library, each skill's checks and
+# the unit tests that hold their answer keys, and the fault catalogue. Old task and trigger lists are case data,
+# and their expectations are checked as such.
+KIT = ("evals/checks", "evals/skills/*/checks", "evals/skills/*/tests", "evals/faults")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
 

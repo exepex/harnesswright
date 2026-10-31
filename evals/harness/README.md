@@ -101,9 +101,9 @@ Text is matched on words after Unicode compatibility folding, with format charac
 - In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
   path, and any 8-word run of the skill's own text.
 - In `case` places: each word that starts with a tell stem, unless `allow_words` names that exact word there; any
-  8-word run of the kit's text about skills (each skill's `checks/` and `evals/faults/`, without import lines);
-  and any run of an expectation, in any place but the prompt, which may ask for it. An
-  expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
+  8-word run of the kit's text about skills (`evals/checks/`, each skill's `checks/` and `tests/`, and
+  `evals/faults/`, without import lines); and any run of an expectation, in any place but the prompt, which may ask
+  for it. An expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
   project words, so the judge who reads the world looks for it.
 - Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
   except for kit text, the prompt. That text stays in both arms.

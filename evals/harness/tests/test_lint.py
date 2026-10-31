@@ -140,7 +140,7 @@ class Lint(TempCase):
                      "skills/x/tests/t.py", "skills/x/files/old/README.md", "faults/f.md", "results/r.json"):
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
-        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["skills/x/checks/c.py", "faults/f.md"])
+        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["skills/x/checks/c.py", "skills/x/tests/t.py", "faults/f.md"])
         (evals / "skills/x/checks/c.py").write_text("import os\nfrom pathlib import Path\nassert 'poem' in out\n")
         self.assertEqual(lint.kit_texts(self.tmp / "repo")[0], "\n\nassert 'poem' in out\n")
 
