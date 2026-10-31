@@ -247,7 +247,7 @@ def _copies(case, copied, repo):
     problems = []
     for copy in case.copies:
         # The source is read only at its own real path, so a link cannot bring skill or eval text in as a copy.
-        path = Path(os.path.abspath(Path(repo) / copy["source"]))
+        path = Path(os.path.abspath(Path(repo).resolve() / copy["source"]))
         try:
             source = _hash(manifest.entry(path)) if path.resolve() == path else None
         except (manifest.Unreadable, OSError):
