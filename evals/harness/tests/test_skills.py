@@ -61,7 +61,10 @@ class Frontmatter(TempCase):
             "---\nname: a\nmetadata:\n  enabled: true\n---\n": "not plain",
             "---\nname: a\nmetadata:\n  count: 123\n---\n": "not plain",
             "---\nname: a\nmetadata:\n  when: 2026-10-31\n---\n": "not plain",
-            "---\nname: a\ndescription: x\t# note\n---\n": "not plain",
+            "---\nname: a\ndescription: x\t# note\n---\n": "line-break",
+            "---\nname: a\n\t\ndescription: x\n---\n": "line-break",
+            "---\nname: a\nmetadata:\n---\n": "no `  key: value`",
+            "---\nmetadata:\n\nname: a\n---\n": "no `  key: value`",
             "---\nname: a\ndescription: Writes demos.\u2028---\nx\n---\n": "line-break",
             "---\nname: a\ndescription: Writes\x0cdemos.\n---\n": "line-break",
         }
