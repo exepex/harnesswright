@@ -89,33 +89,42 @@ a case error.
 
 ## How a case is linted
 
-`lint.visible` lists every place the without-skill run can see, read from the built arm once the arm is proved to
-be what the case says: each world entry (its path, and its text or link target), the prompt, each commit message,
-the index row the case writes, and the index rows of installed siblings. Every rule reads this one list.
+`lint.lint_case` lints a case as it will run. It builds both arms with the skill folder the run uses, such as a
+candidate version, proves each is exactly what the case says, and only then reads the without-skill arm.
+`lint.lint_skill` does this for every case folder of a skill, one at a time, so a case that cannot be read or built
+is listed with its reason and the others are still linted.
 
-A place's author is the `case` (everything the case author controls, copies included) or the `harness` (installed
-sibling skills and their rows). Every world file must be UTF-8 text with no control character other than tab, line
-feed and carriage return; anything else, such as UTF-16, an archive or a binary, is refused rather than guessed at.
-Text is matched on words after Unicode compatibility folding, with format characters such as soft hyphens removed.
+`lint.visible` lists every place the without-skill run can see. Every rule reads this one list. A place has a kind:
+`world` (a world entry: its path, and its text or link target, copies included), `declared` (the prompt, a commit
+message, or the index row the case writes), `installed` (a file of an installed sibling skill) or `rows` (the
+siblings' index rows). `world` and `declared` places are what the case author wrote.
+
+Every world file must be UTF-8 text with no control character other than tab, line feed and carriage return;
+anything else, such as UTF-16, an archive or a binary, is refused rather than guessed at. Text is matched on words
+after Unicode compatibility folding, with format characters such as soft hyphens removed.
+
+Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
+verified copies, installed sibling files and the recorded upstream source. That text stays in both arms, so it
+never counts. The prompt is never project text, since the case author writes it for this case.
 
 - In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
-  path, and any 8-word run of the skill's own text.
-- In `case` places: each word that starts with a tell stem, unless `allow_words` names that exact word there (the
-  index row has the index file's); any 8-word run of eval text; and any run of an expectation, in any place but the
-  prompt, which may ask for it. An expectation of three to five words is matched whole. One of one or two words
-  cannot be told apart from ordinary project words, so the judge who reads the world looks for it.
+  path, and any 8-word run of the skill's own text. A sibling skill that names the skill is reported against the
+  sibling, because skills never name each other.
+- In `world` and `declared` places: each word that starts with a tell stem, unless `allow_words` names that exact
+  word there (the index row has the index file's); any 8-word run of eval text; and any run of an expectation, in
+  any place but the prompt, which may ask for it. An expectation of three to five words is matched whole. One of
+  one or two words cannot be told apart from ordinary project words, so the judge who reads the world looks for it.
 - Eval text is text about skills and their cases, which tells an agent what is measured: every file under
   `evals/` but `evals/harness/` and `evals/runner/`, the general machinery, which says nothing about a skill. A new
-  kit part counts without being listed. A skill's `files/`, `upstream/` and `cases/CASE/world/` folders hold
-  project text and are left out. Python is read for its strings, f-string text and comments only, since its code is
-  the same in any Python program. So a check copied with its strings and comments removed is not caught here; the
-  judge who reads the world is the check for that.
-- Case data (`case.json`, `tasks.json`, `triggers.json`) may repeat what the run sees of the case outside its world
-  (its prompt, commits and index rows) and its world's paths. Other eval text may not.
-- Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
-  except against eval text, the prompt. That text stays in both arms.
-- Every copy must still be byte for byte its recorded source, read at its own real path, and the source must not
-  have changed.
+  kit part counts without being listed. `evals/fixtures/` and a skill's `files/`, `upstream/` and
+  `cases/CASE/world/` folders hold project text and are left out. Python is read for its strings, f-string text
+  and comments only, since its code is the same in any Python program. So a check copied with its strings and
+  comments removed is not caught here; the judge who reads the world is the check for that.
+- Case data (`case.json`, `tasks.json`, `triggers.json`, and the case's own `case.json` wherever it lives) may
+  repeat what the run sees of the case outside its world (its prompt, commits and index row) and its world's paths.
+  Other eval text may not.
+- A copy is verified when it is still byte for byte its recorded source, and the source, read at its own real path,
+  has not changed. Any other copy is a finding, and its text is not project text.
 
 A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's
 reason. The history is built with no git templates, so `.git` holds only what the case declares.

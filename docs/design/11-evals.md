@@ -95,9 +95,9 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 
 - the skill's name or path in the without-skill world or in the prompt;
 - any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
-  the world's documents, in the skill's recorded upstream source (stored and hashed under
-  `evals/skills/NAME/upstream/`), or in the prompt. Text the skill shares with the project's rules belongs to the
-  project and stays in both arms;
+  verified copies of project documents, in installed sibling skills, or in the skill's recorded upstream source
+  (stored and hashed under `evals/skills/NAME/upstream/`). Text the skill shares with the project's rules belongs
+  to the project and stays in both arms. The prompt is never project text, since the case author writes it;
 - any eval file, check, expectation text or results file inside a world;
 - test-tell words such as "eval", "fixture", "grader" or "benchmark", unless that file allows the word. A judge
   also reads every world before it is approved;

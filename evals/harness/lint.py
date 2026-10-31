@@ -1,11 +1,20 @@
 """World lint: reject a case whose world or prompt is unsound, before any run (doc 11, World lint).
 
-Every rule reads one list, `visible`: each place the without-skill run can see, read from the built arm once the
-arm is proved to be what the case says. A place is a world entry (its path, and its text or link target), the
-prompt, a commit message, the index row the case writes, or the index rows of installed siblings.
+`lint_case` lints a case as it will run: it builds both arms with the skill folder the run uses, proves each is
+exactly what the case says, and only then reads the without-skill arm. Every rule reads one list, `visible`: each
+place that run can see. A place has a kind:
 
-Each place has an author. `case` places are everything the case author controls, copies included. `harness`
-places are installed sibling skills and their index rows: real project content, checked only for the skill.
+- `world`: a world entry, its path and its text or link target, copies included;
+- `declared`: the prompt, a commit message, or the index row template the case writes;
+- `installed`: a file of an installed sibling skill;
+- `rows`: the index rows of the installed siblings.
+
+`world` and `declared` places are what the case author wrote. The rest is real project content, checked for the
+skill only.
+
+Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
+verified copies, installed sibling files and the recorded upstream source. It stays in both arms, so it never
+counts. The prompt is never project text: the case author writes it for this case.
 
 What the lint reads is what an agent reads: every world file must be UTF-8 text with no control character other
 than tab, line feed and carriage return. A file in any other form, such as UTF-16, an archive or a binary, is
@@ -23,7 +32,7 @@ from pathlib import Path
 
 import manifest
 import world
-from cases import PROMPT_KEY, REPO, CaseError, commit_key, load_cases
+from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key
 from skills import skill_files
 
 RUN = 8
@@ -35,21 +44,23 @@ TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric"
          "ground truth", "expected output")
 # Eval text (doc 11) is text about skills and their cases, which tells an agent what is measured: every file under
 # `evals/` but the folders of `MACHINERY`, the harness and runner, which are general and say nothing about a skill.
-# A new kit part, such as goldens or the grader prompt, counts without being listed. Inside a skill's evals,
-# `PROJECT_TEXT` folders hold text written for worlds. Case data is the files that hold cases, new and old; each
-# holds prompts and histories, which a ported or sibling case may repeat.
+# A new kit part, such as goldens or the grader prompt, counts without being listed. `PROJECT_TEXT` folders, paths
+# under `evals/` where None is any name, hold text written for worlds. Case data is the files that hold cases, new
+# and old; each holds prompts and histories, which a ported or sibling case may repeat.
 MACHINERY = ("harness", "runner")
-PROJECT_TEXT = (("files",), ("upstream",), ("cases", None, "world"))
+PROJECT_TEXT = (("fixtures",), ("skills", None, "files"), ("skills", None, "upstream"),
+                ("skills", None, "cases", None, "world"))
 CASE_DATA = ("case.json", "tasks.json", "triggers.json")
+CASE_KINDS = ("world", "declared")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
 
 
 class Place:
-    """One thing the run can see: where it is, its text (None when the file is not plain text), and its author."""
+    """One thing the run can see: where it is, its text (None when the file is not plain text), and its kind."""
 
-    def __init__(self, key, text, author):
-        self.key, self.text, self.author = key, text, author
+    def __init__(self, key, text, kind):
+        self.key, self.text, self.kind = key, text, kind
         self.words = " ".join(words(text or ""))
 
 
@@ -62,9 +73,14 @@ def words(text):
     return re.findall(r"[a-z0-9]+|[^\W_a-z0-9]+", folded.casefold())
 
 
-def runs(text, size):
+def runs(text, sizes):
+    """Every run of consecutive words of `text` whose length is one of `sizes`."""
     found = words(text)
-    return {" ".join(found[i:i + size]) for i in range(len(found) - size + 1)}
+    return {" ".join(found[i:i + n]) for n in sizes for i in range(len(found) - n + 1)}
+
+
+def all_runs(texts, sizes):
+    return set().union(set(), *(runs(t, sizes) for t in texts))
 
 
 def plain(data):
@@ -97,24 +113,15 @@ def _hash(entry):
     return entry.split(" ")[1] if manifest.is_file(entry) else None
 
 
-def copies(case):
-    """The world paths that are still byte for byte the copy their case entry records."""
-    entries = manifest.manifest(case.world)
-    return {c["world"] for c in case.copies if _hash(entries.get(c["world"], "")) == c["source_sha256"]}
-
-
 def visible(case, arm):
-    """Every place the without-skill run of `case` can see, from the built arm `arm`."""
-    want, _ = world.expected(case, arm.installs)
+    """Every place the without-skill run of `case` can see, from its built and proved arm `arm`."""
     files, _ = arm.read()
-    if files != want:
-        raise CaseError(f"{case.id}: the built arm is not what the case says")
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    places = [Place(PROMPT_KEY, case.prompt, "case")]
-    places += [Place(commit_key(n), c["message"], "case") for n, c in enumerate(case.commits, 1)]
+    places = [Place(PROMPT_KEY, case.prompt, "declared")]
+    places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
-        places.append(Place(INDEX_ROW, f"{case.index['after']}\n{case.index['row']}", "case"))
+        places.append(Place(INDEX_ROW, f"{case.index['after']}\n{case.index['row']}", "declared"))
     for path, entry in sorted(files.items()):
         installed = any(path == t or path.startswith(t + "/") for t in targets)
         body = ""
@@ -123,10 +130,10 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        places.append(Place(path, None if body is None else f"{path}\n{body}", "harness" if installed else "case"))
+        places.append(Place(path, None if body is None else f"{path}\n{body}", "installed" if installed else "world"))
     rows = [install.row for install in arm.installs if install.row is not None]
     if rows:
-        places.append(Place(SIBLING_ROWS, "\n".join(rows), "harness"))
+        places.append(Place(SIBLING_ROWS, "\n".join(rows), "rows"))
     return places
 
 
@@ -140,9 +147,8 @@ def texts(folder):
 
 
 def _project_text(parts):
-    """True when `parts`, a path under `evals/`, is inside a folder of `PROJECT_TEXT` under `skills/NAME/`."""
-    inner = parts[2:-1] if parts[0] == "skills" else ()
-    return any(len(inner) >= len(t) and all(w in (None, part) for w, part in zip(t, inner)) for t in PROJECT_TEXT)
+    """True when `parts`, a file's path under `evals/`, is inside a folder of `PROJECT_TEXT`."""
+    return any(len(parts) > len(t) and all(w in (None, part) for w, part in zip(t, parts)) for t in PROJECT_TEXT)
 
 
 # Python tokens that hold text: strings, comments and, from Python 3.12, the text parts of f-strings.
@@ -177,74 +183,11 @@ def eval_texts(repo=REPO):
     return measuring, sorted(cases)
 
 
-def shared_runs(places, copied, upstream, size, prompt=True):
-    """Runs of project text: verified copies, installed sibling files, the upstream source and, unless `prompt` is
-    false, the prompt. A run found there belongs to the project and stays in both arms, so the run rule does not
-    count it. Eval text other than case data is never the project's, so the prompt is not shared for it. Sibling
-    rows are not project text: the case writes their template, and their descriptions are already in the sibling
-    files."""
-    project = [p.text for p in places if p.text and (p.key in copied or (p.author == "harness" and p.key !=
-                                                     SIBLING_ROWS) or (prompt and p.key == PROMPT_KEY))]
-    found = set()
-    for text in project + list(upstream):
-        found |= {r for n in range(1, size + 1) for r in runs(text, n)} if size < RUN else runs(text, size)
-    return found
-
-
-def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
-    """Every problem with `case`, given its built without-skill arm and the eval text: `kit`, the measuring texts,
-    and `cases`, the case data as (path, text). An empty list means it passes."""
-    places = visible(case, arm)
-    copied = copies(case)
-    shared = shared_runs(places, copied, upstream, RUN)
-    files, _ = skill_files(skill_dir, case.skill)
-    skill = set().union(set(), *(runs(data.decode("utf-8", "replace"), RUN) for data in files.values())) - shared
-    # Eval text is one set. Case data may repeat what the run sees of this case outside its world (its prompt,
-    # commits and index rows) and every path, which old task lists name. The rest of the eval text may not, so the
-    # prompt is never project text for it. The case's own file is case data like any other, wherever it lives.
-    own = case.folder / "case.json"
-    seen = [p.key for p in places] + [p.text for p in places if p.text and p.key.startswith("<")]
-    declared = set().union(set(), *(runs(t, RUN) for t in seen))
-    data = set().union(runs(own.read_bytes().decode("utf-8", "replace"), RUN), *(runs(t, RUN) for _, t in cases))
-    measuring = (set().union(set(), *(runs(t, RUN) for t in kit)) - shared_runs(places, copied, upstream, RUN, False)
-                 ) | (data - shared - declared)
-    # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
-    # ordinary project words, so a judge reads for it instead.
-    expected = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]
-    expected = set().union(set(), *(runs(" ".join(e), min(EXPECTATION_RUN, len(e))) for e in expected
-                                    if len(e) >= SHORTEST)) - shared_runs(places, copied, upstream, EXPECTATION_RUN)
-    sizes = {len(r.split()) for r in expected}
-    allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
-    # The index row is written into the index file, so it has that file's allowances.
-    if case.index:
-        allowed[INDEX_ROW] = allowed.get(case.index["file"], [])
-    leaks = [case.skill] + ([case.skill_rel] if case.skill_rel != f"skills/{case.skill}" else [])
-    problems = []
-    for place in places:
-        if place.text is None:
-            problems.append(f"{place.key}: not UTF-8 text without control characters; the lint cannot read it as "
-                            "the agent would")
-            continue
-        problems += [f"{place.key}: names the skill ({leak!r})" for leak in leaks if names(place, leak)]
-        hits = sorted(skill & runs(place.text, RUN)) if place.key not in copied else []
-        if hits:
-            problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
-        if place.author != "case":
-            continue
-        # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.
-        problems += [f"{place.key}: test-tell word {word!r}" for stem in TELLS
-                     for word in sorted(told(place, stem) - set(allowed.get(place.key, [])))]
-        hits = sorted(measuring & runs(place.text, RUN))
-        if hits:
-            problems.append(f"{place.key}: holds eval text, such as {hits[0]!r}")
-        if place.key != PROMPT_KEY and any(expected & runs(place.text, n) for n in sizes):
-            problems.append(f"{place.key}: holds expectation text")
-    problems += _copies(case, copied, repo)
-    return [f"{case.id}: {p}" for p in problems]
-
-
-def _copies(case, copied, repo):
-    problems = []
+def verified_copies(case, repo=REPO):
+    """(verified, problems): the world paths that are byte for byte the copy their entry records, of a source that
+    has not changed, and a problem for every other copy."""
+    entries = manifest.manifest(case.world)
+    verified, problems = set(), []
     for copy in case.copies:
         # The source is read only at its own real path, so a link cannot bring skill or eval text in as a copy.
         path = Path(os.path.abspath(Path(repo).resolve() / copy["source"]))
@@ -252,27 +195,98 @@ def _copies(case, copied, repo):
             source = _hash(manifest.entry(path)) if path.resolve() == path else None
         except (manifest.Unreadable, OSError):
             source = None
-        if copy["world"] not in copied:
+        if _hash(entries.get(copy["world"], "")) != copy["source_sha256"]:
             problems.append(f"copy {copy['world']}: not in the world as the regular file its source_sha256 names")
         elif source is None:
             problems.append(f"copy {copy['world']}: source {copy['source']} is not a regular file at its real path")
         elif source != copy["source_sha256"]:
             problems.append(f"copy {copy['world']}: {copy['source']} changed since it was copied; review the copy "
                             "and record the new source_sha256")
-    return problems
+        else:
+            verified.add(copy["world"])
+    return verified, problems
 
 
-def lint_skill(skill, adapter, cases_root=None, skills_root=None, repo=REPO):
-    """Lint every case of a skill for the host of `adapter`. Returns the problems; none means every case may run."""
+def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
+    """Every problem with `case`, given its built and proved without-skill arm and the eval text: `kit`, the
+    measuring texts, and `cases`, the case data as (path, text). An empty list means it passes."""
+    places = visible(case, arm)
+    copied, problems = verified_copies(case, repo)
+    # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
+    # ordinary project words, so a judge reads for it instead.
+    expectations = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]
+    expectations = [" ".join(e) for e in expectations if len(e) >= SHORTEST]
+    expected_sizes = {min(EXPECTATION_RUN, len(e.split())) for e in expectations}
+    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
+                       + list(upstream), {RUN} | expected_sizes)
+    files, _ = skill_files(skill_dir, case.skill)
+    skill = all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
+    # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
+    # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
+    # data like any other, wherever it lives.
+    declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"], {RUN})
+    data = all_runs([(case.folder / "case.json").read_bytes().decode("utf-8", "replace")]
+                    + [t for _, t in cases], {RUN})
+    measuring = (all_runs(kit, {RUN}) | (data - declared)) - project
+    expected = set().union(set(), *(runs(e, {min(EXPECTATION_RUN, len(e.split()))}) for e in expectations)) - project
+    allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
+    # The index row is written into the index file, so it has that file's allowances.
+    if case.index:
+        allowed[INDEX_ROW] = allowed.get(case.index["file"], [])
+    leaks = [case.skill] + ([case.skill_rel] if case.skill_rel != f"skills/{case.skill}" else [])
+    for place in places:
+        if place.text is None:
+            problems.append(f"{place.key}: not UTF-8 text without control characters; the lint cannot read it as "
+                            "the agent would")
+            continue
+        for leak in leaks:
+            if names(place, leak) and place.kind in CASE_KINDS:
+                problems.append(f"{place.key}: names the skill ({leak!r})")
+            elif names(place, leak):
+                problems.append(f"{place.key}: a sibling skill names {leak!r}; skills must never name each other")
+        hits = sorted(skill & runs(place.text, {RUN}))
+        if hits:
+            problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
+        if place.kind not in CASE_KINDS:
+            continue
+        # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.
+        problems += [f"{place.key}: test-tell word {word!r}" for stem in TELLS
+                     for word in sorted(told(place, stem) - set(allowed.get(place.key, [])))]
+        hits = sorted(measuring & runs(place.text, {RUN}))
+        if hits:
+            problems.append(f"{place.key}: holds eval text, such as {hits[0]!r}")
+        if place.key != PROMPT_KEY and expected & runs(place.text, expected_sizes):
+            problems.append(f"{place.key}: holds expectation text")
+    return [f"{case.id}: {p}" for p in problems]
+
+
+def lint_case(case, adapter, out, skills_root, skill_dir=None, upstream=(), kit=(), repo=REPO, cases=()):
+    """Lint `case` as it will run: build both arms in the empty folder `out` with `skill_dir`, the skill folder the
+    run uses, prove them, and lint the without-skill arm. Raise CaseError when the case cannot run."""
+    skill_dir = Path(skill_dir) if skill_dir else Path(skills_root) / case.skill
+    base = world.build(case, adapter, Path(out) / "without", skills_root)
+    with_arm = world.add_skill(base, case, adapter, Path(out) / "with", skills_root, skill_dir)
+    world.prove(case, adapter, base, with_arm, skills_root, skill_dir)
+    return lint(case, base, skill_dir, upstream, kit, repo, cases)
+
+
+def lint_skill(skill, adapter, cases_root=None, skills_root=None, repo=REPO, skill_dir=None):
+    """Lint every case of a skill for the host of `adapter`, as `lint_case` does. `skill_dir` is the skill folder
+    the run will use, such as a candidate version. Each case is read and built on its own, so a case that cannot be
+    is listed and the others are still linted. Returns the problems; none means every case may run."""
     skills_root = Path(skills_root) if skills_root else Path(repo) / "skills"
+    cases_root = Path(cases_root) if cases_root else Path(repo) / "evals" / "skills" / skill / "cases"
+    if not cases_root.is_dir():
+        return [f"{skill}: no cases folder at {cases_root}"]
     upstream = texts(Path(repo) / "evals" / "skills" / skill / "upstream")
     kit, data = eval_texts(repo)
     problems = []
-    for case in load_cases(skill, cases_root):
-        with tempfile.TemporaryDirectory(prefix="hw-lint-") as folder:
+    for folder in sorted(f for f in cases_root.iterdir() if f.is_dir()):
+        with tempfile.TemporaryDirectory(prefix="hw-lint-") as out:
             try:
-                arm = world.build(case, adapter, Path(folder) / "arm", skills_root)
-                problems += lint(case, arm, skills_root / skill, upstream, kit, repo, data)
+                problems += lint_case(Case(folder, skill), adapter, out, skills_root, skill_dir, upstream, kit, repo,
+                                      data)
             except CaseError as error:
-                problems.append(str(error))
+                reason = str(error)
+                problems.append(reason if reason.startswith(f"{folder.name}: ") else f"{folder.name}: {reason}")
     return problems

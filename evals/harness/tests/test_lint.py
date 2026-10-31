@@ -10,7 +10,7 @@ import world
 from test_world import AGENTS, INDEX, Adapter
 
 OWN_TEXT = "Count the syllables of every line twice before you answer, five then seven then five."
-KIT_TEXT = "The grader opens each bundle and answers every expectation with quoted evidence from the run."
+KIT_TEXT = "The judge opens each bundle and answers every expectation with quoted evidence from the run."
 
 
 class Lint(TempCase):
@@ -19,8 +19,7 @@ class Lint(TempCase):
         for name, text in dict(siblings).items():
             (self.skill(name) / "SKILL.md").write_text(text)
         case = self.case(files, data)
-        arm = world.build(case, Adapter, self.tmp / f"arm-{case.id}", skills)
-        return lint.lint(case, arm, skills / "haiku-writer", upstream, kit, repo, case_data)
+        return lint.lint_case(case, Adapter, self.tmp / f"arms-{case.id}", skills, None, upstream, kit, repo, case_data)
 
     def source(self, text):
         """A stand-in repository holding one document, STYLE.md, and its copy entry."""
@@ -72,8 +71,9 @@ class Lint(TempCase):
         files, data = {"README.md": "x\n", "AGENTS.md": AGENTS}, {"siblings": ["note-taker"], "index": INDEX}
         naming = "---\nname: note-taker\ndescription: Takes notes. Use with haiku-writer.\n---\n# Notes\n"
         problems = self.problems(files, data, siblings={"note-taker": naming})
-        self.assertTrue(any("skills/note-taker/SKILL.md: names" in p for p in problems), problems)
-        self.assertTrue(any("<sibling rows>: names" in p for p in problems), problems)
+        for where in ("skills/note-taker/SKILL.md", "<sibling rows>"):
+            self.assertTrue(any(f"{where}: a sibling skill names 'haiku-writer'; skills must never name each other"
+                                in p for p in problems), problems)
         shared = f"---\nname: note-taker\ndescription: Takes notes and runs evals with a fixture.\n---\n{OWN_TEXT}\n"
         self.assertEqual(self.problems(files, data, siblings={"note-taker": shared}), [])
         row = dict(INDEX, row=f"| {{name}} | {{path}} | {OWN_TEXT} |")
@@ -81,32 +81,40 @@ class Lint(TempCase):
                                  siblings={"note-taker": shared.replace(OWN_TEXT, "Notes.")})
         self.assertTrue(any("README.md: holds" in p for p in problems), problems)
 
-    def test_text_shared_with_copies_upstream_or_prompt_is_the_projects(self):
+    def test_text_shared_with_copies_or_upstream_is_the_projects_but_the_prompt_never_is(self):
         repo, copy = self.source(f"{OWN_TEXT}\n")
         self.assertEqual(self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, {"copies": [copy]}, repo=repo), [])
         self.assertEqual(self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, upstream=[OWN_TEXT]), [])
-        self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": f"Write a poem. {OWN_TEXT}"}), [])
+        problems = self.problems({"README.md": "x\n"}, {"prompt": f"Write a poem. {OWN_TEXT}"})
+        self.assertTrue(any("<prompt>: holds 8 run(s) of the skill's own text" in p for p in problems), problems)
+        problems = self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, {"prompt": f"Write a poem. {OWN_TEXT}"})
+        self.assertTrue(any("STYLE.md: holds" in p for p in problems), problems)
 
     def test_tells_kit_text_and_expectations_are_refused_wherever_the_author_put_them(self):
         repo, copy = self.source("The evaluator reads each case.\n")
         data = {"expectations": ["The reply is a poem of three lines about notes", "Ends with one question"]}
         planted = {
-            "tell stem": ({"README.md": "The evaluator compares with the goldens.\n"}, {}),
-            "tell in a copy": ({"STYLE.md": "The evaluator reads each case.\n"}, {"copies": [copy]}),
+            "tell stem": ({"README.md": "The evaluator compares with the goldens.\n"}, {}, "README.md: test-tell"),
+            "tell in a copy": ({"STYLE.md": "The evaluator reads each case.\n"}, {"copies": [copy]},
+                               "STYLE.md: test-tell"),
             "tell in the row": ({"README.md": "x\n", "AGENTS.md": AGENTS},
-                                {"index": dict(INDEX, row="| {name} | {path} | graded |")}),
-            "kit text": ({"notes/how.md": f"Note: {KIT_TEXT}\n"}, {}),
-            "kit text in the prompt": ({"README.md": "x\n"}, {"prompt": f"Write a poem. {KIT_TEXT}"}),
-            "expectation": ({"README.md": "The reply is a poem of three lines about notes.\n"}, {}),
-            "short expectation": ({"TODO.md": "Reply ends with one question.\n"}, {}),
+                                {"index": dict(INDEX, row="| {name} | {path} | graded |")}, "<index row>: test-tell"),
+            "kit text": ({"notes/how.md": f"Note: {KIT_TEXT}\n"}, {}, "notes/how.md: holds eval text"),
+            "kit text in the prompt": ({"README.md": "x\n"}, {"prompt": f"Write a poem. {KIT_TEXT}"},
+                                       "<prompt>: holds eval text"),
+            "expectation": ({"README.md": "The reply is a poem of three lines about notes.\n"}, {},
+                            "README.md: holds expectation text"),
+            "short expectation": ({"TODO.md": "Reply ends with one question.\n"}, {}, "TODO.md: holds expectation"),
         }
-        for label, (files, extra) in planted.items():
+        for label, (files, extra, reason) in planted.items():
             with self.subTest(label):
-                self.assertNotEqual(self.problems(files, dict(data, **extra), kit=[KIT_TEXT], repo=repo), [])
+                problems = self.problems(files, dict(data, **extra), kit=[KIT_TEXT], repo=repo)
+                self.assertTrue(any(reason in p for p in problems), problems)
 
     def test_project_text_is_never_counted_against_the_case(self):
         data = {"prompt": "Write a poem of three lines about notes.",
-                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!", "回答包含三行诗"]}
+                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!",
+                                 "回答包含三行诗"]}
         self.assertEqual(self.problems({"README.md": "This app uses tags.\n", "src/cases/list.py": "x = 1\n"},
                                        data), [])
         repo, copy = self.source("Every file ends with a newline.\n")
@@ -148,7 +156,7 @@ class Lint(TempCase):
         paths = ("harness/README.md", "runner/core.py", "skills/x/checks/c.py", "skills/x/tasks.json",
                  "skills/x/cases/a/case.json", "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md",
                  "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json",
-                 "goldens/g.md")
+                 "goldens/g.md", "fixtures/notes/README.md")
         for path in paths:
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
@@ -185,12 +193,22 @@ class Lint(TempCase):
         old = [(self.tmp / "tasks.json", f'{{"prompt": "Write claims for {story} now."}}')]
         self.assertEqual(self.problems({story: "Tags sort by name.\n"}, case_data=old), [])
 
-    def test_lint_skill_reports_an_unbuildable_case(self):
+    def test_lint_skill_lints_each_case_as_it_will_run(self):
         self.skill()
         case = self.case({"README.md": "x\n"}, name="linked")
         (case.world / "out").symlink_to("../../..")
+        self.case({"README.md": "Stack the tiles by the door, then sweep the old porch twice.\n"}, name="clean")
+        (self.tmp / "cases" / "broken").mkdir()
+        (self.tmp / "cases" / "broken" / "case.json").write_text("{")
         problems = lint.lint_skill("haiku-writer", Adapter, self.tmp / "cases", self.tmp / "skills", self.tmp)
-        self.assertTrue(any("unsound" in p for p in problems), problems)
+        self.assertEqual(sorted(p.split(":")[0] for p in problems), ["broken", "linked"], problems)
+        self.assertTrue(any(p.startswith("linked: ") and "unsound" in p for p in problems), problems)
+        candidate = self.tmp / "candidate" / "haiku-writer"
+        candidate.mkdir(parents=True)
+        (candidate / "SKILL.md").write_text(SKILL_MD + "Stack the tiles by the door, then sweep the old porch twice.\n")
+        problems = lint.lint_skill("haiku-writer", Adapter, self.tmp / "cases", self.tmp / "skills", self.tmp,
+                                   candidate)
+        self.assertTrue(any(p.startswith("clean: README.md: holds") for p in problems), problems)
 
 
 if __name__ == "__main__":
