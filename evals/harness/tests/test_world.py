@@ -79,6 +79,34 @@ class Arms(TempCase):
                 self.assertEqual((with_arm.path / root / "haiku-writer/scripts/count.py").stat().st_mode & 0o777,
                                  0o755)
 
+    def test_the_executable_bit_is_part_of_a_tree(self):
+        script = self.tmp / "t" / "run.sh"
+        script.parent.mkdir()
+        script.write_text("echo ok\n")
+        before = cases.tree(script.parent)
+        script.chmod(0o755)
+        self.assertNotEqual(cases.tree(script.parent), before)
+        _, base, with_arm = self.build_pair()
+        (with_arm.path / "README.md").chmod(0o755)
+        tampered = world.Arm(with_arm.path, "with_skill", with_arm.overlay, with_arm.head)
+        with self.assertRaisesRegex(cases.CaseError, "executable bit|beyond|more than"):
+            world.prove(base, tampered)
+
+    def test_history_ignores_git_variables_of_the_operator(self):
+        import os
+        import subprocess
+        from unittest import mock
+        other = self.tmp / "operator-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q", str(other)], check=True)
+        (other / "README.md").write_text("Operator work.\n")
+        planted = {"GIT_DIR": str(other / ".git"), "GIT_WORK_TREE": str(other), "GIT_INDEX_FILE": str(other / "x")}
+        with mock.patch.dict(os.environ, planted):
+            _, base, _ = self.build_pair({"commits": [{"message": "Start", "paths": ["README.md"]}]})
+        self.assertTrue((base.path / ".git").is_dir())
+        log = subprocess.run(["git", "-C", str(other), "log", "--oneline"], capture_output=True, text=True)
+        self.assertEqual(log.stdout, "")
+
     def test_siblings_are_installed_in_both_arms(self):
         self.skill("note-taker")
         _, base, with_arm = self.build_pair({"siblings": ["note-taker"]})

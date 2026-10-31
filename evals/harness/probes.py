@@ -116,7 +116,8 @@ def probe_host(adapter, mode, root, model=None, tools=(), operator_env=None, ope
         except contain.ContainmentError as error:
             return {"run": None, "tokens": tokens, "problems": [f"containment: {error}"]}
         text = json.dumps(run.record()) + run.stderr
-        problems = [f"a canary from outside reached the run: {hit}" for hit in canaries if hit in text]
+        problems = [f"a canary from outside reached the run: {hit}" for hit in canaries
+                    if hit in text or hit in run.leaks]
         extra = sorted(set(run.exposed_skills) - set(getattr(adapter, "HOST_SKILLS", ())) - {tokens["skill"]})
         if extra:
             problems.append(f"the host exposes undeclared skills: {extra}")
@@ -191,7 +192,9 @@ def tools_probe(adapter, mode, root, tools, env):
     versions, problems = {}, []
     for tool in tools:
         try:
-            done = subprocess.run(box.jail(["/bin/sh", "-c", f"{tool} version 2>/dev/null || {tool} --version"]),
+            # The host's install is mounted as in a host run, so a tool installed beside the host is found.
+            done = subprocess.run(box.jail(["/bin/sh", "-c", f"{tool} version 2>/dev/null || {tool} --version"],
+                                           program=adapter.CLI),
                                   capture_output=True, text=True, env=box.env, timeout=60)
             versions[tool] = done.stdout.strip().splitlines()[0] if done.returncode == 0 and done.stdout else None
         except (OSError, subprocess.TimeoutExpired) as error:

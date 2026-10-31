@@ -7,7 +7,7 @@ import subprocess
 import time
 
 from contain import ContainmentError  # noqa: F401  (re-exported for callers)
-from evidence import validate
+from evidence import tokens_in, validate
 
 
 class HostRun:
@@ -18,7 +18,7 @@ class HostRun:
 
     def record(self):
         return {key: getattr(self, key) for key in ("mode", "returncode", "timed_out", "failure", "model",
-                                                     "seconds", "actions", "exposed_skills", "final")}
+                                                     "seconds", "actions", "exposed_skills", "final", "leaks")}
 
 
 def run(adapter, contain, prompt, model=None, deny=(), timeout=900):
@@ -37,7 +37,10 @@ def run(adapter, contain, prompt, model=None, deny=(), timeout=900):
         stderr = _text(expired.stderr)
         code, timed_out = None, True
     events = adapter.parse_events(stdout)
-    return HostRun(mode=contain.mode, events=events, stderr=stderr, returncode=code, timed_out=timed_out,
+    # Canaries are looked for in the whole raw output, before the action log bounds long command output.
+    leaks = tokens_in(stdout + stderr, contain.canaries)
+    return HostRun(leaks=leaks, mode=contain.mode, events=events, stderr=stderr, returncode=code,
+                   timed_out=timed_out,
                    failure=adapter.failure(events, code, timed_out, contain.mode),
                    model=adapter.resolved_model(events) or model, seconds=round(time.monotonic() - started, 1),
                    actions=validate(adapter.actions(events, stderr)),

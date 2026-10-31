@@ -27,6 +27,8 @@ def tree_hash(folder, skip=(".git",)):
             elif os.path.isfile(path):
                 with open(path, "rb") as handle:
                     files[relative] = hashlib.sha256(handle.read()).hexdigest()
+                if os.stat(path).st_mode & 0o111:
+                    files[relative] += "+x"
     return hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
 
 

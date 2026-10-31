@@ -12,7 +12,7 @@ import stat
 import subprocess
 from pathlib import Path
 
-from cases import REPO, CaseError, sha256_bytes, skill_files, structure, tree, tree_hash
+from cases import EXEC, REPO, CaseError, sha256_bytes, skill_files, structure, tree, tree_hash
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
 GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@example.invalid",
@@ -106,10 +106,13 @@ def _history(world, commits):
     """Build the declared commits in `world`; return the head commit, or None without history."""
     if not commits:
         return None
-    env = {**os.environ, **GIT_ENV}
+    # Built from an allow list, never inherited: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE and the like would point
+    # git at another repository.
+    env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL") if key in os.environ}
+    env.update(GIT_ENV, HOME=os.devnull)
 
     def git(*args):
-        return subprocess.run(["git", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main",
+        return subprocess.run(["git", f"--git-dir={world / '.git'}", f"--work-tree={world}", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main",
                                "-c", f"core.hooksPath={os.devnull}", *args],
                               cwd=world, env=env, check=True, capture_output=True, text=True).stdout.strip()
 
@@ -144,6 +147,8 @@ def prove(base, with_arm):
     if stray:
         raise CaseError(f"the with-skill arm adds files outside the skill: {stray}")
     for path in changed:
+        if base.files[path].endswith(EXEC) != str(with_arm.files.get(path, "")).endswith(EXEC):
+            raise CaseError(f"the with-skill arm changes the executable bit of {path}")
         old = (base.path / path).read_text().split("\n")
         new = (with_arm.path / path).read_text().split("\n")
         for row in rows:

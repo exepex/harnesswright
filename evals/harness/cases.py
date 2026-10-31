@@ -30,6 +30,7 @@ SPLITS = ("train", "test")
 FIELDS = {"prompt", "kind", "skill_path", "index", "siblings", "tools", "expectations", "should_trigger",
           "split", "commits", "copies", "allow_words"}
 PROMPT_KEY = "<prompt>"
+EXEC = "+x"  # marks an executable file in a tree; audit.py uses the same mark
 
 
 class CaseError(ValueError):
@@ -45,7 +46,8 @@ def sha256_file(path):
 
 
 def tree(folder, skip=()):
-    """Every file under `folder` as {relative posix path: sha256}. Symlinks map to 'link:<target>'.
+    """Every file under `folder` as {relative posix path: sha256}. Symlinks map to 'link:<target>', and an
+    executable file's hash ends in EXEC, so a change of the executable bit alone is a change.
 
     Paths whose first part is in `skip` (such as `.git`) are left out.
     """
@@ -58,7 +60,7 @@ def tree(folder, skip=()):
         if path.is_symlink():
             found[relative.as_posix()] = "link:" + str(path.readlink())
         elif path.is_file():
-            found[relative.as_posix()] = sha256_file(path)
+            found[relative.as_posix()] = sha256_file(path) + (EXEC if path.stat().st_mode & 0o111 else "")
     return found
 
 

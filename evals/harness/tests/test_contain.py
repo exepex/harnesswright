@@ -124,6 +124,27 @@ class ContainmentFaults(TempCase):
             self.assertIn(value, found)
         self.assertFalse(any("proxy.example.invalid:80" in v for v in found))
 
+    def test_credentials_given_to_a_run_stay_secrets_after_a_refresh(self):
+        adapter = self.fake_adapter()
+        adapter.CREDENTIAL_FILES = (".fake/credentials.json",)
+        given = self.tmp / "operator-home" / ".fake" / "credentials.json"
+        given.parent.mkdir(parents=True)
+        given.write_text(json.dumps({"token": "fake-token-given-0123456789"}))
+        box = self.box(adapter)
+        (box.home / ".fake" / "credentials.json").write_text(json.dumps({"token": "fake-token-refreshed-0123456"}))
+        self.assertTrue({"fake-token-given-0123456789", "fake-token-refreshed-0123456"} <= set(box.secrets()))
+        (box.home / ".fake" / "credentials.json").unlink()
+        self.assertIn("fake-token-given-0123456789", box.secrets())
+
+    @needs_jail
+    def test_canaries_are_found_in_output_the_action_log_leaves_out(self):
+        adapter = self.fake_adapter()
+        canaries = contain.plant_canaries([self.tmp / "elsewhere"])
+        token = next(iter(canaries))
+        adapter.actions = lambda events, stderr="": []  # as when long command output is cut down
+        run = hostrun.run(adapter, self.box(adapter, canaries=canaries), self.plan({"run": "true"}, final=token))
+        self.assertEqual(run.leaks, [token])
+
     @needs_jail
     def test_the_audit_names_variables_outside_the_allow_list(self):
         adapter = self.fake_adapter()

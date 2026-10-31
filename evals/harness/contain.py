@@ -80,6 +80,8 @@ class Containment:
         self.credentials = self._copy_credentials()
         self.prepared = []  # files the adapter wrote into the home before the run, such as denied-command rules
         self.env = self._environment()
+        # The credentials as given, kept for redaction even if the host later refreshes or rewrites its files.
+        self.initial_secrets = self._read_secrets()
 
     def _copy_credentials(self):
         copied = []
@@ -104,7 +106,11 @@ class Containment:
         return self.adapter.environment(env)
 
     def secrets(self):
-        """Every credential value a bundle must never hold: sign-in variables and strings in credential files."""
+        """Every credential value a bundle must never hold: sign-in variables and strings in credential files,
+        both as they were given to the run and as they are now."""
+        return sorted(set(self.initial_secrets) | set(self._read_secrets()), key=len, reverse=True)
+
+    def _read_secrets(self):
         values = [self.env[key] for key in getattr(self.adapter, "ENV_KEYS", ()) if len(self.env.get(key, "")) >= 8]
         # A proxy variable can carry a user and password: the whole value and its user part are credentials.
         for key in seal.BASE_KEYS:
@@ -112,9 +118,13 @@ class Containment:
                 values += _proxy_secrets(self.env[key])
         for relative in self.credentials:
             try:
-                values += [v for v in _strings(json.loads((self.home / relative).read_text())) if len(v) >= 16]
-            except (OSError, json.JSONDecodeError):
-                values.append((self.home / relative).read_text().strip())
+                text = (self.home / relative).read_text()
+            except OSError:
+                continue  # the host removed it; the values it held at the start are kept in initial_secrets
+            try:
+                values += [v for v in _strings(json.loads(text)) if len(v) >= 16]
+            except json.JSONDecodeError:
+                values.append(text.strip())
         return sorted(set(v for v in values if v), key=len, reverse=True)
 
     def mounts(self, program):

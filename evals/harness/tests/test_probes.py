@@ -31,6 +31,17 @@ class ProbeFaults(TempCase):
                 self.assertEqual(found["powers"]["detail"]["found"], found["powers"]["detail"]["expected"])
 
     @needs_jail
+    def test_the_tools_probe_sees_tools_installed_beside_the_host(self):
+        adapter = self.fake_adapter()
+        tool = contain.Path(adapter.CLI).parent / "notes-tool"
+        tool.write_text("#!/bin/sh\necho notes-tool 1.2\n")
+        tool.chmod(0o755)
+        env = self.operator_env(PATH=f"{tool.parent}:/usr/bin:/bin")
+        found = probes.tools_probe(adapter, "task", self.tmp / "tools", ["notes-tool"], env)
+        self.assertTrue(found["ok"], found["problems"])
+        self.assertEqual(found["detail"]["versions"]["notes-tool"], "notes-tool 1.2")
+
+    @needs_jail
     def test_hf02_decoy_memory(self):
         report, found = self.probe()
         self.assertTrue(found["memory"]["ok"])
