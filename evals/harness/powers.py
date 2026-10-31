@@ -95,12 +95,15 @@ def writable_mounts():
 def connect():
     socket.create_connection(tuple(spec["direct"]), timeout=5).close()
 
-def through_gate(host):
+def gate_answer(host):
     gate = socket.create_connection(("127.0.0.1", spec["port"]), timeout=10)
     gate.sendall(f"CONNECT {host}:443 HTTP/1.1\r\n\r\n".encode())
     status = gate.makefile("rb").readline().split()[1:2]
     gate.close()
-    if status != [b"200"]:  # only an open tunnel counts
+    return status
+
+def through_gate(host):
+    if gate_answer(host) != [b"200"]:  # only an open tunnel counts
         raise OSError("no tunnel through the gate")
 
 found = {
@@ -113,7 +116,8 @@ found = {
     "write temp": all(works(lambda f=f: write(f)) for f in (os.environ["TMPDIR"], "/tmp", "/dev/shm")),
     "write outside the run": bool(writable_mounts()),
     "connect directly": works(connect),
-    "reach a host off the allow list": works(lambda: through_gate("off-the-list.invalid")),
+    # Only the gate's own refusal counts: any other answer, such as a 502 from upstream, means it passed the host on.
+    "reach a host off the allow list": gate_answer("off-the-list.invalid") != [b"403"],
     "reach a model host through the gate": any(works(lambda h=h: through_gate(h)) for h in spec["model_hosts"]),
 }
 found["writable mounts off the table"] = writable_mounts()

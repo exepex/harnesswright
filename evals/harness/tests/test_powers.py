@@ -32,7 +32,8 @@ class Table(unittest.TestCase):
 class Probe(TempCase):
     def setUp(self):
         super().setUp()
-        self.upstream = Upstream(down=["api.example.test"])  # opens tunnels without a network, but not to this host
+        # Opens tunnels without a network, but not to these hosts.
+        self.upstream = Upstream(down=["api.example.test", "off-the-list.invalid"])
         self.addCleanup(self.upstream.close)
 
     def run_of(self, mode, **kwargs):
@@ -107,7 +108,7 @@ class Probe(TempCase):
         with self.assertRaisesRegex(powers.PowersError, "connect directly: works"):
             powers.probe(run, direct=direct)
         run = self.run_of("task")
-        run.hosts = run.hosts + ["off-the-list.invalid"]
+        run.hosts = run.hosts + ["off-the-list.invalid"]  # passed on, though upstream answers 502 for it
         with self.assertRaisesRegex(powers.PowersError, "reach a host off the allow list: works"):
             powers.probe(run)
 
