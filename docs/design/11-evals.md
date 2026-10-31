@@ -118,9 +118,10 @@ host's own install. The runner proves this in every run.
 - **One list of mounts.** A run sees exactly one list: the system program and library folders, the `/etc` entries
   a program needs to start and reach the network, the host's install and CA files (all read-only), the world, a
   fresh private home, a scratch folder in task runs, an empty private `/tmp`, a fresh `/proc` of the jail's own
-  processes and a minimal `/dev`. A host installed in the operator's home brings only its own link and file. The
-  jail has its own user, process, IPC, host name and cgroup namespaces; the network is shared, because the host must
-  reach its model, and the host's sandbox cuts commands off from it (Powers). Nothing else is mounted, so
+  processes and a minimal `/dev`. Nothing in the operator's home is found for a host: one installed there runs
+  only from what the operator names, and is refused until then. The jail has its own user, process, IPC, host
+  name and cgroup namespaces; the network is shared, because the host must reach its model, and the host's sandbox
+  cuts commands off from it (Powers). Nothing else is mounted, so
   machine-wide host config such as `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`, the repository and the
   operator's home are never there to read. No mount may hold or sit inside the repository, or hold the operator's
   home.

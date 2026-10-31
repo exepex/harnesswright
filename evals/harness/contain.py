@@ -163,23 +163,22 @@ class Containment:
         return found
 
     def _install(self, program):
-        """The host's install, for `program` as found on the run's PATH and after links. Outside the operator's home:
-        the folder above its `bin` folder (such as a node install, whose `lib` holds the program), else its own
-        folder. Inside the operator's home nothing is mounted whole, only the program's own link and file, so the
-        rest of the home stays out of reach. Inside the system folders nothing more is needed."""
+        """The host's install, for `program` on the run's PATH and after links: the folder above its `bin` folder
+        (such as a node install), else its own folder. Nothing inside the operator's home is found this way, since a
+        folder there can hold the operator's files: a host there runs only from what `host_paths` names."""
         found = shutil.which(program, path=self.env.get("PATH"))
         if found is None:
             return []
         home, mounts = self.operator_home.resolve(), []
+        named = [Path(p).absolute() for p in self.host_paths] + [Path(p).resolve() for p in self.host_paths]
         for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
             if any(path.is_relative_to(folder) for folder in SYSTEM):
                 continue
-            if path.is_relative_to(home):
-                link = path.is_symlink()
-                mounts.append(Mount(path, "link" if link else "ro", source=os.readlink(path) if link else None,
-                                    scan=not link))
-            else:
+            if not path.is_relative_to(home):
                 mounts.append(Mount(path.parent.parent if path.parent.name == "bin" else path.parent, "ro", scan=True))
+            elif not any(path.is_relative_to(name) for name in named):
+                raise ContainmentError(f"{program} is installed in the operator's home at {path}: name the files "
+                                       "and folders it needs in host_paths")
         return mounts
 
     def _refuse_overlaps(self, mounts):

@@ -128,19 +128,23 @@ class Jail(Setup):
         self.assertNotIn(token, seen.stdout)
         self.assertNotIn(str(decoy.pid), seen.stdout.split())
 
-    def test_a_host_installed_in_the_operator_home_brings_only_its_own_files(self):
+    def test_a_host_in_the_operator_home_runs_only_from_what_the_operator_names(self):
         versions = self.tmp / "operator" / ".local" / "share" / "host" / "versions"
         versions.mkdir(parents=True)
         (versions / "1.0").write_text("#!/bin/sh\necho host ran\n")
         (versions / "1.0").chmod(0o755)
         (self.tmp / "operator" / ".local" / "share" / "history").write_text("operator history\n")
-        (self.tmp / "operator" / ".local" / "bin").mkdir()
-        (self.tmp / "operator" / ".local" / "bin" / "host").symlink_to(versions / "1.0")
+        link = self.tmp / "operator" / ".local" / "bin" / "host"
+        link.parent.mkdir()
+        link.symlink_to(versions / "1.0")
         run = self.run_of()
-        run.env["PATH"] = f"{self.tmp / 'operator' / '.local' / 'bin'}:/usr/bin:/bin"
+        run.env["PATH"] = f"{link.parent}:/usr/bin:/bin"
+        with self.assertRaisesRegex(contain.ContainmentError, "installed in the operator's home"):
+            run.audit("host")
+        run = self.run_of(host_paths=[link])
+        run.env["PATH"] = f"{link.parent}:/usr/bin:/bin"
         self.assertEqual(run.audit("host")["problems"], [])
-        self.assertEqual(subprocess.run(run.jail(["host"]), capture_output=True, text=True, env=run.env,
-                                        timeout=60).stdout, "host ran\n")
+        self.assertEqual(self.inside(run, "host").stdout, "host ran\n")
         listing = self.inside(run, "/bin/ls", "-a", str(self.tmp / "operator" / ".local" / "share")).stdout.split()
         self.assertNotIn("history", listing)
 

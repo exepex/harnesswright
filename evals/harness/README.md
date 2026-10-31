@@ -158,7 +158,6 @@ reason. The history is built with no git templates, so `.git` holds only what th
 
 `contain.Containment` sets up one run: a fresh `home/` with copies of the adapter's `CREDENTIAL_FILES`, a
 `scratch/` in task runs, and an environment built from the allow list. `Containment.mounts` is the one list of what
-the run sees, and `Containment.jail` builds the `bwrap` command from it. A host installed in the operator's home
-brings only its own link and file. `Containment.audit` runs `audit.py` in the same jail, after `manifest.py`'s
-source, and checks the jail against the same list. Every problem is listed, and any one raises `ContainmentError`.
-The rules are in [11 · Evals](../../docs/design/11-evals.md) (Containment) and the two modules' docstrings.
+the run sees, and `Containment.jail` builds the `bwrap` command from it. A host in the operator's home runs only
+from the `host_paths` the operator names. `Containment.audit` runs `audit.py` in the same jail, after `manifest.py`'s
+source, and checks the jail against the same list (doc 11, Containment). Any problem raises `ContainmentError`.
