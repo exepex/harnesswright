@@ -4,7 +4,7 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, building and proving the two arms, and the world lint**. Containment and probes,
+eval cases, skill reading, building and proving the two arms, the world lint, and containment**. Powers and probes,
 evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
@@ -18,13 +18,16 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 | `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
 | `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
+| `contain.py` | Builds one run's environment, home and jail from one list of mounts |
+| `audit.py` | Runs inside the jail before the host starts and checks it against the same list |
 
 ## Commands
 
 Run from the repository root.
 
 ```sh
-# Unit tests.
+# Unit tests. The jail tests need Linux and bubblewrap (`apt-get install bubblewrap`); without them they are
+# skipped and say why.
 python3 -m unittest discover -s evals/harness/tests
 ```
 
@@ -150,3 +153,11 @@ text, since the case author writes it for this case.
 
 A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's
 reason. The history is built with no git templates, so `.git` holds only what the case declares.
+
+## How a run is contained
+
+`contain.Containment` sets up one run: a fresh `home/` with copies of the adapter's `CREDENTIAL_FILES`, a
+`scratch/` in task runs, and an environment built from the allow list. `Containment.mounts` is the one list of what
+the run sees, and `Containment.jail` builds the `bwrap` command from it. A host in the operator's home runs only
+from the `host_paths` the operator names. `Containment.audit` runs `audit.py` in the same jail, after `manifest.py`'s
+source, and checks the jail against the same list (doc 11, Containment). Any problem raises `ContainmentError`.
