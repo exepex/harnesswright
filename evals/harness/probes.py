@@ -209,11 +209,22 @@ def main(argv=None):
     parser.add_argument("--out", required=True, help="folder for the probe report")
     parser.add_argument("--tool", action="append", default=[], help="a tool a case declares (repeatable)")
     parser.add_argument("--model")
+    parser.add_argument("--env", action="append", default=[], metavar="NAME=FROM",
+                        help="give the host the value of variable FROM as NAME, such as a sign-in key kept under "
+                             "another name (repeatable); only names are recorded")
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    for pair in args.env:
+        name, _, source = pair.partition("=")
+        if not name or source not in os.environ:
+            parser.error(f"--env {pair}: no variable {source!r}")
+        env[name] = os.environ[source]
     with tempfile.TemporaryDirectory(prefix="hw-probe-") as folder:
-        report = probe_host(hosts.load(args.host), args.mode, folder, model=args.model, tools=args.tool)
+        report = probe_host(hosts.load(args.host), args.mode, folder, model=args.model, tools=args.tool,
+                            operator_env=env)
+    report["env_mapped"] = args.env
     (out / f"probe-{args.host}-{args.mode}.json").write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
     for probe in report["probes"]:
         print(f"{'ok  ' if probe['ok'] else 'FAIL'} {probe['probe']}: {'; '.join(probe['problems'])}")

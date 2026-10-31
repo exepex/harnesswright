@@ -33,7 +33,8 @@ Run from the repository root.
 
 ```sh
 # Probes for one host and mode. Exit code 1 when any probe fails; the report says why.
-python3 evals/harness/probes.py --host codex --mode task --out PROBES [--tool go] [--model MODEL]
+python3 evals/harness/probes.py --host codex --mode task --out PROBES [--tool go] [--model MODEL] \
+  [--env ANTHROPIC_API_KEY=VARIABLE]
 
 # The world lint of every case of a skill, for one host.
 python3 evals/harness/lint.py --skill NAME --host codex
@@ -80,6 +81,10 @@ each harness fault against it: a negative control shows each fault is caught whe
 - Claude Code 2.1.316 in a fresh home lists 18 bundled skills and three built-in plugins.
   `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1` with `disableBundledSkills` and the plugins turned off in the settings
   leaves `design` and `doctor`, the adapter's `HOST_SKILLS`.
-- Claude Code was not probed live: this container has no Claude Code sign-in a sealed run may use, so its sign-in
-  probe fails ("Not logged in") and the host is `not run`. Its powers in this configuration are not verified yet.
+- Claude Code 2.1.316, live on 2026-10-31, signed in with an API key passed as `ANTHROPIC_API_KEY`
+  (`probes.py --env ANTHROPIC_API_KEY=OTHER_NAME` when the key is kept under another name): all six probes passed
+  in both modes, with the same powers as Codex. In trigger mode its sandbox first allowed commands to write
+  TMPDIR; the adapter now denies writes to the home folder (which holds TMPDIR) and `/tmp` in trigger runs, and
+  the probe then passed. Its self-writes in an empty run are files under `.claude/`, `.claude.json` and `.npm/`
+  in the private home and nothing in the world.
 - Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 44 tests, all passing.

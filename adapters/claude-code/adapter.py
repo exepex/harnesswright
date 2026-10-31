@@ -192,11 +192,14 @@ WRITE_TOOLS = {"Write": "file_path", "Edit": "file_path", "MultiEdit": "file_pat
 OUTPUT_LIMIT = 4000
 
 
-def settings(deny=()):
+def settings(deny=(), mode="task"):
     """Run settings: the sandbox confines every command, bundled skills and built-in plugins are off, and each
-    denied command prefix is refused."""
+    denied command prefix is refused. In a trigger run commands may not write the home folder, which holds the
+    run's temp folder: the sandbox would otherwise allow writes to TMPDIR."""
     value = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True, "allowUnsandboxedCommands": False},
              "disableBundledSkills": True, "enabledPlugins": {name: False for name in BUILTIN_PLUGINS}}
+    if mode == "trigger":
+        value["sandbox"]["filesystem"] = {"denyWrite": ["~", "/tmp"]}
     if deny:
         value["permissions"] = {"deny": [f"Bash({prefix}:*)" for prefix in deny]}
     return value
@@ -213,7 +216,7 @@ def command(mode, world, scratch=None, model=None, deny=()):
         raise ValueError(f"unknown mode: {mode}")
     args = [CLI, "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "project",
             "--no-session-persistence", "--strict-mcp-config", "--tools", ",".join(TOOLS[mode]),
-            "--settings", json.dumps(settings(deny)), "--allowedTools", "Bash"]
+            "--settings", json.dumps(settings(deny, mode)), "--allowedTools", "Bash"]
     if mode == "task":
         args += ["--permission-mode", "acceptEdits"]
         if scratch:
