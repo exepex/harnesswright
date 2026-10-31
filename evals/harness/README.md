@@ -4,7 +4,7 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, and building and proving the two arms**. The world lint, containment and probes,
+eval cases, skill reading, building and proving the two arms, and the world lint**. Containment and probes,
 evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
@@ -17,6 +17,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 | `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
+| `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
 
 ## Commands
 
@@ -85,3 +86,22 @@ same bytes. git never runs on an arm to prove it.
 Git runs with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or hooks never
 take part. Declared paths are added with `--force`, so a world `.gitignore` cannot drop them, and a git failure is
 a case error.
+
+## How a case is linted
+
+`lint.visible` lists every place the without-skill run can see, read from the built arm once the arm is proved to
+be what the case says: each world entry (its path, and its bytes or link target), the prompt, each commit message,
+and the index rows the builder wrote. Nothing is skipped: bytes that are not UTF-8 are read one character per byte.
+Every rule reads this one list. Names and phrases match on words, so `haiku-writer`, `Haiku_Writer` and
+`haiku writer` are the same.
+
+- In every place: the skill's name or custom path, and any 8-word run of the skill's own text. Runs shared with a
+  verified copy, the recorded upstream source or the prompt belong to the project; a verified copy is not checked
+  for runs.
+- In what the case author wrote (world entries, the prompt and commit messages, not installed skills): test-tell
+  words unless `allow_words` allows them there, any 6-word run of an expectation, and a path that holds a kit file
+  or folder name.
+- Every copy must still be byte for byte its recorded source, and the source must not have changed.
+
+A world that cannot be built, such as one with a `.git` folder or a link out of it, fails the lint with the
+builder's reason.
