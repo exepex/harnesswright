@@ -91,6 +91,7 @@ class Lint(TempCase):
             "tell in the row": ({"README.md": "x\n", "AGENTS.md": AGENTS},
                                 {"index": dict(INDEX, row="| {name} | {path} | graded |")}),
             "kit text": ({"notes/how.md": f"Note: {KIT_TEXT}\n"}, {}),
+            "kit text in the prompt": ({"README.md": "x\n"}, {"prompt": f"Write a poem. {KIT_TEXT}"}),
             "expectation": ({"README.md": "The reply is a poem of three lines about notes.\n"}, {}),
             "short expectation": ({"TODO.md": "Reply ends with one question.\n"}, {}),
         }
@@ -100,7 +101,7 @@ class Lint(TempCase):
 
     def test_project_text_is_never_counted_against_the_case(self):
         data = {"prompt": "Write a poem of three lines about notes.",
-                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!"]}
+                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!", "回答包含三行诗"]}
         self.assertEqual(self.problems({"README.md": "This app uses tags.\n", "src/cases/list.py": "x = 1\n"},
                                        data), [])
         repo, copy = self.source("Every file ends with a newline.\n")
@@ -111,7 +112,10 @@ class Lint(TempCase):
     def test_a_place_may_allow_a_tell_word(self):
         files = {"docs/testing.md": "Run the fixtures before each release.\n"}
         self.assertNotEqual(self.problems(files), [])
-        self.assertEqual(self.problems(files, {"allow_words": {"docs/testing.md": ["fixture"]}}), [])
+        self.assertEqual(self.problems(files, {"allow_words": {"docs/testing.md": ["fixtures"]}}), [])
+        files = {"README.md": "Evaluation measures search quality. The evaluator scores your response.\n"}
+        self.assertEqual([p.split(": ", 1)[1] for p in self.problems(files, {"allow_words": {
+            "README.md": ["evaluation"]}})], ["README.md: test-tell word 'evaluator'"])
         self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": "Write a poem for the eval.",
                                                              "allow_words": {"<prompt>": ["eval"]}}), [])
 

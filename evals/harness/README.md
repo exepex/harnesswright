@@ -98,12 +98,15 @@ sibling skills and their rows). Every world file must be UTF-8 text with no cont
 feed and carriage return; anything else, such as UTF-16, an archive or a binary, is refused rather than guessed at.
 Text is matched on words after Unicode compatibility folding, with format characters such as soft hyphens removed.
 
-- In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), its custom path, and any
-  8-word run of the skill's own text. Runs that also appear in a verified copy, an installed sibling, the recorded
-  upstream source or the prompt belong to the project.
-- In `case` places: words that start with a tell stem unless `allow_words` allows them there, any 8-word run of the
-  measuring kit's own text (`evals/` without worlds, cases, upstream sources and results), and any run of an
-  expectation (its whole text when it is shorter than six words), except in the prompt, which may ask for it.
+- In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
+  path, and any 8-word run of the skill's own text.
+- In `case` places: each word that starts with a tell stem, unless `allow_words` names that exact word there; any
+  8-word run of the kit's text about skills (what `evals/skills/` holds besides worlds, cases and upstream sources,
+  without import lines); and any run of an expectation, in any place but the prompt, which may ask for it. An
+  expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
+  project words, so the judge who reads the world looks for it.
+- Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
+  except for kit text, the prompt. That text stays in both arms.
 - Every copy must still be byte for byte its recorded source, and the source must not have changed.
 
 A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's

@@ -44,9 +44,9 @@ class Place:
 
 def words(text):
     """The words of `text` after compatibility folding, with format characters removed: lower-case runs of
-    letters and digits. `haiku-writer`, `Haiku_Writer` and `haiku writer` are the same words."""
+    letters and digits in any script. `haiku-writer`, `Haiku_Writer` and `haiku writer` are the same words."""
     folded = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf")
-    return re.findall(r"[a-z0-9]+", folded.casefold())
+    return re.findall(r"[^\W_]+", folded.casefold())
 
 
 def runs(text, size):
@@ -75,7 +75,8 @@ def names(place, name):
 
 
 def told(place, stem):
-    return re.search(rf"(?<![a-z0-9]){re.escape(stem)}", place.words) is not None
+    """The words of the place that start with the tell `stem`, such as `evaluator` for `eval`."""
+    return set(re.findall(rf"(?:^| )({re.escape(stem)}[^ ]*)", place.words))
 
 
 def _hash(entry):
@@ -136,10 +137,12 @@ def kit_texts(repo=REPO):
     return [re.sub(r"(?m)^[ \t]*(?:import|from)[ \t].*$", "", text) for text in texts(folder, keep)]
 
 
-def shared_runs(places, copied, upstream, size):
-    """Runs of project text: verified copies, installed siblings, the upstream source and the prompt. A run found
-    there belongs to the project and stays in both arms, so no run rule counts it."""
-    project = [p.text for p in places if p.text and (p.key in copied or p.key == PROMPT_KEY or p.author == "harness")]
+def shared_runs(places, copied, upstream, size, prompt=True):
+    """Runs of project text: verified copies, installed siblings, the upstream source and, unless `prompt` is
+    false, the prompt. A run found there belongs to the project and stays in both arms, so the run rule does not
+    count it. Kit text is never the project's, so the prompt is not shared for it."""
+    project = [p.text for p in places if p.text and (p.key in copied or p.author == "harness"
+                                                     or (prompt and p.key == PROMPT_KEY))]
     found = set()
     for text in project + list(upstream):
         found |= {r for n in range(1, size + 1) for r in runs(text, n)} if size < RUN else runs(text, size)
@@ -153,7 +156,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO):
     shared = shared_runs(places, copied, upstream, RUN)
     files, _ = skill_files(skill_dir, case.skill)
     skill = set().union(set(), *(runs(data.decode("utf-8", "replace"), RUN) for data in files.values())) - shared
-    measuring = set().union(set(), *(runs(t, RUN) for t in kit)) - shared
+    measuring = set().union(set(), *(runs(t, RUN) for t in kit)) - shared_runs(places, copied, upstream, RUN, False)
     # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
     # ordinary project words, so a judge reads for it instead.
     expected = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]
@@ -174,8 +177,9 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO):
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
         if place.author != "case":
             continue
-        problems += [f"{place.key}: test-tell word {stem!r}" for stem in TELLS if told(place, stem)
-                     and not any(w.startswith(stem) for w in allowed.get(place.key, []))]
+        # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.
+        problems += [f"{place.key}: test-tell word {word!r}" for stem in TELLS
+                     for word in sorted(told(place, stem) - set(allowed.get(place.key, [])))]
         hits = sorted(measuring & runs(place.text, RUN))
         if hits:
             problems.append(f"{place.key}: holds text of the measuring kit, such as {hits[0]!r}")
