@@ -1,5 +1,6 @@
 """Powers: the power table is the one statement of what a run may do, and the probe proves the jail gives it."""
 
+import socket
 import types
 import unittest
 
@@ -8,6 +9,7 @@ from helpers import TempCase
 import contain
 import manifest
 import powers
+from test_gate import Upstream
 
 JAIL = contain.available()
 
@@ -27,15 +29,21 @@ class Table(unittest.TestCase):
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Probe(TempCase):
-    def run_of(self, mode):
+    def setUp(self):
+        super().setUp()
+        self.upstream = Upstream()  # answers 200, so a tunnel to the model host opens without a network
+        self.addCleanup(self.upstream.close)
+
+    def run_of(self, mode, **kwargs):
         world = self.tmp / "world"
         world.mkdir(exist_ok=True)
         (world / "README.md").write_text("A notes app.\n")
         host = types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=(), MODEL_HOSTS=("model.example.test",),
                                      environment=lambda env: env)
-        env = {"PATH": "/usr/bin:/bin"}
-        return contain.Containment(host, mode, world, manifest.manifest(world), root=self.tmp / f"run-{mode}",
-                                   operator_env=env, operator_home=self.tmp / "operator")
+        env = {"PATH": "/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url}
+        root = self.tmp / f"run-{len(list(self.tmp.glob('run-*')))}"
+        return contain.Containment(host, mode, world, manifest.manifest(world), root=root, operator_env=env,
+                                   operator_home=self.tmp / "operator", **kwargs)
 
     def test_a_sound_jail_gives_exactly_the_table_and_leaves_the_world_as_it_was(self):
         for mode in ("trigger", "task"):
@@ -62,12 +70,51 @@ class Probe(TempCase):
         run.jail = writable_root
         with self.assertRaisesRegex(powers.PowersError, "write outside the run: works"):
             powers.probe(run)
-
-    def test_a_jail_without_the_model_hosts_is_refused(self):
         run = self.run_of("task")
-        run.hosts = []
-        with self.assertRaisesRegex(powers.PowersError, "reach a model host through the gate: does not work"):
+        jail = run.jail
+
+        def writable_dev(command, program=None):
+            args = jail(command, program)
+            at = args.index("/dev", args.index("--remount-ro") + 2)
+            return args[:at - 1] + args[at + 1:]
+
+        run.jail = writable_dev
+        with self.assertRaisesRegex(powers.PowersError, "write outside the run: works"):
             powers.probe(run)
+        tool = self.tmp / "tool"  # a folder the operator names, made writable by mistake
+        tool.mkdir()
+        (tool / "bin").write_text("tool\n")
+        run = self.run_of("trigger", host_paths=[tool])
+        mounts = run.mounts
+        run.mounts = lambda program: [contain.Mount(m.path, "rw", scan=m.scan) if m.path == str(tool) else m
+                                      for m in mounts(program)]
+        with self.assertRaisesRegex(powers.PowersError, "write outside the run: works"):
+            powers.probe(run)
+        self.assertEqual(sorted(p.name for p in tool.iterdir()), ["bin"])
+
+    def test_a_jail_with_more_network_than_the_table_is_refused(self):
+        listener = socket.create_server(("127.0.0.1", 0))  # on the machine's loopback, outside a sound jail
+        self.addCleanup(listener.close)
+        direct = ("127.0.0.1", listener.getsockname()[1])
+        run = self.run_of("trigger")
+        self.assertFalse(powers.probe(run, direct=direct)["connect directly"])
+        jail = run.jail
+        run.jail = lambda command, program=None: [a for a in jail(command, program) if a != "--unshare-net"]
+        with self.assertRaisesRegex(powers.PowersError, "connect directly: works"):
+            powers.probe(run, direct=direct)
+        run = self.run_of("task")
+        run.hosts = run.hosts + ["off-the-list.invalid"]
+        with self.assertRaisesRegex(powers.PowersError, "reach a host off the allow list: works"):
+            powers.probe(run)
+
+    def test_a_model_host_counts_only_when_the_gate_opens_a_tunnel(self):
+        for change in ({"hosts": []}, {"upstream": "http://127.0.0.1:9"}):  # no model host; the gate answers 502
+            run = self.run_of("task")
+            for key, value in change.items():
+                setattr(run, key, value)
+            with self.subTest(change=change), self.assertRaisesRegex(
+                    powers.PowersError, "reach a model host through the gate: does not work"):
+                powers.probe(run)
 
 
 if __name__ == "__main__":

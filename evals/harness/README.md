@@ -175,6 +175,8 @@ through the operator's own proxy when there is one.
 
 `powers.TABLE` is the one statement of what a run may do: each row is an action, with whether it must work in a
 trigger run and in a task run. `powers.probe(run)` runs `powers.PROBE` in the run's jail, inside its gate, and
-raises `PowersError` naming every row that differs (doc 11, Powers). A task-run write to the world removes its file
-again, so the world stays the proved arm. The jail remounts the folders it creates read-only, so nothing outside
-the list can be written.
+raises `PowersError` naming every row that differs (doc 11, Powers). Each write makes a file with a unique name and
+removes it again, so the world stays the proved arm. The places a mode may write are one set, from the table: the
+private home, `/tmp`, `/dev/shm`, and the world and scratch in task runs. "Write outside the run" tries every other
+place on the list of mounts and every folder the jail creates. The jail remounts its root and `/dev` read-only, so
+those writes fail.
