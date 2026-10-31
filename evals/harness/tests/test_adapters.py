@@ -71,7 +71,7 @@ class Codex(TempCase):
                      "changes": {"/w/b": {"type": "add", "content": "x"}}}),
             done(7, {"type": "UserMessage", "content": []})])
         self.session("sub", [done(5, {"type": "CommandExecution", "command": ["ls", "-a"], "exit_code": 2,
-                                      "aggregated_output": "", "parsed_cmd": []})])
+                                      "aggregated_output": "", "parsed_cmd": [{"type": "read", "path": skill}]})])
         self.assertEqual(CODEX.action_log("", self.tmp), [
             host.entry("message", text="On it."),
             host.entry("command", command=f"cat {skill}", exit_code=0, output="x" * 4000),
@@ -110,6 +110,17 @@ class Codex(TempCase):
             {"name": "functions", "tools": [{"name": "exec", "description": "no headings"}]}]}},
             {"type": "world_state", "payload": {"state": state}}])
         self.assertIsNone(CODEX.exposure("", self.tmp))  # an exec that names no nested tool is no report
+        self.session("main", [{"type": "response_item", "payload": {"type": "additional_tools", "tools": []}},
+                              {"type": "world_state", "payload": {"state": state}}])
+        self.assertIsNone(CODEX.exposure("", self.tmp))  # nor is a record that declares no exec
+        rooted = {"host_skills": {"body": "### Available skills\n- `r0` = `/x`\n"}, "top_level_tools": {}}
+        self.session("sub", [{"type": "world_state", "payload": {"state": rooted}}])
+        self.session("main", [{"type": "response_item", "payload": nested},
+                              {"type": "world_state", "payload": {"state": state}}])
+        self.assertIn("- `r0` = `/x`", CODEX.exposure("", self.tmp)["skills"])  # a root's row only under roots
+        self.session("sub", [{"type": "world_state", "payload": {"state": {"top_level_tools": {}}}},
+                             {"type": "world_state", "payload": {"state": {"host_skills": {"body": ""}}}}])
+        self.assertIsNone(CODEX.exposure("", self.tmp))  # changes only, never one full report
         for state in ({"top_level_tools": {}}, {"host_skills": {"body": ""}}, {"host_skills": "x"}, None,
                       {"host_skills": {"body": ""}, "top_level_tools": {"functions.exec": "b"}}):
             with self.subTest(state=state):  # a thread that does not report all of it is no report, never "nothing"

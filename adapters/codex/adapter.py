@@ -270,7 +270,8 @@ def action_log(stdout, home):
             log.append({"kind": "command", "source": "observed", "command": _command_text(item.get("command")),
                         "exit_code": exit_code if isinstance(exit_code, int) else None,
                         "output": str(item.get("aggregated_output") or "")[:4000]})
-            for parsed in item.get("parsed_cmd") or []:  # Codex's own reading of the command, so inferred
+            # Codex's own reading of the command, so inferred; only a command that worked read anything.
+            for parsed in item.get("parsed_cmd") or [] if exit_code == 0 else []:
                 if isinstance(parsed, dict) and parsed.get("type") == "read" and isinstance(parsed.get("path"), str):
                     log.append({"kind": "read", "source": "inferred", "path": parsed["path"]})
                     found = re.search(r"skills/([^/]+)/SKILL\.md$", parsed["path"])
@@ -307,9 +308,7 @@ def exposure(stdout, home):
             payload = record["payload"]
             if payload.get("type") == "additional_tools":
                 found = _nested_tools(payload.get("tools"))
-                if found is None:
-                    return None
-                nested = (nested or set()) | found
+                nested = (nested or set()) | found if found else nested
             state = payload.get("state") if record.get("type") == "world_state" else None
             if not isinstance(state, dict):
                 continue
@@ -347,17 +346,15 @@ def _skill_rows(body):
 
 
 def _nested_tools(declared):
-    """The tools nested in `functions.exec`, from the headings of its description; None when it has an `exec` that
-    names none, as it always nests at least `exec_command`."""
+    """The tools nested in `functions.exec`, from the headings of its description. Only a positive report counts:
+    None when the record declares no `exec` or one that names no tool, as it always nests at least
+    `exec_command`."""
     names = set()
     for space in declared if isinstance(declared, list) else []:
         for tool in space.get("tools") or [] if isinstance(space, dict) and space.get("name") == "functions" else []:
             if isinstance(tool, dict) and tool.get("name") == "exec":
-                found = set(NESTED.findall(str(tool.get("description", ""))))
-                if not found:
-                    return None
-                names |= found
-    return names
+                names |= set(NESTED.findall(str(tool.get("description", ""))))
+    return names or None
 
 
 def run_failure(stdout, returncode, timed_out):
