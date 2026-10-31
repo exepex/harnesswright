@@ -18,9 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cases import REPO, sha256_file, tree_hash  # noqa: E402
 
-KIT = ("evals/harness/audit.py", "evals/harness/cases.py", "evals/harness/contain.py", "evals/harness/evidence.py",
-       "evals/harness/hostrun.py", "evals/harness/lint.py", "evals/harness/powers.py", "evals/harness/probes.py",
-       "evals/harness/world.py", "evals/harness/tests/**/*.py", "evals/runner/seal.py", "adapters/*/adapter.py",
+KIT = ("evals/harness/*.py", "evals/harness/tests/**/*.py", "evals/runner/seal.py", "adapters/*/adapter.py",
        "evals/faults/**/*",
        "evals/checks/**/*", "evals/goldens/**/*", "evals/grader/**/*")
 MIN_JUDGES = 3

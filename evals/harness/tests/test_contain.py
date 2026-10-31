@@ -95,6 +95,14 @@ class ContainmentFaults(TempCase):
         self.assertEqual(command["output"].strip(), "0")
         self.assertFalse(next(e for e in run.actions if e["kind"] == "write")["ok"])
 
+    @needs_jail
+    def test_the_audit_sees_the_host_install_the_host_gets(self):
+        adapter = self.fake_adapter()
+        install = __import__("pathlib").Path(adapter.CLI).parents[1]
+        canaries = contain.plant_canaries([install])
+        with self.assertRaisesRegex(contain.ContainmentError, "canary"):
+            self.box(adapter, canaries=canaries).audit(adapter.CLI)
+
     def test_nothing_of_the_repository_is_mounted(self):
         adapter = self.fake_adapter()
         box = self.box(adapter, host_paths=[str(contain.REPO / "skills")])

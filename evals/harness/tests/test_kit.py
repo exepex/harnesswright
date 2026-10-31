@@ -53,6 +53,7 @@ class Kit(TempCase):
     def test_the_real_kit_holds_the_harness_adapters_and_faults(self):
         names = set(kit.files())
         for path in ("evals/harness/lint.py", "evals/harness/audit.py", "evals/harness/powers.py",
+                     "evals/harness/hosts.py", "evals/harness/kit.py",
                      "adapters/codex/adapter.py", "adapters/claude-code/adapter.py", "evals/faults/harness.json",
                      "evals/harness/tests/test_probes.py"):
             self.assertIn(path, names)

@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 
 from cases import tree
+from lint import shingles
 
 KINDS = ("read", "search", "write", "command", "blocked", "skill_load", "tool")
 SOURCES = ("observed", "inferred")
@@ -81,23 +82,25 @@ def write_bundle(folder, record, world_after, secrets, tokens):
     (folder / "bundle.json").write_text(text + "\n")
     files = folder / "files"
     shutil.copytree(world_after, files, symlinks=True, ignore=shutil.ignore_patterns(".git"))
+    # Every file is scrubbed as bytes, so a binary artifact cannot carry a credential or hide a canary.
     for path in sorted(files.rglob("*")):
         if path.is_file() and not path.is_symlink():
-            try:
-                content = path.read_text()
-            except UnicodeDecodeError:
-                continue
-            clean = redact(content, secrets)
-            hits += tokens_in(clean, tokens)
-            if clean != content:
-                path.write_text(clean)
+            data = path.read_bytes()
+            clean = data
+            for secret in secrets:
+                if secret:
+                    clean = clean.replace(secret.encode(), REDACTED.encode())
+            hits += [token for token in tokens if token.encode() in clean]
+            if clean != data:
+                path.write_bytes(clean)
     return sorted(set(hits))
 
 
-def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=()):
+def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=(), skill_texts=()):
     """Write the view graders get of a bundle. The overlay's files and index rows are gone from the files and
-    the diff, skill loads and reads of overlay files are gone from the action log, and skill names, skill paths
-    and the arm are replaced by neutral words everywhere. Call it with the same names for both arms."""
+    the diff. Skill loads, and every action that names an overlay path or whose text holds an 8-word run of the
+    skill (`skill_texts`, such as a command that printed SKILL.md), are gone from the action log. Skill names,
+    skill paths and the arm are replaced by neutral words everywhere. Call it with the same names for both arms."""
     bundle_dir, out_dir = Path(bundle_dir), Path(out_dir)
     record = json.loads((bundle_dir / "bundle.json").read_text())
     for key in ("arm", "overlay", "arm_sha256"):
@@ -108,8 +111,16 @@ def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=()):
 
     diff = record.get("diff") or {}
     record["diff"] = {key: [p for p in paths if outside(p)] for key, paths in diff.items()}
-    record["actions"] = [entry for entry in record.get("actions") or [] if entry.get("kind") != "skill_load"
-                         and not any(p in str(entry.get("path") or "") for p in overlay_paths)]
+    marks = set()
+    for text in skill_texts:
+        marks |= shingles(text)
+
+    def shows_skill(entry):
+        text = json.dumps(entry)
+        return any(p in text for p in overlay_paths) or bool(marks & shingles(text))
+
+    record["actions"] = [entry for entry in record.get("actions") or []
+                         if entry.get("kind") != "skill_load" and not shows_skill(entry)]
     text = _neutral(json.dumps(record, indent=1, sort_keys=True), overlay_paths, skill_names)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "bundle.json").write_text(text + "\n")

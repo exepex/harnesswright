@@ -79,6 +79,28 @@ class Bundles(TempCase):
         self.assertEqual([e["kind"] for e in data["actions"]], ["write"])
         self.assertEqual(data["diff"]["added"], [])
 
+    def test_binary_files_are_scrubbed_too(self):
+        folder = self.world()
+        (folder / "artifact.bin").write_bytes(b"\xff\xfe sk-secret-value HWCANARY-bin \x00")
+        hits = evidence.write_bundle(self.tmp / "b", {"final": ""}, folder, ["sk-secret-value"], ["HWCANARY-bin"])
+        self.assertEqual(hits, ["HWCANARY-bin"])
+        data = (self.tmp / "b" / "files" / "artifact.bin").read_bytes()
+        self.assertNotIn(b"sk-secret-value", data)
+        self.assertIn(evidence.REDACTED.encode(), data)
+
+    def test_the_grader_view_drops_commands_that_show_the_skill(self):
+        folder = self.world()
+        skill = "Count the syllables of every line twice before you answer, five then seven then five."
+        record = {"actions": [
+            {"kind": "command", "source": "observed", "command": "cat .agents/skills/x/SKILL.md", "output": skill},
+            {"kind": "command", "source": "observed", "command": "sed -n 1,9p notes.md", "output": skill},
+            {"kind": "command", "source": "observed", "command": "go test ./...", "output": "ok"}]}
+        evidence.write_bundle(self.tmp / "b", record, folder, [], [])
+        view = evidence.grader_view(self.tmp / "b", self.tmp / "v", ["skills/haiku-writer", ".agents/skills/x"],
+                                    ["haiku-writer"], skill_texts=[skill])
+        commands = [e["command"] for e in json.loads((view / "bundle.json").read_text())["actions"]]
+        self.assertEqual(commands, ["go test ./..."])
+
     def test_canaries_in_a_bundle_are_reported(self):
         folder = self.world()
         (folder / "leak.txt").write_text("HWCANARY-abc\n")

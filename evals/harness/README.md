@@ -82,4 +82,4 @@ each harness fault against it: a negative control shows each fault is caught whe
   leaves `design` and `doctor`, the adapter's `HOST_SKILLS`.
 - Claude Code was not probed live: this container has no Claude Code sign-in a sealed run may use, so its sign-in
   probe fails ("Not logged in") and the host is `not run`. Its powers in this configuration are not verified yet.
-- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 41 tests, all passing.
+- Unit tests: `python3 -m unittest discover -s evals/harness/tests` runs 44 tests, all passing.

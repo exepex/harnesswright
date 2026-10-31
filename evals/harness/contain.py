@@ -126,8 +126,9 @@ class Containment:
             raise ContainmentError(f"a run may not mount anything of this repository: {inside}")
         return [p for p in read_only if Path(p).exists()], writable
 
-    def jail(self, command):
-        """`command` wrapped in the bwrap jail of this run."""
+    def jail(self, command, program=None):
+        """`command` wrapped in the bwrap jail of this run. `program` is the host whose install is mounted
+        (default the command's own program), so the audit runs with exactly the host's mounts."""
         reason = available()
         if reason:
             raise ContainmentError(reason)
@@ -144,7 +145,7 @@ class Containment:
                 args += ["--tmpfs", mask]
             elif os.path.lexists(mask):
                 args += ["--ro-bind", "/dev/null", mask]
-        read_only, writable = self.mounts(command[0])
+        read_only, writable = self.mounts(program or command[0])
         for path in read_only:
             args += ["--ro-bind", path, path]
         for path in writable:
@@ -183,7 +184,7 @@ class Containment:
     def audit(self, program):
         """Run the visibility audit inside this jail. Return its report; raise ContainmentError on any problem."""
         python = shutil.which("python3", path="/usr/bin:/bin") or "/usr/bin/python3"
-        command = self.jail([python, "-I", "-c", AUDIT_SOURCE])
+        command = self.jail([python, "-I", "-c", AUDIT_SOURCE], program=program)
         result = subprocess.run(command, input=json.dumps(self.audit_spec(program)), capture_output=True,
                                 text=True, env=self.env, timeout=120)
         try:
