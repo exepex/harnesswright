@@ -82,7 +82,7 @@ Every result records what produced it: the harnesswright commit, the host versio
 host's permissions, and hashes of the skill and the eval files. Each host runs tasks with the same powers: it may run
 commands and write inside the task's workspace, and has no network.
 
-The labels for every skill are kept in `evals/results/` and updated whenever evals run.
+The labels for every skill are kept in `evals/results/` and updated whenever evals run. How evals are built, run and scored is set in [11 Evals](11-evals.md).
 
 ### Portability rules
 

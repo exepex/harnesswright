@@ -1,0 +1,283 @@
+# 11 · Evals: the harness that measures skills
+
+The eval harness measures each skill on each host by running the same tasks with the skill and without it. Every
+run's world is declared up front and built from nothing, and nothing counts until the harness has proved, in that
+same round, that it measures correctly. This document replaces the runner design of phase 2. The labels,
+thresholds and portability rules of [10 · Skills](10-skills.md) stay as they are.
+
+## Why the phase 2 runner was replaced
+
+Phase 2 hit 24 measuring failures in a row. Each fix was right for its failure, and the next round still failed,
+because the runner had four structural flaws:
+
+1. **Deny-list worlds.** A workspace started as a copy of something bigger (the repository, the operator's
+   environment, the host's defaults) and the runner stripped what it knew was dangerous. Each round found one
+   more thing it had not stripped: `/tmp`, git history, project memory, the run's own expectations.
+2. **Undefined arms.** "Without the skill" meant whatever was left after deleting the skill folder. Index rows,
+   role files and loaded instruction files stayed, so the baseline was sometimes a stop test and sometimes
+   contaminated, differently on each host.
+3. **No proof of the harness.** Leaks were found after a full round, by a person or judge reading transcripts.
+4. **Scoring outside the runner.** Most expectations were prose for graders spawned by hand, one per
+   configuration, who knew which arm they graded and were never checked against known answers.
+
+Only one of the 24 failures was a true finding about an agent. The other 23 were the harness measuring wrongly.
+
+## Principles
+
+1. **Allow, never deny.** A run gets only what its eval case declares. Nothing is copied from the machine and then
+   filtered.
+2. **One difference.** The two arms are built from the same world and differ only in the skill, proved by hash.
+3. **Prove the harness first.** Every round starts with an audit, probes and planted faults. A miss stops the
+   round before any real run counts.
+4. **Scripts before judgement.** If a script can decide an expectation, a script decides it.
+5. **Void only for harness faults.** A run is voided, and shown, only when the harness failed. What the agent
+   did, including blocked attempts, is scored.
+6. **A round is a record.** Every input is hashed, every output is stored outside the working tree, and a label
+   comes from one complete round.
+
+The runner and every check are Python 3 with only the standard library and no network calls of their own
+(`HW-PORT-04`). Judges stay independent of the builder (`HW-PORT-03`).
+
+## The baseline
+
+The without-skill arm is the same project as if the skill had never been written. The project's own rules
+(`AGENTS.md`, design documents, role files) stay in both arms. The lift therefore measures what the skill adds
+beyond the repository's rules. A skill that adds nothing beyond them is a real finding: the skill or the rules
+should change.
+
+## Gates of a round
+
+A round moves through fixed gates. Any gate that fails stops the round with its reason.
+
+| Gate | What it does |
+|---|---|
+| Plan | Hash every input into the round manifest |
+| Kit check | Refuse to start unless the measuring kit matches the judges' approval |
+| Lint | Reject cases whose world or prompt is unsound |
+| Probe | Prove each host's sign-in, powers, discovery, instructions and isolation |
+| Faults | Run the judges' planted faults; every one must be caught |
+| Run | Run both arms, sealed, cases and arms interleaved |
+| Evidence | Reduce each run to one host-neutral record |
+| Check | Script checks decide what they can |
+| Grade | Blind, calibrated graders decide the rest |
+| Label | Apply the labels of [10 · Skills](10-skills.md) |
+| Store | Write the round outside the working tree |
+
+## Worlds: what a run is given
+
+Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` and `case.json`.
+
+- **`world/` is the whole project the agent works in, written without the skill.** It holds every file the run
+  sees, including instruction files such as `AGENTS.md` and `CLAUDE.md` when the case wants them.
+- **`case.json`** holds the prompt, the kind (`trigger` or `task`), where the skill goes (default `skills/NAME`),
+  the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
+  trigger cases the `train` or `test` split.
+- **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
+  generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
+  world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. The manifest
+  records both world hashes and the overlay.
+- **Trigger worlds install the full skill set** with its index, as in real use. Should-not-trigger queries
+  include near misses that belong to a sibling skill.
+- **Git history**, when a case needs it, is declared as commits in `case.json` and built with fixed authors and
+  dates.
+
+### World lint
+
+The lint runs before any run. A case that fails it cannot run. It rejects:
+
+- the skill's name or path in the without-skill world or in the prompt;
+- any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
+  the world's documents, in the skill's recorded upstream source (stored and hashed under
+  `evals/skills/NAME/upstream/`), or in the prompt. Text the skill shares with the project's rules belongs to the
+  project and stays in both arms;
+- any eval file, check, expectation text or results file inside a world;
+- test-tell words such as "eval", "fixture", "grader" or "benchmark", unless that file allows the word. A judge
+  also reads every world before it is approved;
+- a `.git` folder, or a symlink that points outside the world;
+- a document copied from this repository whose hash no longer matches its source.
+
+## Containment: what a run can see
+
+A run sees only its world, its scratch folder, its private home and temp folders, read-only system folders and its
+host's own install. The runner proves this in every run.
+
+- **Visibility audit.** Before the host starts, a script runs inside the containment and lists the environment,
+  the mounts and every readable path outside the allowed set. Any hit voids the run and stops the round.
+- **Canary tokens.** Unique tokens are planted where leaks came from before: a decoy operator home, the runner's
+  temp folder, the repository checkout, other runs' folders. Every bundle is scanned for them.
+- **Mechanism.** The default is the seal in `evals/runner/seal.py`: an allow-listed environment, a fresh private
+  `HOME` and `TMPDIR`, and a `bwrap` jail. Any other containment that passes the audit, such as a throwaway
+  container, is accepted, and the manifest records which was used. A machine with no passing containment cannot
+  produce labels; its hosts are `not run`.
+- **Host config and bundled skills.** The jail masks host machine-config folders such as `/etc/codex` and
+  `/etc/claude-code`. Each adapter turns off skills its host ships, where the host allows it, and records every
+  skill the host exposes. An exposed skill that the case does not declare stops the round.
+- **Secrets.** Every credential value the adapter passes is redacted from logs, transcripts and files before a
+  bundle is written.
+
+## Powers: what a run can do
+
+Equal powers are defined once, in the runner, for each mode. Each adapter configures its host to match and removes
+every host tool outside the table, so nothing is left for the host to refuse.
+
+| Power | Trigger runs | Task runs |
+|---|---|---|
+| Read | World and system folders | World, scratch and system folders |
+| Write | Nothing | World, scratch, private home and temp |
+| Run commands | Yes, read-only sandbox | Yes, sandboxed |
+| Network from commands | None | None |
+| Host tools beyond read, write and command | None | None |
+
+### Probes
+
+Before real runs, each host passes these probes in each mode. A failed probe makes that host `not run` for the
+round, with the probe's output as the reason. Each probe checks files the host wrote, never what the model says.
+
+1. **Sign-in:** a one-line prompt returns an answer.
+2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`. The outcome
+   is read from the files it leaves.
+3. **Discovery:** a probe skill, asked for by name with up to two tries, writes a token file.
+4. **Instructions:** each instruction file in a probe world holds a token; the host writes back every token it saw,
+   so every host is shown to load the same instructions.
+5. **Memory:** a decoy memory planted outside the containment tells the host to write a token file. The file must
+   not appear.
+6. **Tools and drift:** the version of every tool a case declares, and the files a host writes for itself on an
+   empty run, are measured and recorded per host version.
+
+### Blocked actions and voids
+
+Every action the host blocks is logged the same way on every host as `blocked`, with its reason, and scored through
+expectations like any other behaviour. A run is voided only for a harness fault: a failed audit, a canary or
+fingerprint hit, a host crash, or a host version that changed during the round. A voided slot gets at most one
+remake. If that is voided too, the slot stays empty and the label is `inconclusive`, with the reason. The label
+reports the void rate per arm, and rates that differ between arms stop the round.
+
+## Evidence: one record for every host
+
+Each adapter turns its host's event stream into a host-neutral **action log**: files read, files written (with
+content hashes), commands run (with exit code and bounded output), blocked actions, skill loads and the final
+message. Every entry is tagged **observed** (the host reported it) or **inferred** (the adapter worked it out, such
+as a file read parsed from a shell command). The runner adds a **world diff** that leaves out the host's measured
+self-writes and both copies of the installed skill.
+
+The evidence bundle holds the case, the arm, the diff, the files after, the action log, the final message, the
+model, the host version and timings, plus a scrubbed transcript as evidence of last resort: the arm, skill paths
+and skill loads replaced by neutral words, and credentials redacted. Every check and grader reads only the bundle.
+
+## Scoring
+
+### Script checks
+
+A library in `evals/checks/` decides what a script can decide: file state, sections and frontmatter, words shared
+with a source, "ends with exactly one question", commands run or never run. A skill may add its own checks.
+
+- **Every check has an answer key:** fixture bundles that must pass and must fail, run in the unit tests and
+  approved by a judge.
+- **Every check names its source:** a **contract**, a rule stated by a document in the world (cited by path and
+  line, verified by the lint), or the **skill's own format**. Only contract checks and judged expectations count
+  toward the lift. Format conformance is reported separately.
+- **A check never decides on inferred evidence.** It returns `undecidable`, and the expectation goes to the
+  graders with the command list.
+
+An expectation may be judged only when no check can decide it.
+
+### Graders
+
+Each judged expectation is a yes-or-no question with a pass rule, a fail rule, and at least one passing and one
+failing example.
+
+- **Graders are sealed runs** started by the runner, never by the session doing the work. Each sees one bundle,
+  the expectations and their examples.
+- **Blind:** the arm is removed, skill loads are neutralised, and runs from both arms are interleaved.
+- **Two graders per run, on two different hosts** when both are available, so no model only grades its own host's
+  output. A third grader breaks ties. Agreement is reported, not used as a gate.
+- **The grader setup is calibrated, not each grader.** Golden bundles, built in the current world format with
+  settled answers, are ordinary one-bundle grader runs, mixed in and indistinguishable from real ones. Golden
+  accuracy for each expectation across the round is the gate. An expectation whose goldens are missed is marked
+  unreliable, its runs stay ungraded, and the label is `inconclusive` and names it. Goldens are settled by an
+  independent judge; the owner breaks ties.
+- **Every grading file is validated** against its schema: every expectation answered, with evidence quoted.
+
+### Baseline backstop
+
+A fingerprint run found in a without-skill run's evidence voids that run. The round stops when the audit or a
+canary also fired; otherwise the run is listed for a judge to read.
+
+## Judges own the measuring kit and the faults
+
+The **measuring kit** is everything that decides a label besides the agent: the checks and their answer keys, the
+lint rules, the power table and probes, the goldens, the grader prompt and the fault catalogue
+(`evals/faults/`). Independent judges approve it. The approval is a record of the kit's hash, written by a judge
+session to the round store, where the builder's session cannot write. The runner refuses to start a round when
+the kit's hash differs from the approved one.
+
+### Harness faults
+
+Every harness fault must be caught, or the round stops.
+
+| Fault planted | Must happen |
+|---|---|
+| A copy of the skill or a canary outside the world | The audit and the canary scan catch it; no run sees it |
+| A decoy memory naming the skill | The memory probe's token file never appears |
+| Session, memory or credential values in the operator's environment | Not passed; redacted from every bundle |
+| The skill's name, path or fingerprint in a without-skill world or prompt | The lint rejects the case |
+| An eval file or a test tell in a world | The lint rejects the case |
+| A host-shipped skill exposed in a run | The round stops |
+| A host that cannot run commands, or the containment, host or key missing | The probe fails and the host is `not run` |
+| A file read through an unusual command, or a command that names a file without reading it | The entry is tagged inferred and no check decides on it |
+| A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
+| A grading file missing an expectation | The schema check rejects it |
+
+The judges run the live faults themselves. They choose placements and names from their own seed, interleave the
+fault runs with real runs, and decide from the stored evidence whether each was caught. Operator-home faults use a
+decoy home, never the real one. The same faults run against a fake host in the unit tests of every pull request.
+
+### Skill faults
+
+Skill faults test that a skill degrades the way the rules say: `scripts: forbidden` in the profile, no Python
+interpreter (the jail masks it), a command the host refuses (each adapter can deny a command pattern), a missing
+input, and a host that cannot start an independent agent or a prompt that asks the agent to judge its own work.
+They are their own gate: the with-skill arm must pass every fault case. They are not counted in the task pass rate
+or the lift. A host that cannot plant a fault is `incomplete` for skills that need it.
+
+After each round the judges look for ways the round could have been wrong, and add each one as a new fault.
+
+## Rounds, results and labels
+
+- **Plan.** `round plan` reads a plan file and writes a manifest with the hash of every world, case, skill,
+  upstream source, kit part, adapter and host version. A host that does not report its model must have one named
+  in the plan.
+- **Run.** `round run` goes through the gates in order. Each run records its host version; a run whose version
+  differs from the manifest is voided.
+- **Resume by hash.** Each run is keyed by the hashes of its inputs and of the runner code that affects a run
+  (containment, adapter, world builder, evidence). Only missing or voided runs are remade. Each label records the
+  commits behind its runs.
+- **Store.** Rounds go to the folder given with `--store`, outside the working tree, checked by writing and reading
+  back a hash. The results pull request commits the manifest and every run's verdicts, redacted, so the label can
+  be recomputed from the repository alone.
+- **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
+  every other host is at most `inconclusive`. The label file adds the void rate per arm, grader agreement, golden
+  accuracy, the fault gate result, how many expectations rested on inferred evidence, and format conformance.
+- **Description tuning** keeps its train and test split. A tuned description is a declared, hashed input.
+- **Labels from the phase 2 runner** stay in `evals/results/`, marked as from the old harness, until the first
+  round of this harness replaces them.
+
+## Build order
+
+Each step is its own pull request, merged by the owner before the next starts.
+
+1. This document.
+2. Worlds, containment and probes: the world builder and lint, both arms with their hash proof, the visibility
+   audit, canaries, config masks and redaction, the power table, the wider adapter contract (observed or inferred
+   action log, blocked actions, bundled skills, fault planting), the probes, and the harness faults against the
+   fake host. The judges approve the first version of the measuring kit.
+3. Checks and cases: the check library with answer keys, both skills' evals ported to cases, and the skill faults.
+4. Controlled grading: sealed graders, goldens, the grading schema and the grading faults.
+5. Rounds: `round plan` and `round run`, the kit check, resume, `--store`, the new label file, and removal of the
+   phase 2 flow (`--base`, `score`, hand grading).
+6. The first labelled round of both skills on both hosts, checked by a fresh independent judge.
+
+## Out of scope
+
+The open-host adapter, a containment for macOS, new skills, and changes to the thresholds of
+[10 · Skills](10-skills.md).
