@@ -41,6 +41,10 @@ TABLE = {
     "reach a model host through the gate": (True, True),
 }
 
+# The kinds of host tool a run may have, in both modes. A sub-agent runs in the same jail, so it has the same
+# powers. Each adapter names its host's tools by kind (`host.CONTRACT`); a tool of any other kind stops the round.
+TOOLS = ("read", "write", "command", "skill", "agent")
+
 PROBE = r'''
 import json, os, re, socket, stat, sys, tempfile
 

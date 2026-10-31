@@ -152,7 +152,8 @@ host's own install. The runner proves this in every run.
 
 Equal powers are defined once, in the runner (`evals/harness/powers.py`), for each mode. The jail enforces them
 for the host and its commands alike, so each adapter turns its host's own sandbox off and removes every host tool
-outside the table: nothing is left for the host to refuse. Before any host runs, the powers probe tries every row
+outside the table: nothing is left for the host to refuse. A sub-agent runs in the same jail, so it has the same
+powers. Before any host runs, the powers probe tries every row
 directly in the jail; any row that differs makes the host `not run`. Temp is the run's `TMPDIR`, `/tmp` and
 `/dev/shm`, all private to the run. The probe reads the jail's own mount table from the kernel: every mount it
 lets the run write must be a place the table lets the mode write, a device file such as `/dev/null`, or a kernel
@@ -166,7 +167,7 @@ host counts as reached only when the gate opens a tunnel to one.
 | Write | Private home and temp only, never the world | World, scratch, private home and temp |
 | Run commands | Yes, in the jail | Yes, in the jail |
 | Network from commands | Only the model hosts, through the gate | Only the model hosts, through the gate |
-| Host tools beyond read, write and command | None | None |
+| Host tools | Read, write, command, load a skill, start a sub-agent in the same jail | The same |
 
 ### Probes
 

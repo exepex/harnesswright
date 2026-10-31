@@ -1,0 +1,88 @@
+#!/usr/bin/python3 -I
+"""A fake host for the harness tests: a program that acts like an agent host, with no model.
+
+The prompt on stdin is a JSON list of actions, which it carries out in order with real files and commands, and it
+prints one JSON event per line in its own format, which only its adapter knows. Like a real host, it has its own
+sandbox (on unless `--sandbox off`), bundled skills (unless `--no-bundled`) and tools beyond the power table
+(unless `--tools` lists the ones to keep).
+
+Actions: {"do": "read", "path"}, {"do": "write", "path", "text"}, {"do": "command", "command", "block": reason
+(optional: the host refuses it)}, {"do": "skill", "name"}, {"do": "agent", "task"}, {"do": "say", "text"}.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+TOOLS = {"read": "read_file", "write": "write_file", "command": "shell", "skill": "load_skill", "agent": "spawn",
+         "clock": "clock"}
+BUNDLED = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "bundled")
+
+
+def emit(**event):
+    print(json.dumps(event), flush=True)
+
+
+def skills(world, bundled):
+    found = {}
+    roots = [os.path.join(world, ".fake", "skills")] + ([BUNDLED] if bundled else [])
+    for root in roots:
+        for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+            if os.path.isfile(os.path.join(root, name, "SKILL.md")):
+                found.setdefault(name, os.path.join(root, name, "SKILL.md"))
+    return found
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--world", required=True)
+    parser.add_argument("--sandbox", choices=("on", "off"), default="on")
+    parser.add_argument("--no-bundled", action="store_true")
+    parser.add_argument("--tools", default=",".join(TOOLS.values()))
+    options = parser.parse_args()
+    tools = [tool for tool in options.tools.split(",") if tool in TOOLS.values()]
+    exposed = skills(options.world, not options.no_bundled)
+    emit(event="start", skills=sorted(exposed), tools=tools)
+    for action in json.loads(sys.stdin.read()):
+        tool = TOOLS.get(action["do"]) if action["do"] != "say" else None
+        if action["do"] == "say":
+            emit(event="message", text=action["text"])
+        elif tool not in tools:
+            emit(event="error", message=f"no tool {tool}")
+        elif action.get("block"):
+            emit(event="refused", tool=tool, detail=action.get("command", ""), reason=action["block"])
+        elif tool == "write_file" and options.sandbox == "on":
+            emit(event="refused", tool=tool, detail=action["path"], reason="the host's sandbox is read-only")
+        else:
+            act(tool, action, exposed)
+    emit(event="done")
+
+
+def act(tool, action, exposed):
+    try:
+        if tool == "read_file":
+            with open(action["path"], encoding="utf-8") as handle:
+                handle.read()
+            emit(event="tool", tool=tool, path=action["path"])
+        elif tool == "write_file":
+            with open(action["path"], "w", encoding="utf-8") as handle:
+                handle.write(action["text"])
+            emit(event="tool", tool=tool, path=action["path"], content=action["text"])
+        elif tool == "shell":
+            done = subprocess.run(["/bin/sh", "-c", action["command"]], capture_output=True, text=True, timeout=60)
+            emit(event="tool", tool=tool, command=action["command"], exit=done.returncode,
+                 output=done.stdout + done.stderr)
+        elif tool == "load_skill":
+            with open(exposed[action["name"]], encoding="utf-8") as handle:
+                handle.read()
+            emit(event="tool", tool=tool, name=action["name"])
+        elif tool == "spawn":
+            emit(event="tool", tool=tool, task=action["task"])
+    except (OSError, KeyError) as error:
+        emit(event="error", tool=tool, detail=action.get("path") or action.get("name", ""), message=str(error))
+
+
+if __name__ == "__main__":
+    main()
