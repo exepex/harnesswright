@@ -15,8 +15,9 @@ rule reads them. `installed` places are real project content, checked for the sk
 every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
-verified copies, installed sibling files and the recorded upstream source. It stays in both arms, so it never
-counts. The prompt is never project text: the case author writes it for this case.
+verified copies, installed sibling files, the recorded upstream source and the standard licence texts in
+`evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never project text: the case
+author writes it for this case.
 
 What the lint reads is what an agent reads: every world file must be UTF-8 text with no control character other
 than tab, line feed and carriage return. A file in any other form, such as UTF-16, an archive or a binary, is
@@ -56,9 +57,9 @@ CASE_DATA = ("case.json", "tasks.json", "triggers.json")
 EVERY = ("names", "skill", "tells", "eval", "expectations")
 RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "skill"),
          "rows": ("names", "skill", "eval", "expectations")}
-# A licence file at the top of a skill folder holds standard terms, not the skill's own text, so it is never part
-# of the fingerprint; a world may carry the same licence.
-LICENCE = re.compile(r"(?i)(?:licen[cs]e|copying|notice)(?:[-._][^/]*)?")
+# Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
+# licence. Only text found in them is excused, never a file by its name.
+LICENCES = ("evals", "fixtures", "licences")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
 
@@ -236,10 +237,9 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     expectations = [" ".join(e) for e in expectations if len(e) >= SHORTEST]
     expected_sizes = {min(EXPECTATION_RUN, len(e.split())) for e in expectations}
     project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
-                       + list(upstream), {RUN} | expected_sizes)
+                       + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | expected_sizes)
     files, _ = skill_files(skill_dir, case.skill)
-    skill = all_runs((data.decode("utf-8", "replace") for rel, data in files.items() if not LICENCE.fullmatch(rel)),
-                     {RUN}) - project
+    skill = all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.
@@ -262,9 +262,10 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
         # A sibling's own file naming the skill is the sibling's fault; any other place is the case's to fix.
         named = ("a sibling skill names {!r}; skills must never name each other" if place.kind == "installed"
                  else "names the skill ({!r})")
-        problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
+        if "names" in rules:
+            problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
         hits = sorted(skill & runs(place.text, {RUN}))
-        if hits:
+        if hits and "skill" in rules:
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
         if "tells" in rules:
             # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.

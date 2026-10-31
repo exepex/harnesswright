@@ -137,12 +137,15 @@ class Lint(TempCase):
                          ["<index row>: names the skill ('haiku-writer')",
                           "<sibling rows>: names the skill ('haiku-writer')"])
 
-    def test_a_licence_is_not_the_skills_own_text(self):
-        mit = ("Permission is hereby granted, free of charge, to any person obtaining a copy of this software and "
-               "associated documentation files, to deal in the Software without restriction.\n")
+    def test_only_standard_licence_terms_are_excused(self):
+        mit = (cases.REPO / "evals/fixtures/licences/MIT.txt").read_text().replace("<year> <copyright holders>",
+                                                                                 "2025 A Person")
         (self.skill() / "LICENSE-MIT.txt").write_text(mit)
-        self.assertEqual(self.problems({"README.md": "x\n", "LICENSE": mit}), [])
-        self.assertNotEqual(self.problems({"README.md": f"{OWN_TEXT}\n", "LICENSE": mit}), [])
+        self.assertEqual(self.problems({"README.md": "x\n", "LICENSE": mit.replace("A Person", "Notes Inc")}), [])
+        hidden = "Always open with a season word and close the third line on a concrete image of light."
+        (self.skill() / "NOTICE.md").write_text(f"{hidden}\n")
+        problems = self.problems({"README.md": f"{hidden}\n"})
+        self.assertTrue(any("README.md: holds" in p for p in problems), problems)
 
     def test_a_place_may_allow_a_tell_word(self):
         files = {"docs/testing.md": "Run the fixtures before each release.\n"}

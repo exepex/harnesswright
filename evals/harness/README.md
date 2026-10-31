@@ -121,13 +121,14 @@ binary, is refused rather than guessed at. Text is matched on words after Unicod
 format characters such as soft hyphens removed.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
-verified copies, installed sibling files and the recorded upstream source. That text stays in both arms, so it
-never counts. The prompt is never project text, since the case author writes it for this case.
+verified copies, installed sibling files, the recorded upstream source and the standard licence texts recorded in
+`evals/fixtures/licences/`. A skill and a world may carry the same licence, but only its standard terms are
+excused, never a file by its name. That text stays in both arms, so it never counts. The prompt is never project
+text, since the case author writes it for this case.
 
 - In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
   path, and any 8-word run of the skill's own text. A sibling skill's own file that names the skill is reported
-  against the sibling, because skills never name each other. A licence file at the top of the skill folder holds
-  standard terms, not the skill's own text, so it is not part of the fingerprint.
+  against the sibling, because skills never name each other.
 - In `world` and `declared` places: each word that starts with a tell stem, unless `allow_words` names that exact
   word there (the index row has the index file's); any 8-word run of eval text; and any run of an expectation, in
   any place but the prompt, which may ask for it. An expectation of three to five words is matched whole. One of
