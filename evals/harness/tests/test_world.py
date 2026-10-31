@@ -80,6 +80,9 @@ class Arms(TempCase):
             "no history": lambda t: shutil.rmtree(t / ".git"),
             "extra commit": lambda t: world._git(t, "commit", "-q", "--allow-empty", "-m", "Use the skill"),
             "unstaged": lambda t: world._git(t, "rm", "-q", "--cached", "x"),
+            "skip-worktree": lambda t: world._git(t, "update-index", "--skip-worktree", "README.md"),
+            "linked index": lambda t: (shutil.move(t / ".git/index", t.parent / f"{t.name}-index"),
+                                       (t / ".git/index").symlink_to(t.parent / f"{t.name}-index")),
         }
         for name, change in changes.items():
             with self.subTest(change=name), self.assertRaisesRegex(cases.CaseError, "git history"):

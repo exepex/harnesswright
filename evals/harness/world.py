@@ -230,22 +230,13 @@ def _history(world, commits):
         # Forced, so a world .gitignore cannot drop a path the case declares.
         _git(world, "add", "--force", "--", *commit["paths"])
         _git(world, "commit", "-q", "--allow-empty", "-m", commit["message"])
-
-
-STAGED = ".git/index (git ls-files -s)"
-
-
-def _git_state(arm, entries):
-    """What an arm's `.git` holds: its entries, with the index file (which records file times) replaced by the
-    entries it stages."""
-    state = {p: e for p, e in entries.items() if p != ".git/index"}
-    if ".git/index" in entries:
-        state[STAGED] = _git(arm, "ls-files", "-s", "-z")
-    return state
+    # The index is rebuilt from the head tree with no file times or flags, so it is the same bytes in every copy and
+    # is compared like any other file. git refreshes the times on its first status in the arm.
+    _git(world, "read-tree", "HEAD")
 
 
 def _replay(case):
-    """The `.git` state every arm of `case` must have, from the declared commits replayed in a scratch copy of the
+    """The `.git` entries every arm of `case` must have, from the declared commits replayed in a scratch copy of the
     world, and the head commit (None without history)."""
     if not case.commits:
         return {}, None
@@ -254,16 +245,15 @@ def _replay(case):
         shutil.copytree(case.world, scratch, symlinks=True, dirs_exist_ok=True)
         _history(scratch, case.commits)
         entries = {p: e for p, e in manifest.manifest(scratch).items() if p.split("/")[0] == ".git"}
-        return _git_state(scratch, entries), _git(scratch, "rev-parse", "HEAD").strip()
+        return entries, _git(scratch, "rev-parse", "HEAD").strip()
 
 
 def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
     """Raise CaseError unless both arms are exactly what the case says. Return the proof record.
 
     Each arm is read from disk again. Its manifest must equal the one rebuilt from the written world and the plan,
-    entry for entry, the index file included. Its `.git` must equal the one replayed from the declared commits:
-    none of any kind without commits, and the same objects, refs, config and staged entries with them. git reads
-    the arm's index only after every other `.git` entry, config included, has matched.
+    entry for entry, the index file included. Its `.git` must equal the one replayed from the declared commits,
+    entry for entry: none of any kind without commits. git never runs on an arm to prove it.
     """
     want_git, head = _replay(case)
     read = {}
@@ -276,8 +266,7 @@ def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
         if missing or extra or differ:
             raise CaseError(f"the {arm.arm} arm is not what the case says: missing {missing}, extra {extra}, "
                             f"different {differ}")
-        got = {p: e for p, e in git.items() if p != ".git/index"}
-        if got != {p: e for p, e in want_git.items() if p != STAGED} or _git_state(arm.path, git) != want_git:
+        if git != want_git:
             raise CaseError(f"the {arm.arm} arm's git history is not what the case declares")
         read[arm.arm] = want
     return {"without_skill": manifest.digest(read["without_skill"]), "with_skill": manifest.digest(read["with_skill"]),

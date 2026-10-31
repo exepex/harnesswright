@@ -78,8 +78,9 @@ kept.
 `world.prove` reads both arms from disk again. It rebuilds each expected manifest from the written world and the
 plan, never from what the builder recorded, and each arm must equal it entry for entry, the index file included.
 Each arm's `.git` must equal the one replayed from the declared commits in a scratch copy of the world. Without
-commits there is no `.git` of any kind, link, file or folder. With them, every entry under `.git` must match, and
-the index must stage the same entries; git reads the arm's index only once the rest, config included, has matched.
+commits there is no `.git` of any kind, link, file or folder. With them, every entry under `.git` must match byte
+for byte, the index included: it is rebuilt from the head tree with no file times or flags, so every copy holds the
+same bytes. git never runs on an arm to prove it.
 
 Git runs with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or hooks never
 take part. Declared paths are added with `--force`, so a world `.gitignore` cannot drop them, and a git failure is
