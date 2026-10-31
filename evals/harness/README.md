@@ -3,9 +3,9 @@
 The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It replaces the phase 2 runner in
 `evals/runner/`, which stays until rounds move here (build step 5).
 
-The harness is built in small pull requests, one part each. This folder holds the first part: **the manifest and
-eval cases**. Building and proving the two arms, the world lint, containment and probes, evidence, and the
-measuring kit come next.
+The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
+eval cases and skill reading**. Building and proving the two arms, the world lint, containment and probes,
+evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 
@@ -15,6 +15,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 |---|---|
 | `manifest.py` | The one description of a folder: every path with its kind (folder, file, link), mode and hash |
 | `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
+| `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 
 ## Commands
 
@@ -40,3 +41,23 @@ built instead of failing part way:
 - a tool is a command name;
 - siblings are distinct skill names, never paths and never the skill under test;
 - `allow_words` keys are world paths, `<prompt>` or `<commit N>` for a declared commit.
+
+## How a skill is read
+
+`skills.py` works from two rules, each a list of what is allowed.
+
+`skills.frontmatter` reads one stated subset of YAML, with only the fields of `HW-PORT-01`: `name`, `description`,
+`license` and `compatibility` hold one plain line, and `metadata` holds `  key: value` lines whose keys are
+lower-case words joined by `-` and whose values are plain lines. A plain line is words separated by single spaces,
+which YAML reads as exactly the text written. There are no quoted values, block scalars or comments, and a value or
+key spelled like a YAML null, boolean, number or date is refused. Each field appears once, lines end only at a
+newline, no other control character is allowed, and the block ends at a line that is exactly `---`.
+Anything else is refused with its line number, so a value is never read short or as the wrong type: the index row
+and the fingerprint are built from it. The frontmatter name must be a skill name, and the expected one when the
+caller names it, because the name chooses where a host discovers the skill.
+
+`skills.structure` allows folders, regular files and relative links whose target is made only of `..` and name
+steps, and leads step by step through real folders to a real folder or file inside the folder. A link is judged by
+its text against the folder's manifest, never by resolving it on disk, so a link through another link, or one that
+leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed, and a skill
+folder holds no links at all.
