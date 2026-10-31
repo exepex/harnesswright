@@ -169,9 +169,9 @@ class Containment:
         if found is None:
             return []
         named, mounts = [p.resolve() for p in self.host_paths], []
-        for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
-            if not any(path.resolve().is_relative_to(f) for f in [Path(f).resolve() for f in SYSTEM] + named):
-                mounts.append(Mount(path.parent.parent if path.parent.name == "bin" else path.parent, "ro", scan=True))
+        for p in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):  # the PATH entry, then its target
+            if not any(p.is_relative_to(f) for f in SYSTEM) and not any(p.resolve().is_relative_to(n) for n in named):
+                mounts.append(Mount(p.parent.parent if p.parent.name == "bin" else p.parent, "ro", scan=True))
         return mounts
 
     def _refuse_overlaps(self, mounts, named):
