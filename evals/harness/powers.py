@@ -138,6 +138,7 @@ found = {
     "reach a model host through the gate": any(works(lambda h=h: through_gate(h)) for h in spec["model_hosts"]),
 }
 found["writable mounts off the table"] = writable_mounts()
+found["nonce"] = spec.get("nonce")  # proves the output came from this run's probe, not a guess
 print(json.dumps(found))
 '''
 
@@ -163,15 +164,17 @@ def spec(run):
             "network": os.stat("/proc/self/ns/net").st_ino}
 
 
-def check(run, output, stderr=""):
+def check(run, output, stderr="", nonce=None):
     """The probe's `output` (its printed JSON) for `run`, compared with the table. Return what it found, or raise
-    PowersError with every row that differs."""
+    PowersError with every row that differs. `nonce` is the one the spec gave, when it gave one."""
     try:
         found = json.loads(output)
     except json.JSONDecodeError:
         raise PowersError(f"the powers probe did not run: {stderr.strip()[-400:]}") from None
     if not isinstance(found, dict):
         raise PowersError(f"the powers probe printed {output[:200]!r}")
+    if found.pop("nonce", None) != nonce:
+        raise PowersError("the powers output is not from this run's probe")
     off = found.pop("writable mounts off the table", [])
     wrong = [f"{row}: {'works' if found.get(row) else 'does not work'}, the table says it "
              f"{'must' if must else 'must not'}"

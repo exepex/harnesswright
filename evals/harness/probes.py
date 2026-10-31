@@ -15,8 +15,12 @@ Standard library only.
 """
 
 import json
+import os
+import re
 import secrets
+import shlex
 import socket
+import stat
 import tempfile
 from pathlib import Path
 
@@ -27,6 +31,8 @@ import powers
 
 SKILL = "hw-probe-skill"
 TOKEN_PREFIX = "HWPROBE"
+TOKEN = re.compile(rf"{TOKEN_PREFIX}-[0-9a-f]{{16}}")
+INSTRUCTION_FILES = ("AGENTS.md", "CLAUDE.md")
 TRIES = {"discovery": 2}  # a probe skill is asked for by name with up to two tries; every other probe gets one
 
 
@@ -52,41 +58,60 @@ def build_world(folder, adapter, tokens):
 # Each probe's prompt, given the probe-output folder. The prompts name what to do, never a token to write back.
 PROMPTS = {
     "sign-in": lambda out: f"Write the word ready into the file {out}/sign-in.txt, then stop.",
-    "powers": lambda out: (f"Run this one command exactly as written, then stop: {contain.PYTHON} -I {out}/powers.py "
-                           f"< {out}/powers-spec.json > {out}/powers.json"),
+    "powers": lambda out: ("Run this one command exactly as written, then stop: " + " ".join(
+        [contain.PYTHON, "-I", shlex.quote(f"{out}/powers.py"), "<", shlex.quote(f"{out}/powers-spec.json"), ">",
+         shlex.quote(f"{out}/powers.json")])),
     "discovery": lambda out: f"Use the {SKILL} skill. The probe output folder is {out}.",
     "instructions": lambda out: (f"Your instructions give you tokens that start with {TOKEN_PREFIX}-. Write each "
-                                 f"one into the file {out}/instructions.txt, one per line, then stop."),
+                                 f"one into the file {out}/instructions.txt, one per line, then stop. Do not read "
+                                 "any file."),
 }
 
 
-def _read(path):
+def _read(path, limit=65536):
+    """A file the host left, read only when it is a regular file: a link the host made is never followed out of
+    the jail, so it reads as missing."""
     try:
-        return Path(path).read_text(encoding="utf-8", errors="replace")
+        handle = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError:
         return None
+    with os.fdopen(handle, "rb") as opened:
+        if not stat.S_ISREG(os.fstat(opened.fileno()).st_mode):
+            return None
+        return opened.read(limit).decode("utf-8", errors="replace")
 
 
-def _check(name, contained, tokens):
-    """Why probe `name` failed, from the files in the probe-output folder, or None."""
-    out = contained.probe_out
+def _check(name, contained, tokens, result):
+    """Why probe `name` failed, or None. One rule: the file the probe asks for is right, and the host's own report
+    (its exposure and action log) shows it did what the probe tests, not a way around it."""
+    out, log = contained.probe_out, result.log
     if name == "sign-in":
         found = _read(out / "sign-in.txt")
-        return None if found is not None and found.strip() == "ready" else f"sign-in.txt holds {found!r}"
-    if name == "powers":
+        return None if found is not None and found.strip() == "ready" else \
+            f"sign-in.txt holds {found and found[:80]!r}"
+    if name == "powers":  # the host's own command ran the probe, and its output carries this run's nonce
+        if not any(e["kind"] == "command" and "powers.py" in e["command"] for e in log):
+            return "the host's log shows no command that ran the powers probe"
         try:
-            powers.check(contained, _read(out / "powers.json") or "")
+            powers.check(contained, _read(out / "powers.json") or "", nonce=tokens["powers"])
         except powers.PowersError as error:
             return str(error)
         return None
-    if name == "discovery":
+    if name == "discovery":  # the host found the skill where the adapter says, and loaded it
+        if SKILL not in (result.exposure or {}).get("skills", []):
+            return f"the host did not expose {SKILL}, which is where its adapter says skills are"
+        if not any(e["kind"] == "skill" and e["name"] == SKILL for e in log):
+            return f"the host's log shows no load of {SKILL}"
         found = _read(out / "discovery.txt")
         return None if found is not None and found.strip() == tokens["discovery"] else \
-            f"discovery.txt holds {found!r}, not the token in the probe skill"
-    found = _read(out / "instructions.txt")
-    seen = sorted(set((found or "").split()))
+            f"discovery.txt holds {found and found[:80]!r}, not the token in the probe skill"
+    # The host loaded its instructions: it never read an instruction file, and reports exactly their one token.
+    if any((e["kind"] == "read" and Path(e["path"]).name in INSTRUCTION_FILES) or
+           (e["kind"] == "command" and any(f in e["command"] for f in INSTRUCTION_FILES)) for e in log):
+        return "the host read an instruction file instead of loading it"
+    seen = sorted(set(TOKEN.findall(_read(out / "instructions.txt") or "")))
     return None if seen == [tokens["instructions"]] else \
-        f"instructions.txt holds {seen}, not the one token of the instruction files"
+        f"instructions.txt holds {seen[:5]}, not the one token of the instruction files"
 
 
 def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **containment):
@@ -95,8 +120,9 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **con
     `contain.Containment` (the operator's environment, home and host paths)."""
     reason = None
     for attempt in range(TRIES.get(name, 1)):
-        tokens = {"instructions": new_token(), "discovery": new_token()}
-        folder = Path(root) / f"{name}-{mode}-{attempt}"
+        tokens = {"instructions": new_token(), "discovery": new_token(), "powers": new_token()}
+        Path(root).mkdir(parents=True, exist_ok=True)
+        folder = Path(tempfile.mkdtemp(prefix=f"{name}-{mode}-{attempt}-", dir=root))
         world = build_world(folder / "world", adapter, tokens)
         contained = contain.Containment(adapter, mode, world, manifest.manifest(world), root=folder / "run",
                                         probe=True, **containment)
@@ -106,10 +132,11 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **con
         # A control the powers probe must not reach, held open for the whole run.
         with socket.create_server(("127.0.0.1", 0)) as listener:
             if name == "powers":
-                spec = {**powers.spec(contained), "direct": listener.getsockname()}
+                spec = {**powers.spec(contained), "direct": listener.getsockname(),
+                        "nonce": tokens["powers"]}
                 contained.put_probe("powers-spec.json", json.dumps(spec))
             result = host.run(contained, text, skills=[SKILL], model=model, timeout=timeout)
-        reason = f"the host failed: {result.failure}" if result.failure else _check(name, contained, tokens)
+        reason = f"the host failed: {result.failure}" if result.failure else _check(name, contained, tokens, result)
         if reason is None:
             return None
     return f"{name} probe, {mode} run: {reason}"
