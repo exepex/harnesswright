@@ -191,3 +191,115 @@ def failure(events, returncode, timed_out, mode):
     if not completed:
         return "no turn.completed event"
     return None
+
+
+# ---- Eval harness contract (doc 11). The functions above serve the phase 2 runner until it is removed. ----
+
+# Skills the host ships that cannot be turned off. Codex 0.166.0 turns its bundled skills off with
+# `skills.bundled.enabled=false`, so there are none.
+HOST_SKILLS = ()
+# Every host feature outside the power table, turned off by name (`codex features list`, codex-cli 0.166.0).
+OFF_FEATURES = ("plugins", "multi_agent", "apps", "memories", "image_generation", "browser_use", "computer_use",
+                "goals", "tool_suggest", "hooks", "in_app_browser")
+OUTPUT_LIMIT = 4000
+# How Codex reports a command its execution policy refused: a log line on stderr, with no JSON event.
+POLICY_REFUSAL = re.compile(r"`(?P<command>.+?)` rejected: (?P<reason>policy forbids[^\"]*)")
+
+
+def command(mode, world, scratch=None, model=None, deny=()):
+    """The `codex exec` command for one harness run, configured to the power table. Denied commands are rules
+    in the private home (see prepare_home), so `deny` changes nothing here.
+
+    Trigger runs use the read-only sandbox: commands can read but write nowhere. Task runs use workspace-write
+    with `/tmp` and TMPDIR left out of the writable roots, so commands write only the world and the scratch
+    folder, which holds the run's TMPDIR. Network is off in both.
+    """
+    if mode not in ("trigger", "task"):
+        raise ValueError(f"unknown mode: {mode}")
+    sandbox = "read-only" if mode == "trigger" else "workspace-write"
+    args = [CLI, "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--strict-config",
+            "--sandbox", sandbox, "--cd", str(world), "-c", "skills.bundled.enabled=false",
+            "-c", 'web_search="disabled"']
+    if mode == "task":
+        args += ["-c", "sandbox_workspace_write.exclude_slash_tmp=true",
+                 "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true",
+                 "-c", "sandbox_workspace_write.network_access=false"]
+        if scratch:
+            args += ["--add-dir", str(scratch)]
+    for feature in OFF_FEATURES:
+        args += ["--disable", feature]
+    if model:
+        args += ["--model", model]
+    return args + ["-"]
+
+
+def prepare_home(home, deny=()):
+    """Write the host's private home before a run: an execution-policy rule for each denied command prefix.
+    Returns the files written, relative to the home."""
+    if deny:
+        rules = Path(home) / ".codex" / "rules"
+        rules.mkdir(parents=True, exist_ok=True)
+        lines = [f"prefix_rule(pattern={json.dumps(_split(prefix))}, decision=\"forbidden\")" for prefix in deny]
+        (rules / "default.rules").write_text("\n".join(lines) + "\n")
+        return [".codex/rules/default.rules"]
+    return []
+
+
+def version_command():
+    return [CLI, "--version"]
+
+
+def _bound(text):
+    text = text or ""
+    if len(text) <= OUTPUT_LIMIT:
+        return text
+    half = OUTPUT_LIMIT // 2
+    return f"{text[:half]}\n[... {len(text) - OUTPUT_LIMIT} characters left out ...]\n{text[-half:]}"
+
+
+def _paths_named(command):
+    """Paths a command names that it could read: words with a slash or a file extension, not options."""
+    named = []
+    for segment in _segments(command):
+        if _path_only(segment):
+            continue
+        for word in _split(segment)[1:]:
+            if not word.startswith("-") and ("/" in word or re.search(r"\.[A-Za-z0-9]{1,5}$", word)):
+                named.append(word)
+    return named
+
+
+def actions(events, stderr=""):
+    """The host-neutral action log of a run. Codex reports commands and file changes (observed); which files a
+    command read is worked out from its text (inferred). Policy refusals come from stderr (observed)."""
+    log = []
+    for item in _items(events):
+        kind = item.get("type")
+        if kind == "command_execution" and item.get("status") != "in_progress":
+            text = str(item.get("command", ""))
+            log.append({"kind": "command", "source": "observed", "command": text, "exit": item.get("exit_code"),
+                        "output": _bound(item.get("aggregated_output"))})
+            for path in _paths_named(text):
+                log.append({"kind": "read", "source": "inferred", "path": path})
+                match = re.search(r"skills/([^/]+)/SKILL\.md$", path)
+                if match:
+                    log.append({"kind": "skill_load", "source": "inferred", "name": match.group(1)})
+        elif kind == "file_change":
+            for change in item.get("changes") or []:
+                log.append({"kind": "write", "source": "observed", "path": change.get("path"),
+                            "change": change.get("kind")})
+        elif kind in ("mcp_tool_call", "web_search", "collab_tool_call"):
+            log.append({"kind": "tool", "source": "observed", "name": item.get("tool") or kind})
+    for match in POLICY_REFUSAL.finditer(stderr or ""):
+        log.append({"kind": "blocked", "source": "observed", "command": match.group("command").replace('\\"', '"'),
+                    "reason": match.group("reason")})
+    return log
+
+
+def exposed_skills(events, home, world):
+    """Skills the host could load in this run: every SKILL.md in its home and in the world's discovery folder."""
+    found = set()
+    for folder in (Path(home) / ".codex" / "skills", Path(world) / ".agents" / "skills"):
+        if folder.is_dir():
+            found |= {path.parent.name for path in folder.rglob("SKILL.md")}
+    return sorted(found)

@@ -42,3 +42,10 @@ so a trigger eval measures the skill against them, as a real user would see it.
 - Runner: `evals/runner/run_evals.py triggers` with this adapter, one run per query, scored a should-trigger query
   as triggered (1 of 1) and a should-not-trigger query as not triggered (0 of 1).
 - Tests: `evals/runner/tests/test_adapters.py` pins the exact command and the trigger detection.
+
+## Harness contract (doc 11)
+
+The functions after the "Eval harness contract" line of `adapter.py` serve the new harness in `evals/harness/`:
+`command` (the host configured to the power table), `prepare_home`, `actions` (the observed or inferred action
+log), `exposed_skills` and `HOST_SKILLS`. What was measured live is in
+[evals/harness/README.md](../../evals/harness/README.md#evidence).

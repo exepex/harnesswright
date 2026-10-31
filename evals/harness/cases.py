@@ -1,0 +1,188 @@
+"""Eval cases: one folder per case, `evals/skills/NAME/cases/<case>/`, holding `world/` and `case.json`.
+
+`world/` is the whole project the agent works in, written without the skill. `case.json` says what the run is
+given on top of it. This module reads and checks `case.json`; `world.py` builds the arms from it.
+
+case.json fields:
+
+- `prompt` (text, required) and `kind` (`trigger` or `task`, required).
+- `skill_path`: where the skill goes in the with-skill arm, default `skills/NAME`.
+- `index`: the index file the world uses and how a row is written: `{"file": "AGENTS.md", "after": "| Skill |
+  Path | Use when |", "row": "| {name} | [{path}]({path}) | {description} |"}`. `{path}` is the skill's SKILL.md.
+- `siblings`: other skills installed in both arms, as in real use (trigger worlds install the full skill set).
+- `tools`: commands the case needs on the host, such as `go`; the tools probe records their versions.
+- `expectations`: what the run must show, a list. Checks and graders decide them (doc 11, Scoring).
+- `should_trigger` (trigger cases, required) and `split` (`train` or `test`, trigger cases, required).
+- `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
+- `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
+  "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied; the drift lint fails
+  when the source has changed since, so the copy is reviewed again.
+- `allow_words`: test-tell words a file may hold, `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
+"""
+
+import hashlib
+import json
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+KINDS = ("trigger", "task")
+SPLITS = ("train", "test")
+FIELDS = {"prompt", "kind", "skill_path", "index", "siblings", "tools", "expectations", "should_trigger",
+          "split", "commits", "copies", "allow_words"}
+PROMPT_KEY = "<prompt>"
+
+
+class CaseError(ValueError):
+    """A case that cannot be built or run, with the reason."""
+
+
+def sha256_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def sha256_file(path):
+    return sha256_bytes(Path(path).read_bytes())
+
+
+def tree(folder, skip=()):
+    """Every file under `folder` as {relative posix path: sha256}. Symlinks map to 'link:<target>'.
+
+    Paths whose first part is in `skip` (such as `.git`) are left out.
+    """
+    folder = Path(folder)
+    found = {}
+    for path in sorted(folder.rglob("*")):
+        relative = path.relative_to(folder)
+        if relative.parts[0] in skip:
+            continue
+        if path.is_symlink():
+            found[relative.as_posix()] = "link:" + str(path.readlink())
+        elif path.is_file():
+            found[relative.as_posix()] = sha256_file(path)
+    return found
+
+
+def tree_hash(files):
+    """One hash for a {path: sha256} map."""
+    return sha256_bytes(json.dumps(files, sort_keys=True).encode())
+
+
+class Case:
+    """One eval case, read and checked. `skill` is the skill's name, `folder` the case folder."""
+
+    def __init__(self, folder, skill):
+        self.folder = Path(folder)
+        self.skill = skill
+        self.id = self.folder.name
+        self.world = self.folder / "world"
+        path = self.folder / "case.json"
+        if not path.is_file():
+            raise CaseError(f"{self.id}: no case.json")
+        if not self.world.is_dir():
+            raise CaseError(f"{self.id}: no world/ folder")
+        try:
+            data = json.loads(path.read_text())
+        except json.JSONDecodeError as error:
+            raise CaseError(f"{self.id}: case.json is not JSON: {error}") from None
+        self.data = check(data, self.id)
+        self.sha256 = tree_hash({"case.json": sha256_file(path), **{f"world/{k}": v
+                                                                    for k, v in tree(self.world).items()}})
+
+    def __getattr__(self, name):
+        if name in FIELDS:
+            return self.data.get(name)
+        raise AttributeError(name)
+
+    @property
+    def skill_rel(self):
+        return self.data.get("skill_path") or f"skills/{self.skill}"
+
+
+def check(data, case_id):
+    """Return the case data with defaults filled in, or raise CaseError naming every problem."""
+    problems = []
+    if not isinstance(data, dict):
+        raise CaseError(f"{case_id}: case.json must be an object")
+    unknown = sorted(set(data) - FIELDS)
+    if unknown:
+        problems.append(f"unknown fields {unknown}")
+    if not isinstance(data.get("prompt"), str) or not data.get("prompt", "").strip():
+        problems.append("prompt must be non-empty text")
+    if data.get("kind") not in KINDS:
+        problems.append(f"kind must be one of {KINDS}")
+    if data.get("kind") == "trigger":
+        if not isinstance(data.get("should_trigger"), bool):
+            problems.append("a trigger case needs should_trigger true or false")
+        if data.get("split") not in SPLITS:
+            problems.append(f"a trigger case needs split, one of {SPLITS}")
+    if "skill_path" in data and not _relative(data["skill_path"]):
+        problems.append("skill_path must be a relative path inside the world")
+    index = data.get("index")
+    if index is not None:
+        if not isinstance(index, dict) or not {"file", "after", "row"} <= set(index):
+            problems.append("index needs file, after and row")
+        elif not _relative(index["file"]):
+            problems.append("index.file must be a relative path inside the world")
+    for key in ("siblings", "tools", "expectations"):
+        if key in data and not (isinstance(data[key], list) and all(isinstance(v, (str, dict)) for v in data[key])):
+            problems.append(f"{key} must be a list")
+    for commit in data.get("commits") or []:
+        if not (isinstance(commit, dict) and isinstance(commit.get("message"), str)
+                and isinstance(commit.get("paths"), list)):
+            problems.append("each commit needs a message and a list of paths")
+    for copy in data.get("copies") or []:
+        if not (isinstance(copy, dict) and {"world", "source", "source_sha256"} <= set(copy)):
+            problems.append("each copy needs world, source and source_sha256")
+    allow = data.get("allow_words") or {}
+    if not (isinstance(allow, dict) and all(isinstance(v, list) for v in allow.values())):
+        problems.append("allow_words must map a path to a list of words")
+    if problems:
+        raise CaseError(f"{case_id}: " + "; ".join(problems))
+    filled = dict(data)
+    filled.setdefault("siblings", [])
+    filled.setdefault("tools", [])
+    filled.setdefault("expectations", [])
+    filled.setdefault("commits", [])
+    filled.setdefault("copies", [])
+    filled.setdefault("allow_words", {})
+    return filled
+
+
+def _relative(path):
+    return isinstance(path, str) and path and not Path(path).is_absolute() and ".." not in Path(path).parts
+
+
+def load_cases(skill, root=None):
+    """Every case of a skill, sorted by id."""
+    root = Path(root) if root else REPO / "evals" / "skills" / skill / "cases"
+    if not root.is_dir():
+        raise CaseError(f"{skill}: no cases folder at {root}")
+    return [Case(folder, skill) for folder in sorted(root.iterdir()) if folder.is_dir()]
+
+
+def skill_files(skill_dir):
+    """The skill's files as {relative path: bytes}, and its name and description from the frontmatter."""
+    skill_dir = Path(skill_dir)
+    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes()
+             for p in sorted(skill_dir.rglob("*")) if p.is_file()}
+    if "SKILL.md" not in files:
+        raise CaseError(f"{skill_dir}: no SKILL.md")
+    meta = frontmatter(files["SKILL.md"].decode())
+    if not meta.get("name") or not meta.get("description"):
+        raise CaseError(f"{skill_dir}: SKILL.md frontmatter needs name and description")
+    return files, meta
+
+
+def frontmatter(text):
+    """The top-level `key: value` pairs of a SKILL.md frontmatter block."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    meta = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line and not line[0].isspace() and ":" in line:
+            key, value = line.split(":", 1)
+            meta[key.strip()] = value.strip().strip('"')
+    return meta

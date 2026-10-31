@@ -110,8 +110,10 @@ host's own install. The runner proves this in every run.
   container, is accepted, and the manifest records which was used. A machine with no passing containment cannot
   produce labels; its hosts are `not run`.
 - **Host config and bundled skills.** The jail masks host machine-config folders such as `/etc/codex` and
-  `/etc/claude-code`. Each adapter turns off skills its host ships, where the host allows it, and records every
-  skill the host exposes. An exposed skill that the case does not declare stops the round.
+  `/etc/claude-code`. Each adapter turns off skills and plugins its host ships, and records every skill the host
+  exposes. A host skill that cannot be turned off is listed in its adapter (`HOST_SKILLS`), is the same in both
+  arms, and is approved with the measuring kit. Any other exposed skill that the case does not declare stops the
+  round.
 - **Secrets.** Every credential value the adapter passes is redacted from logs, transcripts and files before a
   bundle is written.
 
@@ -123,7 +125,7 @@ every host tool outside the table, so nothing is left for the host to refuse.
 | Power | Trigger runs | Task runs |
 |---|---|---|
 | Read | World and system folders | World, scratch and system folders |
-| Write | Nothing | World, scratch, private home and temp |
+| Write | Nothing | World and scratch, which holds the run's temp folder |
 | Run commands | Yes, read-only sandbox | Yes, sandboxed |
 | Network from commands | None | None |
 | Host tools beyond read, write and command | None | None |
@@ -131,18 +133,17 @@ every host tool outside the table, so nothing is left for the host to refuse.
 ### Probes
 
 Before real runs, each host passes these probes in each mode. A failed probe makes that host `not run` for the
-round, with the probe's output as the reason. Each probe checks files the host wrote, never what the model says.
-Probes get one probe-output folder that the host may write even in trigger mode. It exists only while probes run;
-real runs never have it, and the powers probe proves that a trigger run cannot write anywhere else.
+round, with the probe's output as the reason. Each probe decides from the output of commands the host reports it
+ran, never from what the model says. That works in trigger mode too, where commands can write nowhere.
 
 1. **Sign-in:** a one-line prompt returns an answer.
-2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`. The outcome
-   is read from the files it leaves.
-3. **Discovery:** a probe skill, asked for by name with up to two tries, writes a token file.
-4. **Instructions:** each instruction file in a probe world holds a token; the host writes back every token it saw,
-   so every host is shown to load the same instructions.
-5. **Memory:** a decoy memory planted outside the containment tells the host to write a token file. The file must
-   not appear.
+2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`, and
+   prints what it could do.
+3. **Discovery:** a probe skill, asked for by name with up to two tries, prints a token only it holds.
+4. **Instructions:** each instruction file in a probe world holds a token; the host prints every token it saw
+   without reading the files, so every host is shown to load the same instructions.
+5. **Memory:** a decoy memory planted outside the containment tells the host to print a token. The token must
+   not appear anywhere in the run.
 6. **Tools and drift:** the version of every tool a case declares, and the files a host writes for itself on an
    empty run, are measured and recorded per host version.
 
@@ -224,7 +225,7 @@ Every harness fault must be caught, or the round stops.
 | Fault planted | Must happen |
 |---|---|
 | A copy of the skill or a canary outside the world | The audit and the canary scan catch it; no run sees it |
-| A decoy memory naming the skill | The memory probe's token file never appears |
+| A decoy memory naming the skill | The memory probe's token never appears in the run |
 | Session, memory or credential values in the operator's environment | Not passed; redacted from every bundle |
 | The skill's name, path or fingerprint in a without-skill world or prompt | The lint rejects the case |
 | An eval file or a test tell in a world | The lint rejects the case |

@@ -1,0 +1,19 @@
+{
+  "about": "Harness faults (doc 11). Each one must be caught, or the round stops. `test` names the unit test that plants it against the fake host; `live` says whether the judges also plant it in a round.",
+  "faults": [
+    {"id": "HF-01", "planted": "A copy of the skill and a canary outside the world", "must": "The run cannot read them and no bundle holds the canary; a jail that mounts them fails the audit", "test": "test_contain.ContainmentFaults.test_hf01_skill_copy_and_canary_outside_the_world", "live": true},
+    {"id": "HF-02", "planted": "A decoy memory naming the skill in the operator's home", "must": "The memory probe passes only when the host never follows it; a home that leaks it fails the probe", "test": "test_probes.ProbeFaults.test_hf02_decoy_memory", "live": true},
+    {"id": "HF-03", "planted": "Session, memory and credential values in the operator's environment", "must": "Session and memory values are not passed; credential values are redacted from every bundle", "test": "test_contain.ContainmentFaults.test_hf03_operator_environment", "live": true},
+    {"id": "HF-04", "planted": "The skill's name, path or own text in a without-skill world or prompt", "must": "The lint rejects the case", "test": "test_lint.LintFaults.test_hf04_skill_in_world_or_prompt", "live": true},
+    {"id": "HF-05", "planted": "An eval file or a test-tell word in a world", "must": "The lint rejects the case", "test": "test_lint.LintFaults.test_hf05_eval_file_and_test_tell", "live": true},
+    {"id": "HF-06", "planted": "A host-shipped skill exposed in a run", "must": "The probe fails, so the round stops", "test": "test_probes.ProbeFaults.test_hf06_host_shipped_skill", "live": false},
+    {"id": "HF-07", "planted": "A host that cannot run commands, or the containment, the host or its key missing", "must": "The probe fails and the host is not run", "test": "test_probes.ProbeFaults.test_hf07_missing_powers_containment_host_or_key", "live": false},
+    {"id": "HF-08", "planted": "A file read through an unusual command, or a command that names a file without reading it", "must": "The entry is tagged inferred and no script check decides on it", "test": "test_evidence.EvidenceFaults.test_hf08_inferred_reads", "live": false},
+    {"id": "HF-09", "planted": "A with-skill arm that differs from the without-skill arm by more than the skill", "must": "The hash proof rejects the arms", "test": "test_world.WorldFaults.test_hf09_arms_differ_beyond_the_skill", "live": false},
+    {"id": "HF-10", "planted": "A world in the jail that is not the built arm", "must": "The audit fails", "test": "test_contain.ContainmentFaults.test_hf10_world_swapped", "live": false}
+  ],
+  "later": [
+    {"planned": "A golden bundle", "must": "Graders give its settled answer, or the expectation is marked unreliable", "pull_request": 4},
+    {"planned": "A grading file missing an expectation", "must": "The schema check rejects it", "pull_request": 4}
+  ]
+}

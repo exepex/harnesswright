@@ -173,3 +173,131 @@ def failure(events, returncode, timed_out, mode):
     if not any(e.get("type") == "result" for e in events):
         return "no result event"
     return None
+
+
+# ---- Eval harness contract (doc 11). The functions above serve the phase 2 runner until it is removed. ----
+
+# Skills Claude Code 2.1.316 still lists with bundled skills and built-in plugins turned off. They are the same in
+# both arms, and the judges approve this list as part of the measuring kit.
+HOST_SKILLS = ("design", "doctor")
+# Built-in plugins of Claude Code 2.1.316, turned off by name.
+BUILTIN_PLUGINS = ("cc-plugin-agents-md@builtin", "cc-plugin-telemetry@builtin", "cc-plugin-plugin-authoring@builtin")
+SEALED_ENV = {"CLAUDE_CODE_DISABLE_BUNDLED_SKILLS": "1"}
+# The tools of the power table: read and search files, write them (task runs), run commands, load skills.
+TOOLS = {"trigger": ("Bash", "Read", "Glob", "Grep", "Skill"),
+         "task": ("Bash", "Read", "Glob", "Grep", "Skill", "Edit", "Write")}
+READ_TOOLS = {"Read": "file_path", "NotebookRead": "notebook_path"}
+SEARCH_TOOLS = ("Glob", "Grep")
+WRITE_TOOLS = {"Write": "file_path", "Edit": "file_path", "MultiEdit": "file_path", "NotebookEdit": "notebook_path"}
+OUTPUT_LIMIT = 4000
+
+
+def settings(deny=()):
+    """Run settings: the sandbox confines every command, bundled skills and built-in plugins are off, and each
+    denied command prefix is refused."""
+    value = {"sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True, "allowUnsandboxedCommands": False},
+             "disableBundledSkills": True, "enabledPlugins": {name: False for name in BUILTIN_PLUGINS}}
+    if deny:
+        value["permissions"] = {"deny": [f"Bash({prefix}:*)" for prefix in deny]}
+    return value
+
+
+def command(mode, world, scratch=None, model=None, deny=()):
+    """The `claude -p` command for one harness run, configured to the power table.
+
+    Commands run in the host's sandbox in both modes, which lets them write only the working folder and the
+    added scratch folder. In a trigger run the jail mounts the world read-only and no folder is added, so
+    commands can write nowhere.
+    """
+    if mode not in ("trigger", "task"):
+        raise ValueError(f"unknown mode: {mode}")
+    args = [CLI, "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "project",
+            "--no-session-persistence", "--strict-mcp-config", "--tools", ",".join(TOOLS[mode]),
+            "--settings", json.dumps(settings(deny)), "--allowedTools", "Bash"]
+    if mode == "task":
+        args += ["--permission-mode", "acceptEdits"]
+        if scratch:
+            args += ["--add-dir", str(scratch)]
+    if model:
+        args += ["--model", model]
+    return args
+
+
+def prepare_home(home, deny=()):
+    """Nothing to write: denied commands are part of the run settings."""
+    return []
+
+
+def version_command():
+    return [CLI, "--version"]
+
+
+def _bound(text):
+    text = text if isinstance(text, str) else json.dumps(text)
+    if len(text) <= OUTPUT_LIMIT:
+        return text
+    half = OUTPUT_LIMIT // 2
+    return f"{text[:half]}\n[... {len(text) - OUTPUT_LIMIT} characters left out ...]\n{text[-half:]}"
+
+
+def _results(events):
+    """{tool_use_id: (text, is_error)} from the tool results the host sent back to the model."""
+    found = {}
+    for event in events:
+        if event.get("type") != "user":
+            continue
+        for item in (event.get("message") or {}).get("content") or []:
+            if isinstance(item, dict) and item.get("type") == "tool_result":
+                content = item.get("content")
+                if isinstance(content, list):
+                    content = "\n".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+                found[item.get("tool_use_id")] = (str(content or ""), bool(item.get("is_error")))
+    return found
+
+
+def actions(events, stderr=""):
+    """The host-neutral action log of a run. Claude Code reports every tool call and its result, so every entry
+    is observed. Calls the host refused (permission denials) are logged as blocked."""
+    results, log = _results(events), []
+    denied = {}
+    for event in events:
+        if event.get("type") == "result":
+            for denial in event.get("permission_denials") or []:
+                if isinstance(denial, dict):
+                    denied[denial.get("tool_use_id")] = denial
+    for event in events:
+        if event.get("type") != "assistant":
+            continue
+        for item in event.get("message", {}).get("content", []) or []:
+            if not (isinstance(item, dict) and item.get("type") == "tool_use"):
+                continue
+            name, data, use_id = item.get("name", ""), item.get("input") or {}, item.get("id")
+            text, failed = results.get(use_id, ("", False))
+            if use_id in denied:
+                log.append({"kind": "blocked", "source": "observed", "tool": name,
+                            "command": data.get("command") or data.get("file_path") or "", "reason": text[:300]})
+            elif name == "Bash":
+                log.append({"kind": "command", "source": "observed", "command": data.get("command", ""),
+                            "exit": 1 if failed else 0, "output": _bound(text)})
+            elif name in READ_TOOLS:
+                log.append({"kind": "read", "source": "observed", "path": data.get(READ_TOOLS[name]), "ok": not failed})
+            elif name in SEARCH_TOOLS:
+                log.append({"kind": "search", "source": "observed", "pattern": data.get("pattern"),
+                            "path": data.get("path")})
+            elif name in WRITE_TOOLS:
+                log.append({"kind": "write", "source": "observed", "path": data.get(WRITE_TOOLS[name]),
+                            "ok": not failed})
+            elif name == "Skill":
+                log.append({"kind": "skill_load", "source": "observed", "name": str(data.get("skill", "")).split(":")[-1]})
+            else:
+                log.append({"kind": "tool", "source": "observed", "name": name})
+    return log
+
+
+def exposed_skills(events, home, world):
+    """Skills and plugins the host listed in its init event."""
+    for event in events:
+        if event.get("type") == "system" and event.get("subtype") == "init":
+            plugins = [f"plugin:{p.get('name')}" for p in event.get("plugins") or [] if isinstance(p, dict)]
+            return sorted(set(event.get("skills") or []) | set(plugins))
+    return []

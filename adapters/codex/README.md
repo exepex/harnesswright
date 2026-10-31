@@ -38,3 +38,10 @@ The phase-2 sample-skill work ran this adapter live. This change was tested with
 `codex exec --help` of codex-cli 0.166.0 lists `--add-dir` ("Additional directories that should be writable
 alongside the primary workspace"), and the item statuses in that binary are `in_progress`, `completed` and
 `failed`, with no declined status. The command and trigger detection are unit-tested.
+
+## Harness contract (doc 11)
+
+The functions after the "Eval harness contract" line of `adapter.py` serve the new harness in `evals/harness/`:
+`command` (the host configured to the power table), `prepare_home`, `actions` (the observed or inferred action
+log), `exposed_skills` and `HOST_SKILLS`. What was measured live is in
+[evals/harness/README.md](../../evals/harness/README.md#evidence).
