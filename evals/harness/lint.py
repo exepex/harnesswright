@@ -27,9 +27,12 @@ RUN = 8
 EXPECTATION_RUN = 6
 SHORTEST = 3
 # Tell stems (doc 11): a word that starts with one tells an agent it is being tested. `allow_words` lets a place
-# hold the words it names.
+# hold the words it names. `.harness/runs/` is the project's own run folder (doc 06), so no stem matches it.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
-         "harness run", "ground truth", "expected output")
+         "ground truth", "expected output")
+# The parts of the measuring kit (doc 11) that hold text about skills: each skill's checks and answer keys, and
+# the fault catalogue. Old task and trigger lists are case data, and their expectations are checked as such.
+KIT = ("evals/skills/*/checks", "evals/faults")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
 
@@ -129,14 +132,13 @@ def texts(folder, keep=lambda path: True):
 
 
 def kit_texts(repo=REPO):
-    """The measuring kit's text about skills: the files under `evals/skills/`, such as tasks, triggers, checks,
-    tests and grading notes, except worlds, cases and upstream sources, which hold project text. The harness's own
-    code and notes are general and say nothing about a skill. Checks are standard-library Python, so their import
-    lines are left out too."""
-    def keep(path):
-        return not ({"cases", "files", "upstream", "world"} & set(path.split("/")[1:]))
-    folder = Path(repo) / "evals" / "skills"
-    return [re.sub(r"(?m)^[ \t]*(?:import|from)[ \t].*$", "", text) for text in texts(folder, keep)]
+    """The text of each kit part in `KIT`. The harness's own code and notes are general and say nothing about a
+    skill. Checks are standard-library Python, so their import lines are left out."""
+    found = []
+    for pattern in KIT:
+        for folder in sorted(Path(repo).glob(pattern)):
+            found += texts(folder)
+    return [re.sub(r"(?m)^[ \t]*(?:import|from)[ \t].*$", "", text) for text in found]
 
 
 def shared_runs(places, copied, upstream, size, prompt=True):

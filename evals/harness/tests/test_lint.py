@@ -136,13 +136,17 @@ class Lint(TempCase):
 
     def test_the_kit_is_what_it_holds_about_skills(self):
         evals = self.tmp / "repo" / "evals"
-        for path in ("harness/README.md", "skills/x/checks/c.py", "skills/x/cases/a/world/README.md",
-                     "skills/x/files/old/README.md", "skills/x/upstream/SKILL.md", "results/r.json"):
+        for path in ("harness/README.md", "skills/x/checks/c.py", "skills/x/tasks.json", "skills/x/README.md",
+                     "skills/x/tests/t.py", "skills/x/files/old/README.md", "faults/f.md", "results/r.json"):
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
-        self.assertEqual(sorted(lint.kit_texts(self.tmp / "repo")), ["skills/x/checks/c.py"])
+        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["skills/x/checks/c.py", "faults/f.md"])
         (evals / "skills/x/checks/c.py").write_text("import os\nfrom pathlib import Path\nassert 'poem' in out\n")
-        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["\n\nassert 'poem' in out\n"])
+        self.assertEqual(lint.kit_texts(self.tmp / "repo")[0], "\n\nassert 'poem' in out\n")
+
+    def test_the_projects_run_folder_is_not_a_tell(self):
+        story = ".harness/runs/2026-10-30-notes/stories/S01.md"
+        self.assertEqual(self.problems({story: "Tags sort by name.\n"}, {"prompt": f"Write claims for {story}."}), [])
 
     def test_lint_skill_reports_an_unbuildable_case(self):
         self.skill()
