@@ -180,3 +180,6 @@ removes it again, so the world stays the proved arm. The places a mode may write
 private home, `/tmp`, `/dev/shm`, and the world and scratch in task runs. "Write outside the run" reads the jail's
 mount table from `/proc/self/mountinfo`: any other mount the kernel lets the run write is named, unless it is a
 device file or a kernel view (proc, devpts). The jail remounts its root and `/dev` read-only for this.
+"Connect directly" works when the jail shares any of the machine's network: the runner's network namespace, an
+interface other than loopback, or a listener the probe holds open on the machine's loopback. So it never rests on
+an outside address failing.

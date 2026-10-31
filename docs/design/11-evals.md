@@ -156,7 +156,9 @@ outside the table: nothing is left for the host to refuse. Before any host runs,
 directly in the jail; any row that differs makes the host `not run`. Temp is the run's `TMPDIR`, `/tmp` and
 `/dev/shm`, all private to the run. The probe reads the jail's own mount table from the kernel: every mount it
 lets the run write must be a place the table lets the mode write, a device file such as `/dev/null`, or a kernel
-view of the jail (proc, devpts). A model host counts as reached only when the gate opens a tunnel to one.
+view of the jail (proc, devpts). A failed direct connection alone proves nothing: the jail must have its own
+network namespace with loopback only, and must not reach a listener the runner holds open on the machine. A model
+host counts as reached only when the gate opens a tunnel to one.
 
 | Power | Trigger runs | Task runs |
 |---|---|---|

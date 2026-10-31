@@ -10,13 +10,18 @@ a file with a unique name and removes it again, so the world is unchanged. "Writ
 own mount table from the kernel: any mount it lets the run write must be one of the places the table lets the mode
 write (the private home, `/tmp` and `/dev/shm`, and the world and scratch in task runs), a device file, or a kernel
 view of the jail (proc, devpts). So it covers every mount and everything below one, never a list of places to try.
-A model host counts as reached only when the gate opens a tunnel to one of the allowed hosts. `probe` compares the
+"Connect directly" never trusts a failed connection alone: the harness holds a listener open on the machine's
+loopback, which any jail sharing the machine's network reaches, and the jail must also have its own network
+namespace with loopback only. A model host counts as reached only when the gate opens a tunnel to one of the
+allowed hosts. `probe` compares the
 outcome with the table.
 
 Standard library only.
 """
 
 import json
+import os
+import socket
 import subprocess
 
 import contain
@@ -95,6 +100,13 @@ def writable_mounts():
 def connect():
     socket.create_connection(tuple(spec["direct"]), timeout=5).close()
 
+def shares_network():
+    """True when the jail has any network of the machine's: the harness's own network namespace, an interface other
+    than loopback, or a connection to the listener the harness holds open on the machine's loopback."""
+    with open("/proc/net/dev") as handle:
+        interfaces = [line.split(":")[0].strip() for line in handle.readlines()[2:]]
+    return os.stat("/proc/self/ns/net").st_ino == spec["network"] or interfaces != ["lo"] or works(connect)
+
 def gate_answer(host):
     gate = socket.create_connection(("127.0.0.1", spec["port"]), timeout=10)
     gate.sendall(f"CONNECT {host}:443 HTTP/1.1\r\n\r\n".encode())
@@ -115,7 +127,7 @@ found = {
     "write the private home": works(lambda: write(spec["home"])),
     "write temp": all(works(lambda f=f: write(f)) for f in (os.environ["TMPDIR"], "/tmp", "/dev/shm")),
     "write outside the run": bool(writable_mounts()),
-    "connect directly": works(connect),
+    "connect directly": shares_network(),
     # Only the gate's own refusal counts: any other answer, such as a 502 from upstream, means it passed the host on.
     "reach a host off the allow list": gate_answer("off-the-list.invalid") != [b"403"],
     "reach a model host through the gate": any(works(lambda h=h: through_gate(h)) for h in spec["model_hosts"]),
@@ -135,18 +147,20 @@ def expected(mode):
     return {row: modes[column] for row, modes in TABLE.items()}
 
 
-def probe(run, program="python3", direct=("1.1.1.1", 443)):
+def probe(run, program="python3"):
     """Run the powers probe in `run`'s jail (a `contain.Containment`) and return what it found. Raise PowersError
-    with every row that differs from the table. `direct` is an address the probe tries to reach without the gate."""
+    with every row that differs from the table."""
     may = expected(run.mode)
     writable = [str(run.home), "/tmp", "/dev/shm"] + ([str(run.world)] if may["write the world"] else []) + \
         ([str(run.scratch)] if may["write scratch"] and run.scratch else [])
     spec = {"world": str(run.world), "scratch": str(run.scratch) if run.scratch else None, "home": str(run.home),
             "writable": writable,
             "port": contain.gate.PORT, "model_hosts": list(run.hosts),
-            "direct": list(direct)}
+            "network": os.stat("/proc/self/ns/net").st_ino}
     command = run.jail([contain.PYTHON, "-I", "-c", PROBE], program=program)
-    with run.gate():
+    # A control the probe can always reach unless the jail has its own network: so a refused connection proves it.
+    with socket.create_server(("127.0.0.1", 0)) as listener, run.gate():
+        spec["direct"] = listener.getsockname()
         result = subprocess.run(command, input=json.dumps(spec), capture_output=True, text=True, env=run.env,
                                 timeout=120)
     try:

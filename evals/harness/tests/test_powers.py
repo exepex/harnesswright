@@ -1,7 +1,7 @@
 """Powers: the power table is the one statement of what a run may do, and the probe proves the jail gives it."""
 
 import os
-import socket
+import subprocess
 import types
 import unittest
 
@@ -98,15 +98,27 @@ class Probe(TempCase):
         self.assertEqual(sorted(p.name for p in tool.iterdir()), ["bin"])
 
     def test_a_jail_with_more_network_than_the_table_is_refused(self):
-        listener = socket.create_server(("127.0.0.1", 0))  # on the machine's loopback, outside a sound jail
-        self.addCleanup(listener.close)
-        direct = ("127.0.0.1", listener.getsockname()[1])
         run = self.run_of("trigger")
-        self.assertFalse(powers.probe(run, direct=direct)["connect directly"])
+        self.assertFalse(powers.probe(run)["connect directly"])
         jail = run.jail
+        # The machine has no route out here, so only the probe's own control shows the shared network.
         run.jail = lambda command, program=None: [a for a in jail(command, program) if a != "--unshare-net"]
         with self.assertRaisesRegex(powers.PowersError, "connect directly: works"):
-            powers.probe(run, direct=direct)
+            powers.probe(run)
+        # On a machine with no route out, a failed connection proves nothing: the same fault must still be found.
+        shared = ("import sys, types, pathlib\nsys.path[:0] = sys.argv[1:3]\nimport contain, manifest, powers\n"
+                  "world = pathlib.Path(sys.argv[3])\nhost = types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=(),"
+                  " environment=lambda env: env, MODEL_HOSTS=())\n"
+                  "run = contain.Containment(host, 'trigger', world, manifest.manifest(world), root=world.parent / "
+                  "'no-route', operator_env={'PATH': '/usr/bin:/bin'}, operator_home=world.parent / 'operator')\n"
+                  "jail = run.jail\nrun.jail = lambda c, program=None: [a for a in jail(c, program) "
+                  "if a != '--unshare-net']\ntry:\n    powers.probe(run)\nexcept powers.PowersError as error:\n"
+                  "    print(error)\n")
+        here = os.path.dirname(os.path.abspath(__file__))
+        result = subprocess.run(["bwrap", "--dev-bind", "/", "/", "--unshare-net", contain.PYTHON, "-B", "-c",
+                                 shared, os.path.dirname(here), here, str(run.world)],
+                                capture_output=True, text=True, timeout=120)
+        self.assertIn("connect directly: works", result.stdout, result.stderr)
         run = self.run_of("task")
         run.hosts = run.hosts + ["off-the-list.invalid"]  # passed on, though upstream answers 502 for it
         with self.assertRaisesRegex(powers.PowersError, "reach a host off the allow list: works"):
