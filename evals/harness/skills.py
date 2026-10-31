@@ -63,14 +63,14 @@ def frontmatter(text):
 
     The subset: a first line `---`, then fields at the left margin, then a line that is exactly `---`. Each field
     appears once. `name`, `description`, `license` and `compatibility` hold one plain value on the same line.
-    `metadata` holds lines of `  key: value`, each value plain. Blank lines may sit between fields. There are no
+    `metadata` holds one or more lines of `  key: value`, each value plain. Blank lines may sit between fields. There are no
     quoted values, block scalars or comments: YAML reads every value in the subset as exactly the text written.
     """
-    # Lines end only at \n (a \r before it is dropped). Any other control or line-break character is refused, so
-    # nothing can end a value or the block early.
+    # Lines end only at \n (a \r before it is dropped). Any other control or line-break character, a tab included,
+    # is refused, so nothing can end a value or the block early.
     lines = [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
     for number, line in enumerate(lines, 1):
-        if any(not char.isprintable() and char != "\t" for char in line):
+        if not line.isprintable():
             raise CaseError(f"frontmatter line {number}: holds a control or line-break character")
         if line == "---" and number > 1:
             break
@@ -78,6 +78,8 @@ def frontmatter(text):
         raise CaseError("no frontmatter: the first line must be ---")
     meta, mapping = {}, None
     for number, line in enumerate(lines[1:], 2):
+        if mapping == {} and (line == "---" or line[:1] not in ("", " ")):
+            raise CaseError(f"frontmatter line {number}: metadata holds no `  key: value` lines")
         if line == "---":
             return meta
         if not line.strip():
