@@ -74,7 +74,7 @@ class Gate(TempCase):
             self.assertIn(" 200 ", reply)
             client.sendall(b"hello\n")
             self.assertEqual(client.makefile("rb").readline(), b"hello\n")
-        self.assertEqual([entry["allowed"] for entry in found.log], [False, False, False, True])
+        self.assertEqual([entry["status"] for entry in found.log], [403, 403, 403, 200])
         self.assertEqual(len(self.upstream.requests), 1)
         sent = self.upstream.requests[0]
         self.assertTrue(sent.startswith("CONNECT api.example.com:443 HTTP/1.1\r\n"))
@@ -83,11 +83,35 @@ class Gate(TempCase):
         self.assertFalse((self.tmp / "gate.sock").exists())
 
     def test_the_allow_list_takes_only_plain_host_names(self):
-        self.assertEqual(gate.allowed_hosts(["api.example.com", "https://models.example.com:8443/v1"]),
+        self.assertEqual(gate.allowed_hosts(["api.example.com", "https://models.example.com:443/v1"]),
                          ["api.example.com", "models.example.com"])
-        for bad in ("localhost", "10.0.0.1:443", "API.example.com", "*.example.com", "https://"):
+        for bad in ("localhost", "10.0.0.1:443", "10.0.0.1", "https://169.254.169.254/v1", "API.example.com",
+                    "*.example.com", "https://", "https://models.example.com:8443/v1"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 gate.allowed_hosts([bad])
+
+
+    def test_a_host_that_cannot_be_reached_is_answered_502_and_logged(self):
+        with gate.Gate(self.tmp / "gate.sock", ["api.example.com"], "http://127.0.0.1:9") as found:
+            reply, client = ask(self.tmp / "gate.sock", "CONNECT api.example.com:443 HTTP/1.1\r\n\r\n")
+            client.close()
+        self.assertIn(" 502 ", reply)
+        self.assertEqual(found.log[0]["status"], 502)
+
+    def test_a_direct_tunnel_has_no_timeout(self):
+        ends = socket.socketpair()
+        self.addCleanup(lambda: [end.close() for end in ends])
+        ends[0].settimeout(30)
+        connect = socket.create_connection
+        socket.create_connection = lambda address, timeout=None: ends[0]
+        self.addCleanup(setattr, socket, "create_connection", connect)
+        with gate.Gate(self.tmp / "gate.sock", ["api.example.com"]) as found:
+            self.assertIsNone(found._open("api.example.com").gettimeout())
+
+    def test_the_operator_proxy_must_be_plain_http(self):
+        for url in ("https://user:secret@proxy.example:443", "socks5://proxy.example:1080"):
+            with self.subTest(url=url), self.assertRaisesRegex(ValueError, "http:// URL"):
+                gate.Gate(self.tmp / "gate.sock", [], url)
 
 
 class Run(TempCase):
@@ -132,7 +156,7 @@ class Run(TempCase):
             result = subprocess.run(run.jail([contain.PYTHON, "-I", "-c", probe]), capture_output=True, text=True,
                                     env=run.env, timeout=60)
         self.assertEqual(result.stdout, "direct: refused\ngate: HTTP/1.1 403 Forbidden\n", result.stderr)
-        self.assertEqual(found.log, [{"request": "CONNECT other.example.com:443 HTTP/1.1", "allowed": False}])
+        self.assertEqual(found.log, [{"request": "CONNECT other.example.com:443 HTTP/1.1", "status": 403}])
 
 
 if __name__ == "__main__":

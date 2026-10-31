@@ -78,9 +78,9 @@ def processes(problems):
         problems.append(f"{len(seen - allowed)} processes outside the run are visible in /proc")
 
 
-def network(problems):
+def network(problems, table="/proc/net/dev"):
     """The jail's only network interface is loopback."""
-    with open("/proc/net/dev") as handle:
+    with open(table) as handle:
         names = sorted(line.split(":")[0].strip() for line in handle.readlines()[2:])
     if names != ["lo"]:
         problems.append(f"the jail's network has interfaces {names}, not only loopback")

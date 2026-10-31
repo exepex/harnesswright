@@ -14,6 +14,7 @@ Standard library only.
 """
 
 import base64
+import ipaddress
 import os
 import re
 import socket
@@ -76,23 +77,39 @@ sys.exit(os.waitstatus_to_exitcode(status))
 
 def allowed_hosts(names):
     """The allow list from host names and URLs (such as a base URL the adapter passes on). Raise ValueError for a
-    name that is not a plain lower-case DNS name."""
+    name that is not a plain lower-case DNS name, such as an IP address, and for a URL on a port other than 443,
+    which the gate never passes on."""
     hosts = set()
     for name in names:
-        host = urlsplit(name).hostname if "://" in name else name
-        if not host or not HOST_PATTERN.fullmatch(host):
+        url = urlsplit(name) if "://" in name else None
+        host = url.hostname if url else name
+        if url and url.port not in (None, 443):
+            raise ValueError(f"the gate passes on only port 443: {name!r}")
+        if not host or not HOST_PATTERN.fullmatch(host) or _is_address(host):
             raise ValueError(f"not a host name: {name!r}")
         hosts.add(host)
     return sorted(hosts)
 
 
+def _is_address(host):
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
 class Gate:
     """The gate of one run: a proxy on `socket_path` that allows CONNECT to `hosts` on port 443 only. `upstream`
-    is the operator's own proxy URL, or None to connect directly."""
+    is the operator's own proxy, an `http://` URL, or None to connect directly. `log` holds each request with the
+    status the gate answered: 200, 403 or 502."""
 
     def __init__(self, socket_path, hosts, upstream=None):
         self.socket_path, self.hosts = str(socket_path), set(hosts)
         self.upstream = urlsplit(upstream) if upstream else None
+        if self.upstream and (self.upstream.scheme != "http" or not self.upstream.hostname):
+            raise ValueError("the operator's proxy must be an http:// URL, so its password is never sent in clear "
+                             "to a TLS proxy")
         self.log, self._lock = [], threading.Lock()
         gate = self
 
@@ -121,15 +138,18 @@ class Gate:
         target = parts[1] if len(parts) == 3 and parts[0] == "CONNECT" else None
         host, _, port = (target or "").lower().rpartition(":")
         ok = target is not None and port == "443" and host in self.hosts
+        remote = None
+        if ok:
+            try:
+                remote = self._open(host)
+            except OSError:
+                pass
+        status = 403 if not ok else 502 if remote is None else 200
         with self._lock:
-            self.log.append({"request": request[:200], "allowed": ok})
-        if not ok:
-            client.sendall(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
-            return
-        try:
-            remote = self._open(host)
-        except OSError:
-            client.sendall(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
+            self.log.append({"request": request[:200], "status": status})
+        if remote is None:
+            reason = {403: b"Forbidden", 502: b"Bad Gateway"}[status]
+            client.sendall(b"HTTP/1.1 %d %s\r\nContent-Length: 0\r\n\r\n" % (status, reason))
             return
         client.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
         back = threading.Thread(target=_pipe, args=(remote, client), daemon=True)
@@ -140,7 +160,9 @@ class Gate:
 
     def _open(self, host):
         if self.upstream is None:
-            return socket.create_connection((host, 443), timeout=30)
+            remote = socket.create_connection((host, 443), timeout=30)
+            remote.settimeout(None)  # the timeout is for connecting; a model may take long to answer
+            return remote
         remote = socket.create_connection((self.upstream.hostname, self.upstream.port or 80), timeout=30)
         auth = ""
         if self.upstream.username is not None:

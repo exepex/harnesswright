@@ -14,6 +14,8 @@ CLI = "claude"
 # What a sealed run passes on to sign in: these variables, and copies of these files from the real home.
 ENV_KEYS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_OAUTH_TOKEN")
 CREDENTIAL_FILES = (".claude/.credentials.json",)
+# The model host the eval gate allows.
+MODEL_HOSTS = ("api.anthropic.com",)
 # Task runs: commands run in the host's sandbox, which allows writes only inside the workspace and the
 # scratch folder and blocks the network, so they are approved without a prompt. The same powers as
 # Codex's workspace-write sandbox. Commands that cannot run in the sandbox are refused, never run outside it.

@@ -125,7 +125,10 @@ class Containment:
 
     def gate(self):
         """The run's gate, a context manager. Every jail of this run runs inside it."""
-        return gate.Gate(self.socket, self.hosts, self.upstream)
+        try:
+            return gate.Gate(self.socket, self.hosts, self.upstream)
+        except ValueError as error:
+            raise ContainmentError(f"the gate cannot start: {error}") from None
 
     def _make_home(self):
         """A fresh home holding `tmp/` and copies of the adapter's CREDENTIAL_FILES that exist as regular files."""

@@ -128,7 +128,8 @@ host's own install. The runner proves this in every run.
 - **The gate.** A proxy outside the jail passes on only `CONNECT host:443` to the host's model hosts: the
   adapter's `MODEL_HOSTS` and the host of each URL its `ENV_KEYS` pass on, such as a base URL. Anything else gets
   `403`, and every request is recorded with its answer. Every proxy variable in the jail names the gate. When the
-  operator's machine has its own proxy, the gate goes through it, so that proxy's address never enters the jail.
+  operator's machine has its own `http://` proxy in `HTTPS_PROXY`, the gate goes through it, so that proxy's
+  address never enters the jail. A base URL on a port other than 443, or an IP address, is refused.
   Known limit: the host's commands share its network, so they too can reach the model hosts, and nothing else.
 - **Visibility audit.** Before the host starts, a script runs inside the jail and checks it against the same list:
   every folder the jail creates holds only the way to the mounts below it, every folder the harness fills holds

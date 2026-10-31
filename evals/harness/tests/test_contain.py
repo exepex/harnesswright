@@ -78,6 +78,26 @@ class Setup(TempCase):
         self.assertIn("/ holds", problems[0])
         self.assertIn("'etc'", problems[0])
 
+    def test_the_view_rule_finds_a_gate_that_is_not_a_socket(self):
+        (self.tmp / "gate").write_text("not a socket\n")
+        problems = []
+        audit.view({"mounts": [{"path": str(self.tmp), "how": "tmpfs", "source": None, "filled": False, "scan": False},
+                               {"path": str(self.tmp / "gate"), "how": "socket", "source": None, "filled": False,
+                                "scan": False}]}, problems)
+        self.assertIn(f"{self.tmp / 'gate'} is not the gate's socket the list says", problems)
+
+    def test_the_network_rule_finds_any_interface_but_loopback(self):
+        table = self.tmp / "dev"
+        head = "Inter-|   Receive\n face |bytes\n"
+        table.write_text(head + "    lo: 0 0\n  eth0: 0 0\n")
+        problems = []
+        audit.network(problems, table)
+        self.assertEqual(problems, ["the jail's network has interfaces ['eth0', 'lo'], not only loopback"])
+        table.write_text(head + "    lo: 0 0\n")
+        problems = []
+        audit.network(problems, table)
+        self.assertEqual(problems, [])
+
     def test_the_process_rule_finds_processes_outside_the_run(self):
         decoy = subprocess.Popen(["sleep", "60"])
         self.addCleanup(decoy.wait)
