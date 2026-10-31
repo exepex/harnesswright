@@ -6,11 +6,12 @@ turned off and nothing is left for a host to refuse.
 
 `PROBE` runs inside the run's jail as one `python3 -I -c` program text, like the audit, so no harness file is
 mounted for it. It tries every row and prints one JSON object: {row: true when the action worked}. Each write makes
-a file with a unique name and removes it again, so the world is unchanged. "Write outside the run" tries every place
-on the run's list of mounts, and every folder the jail creates, outside the one set of places the table lets the
-mode write (the private home and temp folders `/tmp` and `/dev/shm`, and the world and scratch in task runs), so it
-is worked out from the list and the table, never from a list of places to try. A model host counts
-as reached only when the gate opens a tunnel to it. `probe` compares the outcome with the table.
+a file with a unique name and removes it again, so the world is unchanged. "Write outside the run" reads the jail's
+own mount table from the kernel: any mount it lets the run write must be one of the places the table lets the mode
+write (the private home, `/tmp` and `/dev/shm`, and the world and scratch in task runs), a device file, or a kernel
+view of the jail (proc, devpts). So it covers every mount and everything below one, never a list of places to try.
+A model host counts as reached only when the gate opens a tunnel to one of the allowed hosts. `probe` compares the
+outcome with the table.
 
 Standard library only.
 """
@@ -36,7 +37,7 @@ TABLE = {
 }
 
 PROBE = r'''
-import json, os, socket, sys, tempfile
+import json, os, socket, stat, sys, tempfile
 
 spec = json.loads(sys.stdin.read())
 
@@ -67,26 +68,25 @@ def write(path):
     else:
         open(path, "r+b").close()
 
-def read_only_places():
-    """Every place on the run's list of mounts, and every folder the jail creates on the way to one, that is not in
-    the one set of places the table lets this mode write. So nothing on the list is left untried."""
-    mounts = {m["path"]: m["how"] for m in spec["mounts"]}
-    allowed = set(spec["writable"])
-
-    def under(folder):
-        """The nearest mount that holds a created folder, or None for the jail's own root."""
-        holders = [m for m in mounts if folder.startswith(m.rstrip("/") + "/")]
-        return max(holders, key=len) if holders else None
-
-    places = [path for path, how in mounts.items() if how not in ("link", "proc") and path not in allowed]
-    for path in mounts:
-        parent = os.path.dirname(path)
-        while parent not in mounts and parent not in places and under(parent) not in allowed:
-            places.append(parent)
-            if parent == "/":
-                break
-            parent = os.path.dirname(parent)
-    return sorted(places)
+def writable_mounts():
+    """Every mount the kernel lets the run write that the table does not: read from the jail's own mount table, so
+    no mount, and nothing below a mount, is left out. A mount may be writable only when it is one of the places the
+    table lets this mode write, a device file (such as /dev/null), or a kernel view of the jail itself (proc,
+    devpts)."""
+    found = []
+    with open("/proc/self/mountinfo") as handle:
+        for line in handle:
+            fields = line.split()
+            point = fields[4].encode().decode("unicode_escape")
+            kind = fields[fields.index("-") + 1]
+            if "rw" not in fields[5].split(","):
+                continue
+            if point in spec["writable"] or kind in ("proc", "devpts"):
+                continue
+            if stat.S_ISCHR(os.stat(point).st_mode):
+                continue
+            found.append(point)
+    return found
 
 def connect():
     socket.create_connection(tuple(spec["direct"]), timeout=5).close()
@@ -107,12 +107,12 @@ found = {
     "write scratch": bool(spec["scratch"]) and works(lambda: write(spec["scratch"])),
     "write the private home": works(lambda: write(spec["home"])),
     "write temp": all(works(lambda f=f: write(f)) for f in (os.environ["TMPDIR"], "/tmp", "/dev/shm")),
-    "write outside the run": any(works(lambda f=f: write(f)) for f in read_only_places()),
+    "write outside the run": bool(writable_mounts()),
     "connect directly": works(connect),
     "reach a host off the allow list": works(lambda: through_gate("off-the-list.invalid")),
-    "reach a model host through the gate":
-        bool(spec["model_host"]) and works(lambda: through_gate(spec["model_host"])),
+    "reach a model host through the gate": any(works(lambda h=h: through_gate(h)) for h in spec["model_hosts"]),
 }
+found["writable mounts off the table"] = writable_mounts()
 print(json.dumps(found))
 '''
 
@@ -135,8 +135,8 @@ def probe(run, program="python3", direct=("1.1.1.1", 443)):
         ([str(run.scratch)] if may["write scratch"] and run.scratch else [])
     spec = {"world": str(run.world), "scratch": str(run.scratch) if run.scratch else None, "home": str(run.home),
             "writable": writable,
-            "port": contain.gate.PORT, "model_host": run.hosts[0] if run.hosts else None,
-            "mounts": [m.spec() for m in run.mounts(program)], "direct": list(direct)}
+            "port": contain.gate.PORT, "model_hosts": list(run.hosts),
+            "direct": list(direct)}
     command = run.jail([contain.PYTHON, "-I", "-c", PROBE], program=program)
     with run.gate():
         result = subprocess.run(command, input=json.dumps(spec), capture_output=True, text=True, env=run.env,
@@ -145,9 +145,12 @@ def probe(run, program="python3", direct=("1.1.1.1", 443)):
         found = json.loads(result.stdout)
     except json.JSONDecodeError:
         raise PowersError(f"the powers probe did not run: {result.stderr.strip()[-400:]}") from None
+    off = found.pop("writable mounts off the table", [])
     wrong = [f"{row}: {'works' if found.get(row) else 'does not work'}, the table says it "
              f"{'must' if must else 'must not'}"
              for row, must in expected(run.mode).items() if found.get(row) != must]
+    if off:
+        wrong.append(f"writable mounts off the table: {off}")
     if wrong:
         raise PowersError("; ".join(wrong))
     return found

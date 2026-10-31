@@ -177,6 +177,6 @@ through the operator's own proxy when there is one.
 trigger run and in a task run. `powers.probe(run)` runs `powers.PROBE` in the run's jail, inside its gate, and
 raises `PowersError` naming every row that differs (doc 11, Powers). Each write makes a file with a unique name and
 removes it again, so the world stays the proved arm. The places a mode may write are one set, from the table: the
-private home, `/tmp`, `/dev/shm`, and the world and scratch in task runs. "Write outside the run" tries every other
-place on the list of mounts and every folder the jail creates. The jail remounts its root and `/dev` read-only, so
-those writes fail.
+private home, `/tmp`, `/dev/shm`, and the world and scratch in task runs. "Write outside the run" reads the jail's
+mount table from `/proc/self/mountinfo`: any other mount the kernel lets the run write is named, unless it is a
+device file or a kernel view (proc, devpts). The jail remounts its root and `/dev` read-only for this.

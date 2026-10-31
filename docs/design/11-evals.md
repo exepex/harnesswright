@@ -154,9 +154,9 @@ Equal powers are defined once, in the runner (`evals/harness/powers.py`), for ea
 for the host and its commands alike, so each adapter turns its host's own sandbox off and removes every host tool
 outside the table: nothing is left for the host to refuse. Before any host runs, the powers probe tries every row
 directly in the jail; any row that differs makes the host `not run`. Temp is the run's `TMPDIR`, `/tmp` and
-`/dev/shm`, all private to the run. The probe tries a write at every place on the list of mounts, and in every folder
-the jail creates, that the table does not let the mode write, and each must fail. A model host counts as reached
-only when the gate opens a tunnel to it.
+`/dev/shm`, all private to the run. The probe reads the jail's own mount table from the kernel: every mount it
+lets the run write must be a place the table lets the mode write, a device file such as `/dev/null`, or a kernel
+view of the jail (proc, devpts). A model host counts as reached only when the gate opens a tunnel to one.
 
 | Power | Trigger runs | Task runs |
 |---|---|---|

@@ -18,9 +18,10 @@ JAIL = contain.available()
 
 
 class Upstream:
-    """A fake operator proxy on loopback: records each request, answers 200 and then echoes what it receives."""
+    """A fake operator proxy on loopback: records each request, answers 200 (or 502 for a host in `down`) and then
+    echoes what it receives."""
 
-    def __init__(self):
+    def __init__(self, down=()):
         self.requests = []
         upstream = self
 
@@ -30,6 +31,9 @@ class Upstream:
                 while not head.endswith(b"\r\n\r\n"):
                     head += self.rfile.read(1)
                 upstream.requests.append(head.decode())
+                if head.split()[1].split(b":")[0].decode() in down:
+                    self.wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
+                    return
                 self.wfile.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 for line in iter(lambda: self.rfile.readline(), b""):
                     self.wfile.write(line)

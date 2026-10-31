@@ -31,15 +31,16 @@ class Table(unittest.TestCase):
 class Probe(TempCase):
     def setUp(self):
         super().setUp()
-        self.upstream = Upstream()  # answers 200, so a tunnel to the model host opens without a network
+        self.upstream = Upstream(down=["api.example.test"])  # opens tunnels without a network, but not to this host
         self.addCleanup(self.upstream.close)
 
     def run_of(self, mode, **kwargs):
         world = self.tmp / "world"
         world.mkdir(exist_ok=True)
         (world / "README.md").write_text("A notes app.\n")
-        host = types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=(), MODEL_HOSTS=("model.example.test",),
-                                     environment=lambda env: env)
+        # The first allowed host is down, so a sound run reaches its model through the second one.
+        host = types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=(), environment=lambda env: env,
+                                     MODEL_HOSTS=("api.example.test", "model.example.test"))
         env = {"PATH": "/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url}
         root = self.tmp / f"run-{len(list(self.tmp.glob('run-*')))}"
         return contain.Containment(host, mode, world, manifest.manifest(world), root=root, operator_env=env,
