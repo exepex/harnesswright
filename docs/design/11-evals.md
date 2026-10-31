@@ -115,16 +115,24 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 A run sees only its world, its scratch folder, its private home and temp folders, read-only system folders and its
 host's own install. The runner proves this in every run.
 
-- **Visibility audit.** Before the host starts, a script runs inside the containment and lists the environment,
-  the mounts and every readable path outside the allowed set. Any hit voids the run and stops the round.
+- **One list of mounts.** A run sees exactly one list: the system program and library folders, the `/etc` entries
+  a program needs to start and reach the network, the host's install and CA files (all read-only), the world, a
+  fresh private home, a scratch folder in task runs, an empty private `/tmp`, and the jail's own `/proc` and `/dev`.
+  Nothing else is mounted, so machine-wide host config such as `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`,
+  the repository and the operator's home are never there to read. No mount may hold or sit inside the repository,
+  or hold the operator's home.
+- **Visibility audit.** Before the host starts, a script runs inside the jail and checks it against the same list:
+  every folder the jail creates holds only the way to the mounts below it, every folder the harness fills holds
+  exactly what it put there (the world is the proved arm), no process root leads outside the jail, and the
+  environment holds only the keys the harness built. Any problem voids the run and stops the round.
 - **Canary tokens.** Unique tokens are planted where leaks came from before: a decoy operator home, the runner's
-  temp folder, the repository checkout, other runs' folders. Every bundle is scanned for them.
-- **Mechanism.** The default is the seal in `evals/runner/seal.py`: an allow-listed environment, a fresh private
-  `HOME` and `TMPDIR`, and a `bwrap` jail. Any other containment that passes the audit, such as a throwaway
-  container, is accepted, and the manifest records which was used. A machine with no passing containment cannot
-  produce labels; its hosts are `not run`.
-- **Host config and bundled skills.** The jail masks host machine-config folders such as `/etc/codex` and
-  `/etc/claude-code`. Each adapter turns off skills its host ships, where the host allows it, and records every
+  temp folder, the repository checkout, other runs' folders. The audit scans every mount outside the system folders
+  for them, reading every file, and every bundle is scanned for them.
+- **Mechanism.** The default is `evals/harness/contain.py`: an allow-listed environment, a fresh private `HOME`
+  and `TMPDIR`, and a `bwrap` jail built from the list. Any other containment that passes the audit, such as a
+  throwaway container, is accepted, and the manifest records which was used. A machine with no passing containment
+  cannot produce labels; its hosts are `not run`.
+- **Bundled skills.** Each adapter turns off skills its host ships, where the host allows it, and records every
   skill the host exposes. An exposed skill that the case does not declare stops the round.
 - **Secrets.** Every credential value the adapter passes is redacted from logs, transcripts and files before a
   bundle is written.
