@@ -34,7 +34,10 @@ python3 -m unittest discover -s evals/harness/tests
 pattern of what is allowed. Anything else is refused with the reason, so a malformed case stops before a world is
 built instead of failing part way:
 
-- every path is relative: parts of ASCII letters, digits and `. _ + @ -`, joined by `/`, never `.`, `..` or `.git`;
+- every path is relative: parts of ASCII letters, digits and `. _ + @ -`, joined by `/`, never `.`, `..` or `.git`.
+  World entries follow the same path rule, so any of them can be committed, linked to or given `allow_words`;
+- every text is plain: no control character other than tab, line feed and carriage return. World files, the prompt,
+  commit messages and the index row all obey this one rule (`cases.is_plain`);
 - a trigger case needs `should_trigger`, `split` and `index`; a task case may not have the first two;
 - a commit needs a non-empty message and a list of paths;
 - a copy names a source outside `skills/` and `evals/` and its 64-character sha256;
@@ -61,7 +64,8 @@ caller names it, because the name chooses where a host discovers the skill.
 `skills.structure` allows folders, regular files and relative links whose target is made only of `..` and name
 steps, and leads step by step through real folders to a real folder or file inside the folder. A link is judged by
 its text against the folder's manifest, never by resolving it on disk, so a link through another link, or one that
-leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed.
+leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed, and every
+path follows the path rule of `case.json`.
 
 `skills.tracked` is what a skill is: the files git tracks in its folder, staged ones included. `skills.skill_files`
 reads only those, and each must be a regular file reached through real folders, never a link. `skills.skill_names`
@@ -107,19 +111,23 @@ is listed with its reason and the others are still linted.
 `lint.visible` lists every place the without-skill run can see. Every rule reads this one list. A place has a kind:
 `world` (a world entry: its path, and its text or link target, copies included), `declared` (the prompt, a commit
 message, or the index row the case writes), `installed` (a file of an installed sibling skill) or `rows` (the
-siblings' index rows). `world` and `declared` places are what the case author wrote.
+siblings' index rows as the run reads them: the case's template filled with each sibling's name, path and
+description). `lint.RULES` says which rules read which kind. `world` and `declared` places are what the case
+author wrote, so every rule reads them. `installed` places are read for the skill only. `rows` mix the two, so
+every rule but the tells reads them: a text split between the template and a sibling's description is still found.
 
-Every world file must be UTF-8 text with no control character other than tab, line feed and carriage return;
-anything else, such as UTF-16, an archive or a binary, is refused rather than guessed at. Text is matched on words
-after Unicode compatibility folding, with format characters such as soft hyphens removed.
+Every world file must be UTF-8 and plain text (`cases.is_plain`); anything else, such as UTF-16, an archive or a
+binary, is refused rather than guessed at. Text is matched on words after Unicode compatibility folding, with
+format characters such as soft hyphens removed.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
 verified copies, installed sibling files and the recorded upstream source. That text stays in both arms, so it
 never counts. The prompt is never project text, since the case author writes it for this case.
 
 - In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
-  path, and any 8-word run of the skill's own text. A sibling skill that names the skill is reported against the
-  sibling, because skills never name each other.
+  path, and any 8-word run of the skill's own text. A sibling skill's own file that names the skill is reported
+  against the sibling, because skills never name each other. A licence file at the top of the skill folder holds
+  standard terms, not the skill's own text, so it is not part of the fingerprint.
 - In `world` and `declared` places: each word that starts with a tell stem, unless `allow_words` names that exact
   word there (the index row has the index file's); any 8-word run of eval text; and any run of an expectation, in
   any place but the prompt, which may ask for it. An expectation of three to five words is matched whole. One of
@@ -133,8 +141,11 @@ never counts. The prompt is never project text, since the case author writes it 
 - Case data (`case.json`, `tasks.json`, `triggers.json`, and the case's own `case.json` wherever it lives) may
   repeat what the run sees of the case outside its world (its prompt, commits and index row) and its world's paths.
   Other eval text may not.
-- A copy is verified when it is still byte for byte its recorded source, and the source, read at its own real path,
-  has not changed. Any other copy is a finding, and its text is not project text.
+- A copy is verified when its source is a regular file git tracks in the repository, spelled exactly as git
+  tracks it and reached through real folders; the source still has its recorded `source_sha256`; and the world file
+  is the source with its skill rows removed. A skill row is a table row that names a skill of the repository: the
+  arm's index rows replace it, so a real `AGENTS.md` can be copied. Any other copy is a finding, and its text is
+  not project text.
 
 A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's
 reason. The history is built with no git templates, so `.git` holds only what the case declares.

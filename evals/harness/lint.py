@@ -7,10 +7,12 @@ place that run can see. A place has a kind:
 - `world`: a world entry, its path and its text or link target, copies included;
 - `declared`: the prompt, a commit message, or the index row template the case writes;
 - `installed`: a file of an installed sibling skill;
-- `rows`: the index rows of the installed siblings.
+- `rows`: the index rows of the installed siblings, as the run reads them: the case's row template filled with
+  each sibling's name, path and description.
 
-`world` and `declared` places are what the case author wrote. The rest is real project content, checked for the
-skill only.
+`RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
+rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
+every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
 verified copies, installed sibling files and the recorded upstream source. It stays in both arms, so it never
@@ -23,7 +25,6 @@ as soft hyphens removed, so look-alike spellings match too.
 """
 
 import io
-import os
 import re
 import tempfile
 import tokenize
@@ -32,8 +33,8 @@ from pathlib import Path
 
 import manifest
 import world
-from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key
-from skills import skill_files
+from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
+from skills import skill_files, skill_names, tracked, tracked_file
 
 RUN = 8
 EXPECTATION_RUN = 6
@@ -51,7 +52,13 @@ MACHINERY = ("harness", "runner")
 PROJECT_TEXT = (("fixtures",), ("skills", None, "files"), ("skills", None, "upstream"),
                 ("skills", None, "cases", None, "world"))
 CASE_DATA = ("case.json", "tasks.json", "triggers.json")
-CASE_KINDS = ("world", "declared")
+# The rules each kind of place is read by.
+EVERY = ("names", "skill", "tells", "eval", "expectations")
+RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "skill"),
+         "rows": ("names", "skill", "eval", "expectations")}
+# A licence file at the top of a skill folder holds standard terms, not the skill's own text, so it is never part
+# of the fingerprint; a world may carry the same licence.
+LICENCE = re.compile(r"(?i)(?:licen[cs]e|copying|notice)(?:[-._][^/]*)?")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
 
@@ -84,14 +91,12 @@ def all_runs(texts, sizes):
 
 
 def plain(data):
-    """`data` as text when it is UTF-8 with no control, surrogate, private or unassigned character other than tab,
-    line feed and carriage return; otherwise None."""
+    """`data` as text when it is UTF-8 and plain (`cases.is_plain`); otherwise None."""
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         return None
-    bad = ("Cc", "Cs", "Co", "Cn")
-    return None if any(unicodedata.category(c) in bad and c not in "\t\n\r" for c in text) else text
+    return text if is_plain(text) else None
 
 
 def names(place, name):
@@ -106,11 +111,6 @@ def names(place, name):
 def told(place, stem):
     """The words of the place that start with the tell `stem`, such as `evaluator` for `eval`."""
     return set(re.findall(rf"(?:^| )({re.escape(stem)}[^ ]*)", place.words))
-
-
-def _hash(entry):
-    """The sha256 of a regular file's entry, or None for anything else."""
-    return entry.split(" ")[1] if manifest.is_file(entry) else None
 
 
 def visible(case, arm):
@@ -184,27 +184,45 @@ def eval_texts(repo=REPO):
 
 
 def verified_copies(case, repo=REPO):
-    """(verified, problems): the world paths that are byte for byte the copy their entry records, of a source that
-    has not changed, and a problem for every other copy."""
-    entries = manifest.manifest(case.world)
+    """(verified, problems): the world paths that are their recorded source as git tracks it, and a problem for
+    every other copy.
+
+    The source is read only as a file git tracks in `repo`, through real folders, so a link, an untracked file or a
+    path spelled in another case cannot bring skill or eval text in as a copy. Its hash must still be the recorded
+    `source_sha256`. The world file must be the source with its skill rows removed: each table row that names a
+    skill of the repository, which the index rows of the arm replace."""
     verified, problems = set(), []
+    if not case.copies:
+        return verified, problems
+    known = set(tracked(repo))
+    skills = skill_names(Path(repo) / "skills") if (Path(repo) / "skills").is_dir() else []
     for copy in case.copies:
-        # The source is read only at its own real path, so a link cannot bring skill or eval text in as a copy.
-        path = Path(os.path.abspath(Path(repo).resolve() / copy["source"]))
         try:
-            source = _hash(manifest.entry(path)) if path.resolve() == path else None
-        except (manifest.Unreadable, OSError):
+            source = tracked_file(repo, copy["source"]) if copy["source"] in known else None
+        except CaseError:
             source = None
-        if _hash(entries.get(copy["world"], "")) != copy["source_sha256"]:
-            problems.append(f"copy {copy['world']}: not in the world as the regular file its source_sha256 names")
-        elif source is None:
-            problems.append(f"copy {copy['world']}: source {copy['source']} is not a regular file at its real path")
-        elif source != copy["source_sha256"]:
+        try:
+            entry = manifest.entry(case.world / copy["world"])
+        except manifest.Unreadable:
+            entry = ""
+        written = (case.world / copy["world"]).read_bytes() if manifest.is_file(entry) else None
+        if source is None:
+            problems.append(f"copy {copy['world']}: source {copy['source']} is not a regular file git tracks")
+        elif sha256_bytes(source) != copy["source_sha256"]:
             problems.append(f"copy {copy['world']}: {copy['source']} changed since it was copied; review the copy "
                             "and record the new source_sha256")
+        elif written != without_skill_rows(source, skills):
+            problems.append(f"copy {copy['world']}: not its source with the skill rows removed")
         else:
             verified.add(copy["world"])
     return verified, problems
+
+
+def without_skill_rows(data, skills):
+    """`data` (bytes) without each table row, a line starting with `|`, that names one of `skills`."""
+    lines = data.splitlines(keepends=True)
+    return b"".join(line for line in lines if not (line.lstrip().startswith(b"|") and any(
+        names(Place("", line.decode("utf-8", "replace"), "rows"), skill) for skill in skills)))
 
 
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
@@ -220,7 +238,8 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
                        + list(upstream), {RUN} | expected_sizes)
     files, _ = skill_files(skill_dir, case.skill)
-    skill = all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
+    skill = all_runs((data.decode("utf-8", "replace") for rel, data in files.items() if not LICENCE.fullmatch(rel)),
+                     {RUN}) - project
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.
@@ -239,23 +258,22 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
             problems.append(f"{place.key}: not UTF-8 text without control characters; the lint cannot read it as "
                             "the agent would")
             continue
-        for leak in leaks:
-            if names(place, leak) and place.kind in CASE_KINDS:
-                problems.append(f"{place.key}: names the skill ({leak!r})")
-            elif names(place, leak):
-                problems.append(f"{place.key}: a sibling skill names {leak!r}; skills must never name each other")
+        rules = RULES[place.kind]
+        # A sibling's own file naming the skill is the sibling's fault; any other place is the case's to fix.
+        named = ("a sibling skill names {!r}; skills must never name each other" if place.kind == "installed"
+                 else "names the skill ({!r})")
+        problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
         hits = sorted(skill & runs(place.text, {RUN}))
         if hits:
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
-        if place.kind not in CASE_KINDS:
-            continue
-        # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.
-        problems += [f"{place.key}: test-tell word {word!r}" for stem in TELLS
-                     for word in sorted(told(place, stem) - set(allowed.get(place.key, [])))]
+        if "tells" in rules:
+            # A place may hold exactly the words its `allow_words` names, and no other word of the same stem.
+            problems += [f"{place.key}: test-tell word {word!r}" for stem in TELLS
+                         for word in sorted(told(place, stem) - set(allowed.get(place.key, [])))]
         hits = sorted(measuring & runs(place.text, {RUN}))
-        if hits:
+        if hits and "eval" in rules:
             problems.append(f"{place.key}: holds eval text, such as {hits[0]!r}")
-        if place.key != PROMPT_KEY and expected & runs(place.text, expected_sizes):
+        if "expectations" in rules and place.key != PROMPT_KEY and expected & runs(place.text, expected_sizes):
             problems.append(f"{place.key}: holds expectation text")
     return [f"{case.id}: {p}" for p in problems]
 

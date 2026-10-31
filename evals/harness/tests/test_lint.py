@@ -1,5 +1,6 @@
 """World lint: every rule reads one list of what the run can see, and a case that fails it cannot run."""
 
+import subprocess
 import unittest
 
 from helpers import SKILL_MD, TempCase
@@ -26,6 +27,7 @@ class Lint(TempCase):
         repo = self.tmp / "repo"
         repo.mkdir(exist_ok=True)
         (repo / "STYLE.md").write_text(text)
+        self.track(repo)
         return repo, {"world": "STYLE.md", "source": "STYLE.md", "source_sha256": cases.sha256_file(repo / "STYLE.md")}
 
     def test_a_clean_case_passes(self):
@@ -71,9 +73,9 @@ class Lint(TempCase):
         files, data = {"README.md": "x\n", "AGENTS.md": AGENTS}, {"siblings": ["note-taker"], "index": INDEX}
         naming = "---\nname: note-taker\ndescription: Takes notes. Use with haiku-writer.\n---\n# Notes\n"
         problems = self.problems(files, data, siblings={"note-taker": naming})
-        for where in ("skills/note-taker/SKILL.md", "<sibling rows>"):
-            self.assertTrue(any(f"{where}: a sibling skill names 'haiku-writer'; skills must never name each other"
-                                in p for p in problems), problems)
+        self.assertTrue(any("skills/note-taker/SKILL.md: a sibling skill names 'haiku-writer'; skills must never "
+                            "name each other" in p for p in problems), problems)
+        self.assertTrue(any("<sibling rows>: names the skill" in p for p in problems), problems)
         shared = f"---\nname: note-taker\ndescription: Takes notes and runs evals with a fixture.\n---\n{OWN_TEXT}\n"
         self.assertEqual(self.problems(files, data, siblings={"note-taker": shared}), [])
         row = dict(INDEX, row=f"| {{name}} | {{path}} | {OWN_TEXT} |")
@@ -122,6 +124,26 @@ class Lint(TempCase):
                                         "ends with a newline.\n"}, {"copies": [copy], "expectations": [
                                             "Every file ends with a newline"]}, repo=repo), [])
 
+    def test_the_rows_the_run_reads_are_checked_as_it_reads_them(self):
+        files = {"README.md": "x\n", "AGENTS.md": AGENTS}
+        sibling = "---\nname: note-taker\ndescription: of three lines about notes.\n---\n# Notes\n"
+        data = {"siblings": ["note-taker"], "expectations": ["The reply is a poem of three lines about notes"],
+                "index": dict(INDEX, row="| {name} | {path} | The reply is a poem {description} |")}
+        problems = self.problems(files, data, siblings={"note-taker": sibling})
+        self.assertTrue(any("<sibling rows>: holds expectation text" in p for p in problems), problems)
+        data = {"siblings": ["note-taker"], "index": dict(INDEX, row="| {name} | {path} | Not haiku-writer |")}
+        problems = self.problems(files, data, siblings={"note-taker": sibling.replace("of three", "Notes of")})
+        self.assertEqual(sorted(p.split(": ", 1)[1] for p in problems),
+                         ["<index row>: names the skill ('haiku-writer')",
+                          "<sibling rows>: names the skill ('haiku-writer')"])
+
+    def test_a_licence_is_not_the_skills_own_text(self):
+        mit = ("Permission is hereby granted, free of charge, to any person obtaining a copy of this software and "
+               "associated documentation files, to deal in the Software without restriction.\n")
+        (self.skill() / "LICENSE-MIT.txt").write_text(mit)
+        self.assertEqual(self.problems({"README.md": "x\n", "LICENSE": mit}), [])
+        self.assertNotEqual(self.problems({"README.md": f"{OWN_TEXT}\n", "LICENSE": mit}), [])
+
     def test_a_place_may_allow_a_tell_word(self):
         files = {"docs/testing.md": "Run the fixtures before each release.\n"}
         self.assertNotEqual(self.problems(files), [])
@@ -135,21 +157,38 @@ class Lint(TempCase):
             "evaluation"]}}
         self.assertEqual(self.problems({"README.md": "x\n", "AGENTS.md": AGENTS}, index), [])
 
-    def test_a_copy_must_be_its_source(self):
+    def test_a_copy_must_be_its_source_as_git_tracks_it(self):
         repo, copy = self.source("Old style.\n")
+        problems = self.problems({"OTHER.md": SKILL_MD}, {"copies": [dict(copy, world="OTHER.md")]}, repo=repo)
+        self.assertTrue(any("not its source with the skill rows removed" in p for p in problems), problems)
+        self.assertTrue(any("OTHER.md: holds" in p for p in problems), problems)
+        (repo / "real").mkdir()
+        (repo / "real" / "STYLE.md").write_text("Old style.\n")
+        (repo / "Draft.md").write_text("Old style.\n")
+        (repo / "project").symlink_to("real")
+        self.track(repo)
+        for source in ("project/STYLE.md", "Draft.md", "style.md"):
+            with self.subTest(source=source):
+                if source == "Draft.md":
+                    subprocess.run(["git", "rm", "-q", "--cached", source], cwd=repo, check=True)
+                problems = self.problems({"STYLE.md": "Old style.\n"}, {"copies": [dict(copy, source=source)]},
+                                         repo=repo)
+                self.assertTrue(any("is not a regular file git tracks" in p for p in problems), problems)
         (repo / "STYLE.md").write_text("New style.\n")
         self.assertTrue(any("changed since" in p for p in self.problems({"STYLE.md": "Old style.\n"},
                                                                         {"copies": [copy]}, repo=repo)))
-        fake = dict(copy, world="OTHER.md")
-        problems = self.problems({"OTHER.md": SKILL_MD}, {"copies": [fake]}, repo=repo)
-        self.assertTrue(any("not in the world as the regular file" in p for p in problems))
-        self.assertTrue(any("OTHER.md: holds" in p for p in problems))
-        (repo / "real").mkdir()
-        (repo / "real" / "STYLE.md").write_text("Old style.\n")
-        (repo / "project").symlink_to("real")
-        linked = dict(copy, source="project/STYLE.md", source_sha256=cases.sha256_file(repo / "real" / "STYLE.md"))
-        problems = self.problems({"STYLE.md": "Old style.\n"}, {"copies": [linked]}, repo=repo)
-        self.assertTrue(any("not a regular file at its real path" in p for p in problems), problems)
+
+    def test_a_copy_drops_the_rows_that_name_a_skill(self):
+        rows = "| haiku-writer | [skills/haiku-writer/SKILL.md](skills/haiku-writer/SKILL.md) | Poems. |\n"
+        source = AGENTS.replace("|---|---|---|\n", "|---|---|---|\n" + rows)
+        repo, copy = self.source(source)
+        (repo / "skills" / "haiku-writer").mkdir(parents=True)
+        (repo / "skills" / "haiku-writer" / "SKILL.md").write_text(SKILL_MD)
+        self.track(repo)
+        copy = dict(copy, world="AGENTS.md")
+        self.assertEqual(self.problems({"AGENTS.md": AGENTS}, {"copies": [copy]}, repo=repo), [])
+        problems = self.problems({"AGENTS.md": source}, {"copies": [copy]}, repo=repo)
+        self.assertTrue(any("not its source with the skill rows removed" in p for p in problems), problems)
 
     def test_eval_text_is_what_the_evals_say_about_skills(self):
         evals = self.tmp / "repo" / "evals"

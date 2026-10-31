@@ -136,11 +136,14 @@ class Structure(TempCase):
         (world / "slash").symlink_to("sub/")
         (world / "sub" / "alias").symlink_to("..")
         (world / "escape").symlink_to("sub/alias/../README.md")
+        (world / "my notes.md").write_text("x\n")
+        (world / "café").mkdir()
         os.mkfifo(world / "pipe")
         self.assertIn("pipe", " ".join(skills.structure(world)))
         (world / "pipe").unlink()
         found = " ".join(skills.structure(world))
-        for path in ("sub/.git", "absolute", "sub/out", "missing", "a:", "chain", "escape", "dot", "slash"):
+        for path in ("sub/.git", "absolute", "sub/out", "missing", "a:", "chain", "escape", "dot", "slash",
+                     "my notes.md: a path must be", "café: a path must be"):
             with self.subTest(path=path):
                 self.assertIn(path, found)
         self.assertNotIn("c:", found)
