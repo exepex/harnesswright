@@ -15,6 +15,7 @@ order; each one builds on the ones before.
 | 08 | [Governance](08-governance.md) | Evals, versions, the learning loop, metrics, security, licences |
 | 09 | [Roadmap](09-roadmap.md) | Phases, the harvest method, open questions |
 | 10 | [Skills](10-skills.md) | Borrow-first sourcing, the quality checklist, portability across hosts, the skill designer |
+| 11 | [Evals](11-evals.md) | How skills are measured: worlds, containment, equal powers, evidence, scoring, judge-owned faults, rounds |
 
 ## Decisions already made
 
