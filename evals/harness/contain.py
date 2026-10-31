@@ -172,7 +172,7 @@ class Containment:
 
     def mounts(self, program):
         """The one list of what a run sees, for a run of `program`."""
-        found = [Mount("/tmp", "tmpfs"), Mount("/proc", "proc"), Mount("/dev", "dev"),
+        found = [Mount("/tmp", "tmpfs"), Mount("/proc", "proc"), Mount("/dev", "dev"), Mount("/dev/shm", "tmpfs"),
                  Mount(GATE, "socket", source=str(self.socket))]
         for folder in SYSTEM:
             if os.path.islink(folder):
@@ -234,7 +234,9 @@ class Containment:
                 "--unshare-uts", "--unshare-cgroup-try", "--unshare-net"]
         for mount in self.mounts(program or command[0]):
             args += mount.args()
-        return args + ["--chdir", str(self.world), "--", PYTHON, "-I", "-c", gate.FORWARDER, GATE] + list(command)
+        # The folders the jail creates, and /dev, are read-only, so a run writes only what the list makes writable.
+        args += ["--remount-ro", "/", "--remount-ro", "/dev", "--chdir", str(self.world), "--"]
+        return args + [PYTHON, "-I", "-c", gate.FORWARDER, GATE] + list(command)
 
     def audit(self, program):
         """Run the visibility audit in this run's jail, for a run of `program`. Return its report, or raise

@@ -118,13 +118,13 @@ host's own install. The runner proves this in every run.
 
 - **One list of mounts.** A run sees exactly one list: the system program and library folders, the `/etc` entries
   a program needs to start and reach the network, the host's install and CA files (all read-only), the world, a
-  fresh private home, a scratch folder in task runs, an empty private `/tmp`, a fresh `/proc` of the jail's own
-  processes, a minimal `/dev` and the gate's socket. Nothing in the operator's home is found for a host: one installed there runs
-  only from what the operator names, and is refused until then. The jail has its own user, process, IPC, host
-  name, cgroup and network namespaces. Its network holds only loopback, and the gate's socket is the one way
-  out. Nothing else is mounted, so machine-wide host config such as `/etc/claude-code`, `/etc/codex` or
-  `/etc/gitconfig`, the repository and the operator's home are never there to read. No mount may hold or sit
-  inside the repository, or hold the operator's home.
+  fresh private home, a scratch folder in task runs, empty private `/tmp` and `/dev/shm`, a fresh `/proc` of the
+  jail's own processes, a minimal read-only `/dev` and the gate's socket. Nothing in the operator's home is found
+  for a host: one installed there runs only from what the operator names, and is refused until then. The jail
+  has its own user, process, IPC, host name, cgroup and network namespaces. Its network holds only loopback, and
+  the gate's socket is the one way out. Nothing else is mounted, so machine-wide host config such as
+  `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`, the repository and the operator's home are never there to
+  read. No mount may hold or sit inside the repository, or hold the operator's home.
 - **The gate.** A proxy outside the jail passes on only `CONNECT host:443` to the host's model hosts: the
   adapter's `MODEL_HOSTS` and the host of each URL its `ENV_KEYS` pass on, such as a base URL. Anything else gets
   `403`, and every request is recorded with its answer. Every proxy variable in the jail names the gate. When the
@@ -150,14 +150,21 @@ host's own install. The runner proves this in every run.
 
 ## Powers: what a run can do
 
-Equal powers are defined once, in the runner, for each mode. Each adapter configures its host to match and removes
-every host tool outside the table, so nothing is left for the host to refuse.
+Equal powers are defined once, in the runner (`evals/harness/powers.py`), for each mode. The jail enforces them
+for the host and its commands alike, so each adapter turns its host's own sandbox off and removes every host tool
+outside the table: nothing is left for the host to refuse. Before any host runs, the powers probe tries every row
+directly in the jail; any row that differs makes the host `not run`. Temp is the run's `TMPDIR`, `/tmp` and
+`/dev/shm`, all private to the run. The probe reads the jail's own mount table from the kernel: every mount it
+lets the run write must be a place the table lets the mode write, a device file such as `/dev/null`, or a kernel
+view of the jail (proc, devpts). A failed direct connection alone proves nothing: the jail must have its own
+network namespace with loopback only, and must not reach a listener the runner holds open on the machine. A model
+host counts as reached only when the gate opens a tunnel to one.
 
 | Power | Trigger runs | Task runs |
 |---|---|---|
 | Read | World and system folders | World, scratch and system folders |
-| Write | Nothing | World, scratch, private home and temp |
-| Run commands | Yes, read-only sandbox | Yes, sandboxed |
+| Write | Private home and temp only, never the world | World, scratch, private home and temp |
+| Run commands | Yes, in the jail | Yes, in the jail |
 | Network from commands | Only the model hosts, through the gate | Only the model hosts, through the gate |
 | Host tools beyond read, write and command | None | None |
 
@@ -166,11 +173,12 @@ every host tool outside the table, so nothing is left for the host to refuse.
 Before real runs, each host passes these probes in each mode. A failed probe makes that host `not run` for the
 round, with the probe's output as the reason. Each probe checks files the host wrote, never what the model says.
 Probes get one probe-output folder that the host may write even in trigger mode. It exists only while probes run;
-real runs never have it, and the powers probe proves that a trigger run cannot write anywhere else.
+real runs never have it, and the powers probe proves that a trigger run can write nowhere else the table does
+not allow.
 
 1. **Sign-in:** a one-line prompt returns an answer.
-2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`. The outcome
-   is read from the files it leaves.
+2. **Powers:** the host runs the same probe script that tries every row of the power table, including `/tmp`, so
+   its commands are shown to get the jail's powers. The outcome is read from the files it leaves.
 3. **Discovery:** a probe skill, asked for by name with up to two tries, writes a token file.
 4. **Instructions:** each instruction file in a probe world holds a token; the host writes back every token it saw,
    so every host is shown to load the same instructions.
