@@ -4,7 +4,7 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, and building and proving the two arms**. The world lint, containment and probes,
+eval cases, skill reading, building and proving the two arms, and the world lint**. Containment and probes,
 evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
@@ -17,6 +17,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 | `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
+| `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
 
 ## Commands
 
@@ -85,3 +86,36 @@ same bytes. git never runs on an arm to prove it.
 Git runs with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or hooks never
 take part. Declared paths are added with `--force`, so a world `.gitignore` cannot drop them, and a git failure is
 a case error.
+
+## How a case is linted
+
+`lint.visible` lists every place the without-skill run can see, read from the built arm once the arm is proved to
+be what the case says: each world entry (its path, and its text or link target), the prompt, each commit message,
+the index row the case writes, and the index rows of installed siblings. Every rule reads this one list.
+
+A place's author is the `case` (everything the case author controls, copies included) or the `harness` (installed
+sibling skills and their rows). Every world file must be UTF-8 text with no control character other than tab, line
+feed and carriage return; anything else, such as UTF-16, an archive or a binary, is refused rather than guessed at.
+Text is matched on words after Unicode compatibility folding, with format characters such as soft hyphens removed.
+
+- In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
+  path, and any 8-word run of the skill's own text.
+- In `case` places: each word that starts with a tell stem, unless `allow_words` names that exact word there (the
+  index row has the index file's); any 8-word run of eval text; and any run of an expectation, in any place but the
+  prompt, which may ask for it. An expectation of three to five words is matched whole. One of one or two words
+  cannot be told apart from ordinary project words, so the judge who reads the world looks for it.
+- Eval text is text about skills and their cases, which tells an agent what is measured: every file under
+  `evals/` but `evals/harness/` and `evals/runner/`, the general machinery, which says nothing about a skill. A new
+  kit part counts without being listed. A skill's `files/`, `upstream/` and `cases/CASE/world/` folders hold
+  project text and are left out. Python is read for its strings, f-string text and comments only, since its code is
+  the same in any Python program. So a check copied with its strings and comments removed is not caught here; the
+  judge who reads the world is the check for that.
+- Case data (`case.json`, `tasks.json`, `triggers.json`) may repeat what the run sees of the case outside its world
+  (its prompt, commits and index rows) and its world's paths. Other eval text may not.
+- Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
+  except against eval text, the prompt. That text stays in both arms.
+- Every copy must still be byte for byte its recorded source, read at its own real path, and the source must not
+  have changed.
+
+A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's
+reason. The history is built with no git templates, so `.git` holds only what the case declares.
