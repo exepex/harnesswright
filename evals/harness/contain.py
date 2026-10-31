@@ -153,37 +153,31 @@ class Containment:
         found += [Mount(f"/etc/{name}", "ro") for name in ETC if os.path.exists(f"/etc/{name}")]
         outside = [Path(self.env[key]) for key in CA_KEYS if self.env.get(key)]
         outside += self.host_paths
-        found += [Mount(path, "ro", scan=True) for path in dict.fromkeys(outside) if path.exists()]
-        found += self._install(program)
+        named = [Mount(path, "ro", scan=True) for path in dict.fromkeys(outside) if path.exists()]
+        found += named + self._install(program)
         found.append(Mount(self.world, "rw" if self.mode == "task" else "ro", filled=self.world_entries, scan=True))
         found.append(Mount(self.home, "rw", filled=self.home_entries, scan=True))
         if self.scratch:
             found.append(Mount(self.scratch, "rw", filled=self.scratch_entries, scan=True))
-        self._refuse_overlaps(found)
+        self._refuse_overlaps(found, named)
         return found
 
     def _install(self, program):
         """The host's install, for `program` on the run's PATH and after links: the folder above its `bin` folder
-        (such as a node install), else its own folder. Nothing inside the operator's home is found this way, since a
-        folder there can hold the operator's files: a host there runs only from what `host_paths` names."""
+        (such as a node install), else its own folder. A program the operator names in `host_paths` needs no more."""
         found = shutil.which(program, path=self.env.get("PATH"))
         if found is None:
             return []
-        home, mounts = self.operator_home.resolve(), []
-        named = [Path(p).absolute() for p in self.host_paths] + [Path(p).resolve() for p in self.host_paths]
+        named, mounts = [p.resolve() for p in self.host_paths], []
         for path in dict.fromkeys((Path(found).absolute(), Path(found).resolve())):
-            if any(path.is_relative_to(folder) for folder in SYSTEM):
-                continue
-            if not path.is_relative_to(home):
+            if not any(path.resolve().is_relative_to(f) for f in [Path(f).resolve() for f in SYSTEM] + named):
                 mounts.append(Mount(path.parent.parent if path.parent.name == "bin" else path.parent, "ro", scan=True))
-            elif not any(path.is_relative_to(name) for name in named):
-                raise ContainmentError(f"{program} is installed in the operator's home at {path}: name the files "
-                                       "and folders it needs in host_paths")
         return mounts
 
-    def _refuse_overlaps(self, mounts):
-        """No mount may lie inside the repository or hold it, hold the operator's home, or sit inside another
-        mount the harness fills."""
+    def _refuse_overlaps(self, mounts, named):
+        """The one check of where mounts may be, on resolved paths: never in or holding the repository, never holding
+        the operator's home, in it only when the operator names it or the harness fills it (a folder found there, such
+        as `~/.local`, holds the operator's files), and never inside a mount the harness fills."""
         repo, home = REPO.resolve(), self.operator_home.resolve()
         bound = [m for m in mounts if m.how in ("ro", "rw")]
         for mount in bound:
@@ -191,6 +185,9 @@ class Containment:
             if path.is_relative_to(repo) or repo.is_relative_to(path) or home.is_relative_to(path):
                 raise ContainmentError(f"a run may not mount {mount.path}: it holds or is inside the repository "
                                        "or the operator's home")
+            if path.is_relative_to(home) and mount not in named and mount.filled is None:
+                raise ContainmentError(f"{mount.path} is in the operator's home: name the files and folders the host "
+                                       "needs in host_paths")
             for other in bound:
                 if other is not mount and other.filled is not None and path.is_relative_to(Path(other.path)):
                     raise ContainmentError(f"{mount.path} lies inside {other.path}, which the harness fills")

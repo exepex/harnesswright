@@ -129,18 +129,21 @@ class Jail(Setup):
         self.assertNotIn(str(decoy.pid), seen.stdout.split())
 
     def test_a_host_in_the_operator_home_runs_only_from_what_the_operator_names(self):
-        versions = self.tmp / "operator" / ".local" / "share" / "host" / "versions"
+        versions = self.tmp / "opt" / "host" / "versions"  # outside the home, linked from it
         versions.mkdir(parents=True)
         (versions / "1.0").write_text("#!/bin/sh\necho host ran\n")
         (versions / "1.0").chmod(0o755)
+        (self.tmp / "operator" / ".local" / "share").mkdir(parents=True)
         (self.tmp / "operator" / ".local" / "share" / "history").write_text("operator history\n")
         link = self.tmp / "operator" / ".local" / "bin" / "host"
         link.parent.mkdir()
         link.symlink_to(versions / "1.0")
-        run = self.run_of()
-        run.env["PATH"] = f"{link.parent}:/usr/bin:/bin"
-        with self.assertRaisesRegex(contain.ContainmentError, "installed in the operator's home"):
-            run.audit("host")
+        (self.tmp / "home").symlink_to(self.tmp / "operator")  # the same home reached through a link
+        for folder in (link.parent, self.tmp / "home" / ".local" / "bin"):
+            run = self.run_of()
+            run.env["PATH"] = f"{folder}:/usr/bin:/bin"
+            with self.subTest(folder=folder), self.assertRaisesRegex(contain.ContainmentError, "operator's home"):
+                run.audit("host")
         run = self.run_of(host_paths=[link])
         run.env["PATH"] = f"{link.parent}:/usr/bin:/bin"
         self.assertEqual(run.audit("host")["problems"], [])
