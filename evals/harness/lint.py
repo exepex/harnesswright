@@ -32,12 +32,12 @@ SHORTEST = 3
 # hold the words it names. `.harness/runs/` is the project's own run folder (doc 06), so no stem matches it.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
          "ground truth", "expected output")
-# Eval text (doc 11) is text about skills and their cases, which tells an agent what is measured: every file in the
-# folders of `EVAL_TEXT` under `evals/`, which hold each skill's evals, the fault catalogue and the results. A new
-# part of a skill's evals counts without being listed. The harness and runner are general machinery and say nothing
-# about a skill. Inside a skill's evals, `PROJECT_TEXT` folders hold text written for worlds. Case data is the files
-# that hold cases, new and old; each holds prompts and histories, which a ported or sibling case may repeat.
-EVAL_TEXT = ("skills", "faults", "results")
+# Eval text (doc 11) is text about skills and their cases, which tells an agent what is measured: every file under
+# `evals/` but the folders of `MACHINERY`, the harness and runner, which are general and say nothing about a skill.
+# A new kit part, such as goldens or the grader prompt, counts without being listed. Inside a skill's evals,
+# `PROJECT_TEXT` folders hold text written for worlds. Case data is the files that hold cases, new and old; each
+# holds prompts and histories, which a ported or sibling case may repeat.
+MACHINERY = ("harness", "runner")
 PROJECT_TEXT = (("files",), ("upstream",), ("cases", None, "world"))
 CASE_DATA = ("case.json", "tasks.json", "triggers.json")
 INDEX_ROW = "<index row>"
@@ -144,6 +144,10 @@ def _project_text(parts):
     return any(len(inner) >= len(t) and all(w in (None, part) for w, part in zip(t, inner)) for t in PROJECT_TEXT)
 
 
+# Python tokens that hold text: strings, comments and, from Python 3.12, the text parts of f-strings.
+TEXT_TOKENS = {tokenize.STRING, tokenize.COMMENT, getattr(tokenize, "FSTRING_MIDDLE", tokenize.STRING)}
+
+
 def said(path, text):
     """What a file says: for Python, its strings and comments, since its code is the same in any Python program;
     for anything else, or Python that does not parse, all of it."""
@@ -153,23 +157,22 @@ def said(path, text):
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
     except (tokenize.TokenError, SyntaxError):
         return text
-    return "\n".join(t.string for t in tokens if t.type in (tokenize.STRING, tokenize.COMMENT))
+    return "\n".join(t.string for t in tokens if t.type in TEXT_TOKENS)
 
 
 def eval_texts(repo=REPO):
-    """The eval text under `repo`: (measuring, cases). `measuring` is what every file in `EVAL_TEXT` but case data
-    and project text says. `cases` is each case data file as (path, text)."""
+    """The eval text under `repo`: (measuring, cases). `measuring` is what every file under `evals/` but machinery,
+    case data and project text says. `cases` is each case data file as (path, text)."""
     measuring, cases = [], []
-    for root in EVAL_TEXT:
-        for path in sorted((Path(repo) / "evals" / root).glob("**/*")):
-            parts = path.relative_to(Path(repo) / "evals").parts
-            if not path.is_file() or path.is_symlink() or _project_text(parts):
-                continue
-            text = path.read_bytes().decode("utf-8", "replace")
-            if parts[0] == "skills" and path.name in CASE_DATA:
-                cases.append((path, text))
-            else:
-                measuring.append(said(path, text))
+    for path in sorted((Path(repo) / "evals").glob("**/*")):
+        parts = path.relative_to(Path(repo) / "evals").parts
+        if not path.is_file() or path.is_symlink() or parts[0] in MACHINERY or _project_text(parts):
+            continue
+        text = path.read_bytes().decode("utf-8", "replace")
+        if parts[0] == "skills" and path.name in CASE_DATA:
+            cases.append((path, text))
+        else:
+            measuring.append(said(path, text))
     return measuring, sorted(cases)
 
 

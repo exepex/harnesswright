@@ -104,11 +104,11 @@ Text is matched on words after Unicode compatibility folding, with format charac
   8-word run of eval text; and any run of an expectation, in any place but the prompt, which may ask for it. An
   expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
   project words, so the judge who reads the world looks for it.
-- Eval text is text about skills and their cases, which tells an agent what is measured: each skill's evals
-  under `evals/skills/`, the fault catalogue in `evals/faults/` and the results in `evals/results/`. A new part of a
-  skill's evals counts without being listed. The harness and runner are general machinery and are not eval text.
-  A skill's `files/`, `upstream/` and `cases/CASE/world/` folders hold project text and are left out. Python is
-  read for its strings and comments only, since its code is the same in any Python program.
+- Eval text is text about skills and their cases, which tells an agent what is measured: every file under
+  `evals/` but `evals/harness/` and `evals/runner/`, the general machinery, which says nothing about a skill. A new
+  kit part counts without being listed. A skill's `files/`, `upstream/` and `cases/CASE/world/` folders hold
+  project text and are left out. Python is read for its strings, f-string text and comments only, since its code is
+  the same in any Python program.
 - Case data (`case.json`, `tasks.json`, `triggers.json`) may repeat what the case declares: its own `case.json` and
   its world's paths. Other eval text may not.
 - Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,

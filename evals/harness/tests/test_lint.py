@@ -138,14 +138,15 @@ class Lint(TempCase):
         evals = self.tmp / "repo" / "evals"
         paths = ("harness/README.md", "runner/core.py", "skills/x/checks/c.py", "skills/x/tasks.json",
                  "skills/x/cases/a/case.json", "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md",
-                 "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json")
+                 "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json",
+                 "goldens/g.md")
         for path in paths:
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
-        (evals / "skills/x/checks/c.py").write_text("import os\nassert 'poem' in out  # one poem\n")
+        (evals / "skills/x/checks/c.py").write_text("import os\nassert f'poem {n}' in out  # one poem\n")
         measuring, data = lint.eval_texts(self.tmp / "repo")
-        self.assertEqual(measuring, ["skills/x/answers/world/key.md", "'poem'\n# one poem", "faults/f.md",
-                                     "results/r.json"])
+        self.assertEqual([" ".join(lint.words(t)) for t in measuring],
+                         ["faults f md", "goldens g md", "results r json", "skills x answers world key md", "poem one poem"])
         self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
 
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):
