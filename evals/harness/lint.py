@@ -13,8 +13,10 @@ refused rather than guessed at. Text is matched after Unicode compatibility fold
 as soft hyphens removed, so look-alike spellings match too.
 """
 
+import io
 import re
 import tempfile
+import tokenize
 import unicodedata
 from pathlib import Path
 
@@ -30,10 +32,13 @@ SHORTEST = 3
 # hold the words it names. `.harness/runs/` is the project's own run folder (doc 06), so no stem matches it.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
          "ground truth", "expected output")
-# Eval text (doc 11) is every file under `evals/` except project text: the folders of a skill's evals that hold
-# text written for worlds. A new kit part counts without being listed. Case data is the files that hold cases, new
-# and old; each holds prompts, which the prompt of a ported case may repeat.
-PROJECT_TEXT = ("world", "files", "upstream")
+# Eval text (doc 11) is text about skills and their cases, which tells an agent what is measured: every file in the
+# folders of `EVAL_TEXT` under `evals/`, which hold each skill's evals, the fault catalogue and the results. A new
+# part of a skill's evals counts without being listed. The harness and runner are general machinery and say nothing
+# about a skill. Inside a skill's evals, `PROJECT_TEXT` folders hold text written for worlds. Case data is the files
+# that hold cases, new and old; each holds prompts and histories, which a ported or sibling case may repeat.
+EVAL_TEXT = ("skills", "faults", "results")
+PROJECT_TEXT = (("files",), ("upstream",), ("cases", None, "world"))
 CASE_DATA = ("case.json", "tasks.json", "triggers.json")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
@@ -133,20 +138,38 @@ def texts(folder):
             if manifest.kind(e) == "file"]
 
 
+def _project_text(parts):
+    """True when `parts`, a path under `evals/`, is inside a folder of `PROJECT_TEXT` under `skills/NAME/`."""
+    inner = parts[2:-1] if parts[0] == "skills" else ()
+    return any(len(inner) >= len(t) and all(w in (None, part) for w, part in zip(t, inner)) for t in PROJECT_TEXT)
+
+
+def said(path, text):
+    """What a file says: for Python, its strings and comments, since its code is the same in any Python program;
+    for anything else, or Python that does not parse, all of it."""
+    if path.suffix != ".py":
+        return text
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, SyntaxError):
+        return text
+    return "\n".join(t.string for t in tokens if t.type in (tokenize.STRING, tokenize.COMMENT))
+
+
 def eval_texts(repo=REPO):
-    """The eval text under `repo`: (measuring, cases). `measuring` is the text of every file but case data and
-    project text, without import lines, which the harness and its checks share with any Python. `cases` is each
-    case data file as (path, text)."""
+    """The eval text under `repo`: (measuring, cases). `measuring` is what every file in `EVAL_TEXT` but case data
+    and project text says. `cases` is each case data file as (path, text)."""
     measuring, cases = [], []
-    for path in sorted(Path(repo).glob("evals/**/*")):
-        parts = path.relative_to(Path(repo) / "evals").parts
-        if not path.is_file() or path.is_symlink() or (parts[0] == "skills" and set(PROJECT_TEXT) & set(parts[2:-1])):
-            continue
-        text = path.read_bytes().decode("utf-8", "replace")
-        if parts[0] == "skills" and path.name in CASE_DATA:
-            cases.append((path, text))
-        else:
-            measuring.append(re.sub(r"(?m)^[ \t]*(?:import|from)[ \t].*$", "", text))
+    for root in EVAL_TEXT:
+        for path in sorted((Path(repo) / "evals" / root).glob("**/*")):
+            parts = path.relative_to(Path(repo) / "evals").parts
+            if not path.is_file() or path.is_symlink() or _project_text(parts):
+                continue
+            text = path.read_bytes().decode("utf-8", "replace")
+            if parts[0] == "skills" and path.name in CASE_DATA:
+                cases.append((path, text))
+            else:
+                measuring.append(said(path, text))
     return measuring, sorted(cases)
 
 
@@ -172,12 +195,14 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     shared = shared_runs(places, copied, upstream, RUN)
     files, _ = skill_files(skill_dir, case.skill)
     skill = set().union(set(), *(runs(data.decode("utf-8", "replace"), RUN) for data in files.values())) - shared
-    # Eval text is one set. The prompt is project text only against case data, where a ported prompt is repeated;
-    # the case's own file is its prompt, expectations and commits, which the other rules read.
+    # Eval text is one set. Case data may repeat what this case declares: its own case.json and the paths of its
+    # world, which old task lists name. The rest of the eval text may not, so the prompt is never project text for it.
     own = (case.folder / "case.json").resolve()
-    data = [t for path, t in cases if Path(path).resolve() != own]
+    declared = runs(own.read_bytes().decode("utf-8", "replace"), RUN) if own.is_file() else set()
+    declared |= runs("\n".join(p.key for p in places), RUN)
+    data = set().union(set(), *(runs(t, RUN) for path, t in cases if Path(path).resolve() != own))
     measuring = (set().union(set(), *(runs(t, RUN) for t in kit)) - shared_runs(places, copied, upstream, RUN, False)
-                 ) | (set().union(set(), *(runs(t, RUN) for t in data)) - shared)
+                 ) | (data - shared - declared)
     # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
     # ordinary project words, so a judge reads for it instead.
     expected = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]

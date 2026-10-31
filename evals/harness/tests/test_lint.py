@@ -134,19 +134,19 @@ class Lint(TempCase):
         self.assertTrue(any("not in the world as the regular file" in p for p in problems))
         self.assertTrue(any("OTHER.md: holds" in p for p in problems))
 
-    def test_eval_text_is_everything_under_evals_but_project_text(self):
+    def test_eval_text_is_what_the_evals_say_about_skills(self):
         evals = self.tmp / "repo" / "evals"
-        paths = ("harness/README.md", "skills/x/checks/c.py", "skills/x/tasks.json", "skills/x/cases/a/case.json",
-                 "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md", "skills/x/upstream/SKILL.md",
-                 "faults/f.md", "results/r.json")
+        paths = ("harness/README.md", "runner/core.py", "skills/x/checks/c.py", "skills/x/tasks.json",
+                 "skills/x/cases/a/case.json", "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md",
+                 "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json")
         for path in paths:
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
+        (evals / "skills/x/checks/c.py").write_text("import os\nassert 'poem' in out  # one poem\n")
         measuring, data = lint.eval_texts(self.tmp / "repo")
-        self.assertEqual(measuring, ["faults/f.md", "harness/README.md", "results/r.json", "skills/x/checks/c.py"])
+        self.assertEqual(measuring, ["skills/x/answers/world/key.md", "'poem'\n# one poem", "faults/f.md",
+                                     "results/r.json"])
         self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
-        (evals / "skills/x/checks/c.py").write_text("import os\nfrom pathlib import Path\nassert 'poem' in out\n")
-        self.assertIn("\n\nassert 'poem' in out\n", lint.eval_texts(self.tmp / "repo")[0])
 
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):
         prompt = "Write a short poem about the quiet harbour at dawn for the notes app."
@@ -159,6 +159,8 @@ class Lint(TempCase):
         own = self.tmp / "cases" / f"c{len(list((self.tmp / 'cases').iterdir())) + 1}" / "case.json"
         commits = {"commits": [{"message": message, "paths": ["README.md"]}]}
         self.assertEqual(self.problems({"README.md": "x\n"}, commits, case_data=[(own, message)]), [])
+        sibling = [(self.tmp / "b.json", f'{{"commits": [{{"message": "{message}"}}]}}')]
+        self.assertEqual(self.problems({"README.md": "x\n"}, commits, case_data=sibling), [])
 
     def test_the_projects_run_folder_is_not_a_tell(self):
         story = ".harness/runs/2026-10-30-notes/stories/S01.md"
