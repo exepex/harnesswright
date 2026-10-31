@@ -142,6 +142,13 @@ class ClaimsCheckTest(unittest.TestCase):
         code, out = self.check(text)
         self.assertEqual(code, 0, out)
 
+    def test_hedge_wording_fails_but_quoted_output_does_not(self):
+        code, out = self.check(claims(entry(1) + entry(2)) + "\nIt should work now.\n")
+        self.assertIn("unproven success wording: 'should work'", out)
+        quoted = "- **Output:** `AssertionError: 'ok' != 'looks good'`\n```\nprobably flaky\n```\n"
+        code, out = self.check(claims(entry(1) + entry(2, "not met") + quoted))
+        self.assertEqual(code, 0, out)
+
     def test_non_ascii_paths_are_read_raw(self):
         def git(*args):
             subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args], cwd=self.repo,

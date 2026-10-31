@@ -207,7 +207,8 @@ def cmd_check(args):
     # implementer's sections are checked.
     own = "\n".join(body for heading, body in sections if heading != "Request")
     problems += check_refs(own, repo)
-    lowered = own.lower()
+    # Quoted command output is evidence, not the writer's own wording, so code blocks and spans are skipped.
+    lowered = re.sub(r"```.*?```|`[^`\n]*`", "", own, flags=re.DOTALL).lower()
     problems += [f"unproven success wording: '{h}'" for h in HEDGES if h in lowered]
     for problem in problems:
         print(problem)

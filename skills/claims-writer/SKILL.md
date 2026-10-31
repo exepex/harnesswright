@@ -94,7 +94,8 @@ for the full layout.
 1. `## Request`: the story, quoted with `>` on each line. Do not paraphrase it.
 2. `## Requirements`: one entry per criterion, headed by its ID, with **Status** (`met`, `not met` or
    `not verified`), **Done** (what changed, with `file:line`) and **Evidence** (test names, the command and the
-   lines of its output that prove it). A criterion is `met` only when its evidence from step 3 proves every part.
+   lines of its output that prove it, quoted in backticks or a code block). A criterion is `met` only when its
+   evidence from step 3 proves every part.
 3. `## Standards`: each rule applied, by its ID, with any exception and the reason for it.
 4. `## Out of scope`: what the change deliberately does not do, each with a reason. Ideas for extra work go here
    as proposals, not into the change.

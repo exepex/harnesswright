@@ -15,7 +15,7 @@ defines it. Copy it, keep the six headings exactly, and replace every part in an
 ### AC-1 · <the criterion, in a few words>
 - **Status:** <met | not met | not verified>
 - **Done:** <what changed, with `path:line` or `path:first-last`>
-- **Evidence:** <test names with `path:line`; the command run, its exit code and the output lines that prove it>
+- **Evidence:** <test names with `path:line`; the command run, its exit code and the output lines that prove it, in backticks or a code block>
 
 ### AC-2 · <…>
 - **Status:** …
