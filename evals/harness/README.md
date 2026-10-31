@@ -15,7 +15,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 |---|---|
 | `manifest.py` | The one description of a folder: every path with its kind (folder, file, link), mode and hash |
 | `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
-| `skills.py` | Reads a skill folder and its frontmatter; finds a `.git` folder or a link that leaves a folder |
+| `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 
 ## Commands
 
@@ -48,12 +48,13 @@ built instead of failing part way:
 
 `skills.frontmatter` reads one stated subset of YAML, with only the fields of `HW-PORT-01`: `name`,
 `description`, `license` and `compatibility` hold text (one plain line, a quoted string, or a `>` or `|` block),
-and `metadata` holds `  key: value` lines of text. Each field appears once, and the block ends at a line that is
-exactly `---`. Anything else is refused with its line number, so a value is never read short or as the wrong type:
+and `metadata` holds `  key: value` lines of text. A plain line is words separated by single spaces, which YAML
+reads as the same text. Each field appears once, lines end only at a newline, no other control character is
+allowed, and the block ends at a line that is exactly `---`. Anything else is refused with its line number, so a value is never read short or as the wrong type:
 the index row and the fingerprint are built from it. The frontmatter name must be a skill name, and the expected
 one when the caller names it, because the name chooses where a host discovers the skill.
 
-`skills.structure` allows folders, regular files and relative links that lead step by step through real folders
-to a real folder or file inside the folder. A link is judged by its text against the folder's manifest, never by
+`skills.structure` allows folders, regular files and relative links whose target is made only of `..` and name
+steps, and leads step by step through real folders to a real folder or file inside the folder. A link is judged by its text against the folder's manifest, never by
 resolving it on disk, so a link through another link, or one that leaves and comes back in through the folder's
 own name, is refused. A `.git` folder is never allowed, and a skill folder holds no links at all.

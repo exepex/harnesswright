@@ -46,6 +46,10 @@ class Frontmatter(TempCase):
             "---\nmetadata:\n  a: [1]\n---\n": "not plain",
             "---\nmetadata:\n  a: 1\n  a: 2\n---\n": "appears twice",
             "---\nmetadata:\n    deep: x\n---\n": "indented line",
+            "---\nname: a\ndescription: Use when:\n---\n": "not plain",
+            "---\nname: a\ndescription: x\t# note\n---\n": "not plain",
+            "---\nname: a\ndescription: Writes demos.\u2028---\nx\n---\n": "line-break",
+            "---\nname: a\ndescription: Writes\x0cdemos.\n---\n": "line-break",
         }
         for text, reason in refused.items():
             with self.subTest(text=text), self.assertRaisesRegex(cases.CaseError, reason):
@@ -57,7 +61,7 @@ class Frontmatter(TempCase):
         self.assertEqual(meta["name"], "haiku-writer")
         with self.assertRaisesRegex(cases.CaseError, "must be 'note-taker'"):
             skills.skill_files(folder, "note-taker")
-        (folder / "SKILL.md").write_text("---\nname: ../../../escape\ndescription: x\n---\n")
+        (folder / "SKILL.md").write_text("---\nname: '../../../escape'\ndescription: x\n---\n")
         with self.assertRaisesRegex(cases.CaseError, "must be a skill name"):
             skills.skill_files(folder)
 
@@ -79,7 +83,6 @@ class Structure(TempCase):
         world = self.world()
         (world / "sub" / "readme").symlink_to("../README.md")
         (world / "docs").symlink_to("sub")
-        (world / "here").symlink_to(".")
         self.assertEqual(skills.structure(world), [])
 
     def test_everything_else_is_found(self):
@@ -88,16 +91,18 @@ class Structure(TempCase):
         (world / "absolute").symlink_to("/etc")
         (world / "sub" / "out").symlink_to("../../elsewhere")
         (world / "missing").symlink_to("nothing")
-        (world / "c").symlink_to(".")
+        (world / "c").symlink_to("sub")
         (world / "a").symlink_to("c/..")
         (world / "chain").symlink_to("c")
+        (world / "dot").symlink_to("README.md/.")
+        (world / "slash").symlink_to("sub/")
         (world / "sub" / "alias").symlink_to("..")
         (world / "escape").symlink_to("sub/alias/../README.md")
         os.mkfifo(world / "pipe")
         self.assertIn("pipe", " ".join(skills.structure(world)))
         (world / "pipe").unlink()
         found = " ".join(skills.structure(world))
-        for path in ("sub/.git", "absolute", "sub/out", "missing", "a:", "chain", "escape"):
+        for path in ("sub/.git", "absolute", "sub/out", "missing", "a:", "chain", "escape", "dot", "slash"):
             with self.subTest(path=path):
                 self.assertIn(path, found)
         self.assertNotIn("c:", found)

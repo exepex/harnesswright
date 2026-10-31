@@ -15,15 +15,18 @@ import re
 from pathlib import Path, PurePosixPath
 
 import manifest
-from cases import CaseError, is_name
+from cases import PATH_PART, CaseError, is_name
 
 SCALARS = ("name", "description", "license", "compatibility")
 MAPPINGS = ("metadata",)
 KEY = re.compile(r"([a-z][a-z-]*):(?: (.*))?")
 META = re.compile(r"  ([A-Za-z0-9_-]+): (.+)")
 BLOCK = (">", ">-", "|", "|-")
-# A plain one-line value: no YAML indicator first, and no `: ` or ` #` inside, which YAML reads differently.
-PLAIN = re.compile(r"(?![-?:,\[\]{}#&*!|>'\"%@`\s])(?!.*: )(?!.* #).*\S")
+# A plain one-line value: words separated by single spaces. A word holds no space or tab, never starts with `#`,
+# and holds a colon only between two other characters (`file:line`). The first word starts with a letter, a digit
+# or `(`. YAML reads every value of this shape as the same text.
+WORD = r"[^\s:#][^\s:]*(?::[^\s:]+)*"
+PLAIN = re.compile(rf"[\w(][^\s:]*(?::[^\s:]+)*(?: {WORD})*")
 
 
 def skill_files(skill_dir, name=None):
@@ -59,7 +62,14 @@ def frontmatter(text):
     quoted value, or a block scalar (`>` or `|`, then indented lines, blank lines allowed), joined into one line.
     `metadata` holds lines of `  key: value`, all text. Blank lines may sit between fields.
     """
-    lines = text.splitlines()
+    # Lines end only at \n (a \r before it is dropped). Any other control or line-break character is refused, so
+    # nothing can end a value or the block early.
+    lines = [line[:-1] if line.endswith("\r") else line for line in text.split("\n")]
+    for number, line in enumerate(lines, 1):
+        if any(not char.isprintable() and char != "\t" for char in line):
+            raise CaseError(f"frontmatter line {number}: holds a control or line-break character")
+        if line == "---" and number > 1:
+            break
     if not lines or lines[0] != "---":
         raise CaseError("no frontmatter: the first line must be ---")
     meta, key, mode = {}, None, None
@@ -142,19 +152,20 @@ def structure(folder, links=True):
 
 
 def _leads_inside(entries, path, target):
-    """True when `target`, read from the folder that holds `path`, passes only through real folders and ends at a
-    real folder or file. A step through a link is refused, so links never chain out of the folder."""
-    if not target or target.startswith("/"):
+    """True when `target`, read from the folder that holds `path`, is made only of `..` and name steps, passes only
+    through real folders, and ends at a real folder or file. A step through a link is refused, so links never chain
+    out of the folder, and a target cannot dangle."""
+    steps = target.split("/")
+    if not all(step == ".." or (PATH_PART.fullmatch(step) and step not in (".", ".git")) for step in steps):
         return False
     at = list(PurePosixPath(path).parent.parts)
-    steps = [part for part in target.split("/") if part not in ("", ".")]
-    for number, part in enumerate(steps, 1):
-        if part == "..":
+    for number, step in enumerate(steps, 1):
+        if step == "..":
             if not at:
                 return False
             at.pop()
         else:
-            at.append(part)
+            at.append(step)
         kind = manifest.kind(entries.get("/".join(at), "missing")) if at else "dir"
         if kind not in (("dir", "file") if number == len(steps) else ("dir",)):
             return False
