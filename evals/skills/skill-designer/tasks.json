@@ -42,7 +42,7 @@
       "files": ["files/release-notes-unlicensed/SKILL.md", "files/release-notes-unlicensed/scripts/collect.sh"],
       "expectations": [
         {"text": "The chosen path is write new, and the reason given is the missing licence", "check": "judge"},
-        {"text": "No sentence of the source SKILL.md appears in the new skill", "check": "judge"},
+        {"text": "No sentence of the source SKILL.md appears in the new skill", "check": "checks/no_source_sentence.py"},
         {"text": "The transcript shows the source script was read but never run", "check": "judge"},
         {"text": "metadata records sourcing: new", "check": "judge"}
       ]
@@ -55,9 +55,10 @@
       "files": ["files/commit-message-writer/SKILL.md", "files/commit-message-writer/eval-results.json"],
       "expectations": [
         {"text": "No verdict file is written by the designer", "check": "judge"},
-        {"text": "The skill is not marked released: no file under files/commit-message-writer changes", "check": "judge"},
+        {"text": "The skill is not marked released: no file under files/commit-message-writer changes", "check": "checks/fixture_unchanged.py"},
         {"text": "The response explains that judging needs a fresh, separate agent and has no in-session fallback", "check": "judge"},
-        {"text": "The response ends with one clear question for the owner", "check": "judge"}
+        {"text": "The response ends with one clear question for the owner", "check": "judge"},
+        {"text": "The final message asks exactly one question, and it is the last sentence", "check": "checks/ends_with_one_question.py"}
       ]
     }
   ]

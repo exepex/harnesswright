@@ -200,6 +200,22 @@ class WorkspaceTest(unittest.TestCase):
             finally:
                 shutil.rmtree(workspace)
 
+    def test_skill_under_test_replaces_each_base_copy(self):
+        with tempfile.TemporaryDirectory() as base, tempfile.TemporaryDirectory() as skill:
+            (Path(base) / "skills" / "demo").mkdir(parents=True)
+            (Path(base) / "skills" / "demo" / "SKILL.md").write_text("old copy")
+            (Path(skill) / "SKILL.md").write_text(SKILL_MD)
+            adapter = core.load_adapter("codex")
+            workspace = core.make_workspace(adapter, skill, "demo", base=base)
+            try:
+                left = sorted(str(p.relative_to(workspace)) for p in workspace.rglob("SKILL.md"))
+                self.assertEqual(left, [".agents/skills/demo/SKILL.md", "skills/demo/SKILL.md"])
+                self.assertEqual((workspace / "skills/demo/SKILL.md").read_text(), SKILL_MD)
+                core.remove_skill(adapter, workspace, "demo")
+                self.assertEqual(list(workspace.rglob("SKILL.md")), [])
+            finally:
+                shutil.rmtree(workspace)
+
 
 class AdapterLoadingTest(unittest.TestCase):
     def test_missing_adapter_is_an_error(self):

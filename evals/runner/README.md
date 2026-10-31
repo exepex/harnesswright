@@ -96,7 +96,9 @@ and `passed`). Script checks run at once; `judge` expectations stay `null` until
 `grading.json` in the run folder. Each invocation first deletes earlier results for the same configuration, and
 writes `status-<configuration>.json` with whether the host ran and which runs it made. Workspaces never contain
 the results folder, nor a copy of the skill from `--base` (in `skills/` or a host's skills folder) other than the
-one installed for this run. As a backstop to the seal, a baseline run whose host output holds the skill's
+one installed for this run. A with-skill run installs the skill under test in the host's skills folder and in each
+folder where `--base` held a copy, so a path to the skill in the base, such as the skills index in `AGENTS.md`,
+still resolves; a baseline run gets none of them. Every copy is removed before `outputs/` is saved. As a backstop to the seal, a baseline run whose host output holds the skill's
 description has seen the skill and fails with `baseline saw the skill under test`. A task run that
 times out is a failed run. `run.json` also holds `model` and
 `refusals`; `status-<configuration>.json` holds `provenance`. Each task runs 3 times by default.

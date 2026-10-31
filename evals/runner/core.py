@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 import seal
+from workspace import SKILL_FOLDERS, make_workspace, remove_skill  # noqa: F401  (part of core's API)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADAPTERS_DIR = REPO_ROOT / "adapters"
@@ -25,10 +26,6 @@ ADAPTER_FUNCTIONS = ("skill_dir", "build_command", "environment", "parse_events"
 # the baseline (with skill minus without) that shows the skill does something.
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3,
               "min_lift": 0.0}
-# Project folders where known hosts discover skills, and `skills/`, where this repository keeps its skill
-# sources. A copied base folder may hold the skill under test in any of them, which would leak it into a
-# baseline run or mix it with the installed copy.
-SKILL_FOLDERS = ("skills", ".claude/skills", ".agents/skills", ".opencode/skills", ".goose/skills")
 
 
 class EvalError(Exception):
@@ -227,36 +224,7 @@ def split_queries(queries, holdout, seed=42):
     return sorted(train), sorted(test)
 
 
-# ---- workspaces and host runs -----------------------------------------------
-
-def _copy_ignore(excluded):
-    """copytree ignore function: skip .git and every path in `excluded` (resolved paths)."""
-    excluded = {Path(p).resolve() for p in excluded}
-
-    def ignore(folder, names):
-        here = Path(folder).resolve()
-        return {n for n in names if n == ".git" or (here / n).resolve() in excluded}
-    return ignore
-
-
-def make_workspace(adapter, skill_path, skill_name, skill_text=None, base=None, exclude=()):
-    """Create a disposable workspace, copy `base` into it (without `exclude`) and install the skill.
-
-    Any copy of the skill that came with `base` is removed first, so a baseline run never sees it.
-    """
-    workspace = Path(tempfile.mkdtemp(prefix="hw-eval-"))
-    if base is not None:
-        shutil.copytree(base, workspace, dirs_exist_ok=True, ignore=_copy_ignore(exclude))
-    for folder in SKILL_FOLDERS:
-        shutil.rmtree(workspace / folder / skill_name, ignore_errors=True)
-    shutil.rmtree(adapter.skill_dir(workspace, skill_name), ignore_errors=True)
-    if skill_path is not None:
-        target = adapter.skill_dir(workspace, skill_name)
-        shutil.copytree(skill_path, target, dirs_exist_ok=True)
-        if skill_text is not None:
-            (target / "SKILL.md").write_text(skill_text, encoding="utf-8")
-    return workspace
-
+# ---- host runs (workspaces are in workspace.py) -------------------------------
 
 def run_host(adapter, workspace, prompt, mode, model, timeout):
     """Run the host once, sealed (see seal.py), with the prompt on stdin. Never raises on host failure.

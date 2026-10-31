@@ -127,7 +127,7 @@ def cmd_tasks(args):
                 if args.baseline and not run["failure"] and saw_skill(run["stdout"], description):
                     run["failure"] = "baseline saw the skill under test"
                 if not args.baseline:
-                    shutil.rmtree(adapter.skill_dir(workspace, name), ignore_errors=True)
+                    core.remove_skill(adapter, workspace, name)
                 shutil.copytree(workspace, run_dir / "outputs")
             finally:
                 shutil.rmtree(workspace, ignore_errors=True)
