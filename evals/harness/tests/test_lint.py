@@ -123,6 +123,9 @@ class Lint(TempCase):
             "README.md": ["evaluation"]}})], ["README.md: test-tell word 'evaluator'"])
         self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": "Write a poem for the eval.",
                                                              "allow_words": {"<prompt>": ["eval"]}}), [])
+        index = {"index": dict(INDEX, row="| {name} | {path} | evaluation |"), "allow_words": {"AGENTS.md": [
+            "evaluation"]}}
+        self.assertEqual(self.problems({"README.md": "x\n", "AGENTS.md": AGENTS}, index), [])
 
     def test_a_copy_must_be_its_source(self):
         repo, copy = self.source("Old style.\n")
@@ -133,6 +136,12 @@ class Lint(TempCase):
         problems = self.problems({"OTHER.md": SKILL_MD}, {"copies": [fake]}, repo=repo)
         self.assertTrue(any("not in the world as the regular file" in p for p in problems))
         self.assertTrue(any("OTHER.md: holds" in p for p in problems))
+        (repo / "real").mkdir()
+        (repo / "real" / "STYLE.md").write_text("Old style.\n")
+        (repo / "project").symlink_to("real")
+        linked = dict(copy, source="project/STYLE.md", source_sha256=cases.sha256_file(repo / "real" / "STYLE.md"))
+        problems = self.problems({"STYLE.md": "Old style.\n"}, {"copies": [linked]}, repo=repo)
+        self.assertTrue(any("not a regular file at its real path" in p for p in problems), problems)
 
     def test_eval_text_is_what_the_evals_say_about_skills(self):
         evals = self.tmp / "repo" / "evals"
@@ -146,7 +155,8 @@ class Lint(TempCase):
         (evals / "skills/x/checks/c.py").write_text("import os\nassert f'poem {n}' in out  # one poem\n")
         measuring, data = lint.eval_texts(self.tmp / "repo")
         self.assertEqual([" ".join(lint.words(t)) for t in measuring],
-                         ["faults f md", "goldens g md", "results r json", "skills x answers world key md", "poem one poem"])
+                         ["faults f md", "goldens g md", "results r json", "skills x answers world key md",
+                          "poem one poem"])
         self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
 
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):

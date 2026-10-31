@@ -14,6 +14,7 @@ as soft hyphens removed, so look-alike spellings match too.
 """
 
 import io
+import os
 import re
 import tempfile
 import tokenize
@@ -214,6 +215,9 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
                                     if len(e) >= SHORTEST)) - shared_runs(places, copied, upstream, EXPECTATION_RUN)
     sizes = {len(r.split()) for r in expected}
     allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
+    # The index row is written into the index file, so it has that file's allowances.
+    if case.index:
+        allowed[INDEX_ROW] = allowed.get(case.index["file"], [])
     leaks = [case.skill] + ([case.skill_rel] if case.skill_rel != f"skills/{case.skill}" else [])
     problems = []
     for place in places:
@@ -242,14 +246,16 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
 def _copies(case, copied, repo):
     problems = []
     for copy in case.copies:
+        # The source is read only at its own real path, so a link cannot bring skill or eval text in as a copy.
+        path = Path(os.path.abspath(Path(repo) / copy["source"]))
         try:
-            source = _hash(manifest.entry(Path(repo) / copy["source"]))
-        except manifest.Unreadable:
+            source = _hash(manifest.entry(path)) if path.resolve() == path else None
+        except (manifest.Unreadable, OSError):
             source = None
         if copy["world"] not in copied:
             problems.append(f"copy {copy['world']}: not in the world as the regular file its source_sha256 names")
         elif source is None:
-            problems.append(f"copy {copy['world']}: source {copy['source']} is not a regular file")
+            problems.append(f"copy {copy['world']}: source {copy['source']} is not a regular file at its real path")
         elif source != copy["source_sha256"]:
             problems.append(f"copy {copy['world']}: {copy['source']} changed since it was copied; review the copy "
                             "and record the new source_sha256")
