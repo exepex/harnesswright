@@ -7,37 +7,56 @@ A manifest maps each relative posix path to one entry string:
 - `link <target>` for a symlink, which is never followed.
 
 World hashes, the arm proof and world diffs all use this one representation, so a change of contents, of the
-executable bit, of a folder or of a link is always a change. The module uses only the standard library and
-imports nothing from the harness, so the same code can run inside a jail.
+executable bit, of a folder or of a link is always a change. Any other kind of entry (a pipe, socket or
+device), and any entry that cannot be read, is refused, so a manifest is never partial. The module uses only the
+standard library and imports nothing from the harness, so the same code can run inside a jail.
 """
 
 import hashlib
 import json
 import os
+import stat
 
 EXEC = "x"
 
 
+class Unreadable(ValueError):
+    """A folder that cannot be described in full: an entry that is not a folder, regular file or link, or one
+    that cannot be read. A manifest is never partial."""
+
+
 def entry(path):
-    """The manifest entry of one path."""
-    if os.path.islink(path):
+    """The manifest entry of one path. Only a link, a folder or a regular file has one."""
+    mode = os.lstat(path).st_mode
+    if stat.S_ISLNK(mode):
         return "link " + os.readlink(path)
-    if os.path.isdir(path):
+    if stat.S_ISDIR(mode):
         return "dir"
+    if not stat.S_ISREG(mode):
+        raise Unreadable(f"{path}: not a folder, regular file or link")
     digest = hashlib.sha256()
-    with open(path, "rb") as handle:
+    try:
+        handle = open(path, "rb")
+    except OSError as error:
+        raise Unreadable(f"{path}: cannot be read: {error.strerror}") from None
+    with handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
-    executable = os.stat(path).st_mode & 0o111
+    executable = mode & 0o111
     return f"file {digest.hexdigest()}" + (f" {EXEC}" if executable else "")
 
 
 def manifest(folder, skip=()):
     """{relative posix path: entry} for every entry under `folder`. Paths whose first part is in `skip` (such as
-    `.git`) are left out. Symlinked folders are recorded as links and not entered."""
+    `.git`) are left out. Symlinked folders are recorded as links and not entered. Raise Unreadable when any
+    entry cannot be read, so a manifest is never partial."""
     folder = os.fspath(folder)
     found = {}
-    for root, dirs, names in os.walk(folder):
+
+    def refuse(error):
+        raise Unreadable(f"{error.filename}: cannot be read: {error.strerror}")
+
+    for root, dirs, names in os.walk(folder, onerror=refuse):
         if root == folder:
             dirs[:] = [d for d in dirs if d not in skip]
         for name in dirs + names:

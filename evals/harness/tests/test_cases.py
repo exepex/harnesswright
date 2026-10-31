@@ -1,5 +1,6 @@
 """Cases: case.json is checked against one schema, and the manifest describes a folder."""
 
+import os
 import unittest
 
 from helpers import TempCase
@@ -125,6 +126,14 @@ class Manifest(TempCase):
         (folder / "run.sh").chmod(0o755)
         self.assertTrue(manifest.manifest(folder)["run.sh"].endswith(" x"))
         self.assertNotIn("empty", manifest.manifest(folder, skip=("empty",)))
+
+    def test_the_manifest_is_never_partial(self):
+        with self.assertRaises(manifest.Unreadable):
+            manifest.manifest(self.tmp / "missing")
+        case = self.case({"README.md": "x"}, name="pipe")
+        os.mkfifo(case.world / "pipe")
+        with self.assertRaisesRegex(cases.CaseError, "not a folder, regular file or link"):
+            cases.Case(case.folder, "haiku-writer")
 
 
 if __name__ == "__main__":

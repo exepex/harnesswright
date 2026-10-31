@@ -205,7 +205,10 @@ class Case:
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise CaseError(f"{self.id}: case.json is not UTF-8 JSON: {error}") from None
         self.data = check(data, self.id, skill)
-        world = {f"world/{k}": v for k, v in manifest.manifest(self.world).items()}
+        try:
+            world = {f"world/{k}": v for k, v in manifest.manifest(self.world).items()}
+        except manifest.Unreadable as error:
+            raise CaseError(f"{self.id}: {error}") from None
         self.sha256 = manifest.digest({"case.json": "file " + sha256_file(path), **world})
 
     def __getattr__(self, name):
