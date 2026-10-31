@@ -1,0 +1,148 @@
+"""Hosts: the one contract between the harness and a host's adapter (doc 11, Containment and Evidence).
+
+One rule: the harness knows a host only through `CONTRACT`, and accepts from it only what the allow lists below
+describe. `check_adapter` checks an adapter once, when it is loaded. `run` is the one place a host runs: in the
+run's jail, after its audit and inside its gate, with the command the adapter builds. It returns the host's action
+log and what the host exposed, each checked against one allow list: every entry has exactly the fields of its kind,
+every exposed skill is one the case declares, and every exposed tool is one of the adapter's TOOLS, each of a kind
+on the power table (`powers.TOOLS`). Anything else raises HostError, and the round stops.
+
+Standard library only.
+"""
+
+import hashlib
+import re
+import subprocess
+
+import powers
+
+# The names every harness adapter defines, with what each must be.
+CONTRACT = {
+    "NAME": str,
+    "CLI": str,  # the host's program; its install is what the jail mounts
+    "MODEL_HOSTS": tuple,  # the gate's allow list (doc 11, The gate)
+    "ENV_KEYS": tuple,
+    "CREDENTIAL_FILES": tuple,
+    "TOOLS": dict,  # each tool the host may expose, by the host's name, with its kind in powers.TOOLS
+    "skill_dir": callable,  # (world, name): where the host discovers a skill in the world
+    "environment": callable,  # (env): the run's environment, given the one the harness built (contain.py)
+    # (mode, world, model): the command for one run, with the prompt on stdin. The host's own sandbox is off (the
+    # jail enforces the table), its bundled skills are off where it allows, and it exposes only its TOOLS.
+    "jail_command": callable,
+    "action_log": callable,  # (stdout): the host-neutral action log, a list of ENTRIES
+    "exposure": callable,  # (stdout, home): {"skills": [names], "tools": [host tool names]}, as the host reported
+    "failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
+}
+SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
+OUTPUT_LIMIT = 4000  # characters of a command's output the log keeps
+SHA256 = re.compile(r"[0-9a-f]{64}")
+# Each kind of entry, with every field it holds besides `kind` and `source`, and the one shape each field takes.
+ENTRIES = {
+    "read": {"path": str},
+    "write": {"path": str, "sha256": (str, type(None))},  # None when the host did not report the content
+    "command": {"command": str, "exit_code": (int, type(None)), "output": str},
+    "blocked": {"action": str, "reason": str},  # an action the host itself refused
+    "skill": {"name": str},  # the host loaded a skill
+    "agent": {"task": str},  # the host started a sub-agent, in the same jail
+    "message": {"text": str},  # the last one is the final message
+}
+
+
+class HostError(RuntimeError):
+    """The host or its adapter broke the contract. The round stops."""
+
+
+def entry(kind, source="observed", **fields):
+    """One action log entry. A command's output is cut to OUTPUT_LIMIT characters."""
+    if kind == "command":
+        fields["output"] = fields.get("output", "")[:OUTPUT_LIMIT]
+    return {"kind": kind, "source": source, **fields}
+
+
+def sha256(data):
+    return hashlib.sha256(data if isinstance(data, bytes) else data.encode()).hexdigest()
+
+
+def check_adapter(adapter):
+    """Raise HostError naming every way `adapter` differs from CONTRACT."""
+    wrong = []
+    for name, shape in CONTRACT.items():
+        value = getattr(adapter, name, None)
+        if not (callable(value) if shape is callable else isinstance(value, shape)):
+            wrong.append(f"{name} is missing or not a {getattr(shape, '__name__', shape)}")
+    for tool, kind in (getattr(adapter, "TOOLS", None) or {}).items():
+        if kind not in powers.TOOLS:
+            wrong.append(f"tool {tool} has kind {kind!r}, which is not on the power table")
+    if wrong:
+        raise HostError(f"adapter {getattr(adapter, 'NAME', adapter)}: " + "; ".join(wrong))
+
+
+def check_log(entries):
+    """Raise HostError naming every entry that is not exactly one of ENTRIES."""
+    wrong = []
+    for number, item in enumerate(entries if isinstance(entries, list) else [entries]):
+        fields = ENTRIES.get(item.get("kind")) if isinstance(item, dict) else None
+        if fields is None:
+            wrong.append(f"entry {number} is not a known kind")
+            continue
+        if set(item) != {"kind", "source", *fields}:
+            wrong.append(f"entry {number} ({item['kind']}) has fields {sorted(item)}")
+            continue
+        if item["source"] not in SOURCES:
+            wrong.append(f"entry {number} has source {item['source']!r}")
+        for name, shape in fields.items():
+            if isinstance(item[name], bool) or not isinstance(item[name], shape):
+                wrong.append(f"entry {number} ({item['kind']}): {name} is not a {shape}")
+        if item["kind"] == "write" and item["sha256"] is not None and not SHA256.fullmatch(item["sha256"]):
+            wrong.append(f"entry {number} (write): sha256 is not a hash")
+        if item["kind"] == "command" and len(item["output"]) > OUTPUT_LIMIT:
+            wrong.append(f"entry {number} (command): output longer than {OUTPUT_LIMIT}")
+    if wrong:
+        raise HostError("action log: " + "; ".join(wrong))
+
+
+def check_exposure(adapter, exposure, skills):
+    """Raise HostError naming every skill the host exposed that is not in `skills` (the skills the case installs in
+    this arm), and every tool that is not one of the adapter's TOOLS."""
+    if not isinstance(exposure, dict) or set(exposure) != {"skills", "tools"}:
+        raise HostError(f"exposure is not {{'skills': [...], 'tools': [...]}}: {exposure!r}")
+    wrong = [f"skill {name} is exposed but the case does not declare it"
+             for name in exposure["skills"] if name not in skills]
+    wrong += [f"tool {name} is exposed but has no kind on the power table"
+              for name in exposure["tools"] if name not in adapter.TOOLS]
+    if wrong:
+        raise HostError("exposure: " + "; ".join(wrong))
+
+
+class Result:
+    """One host run: what it printed, how it ended, its checked action log and exposure, and the gate's log."""
+
+    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests):
+        self.stdout, self.stderr, self.returncode, self.timed_out = stdout, stderr, returncode, timed_out
+        self.failure, self.log, self.exposure, self.requests = failure, log, exposure, requests
+
+
+def run(adapter, contained, prompt, skills, model=None, timeout=900):
+    """Run the host of `adapter` once in `contained` (a `contain.Containment`) with `prompt` on stdin. `skills` are
+    the skills the arm installs. Return a Result, whose `failure` says why the host failed (a void run), or raise
+    HostError when the log or the exposure breaks the contract."""
+    check_adapter(adapter)
+    command = contained.jail(adapter.jail_command(contained.mode, contained.world, model), program=adapter.CLI)
+    contained.audit(adapter.CLI)  # the jail is checked against its list before the host starts
+    with contained.gate() as gate:
+        try:
+            done = subprocess.run(command, input=prompt, capture_output=True, text=True, env=contained.env,
+                                  timeout=timeout)
+            stdout, stderr, returncode, timed_out = done.stdout, done.stderr, done.returncode, False
+        except subprocess.TimeoutExpired as expired:
+            stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
+    log = adapter.action_log(stdout)
+    check_log(log)
+    exposure = adapter.exposure(stdout, contained.home)
+    check_exposure(adapter, exposure, skills)
+    failure = adapter.failure(stdout, returncode, timed_out)
+    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log))
+
+
+def _text(data):
+    return data.decode(errors="replace") if isinstance(data, bytes) else data or ""

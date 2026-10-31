@@ -4,8 +4,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate
-and the power table**. Probes, evidence, and the measuring kit come next.
+eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
+the power table and the host contract, with a fake host**. Probes, evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -23,6 +23,7 @@ allowed connections.
 | `audit.py` | Runs inside the jail before the host starts and checks it against the same list |
 | `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |
 | `powers.py` | The power table of each mode, and the probe that proves the jail gives exactly that |
+| `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
 
 ## Commands
 
@@ -183,3 +184,22 @@ device file or a kernel view (proc, devpts). The jail remounts its root and `/de
 "Connect directly" works when the jail shares any of the machine's network: the runner's network namespace, an
 interface other than loopback, or a listener the probe holds open on the machine's loopback. So it never rests on
 an outside address failing.
+
+## The host contract
+
+`host.CONTRACT` lists every name a harness adapter defines, and `host.check_adapter` checks them when the adapter
+is loaded. `adapter.jail_command` turns the host's own sandbox off (the jail enforces the table), turns its bundled
+skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`, each named with a kind of
+`powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
+
+It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
+reads, writes with content hashes, commands with exit code and output cut to `host.OUTPUT_LIMIT`, actions the host
+blocked, skill loads, sub-agents and messages, each tagged `observed` (the host reported it) or `inferred` (the
+adapter worked it out, such as a file a shell command reads). The host may expose only the skills the arm installs
+and the adapter's tools. Anything else raises `HostError`, and the round stops. A host that crashes or times out is
+a `failure`, and the run is void.
+
+`tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
+its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,
+so the contract and its faults are shown end to end in every pull request. The Codex and Claude Code adapters take
+this contract in the next pull request; until then `evals/runner/` uses their older interface.

@@ -43,6 +43,14 @@ Rules for every adapter:
 - Detect triggering from what the host did, never from what its answer says.
 - Unit tests in `evals/runner/tests/` must fail when the command an adapter builds is wrong.
 
+## The harness contract
+
+The new eval harness ([evals/harness](../evals/harness/README.md#the-host-contract)) knows a host only through
+`host.CONTRACT`. There the jail, not the host, confines commands: an adapter turns its host's own sandbox off,
+turns off the skills the host ships where it allows, keeps only tools of a kind on the power table, and reports
+an action log of the entries the contract lists. The sandbox rule above is for the phase 2 runner only, which
+runs hosts without a jail. Codex and Claude Code take the harness contract in the next pull request.
+
 ## Adding a host
 
 1. Read the host's documentation and source for its skills folder, its non-interactive command and its event
