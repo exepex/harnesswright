@@ -6,11 +6,15 @@ Two rules, each a list of what is allowed:
   ([10 · Skills](../../docs/design/10-skills.md)). Anything else is refused with its line number, so a value is
   never read short or read as the wrong type: the index row and the fingerprint are built from it.
 - **Folders** hold only folders, regular files and links that lead, step by step through real folders, to a real
-  folder or file inside the folder. A skill folder holds no links at all.
+  folder or file inside the folder.
+- **A skill** is the files git tracks in its folder, each a regular file reached through real folders, and nothing
+  else on the machine. A cache, a virtual environment or a draft left beside them is never part of it and never
+  decides anything. Which skills exist is read from the same list: a folder whose `SKILL.md` git tracks.
 """
 
 import os
 import re
+import subprocess
 from pathlib import Path, PurePosixPath
 
 import manifest
@@ -36,14 +40,21 @@ TYPED = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n)|[-+]?(?:\.inf|\.In
 def skill_files(skill_dir, name=None):
     """The skill's files as {relative path: bytes}, and its frontmatter.
 
-    The folder must be sound with no links. The frontmatter name must be a skill name, and `name` when one is
-    given: the name chooses where the host discovers the skill, so it must never be a path.
+    The files are the ones git tracks in the folder; each must be a regular file on disk, reached through real
+    folders, never a link. The frontmatter name must be a skill name, and `name` when one is given: the name
+    chooses where the host discovers the skill, so it must never be a path.
     """
     skill_dir = Path(skill_dir)
-    problems = structure(skill_dir, links=False)
-    if problems:
-        raise CaseError(f"{skill_dir}: the skill is unsound: {problems}")
-    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes() for p in sorted(skill_dir.rglob("*")) if p.is_file()}
+    files = {}
+    for rel in tracked(skill_dir):
+        steps = [str(p) for p in reversed(PurePosixPath(rel).parents) if str(p) != "."]
+        try:
+            kinds = [manifest.kind(manifest.entry(skill_dir / step)) for step in steps + [rel]]
+        except manifest.Unreadable as error:
+            raise CaseError(f"{skill_dir}: {rel} is tracked by git but cannot be read: {error}") from None
+        if kinds != ["dir"] * len(steps) + ["file"]:
+            raise CaseError(f"{skill_dir}: {rel} is tracked by git but is not a regular file in real folders")
+        files[rel] = (skill_dir / rel).read_bytes()
     if "SKILL.md" not in files:
         raise CaseError(f"{skill_dir}: no SKILL.md")
     try:
@@ -56,6 +67,29 @@ def skill_files(skill_dir, name=None):
         wanted = repr(name) if name is not None else "a skill name"
         raise CaseError(f"{skill_dir}: frontmatter name {meta['name']!r} must be {wanted}")
     return files, meta
+
+
+def tracked(folder):
+    """The paths git tracks under `folder`, staged ones included, relative to it and sorted. CaseError when git
+    cannot list them, such as for a folder outside any git work tree."""
+    # Built from an allow list, never inherited, so the operator's GIT_DIR or git config never take part.
+    env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL") if key in os.environ}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, HOME=os.devnull)
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--", "."], cwd=folder, env=env, check=True,
+                             capture_output=True).stdout
+        return sorted({path.decode("utf-8") for path in out.split(b"\0") if path})
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.decode("utf-8", "replace").strip()
+    except (OSError, UnicodeDecodeError) as error:
+        detail = str(error)
+    raise CaseError(f"{folder}: a skill is the files git tracks, and git cannot list them: {detail}") from None
+
+
+def skill_names(skills_root):
+    """The skills under `skills_root`: each folder whose `SKILL.md` git tracks."""
+    return sorted({rel.split("/")[0] for rel in tracked(skills_root) if rel.count("/") == 1
+                   and rel.endswith("/SKILL.md")})
 
 
 def frontmatter(text):
@@ -115,10 +149,10 @@ def _plain(value, number):
                     "(no quotes, block scalars, comments or typed values)")
 
 
-def structure(folder, links=True):
+def structure(folder):
     """Every entry of `folder` that is not allowed. An empty list means the folder is sound to copy.
 
-    Allowed: folders, regular files, and, when `links` is true, relative links whose target leads step by step
+    Allowed: folders, regular files, and relative links whose target leads step by step
     through real folders of `folder` to a real folder or file in it. A link is judged by its text against the
     folder's manifest, never by resolving it on disk, so it stays right when the folder is copied. A `.git` folder
     is never allowed: declare history as commits in case.json.
@@ -133,9 +167,7 @@ def structure(folder, links=True):
             if PurePosixPath(path).name == ".git":
                 problems.append(f"{path}: a .git folder; declare history as commits in case.json")
         elif manifest.kind(entry) == "link":
-            if not links:
-                problems.append(f"{path}: a link; a skill folder holds only folders and files")
-            elif not _leads_inside(entries, path, entry[len("link "):]):
+            if not _leads_inside(entries, path, entry[len("link "):]):
                 problems.append(f"{path}: a link that does not lead to a folder or file inside the folder")
     return problems
 

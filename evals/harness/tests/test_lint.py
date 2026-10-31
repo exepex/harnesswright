@@ -206,6 +206,7 @@ class Lint(TempCase):
         candidate = self.tmp / "candidate" / "haiku-writer"
         candidate.mkdir(parents=True)
         (candidate / "SKILL.md").write_text(SKILL_MD + "Stack the tiles by the door, then sweep the old porch twice.\n")
+        self.track(candidate.parent)
         problems = lint.lint_skill("haiku-writer", Adapter, self.tmp / "cases", self.tmp / "skills", self.tmp,
                                    candidate)
         self.assertTrue(any(p.startswith("clean: README.md: holds") for p in problems), problems)
