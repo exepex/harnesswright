@@ -9,7 +9,6 @@ Two rules, each a list of what is allowed:
   folder or file inside the folder. A skill folder holds no links at all.
 """
 
-import json
 import os
 import re
 from pathlib import Path, PurePosixPath
@@ -20,15 +19,15 @@ from cases import PATH_PART, CaseError, is_name
 SCALARS = ("name", "description", "license", "compatibility")
 MAPPINGS = ("metadata",)
 KEY = re.compile(r"([a-z][a-z-]*):(?: (.*))?")
-META = re.compile(r"  ([A-Za-z0-9_-]+): (.+)")
-BLOCK = (">", ">-", "|", "|-")
+# A metadata key: lower-case words joined by `-`, and never a spelling YAML reads as a typed value (TYPED).
+META = re.compile(r"  ([a-z][a-z0-9]*(?:-[a-z0-9]+)*): (.*)")
 # A plain one-line value: words separated by single spaces. A word holds no space or tab, never starts with `#`,
 # and holds a colon only between two other characters (`file:line`). The first word starts with a letter, a digit
 # or `(`. YAML reads every value of this shape as the same text, unless it is spelled like a typed value (TYPED).
 WORD = r"[^\s:#][^\s:]*(?::[^\s:]+)*"
 PLAIN = re.compile(rf"[\w(][^\s:]*(?::[^\s:]+)*(?: {WORD})*")
 # The plain spellings that YAML reads as null, a boolean, a number or a date, from the YAML 1.1 and 1.2 schemas.
-# A value spelled like one of these is not text, so it must be quoted.
+# A value or metadata key spelled like one of these is not text, so it is refused.
 TYPED = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n)|[-+]?(?:\.inf|\.Inf|\.INF)|\.nan|\.NaN|\.NAN"
                    r"|[-+]?(?:[0-9][0-9_]*(?::[0-5]?[0-9])*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?"
                    r"|0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:[Tt ].*)?")
@@ -63,9 +62,9 @@ def frontmatter(text):
     """The fields of a SKILL.md frontmatter block, or CaseError for anything outside the subset.
 
     The subset: a first line `---`, then fields at the left margin, then a line that is exactly `---`. Each field
-    appears once. `name`, `description`, `license` and `compatibility` hold text: a plain value on one line, a
-    quoted value, or a block scalar (`>` or `|`, then indented lines, blank lines allowed), joined into one line.
-    `metadata` holds lines of `  key: value`, all text. Blank lines may sit between fields.
+    appears once. `name`, `description`, `license` and `compatibility` hold one plain value on the same line.
+    `metadata` holds lines of `  key: value`, each value plain. Blank lines may sit between fields. There are no
+    quoted values, block scalars or comments: YAML reads every value in the subset as exactly the text written.
     """
     # Lines end only at \n (a \r before it is dropped). Any other control or line-break character is refused, so
     # nothing can end a value or the block early.
@@ -77,22 +76,19 @@ def frontmatter(text):
             break
     if not lines or lines[0] != "---":
         raise CaseError("no frontmatter: the first line must be ---")
-    meta, key, mode = {}, None, None
+    meta, mapping = {}, None
     for number, line in enumerate(lines[1:], 2):
         if line == "---":
-            return {k: " ".join(v).strip() if mode_of(k) == "text" else v for k, v in meta.items()}
+            return meta
         if not line.strip():
             continue
         if line[0] == " ":
-            if mode == "block":
-                meta[key].append(line.strip())
-            elif mode == "mapping" and META.fullmatch(line):
-                found = META.fullmatch(line)
-                if found.group(1) in meta[key]:
-                    raise CaseError(f"frontmatter line {number}: metadata key {found.group(1)!r} appears twice")
-                meta[key][found.group(1)] = _text(found.group(2), number)
-            else:
-                raise CaseError(f"frontmatter line {number}: an indented line outside a block scalar or metadata")
+            found = META.fullmatch(line)
+            if mapping is None or not found or TYPED.fullmatch(found.group(1)):
+                raise CaseError(f"frontmatter line {number}: an indented line that is not `  key: value` in metadata")
+            if found.group(1) in mapping:
+                raise CaseError(f"frontmatter line {number}: metadata key {found.group(1)!r} appears twice")
+            mapping[found.group(1)] = _plain(found.group(2), number)
             continue
         found = KEY.fullmatch(line)
         if not found or found.group(1) not in SCALARS + MAPPINGS:
@@ -103,32 +99,18 @@ def frontmatter(text):
         if key in MAPPINGS:
             if value:
                 raise CaseError(f"frontmatter line {number}: {key} holds indented `key: value` lines")
-            meta[key], mode = {}, "mapping"
-        elif value in BLOCK:
-            meta[key], mode = [], "block"
+            meta[key] = mapping = {}
         else:
-            meta[key], mode = [_text(value, number)], None
+            meta[key], mapping = _plain(value, number), None
     raise CaseError("the frontmatter has no closing --- line")
 
 
-def mode_of(key):
-    return "mapping" if key in MAPPINGS else "text"
-
-
-def _text(value, number):
-    """A one-line text value: plain, single-quoted or double-quoted (JSON escapes)."""
-    if value[:1] == "'" and len(value) >= 2 and value[-1] == "'" and "'" not in value[1:-1].replace("''", ""):
-        return value[1:-1].replace("''", "'")
-    if value[:1] == '"':
-        try:
-            decoded = json.loads(value)
-        except json.JSONDecodeError:
-            decoded = None
-        if isinstance(decoded, str):
-            return decoded
-    elif PLAIN.fullmatch(value) and not TYPED.fullmatch(value):
+def _plain(value, number):
+    """A plain one-line value that YAML reads as exactly this text."""
+    if PLAIN.fullmatch(value) and not TYPED.fullmatch(value):
         return value
-    raise CaseError(f"frontmatter line {number}: {value!r} is not plain one-line text or a quoted string")
+    raise CaseError(f"frontmatter line {number}: {value!r} is not plain one-line text "
+                    "(no quotes, block scalars, comments or typed values)")
 
 
 def structure(folder, links=True):
