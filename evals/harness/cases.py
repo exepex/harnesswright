@@ -16,7 +16,8 @@ case.json fields:
   Required in trigger cases, which install the full skill set with its index, as in real use.
 - `siblings`: names of other skills installed in both arms.
 - `tools`: commands the case needs on the host, such as `go`; the tools probe records their versions.
-- `expectations`: what the run must show: each a text, or an object whose `text` states it (doc 11, Scoring).
+- `expectations`: what the run must show: each a text, or an object holding only its `text`. The checks of doc 11
+  (Scoring) add their fields to this shape when they are built.
 - `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
 - `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
   "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is never under
@@ -24,8 +25,8 @@ case.json fields:
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
-Every path is relative and inside the world: parts of letters, digits and `. _ + @ -`, joined by `/`, and never
-`.`, `..` or `.git`. Every shape is a list of what is allowed, never a list of known bad values.
+Every path is relative and inside the world: parts of ASCII letters, digits and `. _ + @ -`, joined by `/`, and
+never `.`, `..` or `.git`. Every shape is a pattern of what is allowed.
 """
 
 import hashlib
@@ -42,7 +43,7 @@ SPLITS = ("train", "test")
 PROMPT_KEY = "<prompt>"
 SKILL_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 SHA256 = re.compile(r"[0-9a-f]{64}")
-# One part of a path: letters, digits and . _ + @ -, never `.`, `..` or `.git`.
+# One part of a path: ASCII letters, digits and . _ + @ -, never `.`, `..` or `.git`.
 PATH_PART = re.compile(r"[A-Za-z0-9._+@-]+")
 NOT_PARTS = (".", "..", ".git")
 COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
@@ -124,7 +125,7 @@ SCHEMA = {
     "kind": (lambda v: v in KINDS, f"one of {KINDS}"),
     "should_trigger": (lambda v: isinstance(v, bool), "true or false"),
     "split": (lambda v: v in SPLITS, f"one of {SPLITS}"),
-    "skill_path": (is_path, "a relative path inside the world (letters, digits and . _ + @ - in each part)"),
+    "skill_path": (is_path, "a relative path inside the world (ASCII letters, digits and . _ + @ - in each part)"),
     "index": (record(file=is_path, after=is_text, row=is_row),
               "{file, after, row}: a path in the world, the header line, and a row using only {name}, {path} "
               "and {description}"),

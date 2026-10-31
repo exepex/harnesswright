@@ -27,11 +27,11 @@ python3 -m unittest discover -s evals/harness/tests
 
 ## How a case is checked
 
-`cases.SCHEMA` lists every field `case.json` may hold, each with the one shape it may take. Each shape is a list of
-what is allowed, never a list of known bad values. Anything else is refused with the reason, so a malformed case
-stops before a world is built instead of failing part way:
+`cases.SCHEMA` lists every field `case.json` may hold, each with the one shape it may take. Each shape is a
+pattern of what is allowed. Anything else is refused with the reason, so a malformed case stops before a world is
+built instead of failing part way:
 
-- every path is relative: parts of letters, digits and `. _ + @ -`, joined by `/`, never `.`, `..` or `.git`;
+- every path is relative: parts of ASCII letters, digits and `. _ + @ -`, joined by `/`, never `.`, `..` or `.git`;
 - a trigger case needs `should_trigger`, `split` and `index`; a task case may not have the first two;
 - a commit needs a non-empty message and a list of paths;
 - a copy names a source outside `skills/` and `evals/` and its 64-character sha256;

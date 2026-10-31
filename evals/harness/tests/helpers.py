@@ -1,7 +1,6 @@
-"""Shared pieces of the harness tests: a temporary folder per test, and small skills and cases."""
+"""Shared pieces of the harness tests: a temporary folder per test, and small cases."""
 
 import json
-import os
 import shutil
 import sys
 import tempfile
@@ -10,9 +9,6 @@ from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HARNESS))
-SKILL_MD = ("---\nname: haiku-writer\ndescription: Writes a haiku about the project's purpose. Use when asked for a "
-            "haiku about this project.\n---\n\n# Haiku writer\n\nCount the syllables of every line twice before you "
-            "answer, five then seven then five, and never rhyme the last word.\n")
 
 
 class TempCase(unittest.TestCase):
@@ -21,12 +17,6 @@ class TempCase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="hw-test-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
-
-    def skill(self, name="haiku-writer", text=SKILL_MD):
-        folder = self.tmp / "skills" / name
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / "SKILL.md").write_text(text.replace("haiku-writer", name))
-        return folder
 
     def case(self, files, data=None, name=None, skill="haiku-writer"):
         """A case folder with `files` ({path: text}) in its world and `data` as case.json."""
