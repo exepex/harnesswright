@@ -113,6 +113,13 @@ class Probes(TempCase):
                 ("instructions", lambda out: acts(command(  # read, never loaded as instructions
                     f"grep -o '{TOKEN}' AGENTS.md > {q(out, 'instructions.txt')}"))(out),
                  "did more than the probe asks"),
+                ("discovery", lambda out: acts({"do": "skill", "name": probes.SKILL}, command(  # more than its token
+                    f"grep -ho '{TOKEN}' .fake/skills/{probes.SKILL}/SKILL.md AGENTS.md > "
+                    f"{q(out, 'discovery.txt')}"))(out),
+                 "not the token in the probe skill"),
+                ("instructions", lambda out: acts({"do": "read", "path": "AGENTS.md"}, {  # the host's read tool
+                    "do": "write", "path": str(out / "instructions.txt"), "text": loaded(out)})(out),
+                 "did more than the probe asks"),
                 ("instructions", lambda out: acts(command(  # read through a wildcard, naming no file
                     f"grep -ho '{TOKEN}' ./*.md > {q(out, 'instructions.txt')}"))(out),
                  "did more than the probe asks")):
@@ -153,6 +160,11 @@ class Folder(TempCase):
             self.assertEqual(str(run.probe_out) in powers.spec(run)["writable"], probe)
         run.put_probe("powers.py", "print(1)\n")
         self.assertEqual(run.probe_entries, manifest.manifest(Path(run.probe_out)))
+        with self.assertRaisesRegex(powers.PowersError, "not from this run's probe"):  # another run's output
+            powers.check(run, json.dumps({**powers.expected("trigger"), "nonce": "other"}), nonce="mine")
+        plain = contain.Containment(fake_adapter(), "trigger", world, manifest.manifest(world), root=self.tmp / "run",
+                                    operator_env={"PATH": "/usr/bin:/bin"}, operator_home=self.tmp / "operator")
+        self.assertIsNone(plain.probe_out)  # a real run never has the folder
 
 
 if __name__ == "__main__":

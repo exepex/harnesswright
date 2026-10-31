@@ -1,11 +1,11 @@
 """Probes: each host proves, before real runs, that it signs in, gets the jail's powers, finds a skill and loads the
 same instructions as every other host (doc 11, Probes).
 
-One rule: a probe is a probe world, a prompt and a check of the files the host left in the probe-output folder,
-never of what the model says. Each probe runs once in each mode, through `host.run`, the one place a host runs,
-in a containment that also has the probe-output folder. A failed probe makes the host `not run` for the round,
-with the probe's reason. A host or containment that breaks its contract raises, as in any run, and the round
-stops.
+One rule: a probe is a probe world, a prompt and a check that the file the host left in the probe-output folder is
+right and that the host's own report, its exposure and action log, shows it did the act, never of what the model
+says. Each probe runs once in each mode, through `host.run`, the one place a host runs, in a containment that also
+has the probe-output folder. A failed probe makes the host `not run` for the round, with the probe's reason. A host
+or containment that breaks its contract raises, as in any run, and the round stops.
 
 The probe world holds `AGENTS.md` with a token, a `CLAUDE.md` that imports it (as this repository's does), and the
 probe skill at the place the adapter names, whose `SKILL.md` holds another token. Every token is fresh for each
