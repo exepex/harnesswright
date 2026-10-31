@@ -13,11 +13,18 @@ OWN_TEXT = "Count the syllables of every line twice before you answer, five then
 
 
 class LintFaults(TempCase):
-    def problems(self, files, data=None, upstream=None):
+    def problems(self, files, data=None, upstream=None, repo=cases.REPO):
         skills = self.skill().parent
         case = self.case(files, data)
         arm = world.build(case, Adapter, self.tmp / f"arm-{len(list(self.tmp.iterdir()))}", False, skills)
-        return lint.lint(case, arm.path, skills / "haiku-writer", upstream)
+        return lint.lint(case, arm.path, skills / "haiku-writer", upstream, repo)
+
+    def source(self, text):
+        """A stand-in repository holding one document, STYLE.md, and its copy entry."""
+        repo = self.tmp / "repo"
+        repo.mkdir(exist_ok=True)
+        (repo / "STYLE.md").write_text(text)
+        return repo, {"world": "STYLE.md", "source": "STYLE.md", "source_sha256": cases.sha256_file(repo / "STYLE.md")}
 
     def test_a_clean_case_passes(self):
         self.assertEqual(self.problems({"README.md": "A notes app with tags and search.\n"}), [])
@@ -34,9 +41,8 @@ class LintFaults(TempCase):
                 self.assertNotEqual(self.problems(files, data), [])
 
     def test_text_shared_with_copied_docs_upstream_or_prompt_is_the_projects(self):
-        source = cases.REPO / "LICENSE"
-        copy = {"world": "STYLE.md", "source": "LICENSE", "source_sha256": cases.sha256_file(source)}
-        self.assertEqual(self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, {"copies": [copy]}), [])
+        repo, copy = self.source(f"{OWN_TEXT}\n")
+        self.assertEqual(self.problems({"STYLE.md": f"{OWN_TEXT}\n"}, {"copies": [copy]}, repo=repo), [])
         upstream = self.tmp / "upstream"
         upstream.mkdir()
         (upstream / "SKILL.md").write_text(OWN_TEXT)
@@ -65,8 +71,17 @@ class LintFaults(TempCase):
         case = self.case({"README.md": "x\n"}, name="link")
         (case.world / "secrets").symlink_to("../../..")
         self.assertTrue(any("outside the world" in p for p in cases.structure(case.world)))
-        stale = {"world": "README.md", "source": "LICENSE", "source_sha256": "0" * 64}
-        self.assertTrue(any("changed since" in p for p in self.problems({"README.md": "x\n"}, {"copies": [stale]})))
+        repo, copy = self.source("Old style.\n")
+        (repo / "STYLE.md").write_text("New style.\n")
+        drifted = self.problems({"STYLE.md": "Old style.\n"}, {"copies": [copy]}, repo=repo)
+        self.assertTrue(any("changed since" in p for p in drifted))
+
+    def test_a_copy_must_match_the_source_it_names(self):
+        license_sha = cases.sha256_file(cases.REPO / "LICENSE")
+        fake = {"world": "STYLE.md", "source": "LICENSE", "source_sha256": license_sha}
+        problems = self.problems({"README.md": "x\n", "STYLE.md": SKILL_MD}, {"copies": [fake]})
+        self.assertTrue(any("differs from the source" in p for p in problems))
+        self.assertTrue(any("STYLE.md: holds" in p for p in problems))
 
     def test_an_absolute_symlink_is_refused_even_into_the_world(self):
         case = self.case({"README.md": "x\n"}, name="absolute")

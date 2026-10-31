@@ -32,6 +32,10 @@ class CaseChecks(TempCase):
 
     def test_frontmatter(self):
         self.assertEqual(cases.frontmatter("---\nname: a\ndescription: b c\n---\nbody")["description"], "b c")
+        folded = "---\nname: demo\ndescription: >\n  Writes demos.\n  Use for demos.\nlicense: MIT\n---\n# Demo\n"
+        self.assertEqual(cases.frontmatter(folded), {"name": "demo", "description": "Writes demos. Use for demos.",
+                                                     "license": "MIT"})
+        self.assertEqual(cases.frontmatter('---\nname: "a"\ndescription: \'b: c\'\n---\n')["description"], "b: c")
 
 
 class Arms(TempCase):

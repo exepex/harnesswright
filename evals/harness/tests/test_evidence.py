@@ -87,6 +87,36 @@ class Bundles(TempCase):
         self.assertTrue((view / "files" / "out" / "empty").is_dir())
         self.assertFalse((view / "files" / "skills" / "haiku-writer").exists())
 
+    def test_both_arms_give_the_same_grader_view(self):
+        import world
+        from test_world import Adapter
+        self.skill()
+        case = self.case({"README.md": "Notes app.\n", "docs/empty/.keep": ""}, name="views")
+        (case.world / "docs/empty/.keep").unlink()
+        record = {"mode": "task", "final": "done", "actions": [], "diff": {}}
+        views = []
+        for with_skill in (False, True):
+            arm = world.build(case, Adapter, self.tmp / f"arm{with_skill}", with_skill, self.tmp / "skills")
+            bundle = self.tmp / f"bundle{with_skill}"
+            evidence.write_bundle(bundle, dict(record, arm=arm.arm), arm.path, [], [])
+            view = evidence.grader_view(bundle, self.tmp / f"view{with_skill}",
+                                        ["skills/haiku-writer", ".host/skills/haiku-writer"], ["haiku-writer"])
+            views.append({p.relative_to(view).as_posix(): p.read_bytes() if p.is_file() else None
+                          for p in view.rglob("*")})
+        self.assertEqual(views[0], views[1])
+        self.assertIn("files/docs/empty", views[0])
+
+    def test_symlinks_never_reach_a_bundle(self):
+        folder = self.world()
+        outside = self.tmp / "outside.txt"
+        outside.write_text("sk-secret-value HWCANARY-link\n")
+        (folder / "report.txt").symlink_to(outside)
+        hits = evidence.write_bundle(self.tmp / "b", {"final": ""}, folder, ["sk-secret-value"], ["HWCANARY-link"])
+        self.assertEqual(hits, [])
+        report = self.tmp / "b" / "files" / "report.txt"
+        self.assertFalse(report.is_symlink())
+        self.assertEqual(report.read_text(), f"symlink to {outside}\n")
+
     def test_credentials_with_escaped_characters_are_redacted(self):
         folder = self.world()
         for secret in ('sk-back\\slash-0123', 'sk-"quote"-0123', "sk-new\nline-0123", "sk-ünï-0123"):

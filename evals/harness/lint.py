@@ -74,7 +74,9 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     problems = []
     files = text_files(base_world)
     prompt = case.prompt
-    copied = {copy["world"] for copy in case.copies}
+    # A copy is the project's text only while it is byte for byte the source it names; otherwise it is authored.
+    copied = {copy["world"] for copy in case.copies if (case.world / copy["world"]).is_file()
+              and sha256_file(case.world / copy["world"]) == copy["source_sha256"]}
     allow = {path: {w.lower() for w in allowed} for path, allowed in case.allow_words.items()}
 
     authored = text_files(case.world)
@@ -115,6 +117,8 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
         source = Path(repo) / copy["source"]
         if not (case.world / copy["world"]).is_file():
             problems.append(f"copy {copy['world']}: not in the world")
+        elif copy["world"] not in copied:
+            problems.append(f"copy {copy['world']}: differs from the source it names; it is not a copy")
         elif not source.is_file():
             problems.append(f"copy {copy['world']}: source {copy['source']} no longer exists")
         elif sha256_file(source) != copy["source_sha256"]:

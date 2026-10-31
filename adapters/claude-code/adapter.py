@@ -259,8 +259,8 @@ def _results(events):
 
 
 def actions(events, stderr=""):
-    """The host-neutral action log of a run. Claude Code reports every tool call and its result, so every entry
-    is observed. Calls the host refused (permission denials) are logged as blocked."""
+    """The host-neutral action log of a run. Claude Code reports every tool call and its result, so an entry is
+    observed once its result arrived. Calls the host refused (permission denials) are logged as blocked."""
     results, log = _results(events), []
     denied = {}
     for event in events:
@@ -275,25 +275,30 @@ def actions(events, stderr=""):
             if not (isinstance(item, dict) and item.get("type") == "tool_use"):
                 continue
             name, data, use_id = item.get("name", ""), item.get("input") or {}, item.get("id")
+            # A call without a reported result (the run ended first) has no known outcome: it is logged as
+            # inferred, with no exit code or ok, so no check decides on it.
+            reported = use_id in results
             text, failed = results.get(use_id, ("", False))
+            source = "observed" if reported else "inferred"
             if use_id in denied:
                 log.append({"kind": "blocked", "source": "observed", "tool": name,
                             "command": data.get("command") or data.get("file_path") or "", "reason": text[:300]})
             elif name == "Bash":
-                log.append({"kind": "command", "source": "observed", "command": data.get("command", ""),
-                            "exit": 1 if failed else 0, "output": _bound(text)})
+                log.append({"kind": "command", "source": source, "command": data.get("command", ""),
+                            "exit": (1 if failed else 0) if reported else None, "output": _bound(text)})
             elif name in READ_TOOLS:
-                log.append({"kind": "read", "source": "observed", "path": data.get(READ_TOOLS[name]), "ok": not failed})
+                log.append({"kind": "read", "source": source, "path": data.get(READ_TOOLS[name]),
+                            "ok": not failed if reported else None})
             elif name in SEARCH_TOOLS:
-                log.append({"kind": "search", "source": "observed", "pattern": data.get("pattern"),
+                log.append({"kind": "search", "source": source, "pattern": data.get("pattern"),
                             "path": data.get("path")})
             elif name in WRITE_TOOLS:
-                log.append({"kind": "write", "source": "observed", "path": data.get(WRITE_TOOLS[name]),
-                            "ok": not failed})
+                log.append({"kind": "write", "source": source, "path": data.get(WRITE_TOOLS[name]),
+                            "ok": not failed if reported else None})
             elif name == "Skill":
-                log.append({"kind": "skill_load", "source": "observed", "name": str(data.get("skill", "")).split(":")[-1]})
+                log.append({"kind": "skill_load", "source": source, "name": str(data.get("skill", "")).split(":")[-1]})
             else:
-                log.append({"kind": "tool", "source": "observed", "name": name})
+                log.append({"kind": "tool", "source": source, "name": name})
     return log
 
 

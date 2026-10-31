@@ -96,6 +96,13 @@ def write_bundle(folder, record, world_after, secrets, tokens):
     (folder / "bundle.json").write_text(text + "\n")
     files = folder / "files"
     shutil.copytree(world_after, files, symlinks=True, ignore=shutil.ignore_patterns(".git"))
+    # A bundle holds no symlinks: each becomes a text file naming its target, so nothing in the bundle can lead
+    # outside it or carry an unscrubbed file.
+    for path in sorted(files.rglob("*")):
+        if path.is_symlink():
+            target = str(path.readlink())
+            path.unlink()
+            path.write_text(f"symlink to {target}\n")
     # Every file is scrubbed as bytes, so a binary artifact cannot carry a credential or hide a canary.
     for path in sorted(files.rglob("*")):
         if path.is_file() and not path.is_symlink():
@@ -150,14 +157,18 @@ def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=(), skill_
             target.mkdir(parents=True, exist_ok=True)
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
-        if path.is_symlink():
-            target.symlink_to(path.readlink())
-            continue
         try:
             lines = [line for line in path.read_text().split("\n") if line not in rows]
             target.write_text(_neutral("\n".join(lines), overlay_paths, skill_names))
         except UnicodeDecodeError:
             shutil.copy2(path, target)
+    # A folder on the way to an overlay path that holds nothing else is left out, in both arms alike, so the
+    # folders the overlay needed do not show.
+    for overlay in overlay_paths:
+        for folder in Path(overlay).parents:
+            path = out_dir / "files" / folder
+            if folder != Path(".") and path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
     return out_dir
 
 

@@ -94,7 +94,8 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 - test-tell words such as "eval", "fixture", "grader" or "benchmark", unless that file allows the word. A judge
   also reads every world before it is approved;
 - a `.git` folder, an absolute symlink, or a symlink that points outside the world;
-- a document copied from this repository whose hash no longer matches its source.
+- a document declared as copied from this repository that differs from its source, or whose source has changed
+  since it was copied.
 
 ## Containment: what a run can see
 

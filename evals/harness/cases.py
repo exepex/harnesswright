@@ -15,8 +15,8 @@ case.json fields:
 - `should_trigger` (trigger cases, required) and `split` (`train` or `test`, trigger cases, required).
 - `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
 - `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
-  "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied; the drift lint fails
-  when the source has changed since, so the copy is reviewed again.
+  "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. The lint fails when the
+  world's copy differs from it, or when the source has changed since, so the copy is reviewed again.
 - `allow_words`: test-tell words a file may hold, `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 """
 
@@ -174,17 +174,27 @@ def skill_files(skill_dir):
 
 
 def frontmatter(text):
-    """The top-level `key: value` pairs of a SKILL.md frontmatter block."""
+    """The top-level `key: value` pairs of a SKILL.md frontmatter block. A block scalar (`>` or `|`) is joined
+    into one line, and a quoted value loses its quotes."""
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}
-    meta = {}
+    meta, key = {}, None
     for line in lines[1:]:
         if line.strip() == "---":
             break
+        if key and line[:1] in (" ", "\t"):
+            meta[key] = f"{meta[key]} {line.strip()}".strip()
+            continue
+        key = None
         if line and not line[0].isspace() and ":" in line:
-            key, value = line.split(":", 1)
-            meta[key.strip()] = value.strip().strip('"')
+            name, value = (part.strip() for part in line.split(":", 1))
+            if value in (">", "|", ">-", "|-", ">+", "|+"):
+                meta[name], key = "", name
+            elif len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                meta[name] = json.loads(value) if value[0] == '"' else value[1:-1]
+            else:
+                meta[name] = value
     return meta
 
 

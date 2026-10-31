@@ -6,6 +6,7 @@ import unittest
 
 import helpers  # noqa: F401  (puts the harness on the path)
 import hosts
+import evidence
 
 CLAUDE = hosts.load("claude-code")
 CODEX = hosts.load("codex")
@@ -71,6 +72,8 @@ class ActionLogs(unittest.TestCase):
                 {"type": "tool_use", "id": "3", "name": "Bash", "input": {"command": "go test ./..."}},
                 {"type": "tool_use", "id": "4", "name": "Bash", "input": {"command": "rm -rf /"}}]}},
             {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "1", "content": "Launching skill", "is_error": False},
+                {"type": "tool_result", "tool_use_id": "2", "content": "# Notes", "is_error": False},
                 {"type": "tool_result", "tool_use_id": "3", "content": "ok  notes 0.1s", "is_error": False},
                 {"type": "tool_result", "tool_use_id": "4", "content": "This command requires approval",
                  "is_error": True}]}},
@@ -81,6 +84,14 @@ class ActionLogs(unittest.TestCase):
         self.assertTrue(all(e["source"] == "observed" for e in log))
         self.assertEqual(log[2]["output"], "ok  notes 0.1s")
         self.assertEqual(CLAUDE.exposed_skills(events, "/h", "/w"), ["design", "haiku-writer"])
+
+    def test_a_claude_code_call_without_a_result_has_no_outcome(self):
+        events = [{"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "1", "name": "Bash", "input": {"command": "go test ./..."}},
+            {"type": "tool_use", "id": "2", "name": "Write", "input": {"file_path": "/w/a.md"}}]}}]
+        log = CLAUDE.actions(events)
+        self.assertEqual([(e["source"], e.get("exit", e.get("ok"))) for e in log], [("inferred", None)] * 2)
+        self.assertEqual(evidence.decidable(log), [])
 
 
 if __name__ == "__main__":
