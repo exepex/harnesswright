@@ -39,6 +39,8 @@ used everywhere. State in your report that you have read them.
 - Write skills to the quality checklist and portability rules of [10 · Skills](docs/design/10-skills.md).
 - Write in plain English: short sentences, active voice, no filler.
 - Name no concrete model in any file. Use the model classes `deep`, `standard` and `fast`; adapters map them.
+  Eval results in `evals/results/` are the one exception: they record the model each host ran, because labels are
+  per host and model ([10 · Skills](docs/design/10-skills.md)).
 
 ## Borrowing
 
