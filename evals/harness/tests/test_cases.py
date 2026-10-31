@@ -64,6 +64,14 @@ class Schema(TempCase):
             with self.subTest(commit=commit):
                 self.refused({"commits": [commit]}, "commits must be")
 
+    def test_every_text_the_run_sees_is_plain(self):
+        for data in ({"prompt": "Write a poem.\x00"}, {"prompt": "Write \x1b[31ma poem."},
+                     {"commits": [{"message": "Start\x00", "paths": []}]},
+                     {"index": dict(INDEX, row="| {name} |\x07 {path} |")}):
+            with self.subTest(data=data), self.assertRaises(cases.CaseError):
+                self.case({"README.md": "x"}, data)
+        self.case({"README.md": "x"}, {"prompt": "Write a poem.\n\tThen stop.\r\n"})
+
     def test_copies_name_project_text_and_a_real_hash(self):
         good = {"world": "AGENTS.md", "source": "AGENTS.md", "source_sha256": SHA}
         for change in ({"source": "skills/haiku-writer/SKILL.md"}, {"source": "evals/x.md"},

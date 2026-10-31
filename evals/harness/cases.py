@@ -33,6 +33,7 @@ import hashlib
 import json
 import re
 import string
+import unicodedata
 from pathlib import Path
 
 import manifest
@@ -65,8 +66,14 @@ def sha256_file(path):
 
 # The shapes a value may take. Each returns True only for a value of exactly that shape.
 
+def is_plain(text):
+    """True when `text` holds no control, surrogate, private or unassigned character other than tab, line feed and
+    carriage return. Every text a run sees obeys this one rule: world files, the prompt, commit messages and rows."""
+    return not any(unicodedata.category(c) in ("Cc", "Cs", "Co", "Cn") and c not in "\t\n\r" for c in text)
+
+
 def is_text(value):
-    return isinstance(value, str) and value.strip() != ""
+    return isinstance(value, str) and value.strip() != "" and is_plain(value)
 
 
 def is_name(value):

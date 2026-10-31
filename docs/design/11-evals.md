@@ -74,7 +74,9 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
   outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
   world. A document declared as copied names a source outside `skills/` and `evals/`, since neither is project
-  text.
+  text. The copy is the source as git tracks it, with the table rows that name a skill removed, since the arm's
+  index rows replace them. Every world path, and every text the run sees, follows the same one rule as
+  `case.json`: ASCII path parts, and plain text with no control characters.
 - **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. A skill brings only
@@ -97,14 +99,16 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 
 - the skill's name or path in the without-skill world or in the prompt;
 - any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
-  verified copies of project documents, in installed sibling skills, or in the skill's recorded upstream source
-  (stored and hashed under `evals/skills/NAME/upstream/`). Text the skill shares with the project's rules belongs
+  verified copies of project documents, in installed sibling skills, in the skill's recorded upstream source
+  (stored and hashed under `evals/skills/NAME/upstream/`), or in the standard licence texts recorded in
+  `evals/fixtures/licences/`. Text the skill shares with the project's rules belongs
   to the project and stays in both arms. The prompt is never project text, since the case author writes it;
 - any eval file, check, expectation text or results file inside a world;
 - test-tell words such as "eval", "fixture", "grader" or "benchmark", unless that file allows the word. A judge
   also reads every world before it is approved;
 - a `.git` folder, or a symlink that points outside the world;
-- a document copied from this repository whose hash no longer matches its source.
+- a document copied from this repository that is not its tracked source with the skill rows removed, or whose
+  source has changed since it was copied.
 
 ## Containment: what a run can see
 

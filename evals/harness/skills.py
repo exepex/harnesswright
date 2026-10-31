@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 import manifest
-from cases import PATH_PART, CaseError, is_name
+from cases import PATH_PART, CaseError, is_name, is_path
 
 SCALARS = ("name", "description", "license", "compatibility")
 MAPPINGS = ("metadata",)
@@ -45,16 +45,7 @@ def skill_files(skill_dir, name=None):
     chooses where the host discovers the skill, so it must never be a path.
     """
     skill_dir = Path(skill_dir)
-    files = {}
-    for rel in tracked(skill_dir):
-        steps = [str(p) for p in reversed(PurePosixPath(rel).parents) if str(p) != "."]
-        try:
-            kinds = [manifest.kind(manifest.entry(skill_dir / step)) for step in steps + [rel]]
-        except manifest.Unreadable as error:
-            raise CaseError(f"{skill_dir}: {rel} is tracked by git but cannot be read: {error}") from None
-        if kinds != ["dir"] * len(steps) + ["file"]:
-            raise CaseError(f"{skill_dir}: {rel} is tracked by git but is not a regular file in real folders")
-        files[rel] = (skill_dir / rel).read_bytes()
+    files = {rel: tracked_file(skill_dir, rel) for rel in tracked(skill_dir)}
     if "SKILL.md" not in files:
         raise CaseError(f"{skill_dir}: no SKILL.md")
     try:
@@ -84,6 +75,19 @@ def tracked(folder):
     except (OSError, UnicodeDecodeError) as error:
         detail = str(error)
     raise CaseError(f"{folder}: a skill is the files git tracks, and git cannot list them: {detail}") from None
+
+
+def tracked_file(folder, rel):
+    """The bytes of `rel`, a path git tracks under `folder`, which must be a regular file reached through real
+    folders, never through a link. CaseError otherwise."""
+    steps = [str(p) for p in reversed(PurePosixPath(rel).parents) if str(p) != "."]
+    try:
+        kinds = [manifest.kind(manifest.entry(Path(folder) / step)) for step in steps + [rel]]
+    except manifest.Unreadable as error:
+        raise CaseError(f"{folder}: {rel} is tracked by git but cannot be read: {error}") from None
+    if kinds != ["dir"] * len(steps) + ["file"]:
+        raise CaseError(f"{folder}: {rel} is tracked by git but is not a regular file in real folders")
+    return (Path(folder) / rel).read_bytes()
 
 
 def skill_names(skills_root):
@@ -155,7 +159,8 @@ def structure(folder):
     Allowed: folders, regular files, and relative links whose target leads step by step
     through real folders of `folder` to a real folder or file in it. A link is judged by its text against the
     folder's manifest, never by resolving it on disk, so it stays right when the folder is copied. A `.git` folder
-    is never allowed: declare history as commits in case.json.
+    is never allowed: declare history as commits in case.json. Every path follows the one path rule of case.json
+    (`is_path`), so any world entry can be committed, linked to or given `allow_words`.
     """
     try:
         entries = manifest.manifest(folder)
@@ -166,6 +171,8 @@ def structure(folder):
         if ".git" in path.split("/"):
             if PurePosixPath(path).name == ".git":
                 problems.append(f"{path}: a .git folder; declare history as commits in case.json")
+        elif not is_path(path):
+            problems.append(f"{path}: a path must be parts of ASCII letters, digits and . _ + @ - joined by /")
         elif manifest.kind(entry) == "link":
             if not _leads_inside(entries, path, entry[len("link "):]):
                 problems.append(f"{path}: a link that does not lead to a folder or file inside the folder")
