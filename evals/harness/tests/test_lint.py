@@ -157,9 +157,15 @@ class Lint(TempCase):
         planted = self.problems({"data/q.json": other[0][1]}, case_data=other)
         self.assertTrue(any("data/q.json: holds eval text" in p for p in planted), planted)
         message = "Start the notes app with tags, search and a list of recent notes"
-        own = self.tmp / "cases" / f"c{len(list((self.tmp / 'cases').iterdir())) + 1}" / "case.json"
         commits = {"commits": [{"message": message, "paths": ["README.md"]}]}
-        self.assertEqual(self.problems({"README.md": "x\n"}, commits, case_data=[(own, message)]), [])
+        case = self.case({"README.md": "x\n"}, commits)
+        arm = world.build(case, Adapter, self.tmp / "arm-own", self.skill().parent)
+        self.assertEqual(lint.lint(case, arm, self.tmp / "skills/haiku-writer"), [])
+        (case.world / "data").mkdir()
+        (case.world / "data/case.json").write_text((case.folder / "case.json").read_text())
+        arm = world.build(case, Adapter, self.tmp / "arm-copy", self.skill().parent)
+        problems = lint.lint(case, arm, self.tmp / "skills/haiku-writer")
+        self.assertTrue(any("data/case.json: holds eval text" in p for p in problems), problems)
         sibling = [(self.tmp / "b.json", f'{{"commits": [{{"message": "{message}"}}]}}')]
         self.assertEqual(self.problems({"README.md": "x\n"}, commits, case_data=sibling), [])
 
