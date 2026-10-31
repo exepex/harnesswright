@@ -26,7 +26,15 @@ class Unreadable(ValueError):
 
 
 def entry(path):
-    """The manifest entry of one path. Only a link, a folder or a regular file has one."""
+    """The manifest entry of one path. Only a link, a folder or a regular file has one, and any error while
+    reading it raises Unreadable."""
+    try:
+        return _entry(path)
+    except OSError as error:
+        raise Unreadable(f"{path}: cannot be read: {error.strerror}") from None
+
+
+def _entry(path):
     mode = os.lstat(path).st_mode
     if stat.S_ISLNK(mode):
         return "link " + os.readlink(path)
@@ -35,15 +43,10 @@ def entry(path):
     if not stat.S_ISREG(mode):
         raise Unreadable(f"{path}: not a folder, regular file or link")
     digest = hashlib.sha256()
-    try:
-        handle = open(path, "rb")
-    except OSError as error:
-        raise Unreadable(f"{path}: cannot be read: {error.strerror}") from None
-    with handle:
+    with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
-    executable = mode & 0o111
-    return f"file {digest.hexdigest()}" + (f" {EXEC}" if executable else "")
+    return f"file {digest.hexdigest()}" + (f" {EXEC}" if mode & 0o111 else "")
 
 
 def manifest(folder, skip=()):
