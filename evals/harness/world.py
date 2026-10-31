@@ -235,12 +235,13 @@ def _history(world, commits):
     _git(world, "read-tree", "HEAD")
 
 
-def _replay(case):
+def _replay(case, near):
     """The `.git` entries every arm of `case` must have, from the declared commits replayed in a scratch copy of the
-    world, and the head commit (None without history)."""
+    world, and the head commit (None without history). The copy sits in the folder `near`, on the arm's own
+    filesystem, so git records the same `core.*` settings there as in the arm."""
     if not case.commits:
         return {}, None
-    with tempfile.TemporaryDirectory() as scratch:
+    with tempfile.TemporaryDirectory(dir=near) as scratch:
         scratch = Path(scratch)
         shutil.copytree(case.world, scratch, symlinks=True, dirs_exist_ok=True)
         _history(scratch, case.commits)
@@ -255,7 +256,7 @@ def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
     entry for entry, the index file included. Its `.git` must equal the one replayed from the declared commits,
     entry for entry: none of any kind without commits. git never runs on an arm to prove it.
     """
-    want_git, head = _replay(case)
+    want_git, head = _replay(case, base.path.parent)
     read = {}
     for arm, with_skill in ((base, False), (with_arm, True)):
         files, git = arm.read()
