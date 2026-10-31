@@ -132,6 +132,8 @@ every host tool outside the table, so nothing is left for the host to refuse.
 
 Before real runs, each host passes these probes in each mode. A failed probe makes that host `not run` for the
 round, with the probe's output as the reason. Each probe checks files the host wrote, never what the model says.
+Probes get one probe-output folder that the host may write even in trigger mode. It exists only while probes run;
+real runs never have it, and the powers probe proves that a trigger run cannot write anywhere else.
 
 1. **Sign-in:** a one-line prompt returns an answer.
 2. **Powers:** the host runs a probe script that tries every row of the power table, including `/tmp`. The outcome
@@ -163,6 +165,10 @@ self-writes and both copies of the installed skill.
 The evidence bundle holds the case, the arm, the diff, the files after, the action log, the final message, the
 model, the host version and timings, plus a scrubbed transcript as evidence of last resort: the arm, skill paths
 and skill loads replaced by neutral words, and credentials redacted. Every check and grader reads only the bundle.
+
+Graders get a **grader view** of the bundle, never the full record. It leaves out both copies of the installed
+skill, the generated index row, the host discovery copy and everything else the with-skill overlay added, from the
+files after as well as from the diff. The full bundle is kept for audits and judges.
 
 ## Scoring
 
