@@ -76,6 +76,8 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. The manifest
   records both world hashes and the overlay.
+- **One description of a folder.** Every world, arm and output is described by one manifest: each folder, each
+  file with its hash and executable bit, and each link with its target. A change to any of them is a change.
 - **Trigger worlds install the full skill set** with its index, as in real use. Should-not-trigger queries
   include near misses that belong to a sibling skill.
 - **Git history**, when a case needs it, is declared as commits in `case.json` and built with fixed authors and
@@ -83,7 +85,8 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
 
 ### World lint
 
-The lint runs before any run. A case that fails it cannot run. It rejects:
+The lint runs before any run. A case that fails it cannot run. It reads the world, the prompt and the declared
+commit messages, since the agent sees all three. It rejects:
 
 - the skill's name or path in the without-skill world or in the prompt;
 - any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
@@ -93,8 +96,9 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 - any eval file, check, expectation text or results file inside a world;
 - test-tell words such as "eval", "fixture", "grader" or "benchmark", unless that file allows the word. A judge
   also reads every world before it is approved;
-- a `.git` folder, or a symlink that points outside the world;
-- a document copied from this repository whose hash no longer matches its source.
+- a `.git` folder, an absolute symlink, or a symlink that points outside the world;
+- a document declared as copied from this repository that differs from its source, or whose source has changed
+  since it was copied.
 
 ## Containment: what a run can see
 
