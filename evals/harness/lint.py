@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import manifest  # noqa: E402
 from cases import REPO, CaseError, load_cases, sha256_file, structure  # noqa: E402
 
 SHINGLE = 8
@@ -36,18 +37,16 @@ def shingles(text, size=SHINGLE):
 
 
 def text_files(folder, skip=(".git",)):
-    """{relative path: text} for every readable text file under `folder`."""
+    """{relative path: text} for every file under `folder`. Nothing is skipped: bytes that are not UTF-8 are
+    replaced, so a name or sentence inside a binary file is still seen, and a file too large to scan raises."""
     found = {}
     for path in sorted(Path(folder).rglob("*")):
         relative = path.relative_to(folder)
         if relative.parts[0] in skip or path.is_symlink() or not path.is_file():
             continue
         if path.stat().st_size > TEXT_LIMIT:
-            continue
-        try:
-            found[relative.as_posix()] = path.read_text()
-        except UnicodeDecodeError:
-            continue
+            raise CaseError(f"{relative.as_posix()}: larger than {TEXT_LIMIT} bytes, too large to lint")
+        found[relative.as_posix()] = path.read_bytes().decode("utf-8", errors="replace")
     return found
 
 
@@ -84,7 +83,9 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     given = [("<prompt>", prompt)] + [(f"<commit {n}>", str(c.get("message", "")))
                                       for n, c in enumerate(case.commits, 1)]
     leaks = [case.skill.lower(), case.skill_rel.lower()]
-    for path, text in list(files.items()) + given:
+    # Names are seen too: every path in the arm, folders and links included, is checked like text.
+    names = [(f"<name {path}>", path) for path in manifest.manifest(base_world, skip=(".git",))]
+    for path, text in list(files.items()) + given + names:
         for leak in leaks:
             if leak in text.lower():
                 problems.append(f"{path}: names the skill ({leak!r})")
@@ -108,10 +109,12 @@ def lint(case, base_world, skill_dir, upstream_dir=None, repo=REPO):
     for expectation in case.expectations:
         text = expectation if isinstance(expectation, str) else str(expectation.get("text", ""))
         expectation_runs |= shingles(text, 6)
-    for path, text in list(authored.items()) + given:
+    for path, entry in manifest.manifest(case.world).items():
         parts = Path(path).parts
-        if path in authored and (Path(path).name in KIT_NAMES or any(part in KIT_FOLDERS for part in parts[:-1])):
+        folders = parts if manifest.kind(entry) == "dir" else parts[:-1]
+        if parts[-1] in KIT_NAMES or any(part in KIT_FOLDERS for part in folders):
             problems.append(f"{path}: an eval file inside the world")
+    for path, text in list(authored.items()) + given:
         if expectation_runs & shingles(text, 6):
             problems.append(f"{path}: holds expectation text")
 

@@ -85,6 +85,23 @@ class LintFaults(TempCase):
                 problems = self.problems({"README.md": "x\n"}, {"commits": commits})
                 self.assertTrue(any("<commit 1>" in p for p in problems), problems)
 
+    def test_names_are_linted_like_text(self):
+        for files in ({"notes/haiku-writer.md": "x\n"}, {"haiku-writer/.keep": ""}):
+            with self.subTest(files=files):
+                self.assertTrue(any("<name " in p for p in self.problems(dict(files, **{"README.md": "x\n"}))))
+
+    def test_no_file_is_skipped_unscanned(self):
+        case = self.case({"README.md": "x\n"}, name="big")
+        (case.world / "data.bin").write_bytes(b"\xff\xfe" + b"x" * (lint.TEXT_LIMIT + 1))
+        with self.assertRaisesRegex(cases.CaseError, "too large"):
+            lint.text_files(case.world)
+        binary = self.case({"README.md": "x\n"}, name="bin")
+        (binary.world / "blob.bin").write_bytes(b"\xff\xfe use haiku-writer \x00")
+        self.assertIn("haiku-writer", lint.text_files(binary.world)["blob.bin"])
+        kit = self.case({"README.md": "x\n", "deep/case.json": "{}"}, name="kit")
+        arm = world.build(kit, Adapter, self.tmp / "kit-arm", False, self.skill().parent)
+        self.assertTrue(any("eval file" in p for p in lint.lint(kit, arm.path, self.tmp / "skills/haiku-writer")))
+
     def test_a_copy_must_match_the_source_it_names(self):
         license_sha = cases.sha256_file(cases.REPO / "LICENSE")
         fake = {"world": "STYLE.md", "source": "LICENSE", "source_sha256": license_sha}

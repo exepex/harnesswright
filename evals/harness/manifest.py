@@ -35,6 +35,7 @@ def entry(path):
 def manifest(folder, skip=()):
     """{relative posix path: entry} for every entry under `folder`. Paths whose first part is in `skip` (such as
     `.git`) are left out. Symlinked folders are recorded as links and not entered."""
+    folder = os.fspath(folder)
     found = {}
     for root, dirs, names in os.walk(folder):
         if root == folder:

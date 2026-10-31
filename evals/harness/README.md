@@ -36,9 +36,13 @@ The without-skill arm is the world as written, plus its declared git history and
 arm adds the skill: its folder at the declared path, a copy where the host discovers skills, and one index row
 built from the frontmatter. Skill files keep their executable bit.
 
-`world.prove` compares the two arms' manifests, not what the builder says it did. Nothing may be removed. Only the
-index file may change, and only by the added rows. Every added entry must be part of the skill or a folder on the
-way to it. Because the manifest records folders, modes and links, a change to any of them counts.
+`world.prove` does not trust what the builder says it did. It builds the expected manifest from the base arm's
+manifest and the skill's own manifest, read from its source: every copy of the skill, and the folders on the way
+to it. The with-skill arm must match that entry for entry, so a missing, extra or changed file, folder, mode or link
+fails. The one exception is the index file, which must be the base's text plus exactly the new rows.
+
+The lint checks names as well as text: every path in the arm, folders included. It reads every file, replacing
+bytes that are not UTF-8, and refuses a file too large to read instead of skipping it.
 
 Git history is built with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or
 hooks never take part. A world that holds `.git`, an absolute symlink or a symlink that leads out of it is

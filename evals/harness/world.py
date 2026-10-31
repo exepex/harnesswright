@@ -8,12 +8,11 @@ skills, and one generated index row. Nothing is ever removed, so there is no lis
 
 import os
 import shutil
-import stat
 import subprocess
 from pathlib import Path, PurePosixPath
 
 import manifest
-from cases import REPO, CaseError, sha256_bytes, skill_files, structure
+from cases import REPO, CaseError, skill_files, structure
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
 GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@example.invalid",
@@ -64,7 +63,7 @@ def build(case, adapter, out, with_skill, skills_root=None, skill_dir=None):
 
 
 def _install(world, case, adapter, source, rel, overlay):
-    files, meta = skill_files(source)
+    _, meta = skill_files(source)
     targets = [rel]
     discovery = Path(adapter.skill_dir(world, meta["name"])).relative_to(world).as_posix()
     if discovery != rel:
@@ -72,19 +71,18 @@ def _install(world, case, adapter, source, rel, overlay):
     for target in targets:
         if (world / target).exists():
             raise CaseError(f"{case.id}: {target} already exists in the world")
-        for name, data in files.items():
-            path = world / target / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-            # Keep the source's permission bits, so a skill's executable script stays executable.
-            path.chmod(stat.S_IMODE((Path(source) / name).stat().st_mode))
+        # Copied with its modes, so a skill's executable script stays executable.
+        shutil.copytree(source, world / target)
     row = None
     if case.index:
         row = case.index["row"].format(name=meta["name"], path=f"{rel}/SKILL.md", description=meta["description"])
         add_row(world / case.index["file"], case.index["after"], row)
-    overlay["skills"].append({"name": meta["name"], "paths": targets,
-                              "sha256": manifest.digest({k: "file " + sha256_bytes(v) for k, v in files.items()})})
+    # The skill's own manifest, read from its source: the proof checks every installed copy against it.
+    entries = manifest.manifest(source)
+    overlay["skills"].append({"name": meta["name"], "paths": targets, "files": entries,
+                              "sha256": manifest.digest(entries)})
     overlay["rows"].append(row)
+    overlay["index"] = case.index["file"] if case.index else None
 
 
 def add_row(index_file, after, row):
@@ -129,45 +127,48 @@ def _history(world, commits):
 
 
 def prove(base, with_arm):
-    """Raise CaseError unless `with_arm` is `base` plus exactly its overlay. Return the proof record.
+    """Raise CaseError unless `with_arm` is exactly `base` plus its overlay. Return the proof record.
 
-    Checked from the two manifests, not from what the builder says it did. Nothing of the base is removed. At most
-    one entry changes: a file, the index file, whose executable bit is the same and whose text gains exactly the
-    overlay's rows. Every added entry is an overlay path, lies under one, or is a folder on the way to one. Both
-    arms have the same git head.
+    The expected manifest is built from the base arm's manifest and each skill's own manifest (read from its
+    source when it was installed): every copy of the skill, with the folders on the way to it. The with-skill
+    arm's manifest must equal it entry for entry. The one exception is the index file, which must be the base's
+    text plus exactly the overlay's rows. Both arms have the same git head.
     """
     if base.head != with_arm.head:
         raise CaseError("the arms have different git history")
-    added_skills = with_arm.overlay["skills"][len(base.overlay["skills"]):]
-    overlay = [p.rstrip("/") for skill in added_skills for p in skill["paths"]]
-    ancestors = {str(parent) for path in overlay for parent in PurePosixPath(path).parents} - {"."}
+    expected = dict(base.files)
+    for skill in with_arm.overlay["skills"][len(base.overlay["skills"]):]:
+        for target in skill["paths"]:
+            for parent in PurePosixPath(target).parents:
+                if str(parent) != ".":
+                    expected.setdefault(str(parent), "dir")
+            expected[target] = "dir"
+            expected.update({f"{target}/{name}": entry for name, entry in skill["files"].items()})
     rows = [r for r in with_arm.overlay["rows"][len(base.overlay["rows"]):] if r is not None]
-    removed = [p for p in base.files if p not in with_arm.files]
-    if removed:
-        raise CaseError(f"the with-skill arm removes {removed}")
-    changed = [p for p, value in base.files.items() if with_arm.files[p] != value]
-    if len(changed) > 1:
-        raise CaseError(f"the with-skill arm changes more than the index file: {changed}")
-    for path in changed:
-        old_entry, new_entry = base.files[path], with_arm.files[path]
-        if not (manifest.is_file(old_entry) and manifest.is_file(new_entry)) or \
-                old_entry.endswith(f" {manifest.EXEC}") != new_entry.endswith(f" {manifest.EXEC}"):
-            raise CaseError(f"the with-skill arm changes the kind or executable bit of {path}")
-        old = (base.path / path).read_text().split("\n")
-        new = (with_arm.path / path).read_text().split("\n")
-        for row in rows:
-            if row in new and new.count(row) > old.count(row):
-                new.remove(row)
-        if new != old:
-            raise CaseError(f"the with-skill arm changes {path} beyond the index row")
-    extra = sorted(p for p in with_arm.files if p not in base.files)
+    index = with_arm.overlay.get("index") if rows else None
+    missing = sorted(set(expected) - set(with_arm.files))
+    extra = sorted(set(with_arm.files) - set(expected))
+    differ = sorted(p for p in expected if p in with_arm.files and p != index and with_arm.files[p] != expected[p])
+    if missing or extra or differ:
+        raise CaseError(f"the with-skill arm is not the base plus the skill: missing {missing}, extra {extra}, "
+                        f"different {differ}")
+    if index:
+        _check_rows(base, with_arm, index, rows)
+    return {"without_skill": base.sha256, "with_skill": with_arm.sha256, "index": index,
+            "added": sorted(set(expected) - set(base.files))}
 
-    def allowed(path):
-        if path in overlay or any(path.startswith(o + "/") for o in overlay):
-            return True
-        return path in ancestors and manifest.kind(with_arm.files[path]) == "dir"
 
-    stray = [p for p in extra if not allowed(p)]
-    if stray:
-        raise CaseError(f"the with-skill arm adds entries outside the skill: {stray}")
-    return {"without_skill": base.sha256, "with_skill": with_arm.sha256, "changed": changed, "added": extra}
+def _check_rows(base, with_arm, index, rows):
+    """The index file of `with_arm` is the base's file plus exactly `rows`, with the same executable bit."""
+    old_entry, new_entry = base.files.get(index, ""), with_arm.files.get(index, "")
+    if not (manifest.is_file(old_entry) and manifest.is_file(new_entry)) or \
+            old_entry.endswith(f" {manifest.EXEC}") != new_entry.endswith(f" {manifest.EXEC}"):
+        raise CaseError(f"the with-skill arm changes the kind or executable bit of {index}")
+    old = (base.path / index).read_text().split("\n")
+    new = (with_arm.path / index).read_text().split("\n")
+    for row in rows:
+        if new.count(row) <= old.count(row):
+            raise CaseError(f"the with-skill arm lacks the index row {row!r}")
+        new.remove(row)
+    if new != old:
+        raise CaseError(f"the with-skill arm changes {index} beyond the index rows")

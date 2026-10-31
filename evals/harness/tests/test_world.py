@@ -51,7 +51,7 @@ class Arms(TempCase):
     def test_the_with_skill_arm_is_the_world_plus_the_skill(self):
         case, base, with_arm = self.build_pair()
         proof = world.prove(base, with_arm)
-        self.assertEqual(proof["changed"], ["AGENTS.md"])
+        self.assertEqual(proof["index"], "AGENTS.md")
         self.assertEqual(proof["added"], [".host", ".host/skills", ".host/skills/haiku-writer",
                                           ".host/skills/haiku-writer/SKILL.md", "skills", "skills/haiku-writer",
                                           "skills/haiku-writer/SKILL.md"])
@@ -107,6 +107,28 @@ class Arms(TempCase):
             tampered = world.Arm(target, "with_skill", built.overlay, built.head)
             with self.subTest(tamper=tamper), self.assertRaises(cases.CaseError):
                 world.prove(base, tampered)
+
+    def test_the_proof_needs_the_whole_skill_and_its_row(self):
+        case, base, _ = self.build_pair()
+        for tamper in ("content", "missing copy", "missing row", "no skill"):
+            target = self.tmp / f"with-{tamper.replace(' ', '-')}"
+            built = world.build(case, Adapter, target, True, self.tmp / "skills")
+            if tamper == "content":
+                (target / "skills/haiku-writer/SKILL.md").write_text("Something else.\n")
+            elif tamper == "missing copy":
+                __import__("shutil").rmtree(target / ".host")
+            elif tamper == "missing row":
+                (target / "AGENTS.md").write_text(AGENTS)
+            else:
+                target = base.path
+            tampered = world.Arm(target, "with_skill", built.overlay, built.head)
+            with self.subTest(tamper=tamper), self.assertRaises(cases.CaseError):
+                world.prove(base, tampered)
+
+    def test_history_is_left_out_of_the_manifest(self):
+        _, base, with_arm = self.build_pair({"commits": [{"message": "Start", "paths": ["README.md"]}]})
+        self.assertFalse(any(p.startswith(".git") for p in base.files))
+        world.prove(base, with_arm)
 
     def test_history_ignores_git_variables_of_the_operator(self):
         import os
