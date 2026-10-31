@@ -92,7 +92,8 @@ class Jail(Setup):
     """The audit inside a real jail. Planted faults use a decoy operator home, never the real one."""
 
     def inside(self, run, *command):
-        return subprocess.run(run.jail(list(command)), capture_output=True, text=True, env=run.env, timeout=60)
+        with run.gate():
+            return subprocess.run(run.jail(list(command)), capture_output=True, text=True, env=run.env, timeout=60)
 
     def test_a_sound_jail_passes_and_shows_only_the_list(self):
         for mode in ("trigger", "task"):
