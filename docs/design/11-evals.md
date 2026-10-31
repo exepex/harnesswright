@@ -81,7 +81,7 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   records both world hashes and the overlay.
 - **The proof works from the case, not from the builder.** The expected manifest of each arm is rebuilt from the
   written world, the case and the skill sources, and the built arm must equal it entry for entry, the index file
-  included. The with-skill arm is a copy of the built base, so both have the same git history byte for byte.
+  included. Each arm's `.git` must equal the history replayed from the declared commits in a scratch copy.
 - **One description of a folder.** Every world, arm and output is described by one manifest: each folder, each
   file with its hash and executable bit, and each link with its target. A change to any of them is a change.
 - **Trigger worlds install the full skill set** with its index, as in real use. Should-not-trigger queries

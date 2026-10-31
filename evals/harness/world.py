@@ -5,13 +5,15 @@ skills. The with-skill arm is a copy of the built base, plus the skill: its fold
 where the host discovers skills, and one generated index row. Nothing is ever removed.
 
 What goes into each arm is worked out once, by `plan`, from the case, the adapter and the skill sources. The
-builder carries out the plan; the proof rebuilds the expected manifest from the plan and the written world, and
-never reads what the builder recorded.
+builder carries out the plan. The proof rebuilds what each arm must hold from the case alone: the manifest from the
+plan and the written world, and the git history by replaying the declared commits in a scratch copy. It never reads
+what the builder recorded.
 """
 
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 
 import manifest
@@ -134,25 +136,24 @@ def expected(case, installs):
 
 
 class Arm:
-    """One built arm: its folder, its manifest without `.git`, the manifest of `.git`, and what it installed."""
+    """One built arm: its folder, its manifest without `.git`, the entries of `.git`, and what it installed."""
 
-    def __init__(self, path, arm, installs, head):
+    def __init__(self, path, arm, installs):
         self.path = Path(path)
         self.arm = arm
         self.installs = installs
-        self.head = head
         self.files, self.git = self.read()
         self.sha256 = manifest.digest(self.files)
 
     def read(self):
-        """The arm's manifest without `.git`, and the manifest of `.git`, as they are on disk now."""
-        git = self.path / ".git"
-        return (manifest.manifest(self.path, skip=(".git",)),
-                manifest.manifest(git) if git.is_dir() and not git.is_symlink() else {})
+        """The arm's manifest split in two, as it is on disk now: every entry outside `.git`, and `.git` itself
+        with everything under it. A `.git` of any kind, a link or a file included, lands in the second."""
+        entries = manifest.manifest(self.path)
+        git = {p: e for p, e in entries.items() if p.split("/")[0] == ".git"}
+        return {p: e for p, e in entries.items() if p not in git}, git
 
     def record(self):
-        return {"arm": self.arm, "sha256": self.sha256, "git_head": self.head,
-                "skills": [install.record() for install in self.installs]}
+        return {"arm": self.arm, "sha256": self.sha256, "skills": [install.record() for install in self.installs]}
 
 
 def build(case, adapter, out, skills_root=None):
@@ -165,9 +166,9 @@ def build(case, adapter, out, skills_root=None):
         raise CaseError(f"{case.id}: the world is unsound: {problems}")
     installs = plan(case, adapter, False, skills_root)
     shutil.copytree(case.world, out, symlinks=True, dirs_exist_ok=True)
-    head = _history(out, case.commits)
-    _install(out, case, installs)
-    return Arm(out, "without_skill", installs, head)
+    _history(out, case.commits)
+    _install(out, case, installs, installs)
+    return Arm(out, "without_skill", installs)
 
 
 def add_skill(base, case, adapter, out, skills_root=None, skill_dir=None):
@@ -178,8 +179,8 @@ def add_skill(base, case, adapter, out, skills_root=None, skill_dir=None):
     out = _empty(out)
     installs = plan(case, adapter, True, skills_root, skill_dir)
     shutil.copytree(base.path, out, symlinks=True, dirs_exist_ok=True)
-    _install(out, case, installs[len(base.installs):])
-    return Arm(out, "with_skill", installs, base.head)
+    _install(out, case, installs[len(base.installs):], installs)
+    return Arm(out, "with_skill", installs)
 
 
 def _empty(out):
@@ -189,51 +190,85 @@ def _empty(out):
     return out
 
 
-def _install(arm, case, installs):
-    for install in installs:
+def _install(arm, case, new, every):
+    """Copy the `new` installs into the arm, and write the index from the written world with the rows of `every`
+    install of the arm, in one step, exactly as `expected` does."""
+    for install in new:
         for target in install.targets:
             # Copied as it is: modes kept, so a script stays executable, and links kept as links.
             shutil.copytree(install.source, arm / target, symlinks=True)
-    rows = [install.row for install in installs if install.row is not None]
+    rows = [install.row for install in every if install.row is not None]
     if rows:
-        index = arm / case.index["file"]
-        index.write_bytes(with_rows(index.read_bytes(), case.index["after"], rows))
+        text = with_rows((case.world / case.index["file"]).read_bytes(), case.index["after"], rows)
+        (arm / case.index["file"]).write_bytes(text)
 
 
-def _history(world, commits):
-    """Build the declared commits in `world`; return the head commit, or None without history."""
-    if not commits:
-        return None
+def _git(world, *args):
+    """Run git on the repository of `world` only. CaseError when git fails."""
     # Built from an allow list, never inherited: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE and the like would point
     # git at another repository.
     env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL") if key in os.environ}
     env.update(GIT_ENV, HOME=os.devnull)
-
-    def git(*args):
+    try:
         return subprocess.run(["git", f"--git-dir={world / '.git'}", f"--work-tree={world}",
                                "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main",
                                "-c", f"core.hooksPath={os.devnull}", *args],
-                              cwd=world, env=env, check=True, capture_output=True, text=True).stdout.strip()
+                              cwd=world, env=env, check=True, capture_output=True, text=True).stdout
+    except subprocess.CalledProcessError as error:
+        raise CaseError(f"git {args[0]} failed: {error.stderr.strip()}") from None
 
-    git("init", "-q")
+
+def _history(world, commits):
+    """Build the declared commits in `world`. Without commits, the world gets no `.git` at all."""
+    if not commits:
+        return
+    _git(world, "init", "-q")
     for commit in commits:
         for path in commit["paths"]:
             if not (world / path).exists():
                 raise CaseError(f"commit {commit['message']!r} names {path}, which is not in the world")
-        git("add", "--", *commit["paths"])
-        git("commit", "-q", "--allow-empty", "-m", commit["message"])
-    return git("rev-parse", "HEAD")
+        # Forced, so a world .gitignore cannot drop a path the case declares.
+        _git(world, "add", "--force", "--", *commit["paths"])
+        _git(world, "commit", "-q", "--allow-empty", "-m", commit["message"])
+
+
+STAGED = ".git/index (git ls-files -s)"
+
+
+def _git_state(arm, entries):
+    """What an arm's `.git` holds: its entries, with the index file (which records file times) replaced by the
+    entries it stages."""
+    state = {p: e for p, e in entries.items() if p != ".git/index"}
+    if ".git/index" in entries:
+        state[STAGED] = _git(arm, "ls-files", "-s", "-z")
+    return state
+
+
+def _replay(case):
+    """The `.git` state every arm of `case` must have, from the declared commits replayed in a scratch copy of the
+    world, and the head commit (None without history)."""
+    if not case.commits:
+        return {}, None
+    with tempfile.TemporaryDirectory() as scratch:
+        scratch = Path(scratch)
+        shutil.copytree(case.world, scratch, symlinks=True, dirs_exist_ok=True)
+        _history(scratch, case.commits)
+        entries = {p: e for p, e in manifest.manifest(scratch).items() if p.split("/")[0] == ".git"}
+        return _git_state(scratch, entries), _git(scratch, "rev-parse", "HEAD").strip()
 
 
 def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
     """Raise CaseError unless both arms are exactly what the case says. Return the proof record.
 
     Each arm is read from disk again. Its manifest must equal the one rebuilt from the written world and the plan,
-    entry for entry, the index file included. Both arms have the same git history, byte for byte.
+    entry for entry, the index file included. Its `.git` must equal the one replayed from the declared commits:
+    none of any kind without commits, and the same objects, refs, config and staged entries with them. git reads
+    the arm's index only after every other `.git` entry, config included, has matched.
     """
+    want_git, head = _replay(case)
     read = {}
     for arm, with_skill in ((base, False), (with_arm, True)):
-        files, read[arm.arm] = arm.read()
+        files, git = arm.read()
         want, _ = expected(case, plan(case, adapter, with_skill, skills_root, skill_dir))
         missing = sorted(set(want) - set(files))
         extra = sorted(set(files) - set(want))
@@ -241,7 +276,9 @@ def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
         if missing or extra or differ:
             raise CaseError(f"the {arm.arm} arm is not what the case says: missing {missing}, extra {extra}, "
                             f"different {differ}")
-    if read["without_skill"] != read["with_skill"] or base.head != with_arm.head:
-        raise CaseError("the arms have different git history")
-    return {"without_skill": manifest.digest(expected(case, plan(case, adapter, False, skills_root))[0]),
-            "with_skill": manifest.digest(want), "added": sorted(set(want) - set(base.files))}
+        got = {p: e for p, e in git.items() if p != ".git/index"}
+        if got != {p: e for p, e in want_git.items() if p != STAGED} or _git_state(arm.path, git) != want_git:
+            raise CaseError(f"the {arm.arm} arm's git history is not what the case declares")
+        read[arm.arm] = want
+    return {"without_skill": manifest.digest(read["without_skill"]), "with_skill": manifest.digest(read["with_skill"]),
+            "git_head": head, "added": sorted(set(read["with_skill"]) - set(read["without_skill"]))}

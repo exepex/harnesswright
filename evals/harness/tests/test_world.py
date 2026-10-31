@@ -42,7 +42,7 @@ class Arms(TempCase):
         target = self.tmp / f"tampered-{len(list(self.tmp.iterdir()))}"
         built = world.add_skill(base, case, Adapter, target, self.tmp / "skills")
         change(target)
-        return world.Arm(target, "with_skill", built.installs, built.head)
+        return world.Arm(target, "with_skill", built.installs)
 
     def test_the_with_skill_arm_is_the_world_plus_the_skill(self):
         case, base, with_arm = self.build_pair()
@@ -68,15 +68,36 @@ class Arms(TempCase):
         with self.assertRaisesRegex(cases.CaseError, "no line"):
             world.with_rows(b"# none\n", header, ["| new |"])
 
-    def test_history_is_the_same_in_both_arms_and_is_proved(self):
-        case, base, with_arm = self.build_pair(START)
-        self.assertIsNotNone(base.head)
+    def test_history_is_replayed_from_the_case_and_proved(self):
+        case, base, with_arm = self.build_pair(dict(START, commits=[{"message": "Start", "paths": ["README.md", "x"]}]),
+                                               files={"README.md": "Notes.\n", "AGENTS.md": AGENTS,
+                                                      ".gitignore": "x\n", "x": "ignored but declared\n"})
         self.assertEqual(base.git, with_arm.git)
-        self.assertFalse(any(p.startswith(".git") for p in base.files))
-        self.prove(case, base, with_arm)
-        changed = self.tampered(case, base, lambda t: (t / ".git" / "description").write_text("Use the skill.\n"))
-        with self.assertRaisesRegex(cases.CaseError, "git history"):
-            self.prove(case, base, changed)
+        self.assertFalse(any(p.startswith(".git/") for p in base.files))
+        self.assertEqual(len(self.prove(case, base, with_arm)["git_head"]), 40)
+        changes = {
+            "description": lambda t: (t / ".git" / "description").write_text("Use the skill.\n"),
+            "no history": lambda t: shutil.rmtree(t / ".git"),
+            "extra commit": lambda t: world._git(t, "commit", "-q", "--allow-empty", "-m", "Use the skill"),
+            "unstaged": lambda t: world._git(t, "rm", "-q", "--cached", "x"),
+        }
+        for name, change in changes.items():
+            with self.subTest(change=name), self.assertRaisesRegex(cases.CaseError, "git history"):
+                self.prove(case, base, self.tampered(case, base, change))
+        shutil.rmtree(base.path / ".git")
+        with self.assertRaisesRegex(cases.CaseError, "without_skill arm's git history"):
+            self.prove(case, base, world.add_skill(base, case, Adapter, self.tmp / "no-history", self.tmp / "skills"))
+
+    def test_an_arm_without_history_holds_no_git_of_any_kind(self):
+        case, base, with_arm = self.build_pair()
+        self.assertIsNone(self.prove(case, base, with_arm)["git_head"])
+        other = self.tmp / "operator-repo"
+        subprocess.run(["git", "init", "-q", str(other)], check=True)
+        for name, change in {"link": lambda t: (t / ".git").symlink_to(other / ".git"),
+                             "empty folder": lambda t: (t / ".git").mkdir(),
+                             "file": lambda t: (t / ".git").write_text("gitdir: /elsewhere\n")}.items():
+            with self.subTest(change=name), self.assertRaisesRegex(cases.CaseError, "git history"):
+                self.prove(case, base, self.tampered(case, base, change))
 
     def test_skill_files_keep_their_permission_bits(self):
         script = self.skill() / "scripts" / "count.py"
@@ -131,7 +152,7 @@ class Arms(TempCase):
             built = world.build(case, Adapter, "relative-arm", self.skill().parent)
         finally:
             os.chdir(here)
-        self.assertIsNotNone(built.head)
+        self.assertIn(".git/HEAD", built.git)
 
     def test_history_ignores_git_variables_of_the_operator(self):
         other = self.tmp / "operator-repo"
@@ -146,11 +167,15 @@ class Arms(TempCase):
 
     def test_siblings_are_installed_in_both_arms(self):
         self.skill("note-taker")
-        case, base, with_arm = self.build_pair({"siblings": ["note-taker"]})
-        for arm in (base, with_arm):
-            self.assertTrue((arm.path / "skills/note-taker/SKILL.md").is_file())
-            self.assertTrue((arm.path / ".host/skills/note-taker/SKILL.md").is_file())
-        self.prove(case, base, with_arm)
+        listed = {"file": "AGENTS.md", "after": "## Skills", "row": "- {name}: {path}"}
+        for index in (INDEX, listed):
+            case, base, with_arm = self.build_pair({"siblings": ["note-taker"], "index": index})
+            for arm in (base, with_arm):
+                self.assertTrue((arm.path / "skills/note-taker/SKILL.md").is_file())
+                self.assertTrue((arm.path / ".host/skills/note-taker/SKILL.md").is_file())
+            self.prove(case, base, with_arm)
+        text = (with_arm.path / "AGENTS.md").read_text()
+        self.assertLess(text.index("- note-taker"), text.index("- haiku-writer"))
 
 
 class Plans(TempCase):

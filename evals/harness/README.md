@@ -71,12 +71,16 @@ would overlap the world or another skill, a discovery path outside the arm, an i
 file, and a trigger case that does not install every other skill as a sibling.
 
 `world.build` makes the without-skill arm: the world as written, its git history and the siblings.
-`world.add_skill` copies that built arm and adds the skill. The index is edited as bytes, so its encoding and line
-endings are kept.
+`world.add_skill` copies that built arm and adds the skill. The index is written in one step from the written world
+with every row of the arm, as the proof expects it. It is edited as bytes, so its encoding and line endings are
+kept.
 
 `world.prove` reads both arms from disk again. It rebuilds each expected manifest from the written world and the
 plan, never from what the builder recorded, and each arm must equal it entry for entry, the index file included.
-The `.git` folders of the two arms must be identical.
+Each arm's `.git` must equal the one replayed from the declared commits in a scratch copy of the world. Without
+commits there is no `.git` of any kind, link, file or folder. With them, every entry under `.git` must match, and
+the index must stage the same entries; git reads the arm's index only once the rest, config included, has matched.
 
-Git history is built with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or
-hooks never take part.
+Git runs with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or hooks never
+take part. Declared paths are added with `--force`, so a world `.gitignore` cannot drop them, and a git failure is
+a case error.
