@@ -6,5 +6,6 @@ Trigger and task evals for [skills/skill-designer](../../../skills/skill-designe
 Each task runs in a fresh, disposable copy of this repository. `files/` holds the inputs. They are eval fixtures,
 not borrowed material: the licence holder, repositories and commits in them are invented for the tasks.
 `files/release-notes-unlicensed/scripts/collect.sh` must never be run; task 3 checks that it is not.
+`files/commit-message-writer` is the drafted skill that task 4 asks the designer to judge itself.
 
 Results per host are in `evals/results/skill-designer.json`. Run them with the eval runner in `evals/runner/`.

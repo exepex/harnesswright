@@ -2,22 +2,22 @@
   "hosts": [
     {
       "baseline_min_runs": 3,
-      "baseline_pass_rate": 0.5,
+      "baseline_pass_rate": 0.9167,
       "gaps": [
-        "task pass rate 83% below 90%"
+        "task pass rate 50% below 90%"
       ],
       "host": "claude-code",
       "label": "unsupported",
-      "lift": 0.3333,
+      "lift": -0.4167,
       "model": "claude-sonnet-5-5",
       "provenance": {
         "baseline": {
-          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
-          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
+          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
           "host_paths": [
             "/home/claude/.claude"
           ],
-          "host_version": "2.1.314 (Claude Code)",
+          "host_version": "2.1.316 (Claude Code)",
           "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
           "permission_profile": {
             "commands": "allowed, sandboxed",
@@ -27,16 +27,16 @@
             "writes": "workspace and scratch"
           },
           "requested_model": null,
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         },
         "tasks": {
-          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
-          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
+          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
           "host_paths": [
             "/home/claude/.claude"
           ],
-          "host_version": "2.1.314 (Claude Code)",
+          "host_version": "2.1.316 (Claude Code)",
           "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
           "permission_profile": {
             "commands": "allowed, sandboxed",
@@ -46,15 +46,15 @@
             "writes": "workspace and scratch"
           },
           "requested_model": null,
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         },
         "triggers": {
           "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
           "host_paths": [
             "/home/claude/.claude"
           ],
-          "host_version": "2.1.314 (Claude Code)",
+          "host_version": "2.1.316 (Claude Code)",
           "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
           "permission_profile": {
             "commands": "refused",
@@ -63,28 +63,28 @@
             "writes": "refused"
           },
           "requested_model": null,
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         }
       },
       "task_min_runs": 3,
-      "task_pass_rate": 0.8333,
+      "task_pass_rate": 0.5,
       "trigger_accuracy": 0.95,
       "trigger_min_runs": 3,
       "trigger_not_run": 0
     },
     {
       "baseline_min_runs": 3,
-      "baseline_pass_rate": 0.25,
+      "baseline_pass_rate": 0.0833,
       "gaps": [],
       "host": "codex",
       "label": "verified",
-      "lift": 0.6667,
+      "lift": 0.8334,
       "model": "gpt-6.1-sol",
       "provenance": {
         "baseline": {
-          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
-          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
+          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
           "host_paths": [],
           "host_version": "codex-cli 0.166.0",
           "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
@@ -96,12 +96,12 @@
             "writes": "workspace, scratch and /tmp"
           },
           "requested_model": "gpt-6.1-sol",
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         },
         "tasks": {
-          "base_sha256": "858d10e3c59294d88e1c1058e6733aff41cd8d8d6b67c9d9cc5fc0bd98266e06",
-          "evals_sha256": "10887c1ae1eb8a4c7852e0c2c0c4d40003d3fa68c2fe1b97f2fbbc61d331b5a4",
+          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
+          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
           "host_paths": [],
           "host_version": "codex-cli 0.166.0",
           "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
@@ -113,8 +113,8 @@
             "writes": "workspace, scratch and /tmp"
           },
           "requested_model": "gpt-6.1-sol",
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         },
         "triggers": {
           "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
@@ -128,13 +128,13 @@
             "writes": "refused"
           },
           "requested_model": "gpt-6.1-sol",
-          "runner_commit": "f421a272597d7d7a6e8c757f3d5704b832844784",
-          "skill_sha256": "fef41727a268da220923f4a33eec9b28e8f10a77fa2a7a1a89773bf7e013422b"
+          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
+          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
         }
       },
       "task_min_runs": 3,
       "task_pass_rate": 0.9167,
-      "trigger_accuracy": 0.95,
+      "trigger_accuracy": 1.0,
       "trigger_min_runs": 3,
       "trigger_not_run": 0
     }

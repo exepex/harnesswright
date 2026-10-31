@@ -1,0 +1,7 @@
+{
+  "skill_name": "commit-message-writer",
+  "hosts": [
+    {"host": "reference-host", "trigger_accuracy": 1.0, "task_pass_rate": 1.0, "baseline_pass_rate": 0.33,
+     "label": "pending judge"}
+  ]
+}
