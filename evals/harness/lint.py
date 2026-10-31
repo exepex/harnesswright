@@ -25,6 +25,7 @@ from skills import skill_files
 
 RUN = 8
 EXPECTATION_RUN = 6
+SHORTEST = 3
 # Tell stems (doc 11): a word that starts with one tells an agent it is being tested. `allow_words` lets a place
 # hold the words it names.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
@@ -65,9 +66,12 @@ def plain(data):
 
 
 def names(place, name):
-    """True when the place holds `name` as words, or as one word squashed together as in `HaikuWriter`."""
+    """True when the place holds `name` as words, or as one word squashed together as in `HaikuWriter`, plural
+    or not."""
     wanted = words(name)
-    return bool(wanted) and (f" {' '.join(wanted)} " in f" {place.words} " or "".join(wanted) in place.words.split())
+    phrase, squashed = " ".join(wanted), "".join(wanted)
+    return bool(wanted) and (any(f" {phrase}{s} " in f" {place.words} " for s in ("", "s"))
+                             or bool({squashed, squashed + "s"} & set(place.words.split())))
 
 
 def told(place, stem):
@@ -122,26 +126,39 @@ def texts(folder, keep=lambda path: True):
 
 
 def kit_texts(repo=REPO):
-    """The measuring kit's own text: everything under `evals/` except worlds, cases, upstream sources and results,
-    which hold project text or copies of it."""
+    """The measuring kit's text about skills: the files under `evals/skills/`, such as tasks, triggers, checks,
+    tests and grading notes, except worlds, cases and upstream sources, which hold project text. The harness's own
+    code and notes are general and say nothing about a skill. Checks are standard-library Python, so their import
+    lines are left out too."""
     def keep(path):
-        parts = path.split("/")
-        return parts[0] != "results" and not ({"cases", "files", "upstream", "world"} & set(parts[1:]))
-    return texts(Path(repo) / "evals", keep)
+        return not ({"cases", "files", "upstream", "world"} & set(path.split("/")[1:]))
+    folder = Path(repo) / "evals" / "skills"
+    return [re.sub(r"(?m)^[ \t]*(?:import|from)[ \t].*$", "", text) for text in texts(folder, keep)]
+
+
+def shared_runs(places, copied, upstream, size):
+    """Runs of project text: verified copies, installed siblings, the upstream source and the prompt. A run found
+    there belongs to the project and stays in both arms, so no run rule counts it."""
+    project = [p.text for p in places if p.text and (p.key in copied or p.key == PROMPT_KEY or p.author == "harness")]
+    found = set()
+    for text in project + list(upstream):
+        found |= {r for n in range(1, size + 1) for r in runs(text, n)} if size < RUN else runs(text, size)
+    return found
 
 
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO):
     """Every problem with `case`, given its built without-skill arm. An empty list means it passes."""
     places = visible(case, arm)
     copied = copies(case)
-    shared = set().union(set(), *(runs(t, RUN) for t in [p.text for p in places if p.text and (
-        p.key in copied or p.key == PROMPT_KEY or p.author == "harness")] + list(upstream)))
+    shared = shared_runs(places, copied, upstream, RUN)
     files, _ = skill_files(skill_dir, case.skill)
     skill = set().union(set(), *(runs(data.decode("utf-8", "replace"), RUN) for data in files.values())) - shared
     measuring = set().union(set(), *(runs(t, RUN) for t in kit)) - shared
-    # An expectation shorter than a run is matched whole.
-    expected = [e if isinstance(e, str) else e["text"] for e in case.expectations]
-    expected = set().union(set(), *(runs(e, min(EXPECTATION_RUN, len(words(e)))) for e in expected))
+    # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
+    # ordinary project words, so a judge reads for it instead.
+    expected = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]
+    expected = set().union(set(), *(runs(" ".join(e), min(EXPECTATION_RUN, len(e))) for e in expected
+                                    if len(e) >= SHORTEST)) - shared_runs(places, copied, upstream, EXPECTATION_RUN)
     sizes = {len(r.split()) for r in expected}
     allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
     leaks = [case.skill] + ([case.skill_rel] if case.skill_rel != f"skills/{case.skill}" else [])

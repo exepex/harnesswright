@@ -54,6 +54,7 @@ class Lint(TempCase):
         planted = {
             "name in world": ({"README.md": "Try the haiku writer helper.\n"}, None),
             "camel case": ({"app/poems.py": "class HaikuWriter:\n    pass\n"}, None),
+            "plural": ({"README.md": "For haiku writers.\n"}, None),
             "soft hyphen": ({"README.md": "Try hai­ku-writer.\n"}, None),
             "full width": ({"README.md": "Try ｈａｉｋｕ-writer.\n"}, None),
             "path in world": ({"notes.md": "See skills/haiku-writer for poems.\n"}, None),
@@ -97,10 +98,15 @@ class Lint(TempCase):
             with self.subTest(label):
                 self.assertNotEqual(self.problems(files, dict(data, **extra), kit=[KIT_TEXT], repo=repo), [])
 
-    def test_the_prompt_may_state_what_is_expected(self):
+    def test_project_text_is_never_counted_against_the_case(self):
         data = {"prompt": "Write a poem of three lines about notes.",
-                "expectations": ["The reply is a poem of three lines about notes"]}
-        self.assertEqual(self.problems({"README.md": "x\n", "src/cases/list.py": "x = 1\n"}, data), [])
+                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!"]}
+        self.assertEqual(self.problems({"README.md": "This app uses tags.\n", "src/cases/list.py": "x = 1\n"},
+                                       data), [])
+        repo, copy = self.source("Every file ends with a newline.\n")
+        self.assertEqual(self.problems({"STYLE.md": "Every file ends with a newline.\n", "NOTES.md": "Every file "
+                                        "ends with a newline.\n"}, {"copies": [copy], "expectations": [
+                                            "Every file ends with a newline"]}, repo=repo), [])
 
     def test_a_place_may_allow_a_tell_word(self):
         files = {"docs/testing.md": "Run the fixtures before each release.\n"}
@@ -119,13 +125,15 @@ class Lint(TempCase):
         self.assertTrue(any("not in the world as the regular file" in p for p in problems))
         self.assertTrue(any("OTHER.md: holds" in p for p in problems))
 
-    def test_the_kit_is_its_code_and_checks_not_its_worlds(self):
+    def test_the_kit_is_what_it_holds_about_skills(self):
         evals = self.tmp / "repo" / "evals"
         for path in ("harness/README.md", "skills/x/checks/c.py", "skills/x/cases/a/world/README.md",
                      "skills/x/files/old/README.md", "skills/x/upstream/SKILL.md", "results/r.json"):
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
-        self.assertEqual(sorted(lint.kit_texts(self.tmp / "repo")), ["harness/README.md", "skills/x/checks/c.py"])
+        self.assertEqual(sorted(lint.kit_texts(self.tmp / "repo")), ["skills/x/checks/c.py"])
+        (evals / "skills/x/checks/c.py").write_text("import os\nfrom pathlib import Path\nassert 'poem' in out\n")
+        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["\n\nassert 'poem' in out\n"])
 
     def test_lint_skill_reports_an_unbuildable_case(self):
         self.skill()
