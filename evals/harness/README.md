@@ -47,10 +47,11 @@ built instead of failing part way:
 `skills.py` works from two rules, each a list of what is allowed.
 
 `skills.frontmatter` reads one stated subset of YAML, with only the fields of `HW-PORT-01`: `name`, `description`,
-`license` and `compatibility` hold text (one plain line, a quoted string, or a `>` or `|` block), and `metadata`
-holds `  key: value` lines of text. A plain line is words separated by single spaces, which YAML reads as the same
-text; a value spelled like a YAML null, boolean, number or date must be quoted. Each field appears once, lines end
-only at a newline, no other control character is allowed, and the block ends at a line that is exactly `---`.
+`license` and `compatibility` hold one plain line, and `metadata` holds `  key: value` lines whose keys are
+lower-case words joined by `-` and whose values are plain lines. A plain line is words separated by single spaces,
+which YAML reads as exactly the text written. There are no quoted values, block scalars or comments, and a value or
+key spelled like a YAML null, boolean, number or date is refused. Each field appears once, lines end only at a
+newline, no other control character is allowed, and the block ends at a line that is exactly `---`.
 Anything else is refused with its line number, so a value is never read short or as the wrong type: the index row
 and the fingerprint are built from it. The frontmatter name must be a skill name, and the expected one when the
 caller names it, because the name chooses where a host discovers the skill.
