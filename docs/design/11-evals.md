@@ -36,7 +36,8 @@ Only one of the 24 failures was a true finding about an agent. The other 23 were
    comes from one complete round.
 
 The runner and every check are Python 3 with only the standard library and no network calls of their own
-(`HW-PORT-04`). Judges stay independent of the builder (`HW-PORT-03`).
+(`HW-PORT-04`); the gate (Containment) only passes on a host's allowed connections. Judges stay independent of
+the builder (`HW-PORT-03`).
 
 ## The baseline
 
@@ -118,17 +119,23 @@ host's own install. The runner proves this in every run.
 - **One list of mounts.** A run sees exactly one list: the system program and library folders, the `/etc` entries
   a program needs to start and reach the network, the host's install and CA files (all read-only), the world, a
   fresh private home, a scratch folder in task runs, an empty private `/tmp`, a fresh `/proc` of the jail's own
-  processes and a minimal `/dev`. Nothing in the operator's home is found for a host: one installed there runs
+  processes, a minimal `/dev` and the gate's socket. Nothing in the operator's home is found for a host: one installed there runs
   only from what the operator names, and is refused until then. The jail has its own user, process, IPC, host
-  name and cgroup namespaces; the network is shared, because the host must reach its model, and the host's sandbox
-  cuts commands off from it (Powers). Nothing else is mounted, so
-  machine-wide host config such as `/etc/claude-code`, `/etc/codex` or `/etc/gitconfig`, the repository and the
-  operator's home are never there to read. No mount may hold or sit inside the repository, or hold the operator's
-  home.
+  name, cgroup and network namespaces. Its network holds only loopback, and the gate's socket is the one way
+  out. Nothing else is mounted, so machine-wide host config such as `/etc/claude-code`, `/etc/codex` or
+  `/etc/gitconfig`, the repository and the operator's home are never there to read. No mount may hold or sit
+  inside the repository, or hold the operator's home.
+- **The gate.** A proxy outside the jail passes on only `CONNECT host:443` to the host's model hosts: the
+  adapter's `MODEL_HOSTS` and the host of each URL its `ENV_KEYS` pass on, such as a base URL. Anything else gets
+  `403`, and every request is recorded with its answer. Every proxy variable in the jail names the gate. When the
+  operator's machine has its own `http://` proxy in `HTTPS_PROXY`, the gate goes through it, so that proxy's
+  address never enters the jail. A base URL on a port other than 443, or an IP address, is refused.
+  Known limit: the host's commands share its network, so they too can reach the model hosts, and nothing else.
 - **Visibility audit.** Before the host starts, a script runs inside the jail and checks it against the same list:
   every folder the jail creates holds only the way to the mounts below it, every folder the harness fills holds
-  exactly what it put there (the world is the proved arm), no process outside the run is visible, and the
-  environment holds only the keys the harness built. Any problem voids the run and stops the round.
+  exactly what it put there (the world is the proved arm), no process outside the run is visible, the network
+  holds only loopback, and the environment holds only the keys the harness built. Any problem voids the run and
+  stops the round.
 - **Canary tokens.** Unique tokens are planted where leaks came from before: a decoy operator home, the runner's
   temp folder, the repository checkout, other runs' folders. The audit scans the world, home, scratch, host install, CA
   files and host paths for them, reading every file, and every bundle is scanned for them.
@@ -151,7 +158,7 @@ every host tool outside the table, so nothing is left for the host to refuse.
 | Read | World and system folders | World, scratch and system folders |
 | Write | Nothing | World, scratch, private home and temp |
 | Run commands | Yes, read-only sandbox | Yes, sandboxed |
-| Network from commands | None | None |
+| Network from commands | Only the model hosts, through the gate | Only the model hosts, through the gate |
 | Host tools beyond read, write and command | None | None |
 
 ### Probes

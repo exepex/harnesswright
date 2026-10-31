@@ -11,6 +11,7 @@ The checks, each from the one list:
 - every folder the jail creates (the root, the folders on the way to a mount, and an empty `/tmp`) holds exactly
   the next steps to the mounts below it, and each mount is there as the kind the list says;
 - no process outside the run is visible: `/proc` holds only the audit and the processes it runs under;
+- the jail's network holds only loopback, so the gate's socket is the only way out;
 - no canary token is in any mount marked for scanning; a file that cannot be read is a problem, so a scan is never
   partial.
 
@@ -19,6 +20,7 @@ Standard library only. It never writes anything.
 
 import json
 import os
+import stat
 import sys
 
 if "digest" not in globals():  # imported for tests, not run after manifest.py's source
@@ -53,6 +55,9 @@ def view(spec, problems):
                     problems.append(f"{path} is not the link to {mount['source']} the list says")
             elif mount["how"] == "tmpfs":
                 continue  # listed in `created` already
+            elif mount["how"] == "socket":
+                if not stat.S_ISSOCK(os.lstat(path).st_mode):
+                    problems.append(f"{path} is not the gate's socket the list says")
             elif os.path.islink(path) or not os.path.exists(path):
                 problems.append(f"{path} is not mounted as the list says")
 
@@ -71,6 +76,14 @@ def processes(problems):
     seen = {int(name) for name in os.listdir("/proc") if name.isdigit()}
     if seen - allowed:
         problems.append(f"{len(seen - allowed)} processes outside the run are visible in /proc")
+
+
+def network(problems, table="/proc/net/dev"):
+    """The jail's only network interface is loopback."""
+    with open(table) as handle:
+        names = sorted(line.split(":")[0].strip() for line in handle.readlines()[2:])
+    if names != ["lo"]:
+        problems.append(f"the jail's network has interfaces {names}, not only loopback")
 
 
 def canaries(spec, problems):
@@ -117,6 +130,7 @@ def audit(spec):
         except Unreadable as error:
             problems.append(str(error))
     processes(problems)
+    network(problems)
     canaries(spec, problems)
     return {"problems": problems, "env": environment(), "filled": filled}
 

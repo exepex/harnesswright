@@ -4,10 +4,11 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases, skill reading, building and proving the two arms, the world lint, and containment**. Powers and probes,
-evidence, and the measuring kit come next.
+eval cases, skill reading, building and proving the two arms, the world lint, containment and the network
+gate**. Powers and probes, evidence, and the measuring kit come next.
 
-Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
+Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
+allowed connections.
 
 ## Parts
 
@@ -20,6 +21,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
 | `contain.py` | Builds one run's environment, home and jail from one list of mounts |
 | `audit.py` | Runs inside the jail before the host starts and checks it against the same list |
+| `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |
 
 ## Commands
 
@@ -161,3 +163,9 @@ reason. The history is built with no git templates, so `.git` holds only what th
 the run sees, and `Containment.jail` builds the `bwrap` command from it. A host in the operator's home runs only
 from the `host_paths` the operator names. `Containment.audit` runs `audit.py` in the same jail, after `manifest.py`'s
 source, and checks the jail against the same list (doc 11, Containment). Any problem raises `ContainmentError`.
+
+The jail has no network but loopback. `Containment.gate()` starts the run's gate on `gate.sock` in the run folder,
+and every jail of the run runs inside it: the jail's first program, `gate.FORWARDER`, listens on
+`127.0.0.1:3128`, passes each connection to the gate's socket, and starts the host with every proxy variable set
+to it. The gate allows only `CONNECT` on port 443 to `Containment.hosts`, records each request in `log`, and goes
+through the operator's own proxy when there is one.

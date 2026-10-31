@@ -3,10 +3,11 @@
 One rule: a run sees exactly one list of mounts, and nothing else. `Containment.mounts` builds the list once: the
 system folders and the `/etc` entries in `ETC` (read-only), the host's install and CA files (read-only), the world
 (read-only in trigger runs), a fresh home, a scratch folder in task runs, an empty `/tmp`, a fresh `/proc` and a
-minimal `/dev`. The jail is built from the list, and `audit.py` checks the jail against the same list from inside
-it before the host starts. Any problem raises ContainmentError: the run is void and the round stops. The
-environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS` and the run's folders), never
-inherited.
+minimal `/dev`, and the gate's socket. The jail has no network of its own: every connection goes through the gate
+(`gate.py`), which allows only the host's model hosts. The jail is built from the list, and `audit.py` checks the
+jail against the same list from inside it before the host starts. Any problem raises ContainmentError: the run is
+void and the round stops. The environment is built from an allow list (`BASE_KEYS`, the adapter's `ENV_KEYS` and
+the run's folders), never inherited.
 """
 
 import json
@@ -17,20 +18,23 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
+import gate
 import manifest
 from cases import REPO
 
 BWRAP = "bwrap"
-# System variables every host may need: the program path, locale, terminal, proxy and CA settings.
+# System variables every host may need: the program path, locale, terminal and CA settings.
 BASE_KEYS = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TZ",
-             "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy",
              "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE",
              "CURL_CA_BUNDLE", "GIT_SSL_CAINFO")
 # Variables that name a CA file or folder, which the jail mounts read-only so TLS works.
 CA_KEYS = ("SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
            "GIT_SSL_CAINFO")
-# The run's own folders, set by the harness. PWD is the world, as the jail sets it.
-RUN_KEYS = ("HOME", "TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "PWD")
+# Set by the harness: the run's own folders (PWD is the world, as the jail sets it) and the gate as the only proxy.
+PROXY_KEYS = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")
+RUN_KEYS = ("HOME", "TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "PWD") + PROXY_KEYS
+GATE = "/run/gate"  # where the gate's socket is inside the jail
+PYTHON = "/usr/bin/python3"
 SYSTEM = ("/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32")
 ETC = ("alternatives", "ca-certificates", "ca-certificates.conf", "crypto-policies", "gai.conf", "group",
        "host.conf", "hostname", "hosts", "ld.so.cache", "ld.so.conf", "ld.so.conf.d", "localtime", "mime.types",
@@ -59,7 +63,8 @@ def new_token():
 
 
 class Mount:
-    """One entry of the list: `how` is `ro`, `rw`, `link` (a symlink to `source`), `tmpfs`, `proc` or `dev`."""
+    """One entry of the list: `how` is `ro`, `rw`, `link` (a symlink to `source`), `socket` (the gate's socket at
+    `source`), `tmpfs`, `proc` or `dev`."""
 
     def __init__(self, path, how, source=None, filled=None, scan=False):
         self.path, self.how, self.source = str(path), how, source
@@ -67,8 +72,8 @@ class Mount:
         self.scan = scan  # scanned for canary tokens
 
     def args(self):
-        if self.how in ("ro", "rw"):
-            return ["--ro-bind" if self.how == "ro" else "--bind", self.source or self.path, self.path]
+        if self.how in ("ro", "rw", "socket"):
+            return ["--bind" if self.how == "rw" else "--ro-bind", self.source or self.path, self.path]
         if self.how == "link":
             return ["--symlink", self.source, self.path]
         return {"tmpfs": ["--tmpfs"], "proc": ["--proc"], "dev": ["--dev"]}[self.how] + [self.path]
@@ -99,9 +104,31 @@ class Containment:
         self.operator_home = Path(operator_home or os.path.expanduser("~"))
         self.host_paths = [Path(p) for p in host_paths]
         self.tokens = sorted(tokens)
+        self.socket = self.root / "gate.sock"
+        self.upstream = next((self.operator_env[k] for k in ("HTTPS_PROXY", "https_proxy")
+                              if self.operator_env.get(k)), None)
+        self.hosts = self._hosts()
         self.home_entries = self._make_home()
         self.scratch_entries = self._make_scratch()
         self.env = self._environment()
+
+    def _hosts(self):
+        """The gate's allow list: the adapter's MODEL_HOSTS, and the host of every URL the adapter's ENV_KEYS pass
+        on (such as a base URL), since that is where the operator points the host's model."""
+        names = list(getattr(self.adapter, "MODEL_HOSTS", ()))
+        names += [self.operator_env[k] for k in getattr(self.adapter, "ENV_KEYS", ())
+                  if "://" in self.operator_env.get(k, "")]
+        try:
+            return gate.allowed_hosts(names)
+        except ValueError as error:
+            raise ContainmentError(f"the gate's allow list: {error}") from None
+
+    def gate(self):
+        """The run's gate, a context manager. Every jail of this run runs inside it."""
+        try:
+            return gate.Gate(self.socket, self.hosts, self.upstream)
+        except ValueError as error:
+            raise ContainmentError(f"the gate cannot start: {error}") from None
 
     def _make_home(self):
         """A fresh home holding `tmp/` and copies of the adapter's CREDENTIAL_FILES that exist as regular files."""
@@ -133,6 +160,7 @@ class Containment:
     def _environment(self):
         keys = BASE_KEYS + tuple(getattr(self.adapter, "ENV_KEYS", ()))
         env = {key: self.operator_env[key] for key in keys if key in self.operator_env}
+        env.update({key: gate.ADDRESS for key in PROXY_KEYS})
         env.update(HOME=str(self.home), PWD=str(self.world), TMPDIR=str((self.scratch or self.home) / "tmp"),
                    XDG_CONFIG_HOME=str(self.home / ".config"),
                    XDG_CACHE_HOME=str(self.scratch / "cache" if self.scratch else self.home / ".cache"))
@@ -144,7 +172,8 @@ class Containment:
 
     def mounts(self, program):
         """The one list of what a run sees, for a run of `program`."""
-        found = [Mount("/tmp", "tmpfs"), Mount("/proc", "proc"), Mount("/dev", "dev")]
+        found = [Mount("/tmp", "tmpfs"), Mount("/proc", "proc"), Mount("/dev", "dev"),
+                 Mount(GATE, "socket", source=str(self.socket))]
         for folder in SYSTEM:
             if os.path.islink(folder):
                 found.append(Mount(folder, "link", source=os.readlink(folder)))
@@ -179,13 +208,14 @@ class Containment:
         the operator's home, in it only when the operator names it or the harness fills it (a folder found there, such
         as `~/.local`, holds the operator's files), and never inside a mount the harness fills."""
         repo, home = REPO.resolve(), self.operator_home.resolve()
-        bound = [m for m in mounts if m.how in ("ro", "rw")]
+        bound = [m for m in mounts if m.how in ("ro", "rw", "socket")]
         for mount in bound:
-            path = Path(mount.path).resolve()
+            path = Path(mount.source or mount.path).resolve()
             if path.is_relative_to(repo) or repo.is_relative_to(path) or home.is_relative_to(path):
                 raise ContainmentError(f"a run may not mount {mount.path}: it holds or is inside the repository "
                                        "or the operator's home")
-            if path.is_relative_to(home) and mount not in named and mount.filled is None:
+            made = mount.filled is not None or mount.how == "socket"  # by the harness, so it holds nothing else
+            if path.is_relative_to(home) and mount not in named and not made:
                 raise ContainmentError(f"{mount.path} is in the operator's home: name the files and folders the host "
                                        "needs in host_paths")
             for other in bound:
@@ -198,13 +228,13 @@ class Containment:
         reason = available()
         if reason:
             raise ContainmentError(reason)
-        # Its own user, process, IPC, host name and cgroup namespaces. The network is shared, because the host must
-        # reach its model; the host's own sandbox cuts commands off from it (doc 11, Powers).
+        # Its own user, process, IPC, host name, cgroup and network namespaces. The network holds only loopback, where
+        # the forwarder passes connections to the gate, so the gate's allow list is the only way out (doc 11, Powers).
         args = [BWRAP, "--die-with-parent", "--new-session", "--unshare-user", "--unshare-pid", "--unshare-ipc",
-                "--unshare-uts", "--unshare-cgroup-try"]
+                "--unshare-uts", "--unshare-cgroup-try", "--unshare-net"]
         for mount in self.mounts(program or command[0]):
             args += mount.args()
-        return args + ["--chdir", str(self.world), "--"] + list(command)
+        return args + ["--chdir", str(self.world), "--", PYTHON, "-I", "-c", gate.FORWARDER, GATE] + list(command)
 
     def audit(self, program):
         """Run the visibility audit in this run's jail, for a run of `program`. Return its report, or raise
@@ -213,9 +243,10 @@ class Containment:
         spec = {"mounts": [m.spec() for m in mounts], "tokens": self.tokens}
         # The audit's code goes in as one program text, so no harness file is mounted for it.
         source = MANIFEST.read_text() + "\n" + AUDIT.read_text()
-        command = self.jail(["/usr/bin/python3", "-I", "-c", source], program=program)
-        result = subprocess.run(command, input=json.dumps(spec), capture_output=True, text=True, env=self.env,
-                                timeout=600)
+        command = self.jail([PYTHON, "-I", "-c", source], program=program)
+        with self.gate():
+            result = subprocess.run(command, input=json.dumps(spec), capture_output=True, text=True, env=self.env,
+                                    timeout=600)
         try:
             report = json.loads(result.stdout)
         except json.JSONDecodeError:
