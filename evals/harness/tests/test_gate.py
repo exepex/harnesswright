@@ -85,7 +85,8 @@ class Gate(TempCase):
     def test_the_allow_list_takes_only_plain_host_names(self):
         self.assertEqual(gate.allowed_hosts(["api.example.com", "https://models.example.com:443/v1"]),
                          ["api.example.com", "models.example.com"])
-        for bad in ("localhost", "10.0.0.1:443", "10.0.0.1", "https://169.254.169.254/v1", "API.example.com",
+        for bad in ("localhost", "10.0.0.1:443", "10.0.0.1", "https://169.254.169.254/v1", "0x7f.1", "0177.1",
+                    "1.2.3.4.5", "https://[::1]/", "API.example.com",
                     "*.example.com", "https://", "https://models.example.com:8443/v1"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 gate.allowed_hosts([bad])

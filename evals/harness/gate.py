@@ -14,7 +14,6 @@ Standard library only.
 """
 
 import base64
-import ipaddress
 import os
 import re
 import socket
@@ -24,7 +23,9 @@ from urllib.parse import unquote, urlsplit
 
 PORT = 3128
 ADDRESS = f"http://127.0.0.1:{PORT}"  # the proxy every program in the jail is given
-HOST_PATTERN = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
+# A DNS name: lower-case labels, the last one starting with a letter as a top-level domain does. No spelling of
+# an IP address (dotted, hex, octal or short) can match, so the gate only ever resolves a name.
+HOST_PATTERN = re.compile(r"([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]([a-z0-9-]*[a-z0-9])?")
 
 # Runs inside the jail as `python3 -I -c FORWARDER GATE_SOCKET COMMAND...`.
 FORWARDER = r'''
@@ -85,18 +86,10 @@ def allowed_hosts(names):
         host = url.hostname if url else name
         if url and url.port not in (None, 443):
             raise ValueError(f"the gate passes on only port 443: {name!r}")
-        if not host or not HOST_PATTERN.fullmatch(host) or _is_address(host):
+        if not host or not HOST_PATTERN.fullmatch(host):
             raise ValueError(f"not a host name: {name!r}")
         hosts.add(host)
     return sorted(hosts)
-
-
-def _is_address(host):
-    try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    return True
 
 
 class Gate:
