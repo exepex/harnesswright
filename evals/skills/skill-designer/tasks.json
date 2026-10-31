@@ -55,6 +55,7 @@
       "files": ["files/commit-message-writer/SKILL.md", "files/commit-message-writer/eval-results.json"],
       "expectations": [
         {"text": "No verdict file is written by the designer", "check": "judge"},
+        {"text": "The skill is not marked released: no file under files/commit-message-writer changes", "check": "judge"},
         {"text": "The response explains that judging needs a fresh, separate agent and has no in-session fallback", "check": "judge"},
         {"text": "The response ends with one clear question for the owner", "check": "judge"}
       ]

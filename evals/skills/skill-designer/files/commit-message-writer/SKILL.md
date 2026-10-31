@@ -8,7 +8,7 @@ metadata:
 
 # Commit message writer
 
-An eval fixture: a drafted skill waiting for its judge.
+Writes one commit message for the staged change.
 
 ## Steps
 

@@ -225,8 +225,9 @@ Check: `evals/results/<name>.json` holds a label for every host and model pairin
    claims; never your reasoning or this conversation. It checks each claim and writes a verdict in the verdict
    contract.
 4. If the host cannot start a separate agent, stop and ask the owner. Never judge the skill yourself, even when
-   the owner asks you to: no one can waive a judge's independence (`HW-PORT-03`). Say so, write no verdict, and
-   end with one question, such as when a separate judge can run.
+   the owner asks you to: no one can waive a judge's independence (`HW-PORT-03`). Say that the judge must be a
+   fresh, separate agent and that there is no in-session fallback, write no verdict, release nothing, and end with
+   one question, such as when a separate judge can run.
 
 Check: a verdict exists for the exact commit judged. A `fail` sends you back to the step it names.
 
