@@ -7,9 +7,11 @@ file, or a tool call's arguments name it.
 
 import hashlib
 import json
+import os
 import re
 import shlex
 from pathlib import Path
+from urllib.parse import unquote
 
 NAME = "codex"
 CLI = "codex"
@@ -270,11 +272,14 @@ def action_log(stdout, home):
             log.append({"kind": "command", "source": "observed", "command": _command_text(item.get("command")),
                         "exit_code": exit_code if isinstance(exit_code, int) else None,
                         "output": str(item.get("aggregated_output") or "")[:4000]})
-            # Codex's own reading of the command, so inferred; only a command that worked read anything.
+            # Codex's own reading of the command, so inferred; only a command that worked read anything. A path is
+            # relative to the command's folder, which Codex gives as a file URL.
+            cwd = unquote(str(item.get("cwd") or "").removeprefix("file://"))
             for parsed in item.get("parsed_cmd") or [] if exit_code == 0 else []:
                 if isinstance(parsed, dict) and parsed.get("type") == "read" and isinstance(parsed.get("path"), str):
-                    log.append({"kind": "read", "source": "inferred", "path": parsed["path"]})
-                    found = re.search(r"skills/([^/]+)/SKILL\.md$", parsed["path"])
+                    path = os.path.normpath(os.path.join(cwd, parsed["path"])) if cwd else parsed["path"]
+                    log.append({"kind": "read", "source": "inferred", "path": path})
+                    found = re.search(r"skills/([^/]+)/SKILL\.md$", path)
                     if found:
                         log.append({"kind": "skill", "source": "inferred", "name": found.group(1)})
         elif kind == "FileChange":

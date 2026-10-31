@@ -71,7 +71,10 @@ class Codex(TempCase):
                      "changes": {"/w/b": {"type": "add", "content": "x"}}}),
             done(7, {"type": "UserMessage", "content": []})])
         self.session("sub", [done(5, {"type": "CommandExecution", "command": ["ls", "-a"], "exit_code": 2,
-                                      "aggregated_output": "", "parsed_cmd": [{"type": "read", "path": skill}]})])
+                                      "aggregated_output": "", "parsed_cmd": [{"type": "read", "path": skill}]}),
+                             done(8, {"type": "CommandExecution", "command": ["cat", "SKILL.md"], "exit_code": 0,
+                                      "cwd": "file:///w/.agents/skills/my%20skill", "aggregated_output": "",
+                                      "parsed_cmd": [{"type": "read", "path": "SKILL.md"}]})])
         self.assertEqual(CODEX.action_log("", self.tmp), [
             host.entry("message", text="On it."),
             host.entry("command", command=f"cat {skill}", exit_code=0, output="x" * 4000),
@@ -80,7 +83,10 @@ class Codex(TempCase):
             host.entry("write", path="/w/old", sha256=None), host.entry("agent", task="/root/read_a"),
             host.entry("command", command="ls -a", exit_code=2, output=""),
             {"kind": "failed", "source": "observed", "action": "write: /w/b", "path": "/w/b",
-             "reason": "Failed to write file /w/b"}])
+             "reason": "Failed to write file /w/b"},
+            host.entry("command", command="cat SKILL.md", exit_code=0, output=""),
+            host.entry("read", "inferred", path="/w/.agents/skills/my skill/SKILL.md"),
+            host.entry("skill", "inferred", name="my skill")])
 
     def test_the_exposure_is_every_skill_and_tool_any_thread_was_given(self):
         self.assertIsNone(CODEX.exposure("", self.tmp))
