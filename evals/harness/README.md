@@ -101,12 +101,15 @@ Text is matched on words after Unicode compatibility folding, with format charac
 - In every place: the skill's name, as words or squashed into one word (`HaikuWriter`), plural or not, its custom
   path, and any 8-word run of the skill's own text.
 - In `case` places: each word that starts with a tell stem, unless `allow_words` names that exact word there; any
-  8-word run of the kit's text about skills (`evals/checks/`, each skill's `checks/` and `tests/`, and
-  `evals/faults/`, without import lines); and any run of an expectation, in any place but the prompt, which may ask
-  for it. An expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
+  8-word run of eval text; and any run of an expectation, in any place but the prompt, which may ask for it. An
+  expectation of three to five words is matched whole. One of one or two words cannot be told apart from ordinary
   project words, so the judge who reads the world looks for it.
-- Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
-  except for kit text, the prompt. That text stays in both arms.
+- Eval text is every file under `evals/` except the `world/`, `files/` and `upstream/` folders of a skill's evals,
+  which hold project text, and the case's own `case.json`, which the other rules read. A new kit part counts without
+  being listed. Import lines are left out, since any Python shares them.
+- Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and the
+  prompt. The prompt is project text only against case data (`case.json`, `tasks.json`, `triggers.json`), where a ported
+  prompt is repeated, never against other eval text. That text stays in both arms.
 - Every copy must still be byte for byte its recorded source, and the source must not have changed.
 
 A world that cannot be built, such as one with a `.git` folder or a link out of it, fails with the builder's

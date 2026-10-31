@@ -14,13 +14,13 @@ KIT_TEXT = "The grader opens each bundle and answers every expectation with quot
 
 
 class Lint(TempCase):
-    def problems(self, files, data=None, upstream=(), kit=(), repo=cases.REPO, siblings=()):
+    def problems(self, files, data=None, upstream=(), kit=(), repo=cases.REPO, siblings=(), case_data=()):
         skills = self.skill().parent
         for name, text in dict(siblings).items():
             (self.skill(name) / "SKILL.md").write_text(text)
         case = self.case(files, data)
         arm = world.build(case, Adapter, self.tmp / f"arm-{case.id}", skills)
-        return lint.lint(case, arm, skills / "haiku-writer", upstream, kit, repo)
+        return lint.lint(case, arm, skills / "haiku-writer", upstream, kit, repo, case_data)
 
     def source(self, text):
         """A stand-in repository holding one document, STYLE.md, and its copy entry."""
@@ -134,15 +134,31 @@ class Lint(TempCase):
         self.assertTrue(any("not in the world as the regular file" in p for p in problems))
         self.assertTrue(any("OTHER.md: holds" in p for p in problems))
 
-    def test_the_kit_is_what_it_holds_about_skills(self):
+    def test_eval_text_is_everything_under_evals_but_project_text(self):
         evals = self.tmp / "repo" / "evals"
-        for path in ("harness/README.md", "skills/x/checks/c.py", "skills/x/tasks.json", "skills/x/README.md",
-                     "skills/x/tests/t.py", "skills/x/files/old/README.md", "faults/f.md", "results/r.json"):
+        paths = ("harness/README.md", "skills/x/checks/c.py", "skills/x/tasks.json", "skills/x/cases/a/case.json",
+                 "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md", "skills/x/upstream/SKILL.md",
+                 "faults/f.md", "results/r.json")
+        for path in paths:
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
             (evals / path).write_text(path)
-        self.assertEqual(lint.kit_texts(self.tmp / "repo"), ["skills/x/checks/c.py", "skills/x/tests/t.py", "faults/f.md"])
+        measuring, data = lint.eval_texts(self.tmp / "repo")
+        self.assertEqual(measuring, ["faults/f.md", "harness/README.md", "results/r.json", "skills/x/checks/c.py"])
+        self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
         (evals / "skills/x/checks/c.py").write_text("import os\nfrom pathlib import Path\nassert 'poem' in out\n")
-        self.assertEqual(lint.kit_texts(self.tmp / "repo")[0], "\n\nassert 'poem' in out\n")
+        self.assertIn("\n\nassert 'poem' in out\n", lint.eval_texts(self.tmp / "repo")[0])
+
+    def test_case_data_may_hold_the_prompt_but_never_the_world(self):
+        prompt = "Write a short poem about the quiet harbour at dawn for the notes app."
+        expected = OWN_TEXT.replace("syllables", "words")
+        other = [(self.tmp / "tasks.json", f'{{"prompt": "{prompt}", "expected": "{expected}"}}')]
+        self.assertEqual(self.problems({"README.md": "x\n"}, {"prompt": prompt}, case_data=other), [])
+        planted = self.problems({"data/q.json": other[0][1]}, case_data=other)
+        self.assertTrue(any("data/q.json: holds eval text" in p for p in planted), planted)
+        message = "Start the notes app with tags, search and a list of recent notes"
+        own = self.tmp / "cases" / f"c{len(list((self.tmp / 'cases').iterdir())) + 1}" / "case.json"
+        commits = {"commits": [{"message": message, "paths": ["README.md"]}]}
+        self.assertEqual(self.problems({"README.md": "x\n"}, commits, case_data=[(own, message)]), [])
 
     def test_the_projects_run_folder_is_not_a_tell(self):
         story = ".harness/runs/2026-10-30-notes/stories/S01.md"
