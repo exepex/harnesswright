@@ -37,14 +37,19 @@ class Contract(unittest.TestCase):
         command = CODEX.jail_command("trigger", "/w", None)
         self.assertEqual(command, ["codex", "exec", "--json", "--skip-git-repo-check",
                                    "--dangerously-bypass-approvals-and-sandbox", "-c", "skills.bundled.enabled=false",
+                                   "--disable", "view_image", "--disable", "goals", "-c", 'web_search="disabled"',
                                    "--cd", "/w", "-"])
         self.assertEqual(CODEX.jail_command("task", "/w", "m")[-3:], ["--model", "m", "-"])
-        command = CLAUDE.jail_command("task", "/w", None)
-        self.assertIn("--dangerously-skip-permissions", command)
-        self.assertEqual(command[command.index("--tools") + 1], ",".join(CLAUDE.TOOLS))
-        settings = json.loads(command[command.index("--settings") + 1])
-        self.assertIs(settings["disableBundledSkills"], True)
-        self.assertNotIn("--permission-mode", command)
+        command = CLAUDE.jail_command("task", "/w", "m")
+        settings = {"disableBundledSkills": True, "skillOverrides": {"design": "off", "doctor": "off"},
+                    "enabledPlugins": {"cc-plugin-agents-md@builtin": False, "cc-plugin-telemetry@builtin": False,
+                                       "cc-plugin-plugin-authoring@builtin": False}}
+        self.assertEqual(command[:command.index("--settings") + 1], [
+            "claude", "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "project",
+            "--no-session-persistence", "--dangerously-skip-permissions", "--settings"])
+        self.assertEqual(json.loads(command[command.index("--settings") + 1]), settings)
+        self.assertEqual(command[command.index("--settings") + 2:], [
+            "--tools", "Bash,Read,Write,Edit,Glob,Grep,Skill,Task", "--model", "m"])
 
 
 class Codex(TempCase):
@@ -79,15 +84,28 @@ class Codex(TempCase):
 
     def test_the_exposure_is_every_skill_and_tool_any_thread_was_given(self):
         self.assertIsNone(CODEX.exposure("", self.tmp))
-        body = ("## Skills\n### Available skills\n- probe-skill: Writes a token. (file: r0/probe-skill/SKILL.md)\n"
-                "- not a row\n")
+        body = ("## Skills\n### Skill roots\n- `r0` = `/w/.agents/skills`\n### Available skills\n"
+                "- probe-skill: Writes a token. (file: r0/probe-skill/SKILL.md)\n- odd: a row in another format\n"
+                "  continued\n")
         tools = {"functions": "a", "functions.exec": "b", "collaboration.spawn_agent": "c"}
-        self.session("main", [{"type": "world_state", "payload": {"state": {"host_skills": {"body": body},
-                                                                            "top_level_tools": tools}}}])
-        sleep = {"top_level_tools": {"clock.sleep": "d"}}
+        described = "Run code.\n### `exec_command`\nRuns.\n### `web__run`"
+        nested = {"type": "additional_tools", "tools": [{"type": "namespace", "name": "functions", "tools": [
+            {"type": "custom", "name": "exec", "description": described}]}]}
+        state = {"host_skills": {"body": body}, "top_level_tools": tools}
+        self.session("main", [{"type": "response_item", "payload": nested},
+                              {"type": "world_state", "payload": {"state": state}},
+                              {"type": "world_state", "payload": {"state": {"environments": {}}}}])  # a change only
+        sleep = {"host_skills": {"body": ""}, "top_level_tools": {"clock.sleep": "d"}}
         self.session("sub", [{"type": "world_state", "payload": {"state": sleep}}])
-        self.assertEqual(CODEX.exposure("", self.tmp), {"skills": ["probe-skill"], "tools": [
-            "clock.sleep", "collaboration.spawn_agent", "functions.exec"]})
+        odd = "- odd: a row in another format"  # kept whole, so it can never pass as a declared skill
+        self.assertEqual(CODEX.exposure("", self.tmp), {"skills": [odd, "probe-skill"], "tools": [
+            "clock.sleep", "collaboration.spawn_agent", "functions.exec", "functions.exec/exec_command",
+            "functions.exec/web__run"]})
+        for state in ({"top_level_tools": {}}, {"host_skills": {"body": ""}}, {"host_skills": "x"}, None,
+                      {"host_skills": {"body": ""}, "top_level_tools": {"functions.exec": "b"}}):
+            with self.subTest(state=state):  # a thread that does not report all of it is no report, never "nothing"
+                self.session("sub", [{"type": "world_state", "payload": {"state": state}}])
+                self.assertIsNone(CODEX.exposure("", self.tmp))
 
 
 class ClaudeCode(unittest.TestCase):
@@ -98,9 +116,14 @@ class ClaudeCode(unittest.TestCase):
         uses = [("1", "Read", {"file_path": "/w/a.txt"}), ("2", "Write", {"file_path": "/w/b", "content": "hi"}),
                 ("3", "Edit", {"file_path": "/w/c"}), ("4", "Bash", {"command": "make"}), ("5", "Glob", {}),
                 ("6", "Skill", {"skill": "probe-skill"}), ("7", "Task", {"description": "judge it"}),
-                ("8", "Write", {"file_path": "/w/d", "content": "x"}), ("9", "Read", {"file_path": "/w/gone"})]
+                ("8", "Write", {"file_path": "/w/d", "content": "x"}), ("9", "Read", {"file_path": "/w/gone"}),
+                ("10", "Bash", {"command": "printf x"}), ("12", "Bash", {"command": "sleep 9"}),
+                ("11", "Read", {"file_path": "/w/.claude/skills/s/SKILL.md"}),
+                ("13", "Write", {"file_path": "/w/cut", "content": "x"})]  # no result: the stream was cut
         results = {"4": ("Exit code 2\nboom", True), "8": ("EROFS: read-only file system", True),
-                   "9": ("File does not exist.", True)}
+                   "9": ("File does not exist.", True), "10": ("Exit code 3 is only output", False),
+                   "12": ("Command timed out", True)}
+        results = {i: results.get(i, ("ok", False)) for i, _, _ in uses if i != "13"}
         stdout = self.stream(
             {"type": "system", "subtype": "init", "skills": ["probe-skill"], "tools": ["Bash", "Read"]},
             {"type": "assistant", "message": {"content": [{"type": "text", "text": "On it."}] + [
@@ -116,9 +139,16 @@ class ClaudeCode(unittest.TestCase):
             host.entry("skill", name="probe-skill"), host.entry("agent", task="judge it"),
             {"kind": "failed", "source": "observed", "action": "Write: /w/d", "path": "/w/d",
              "reason": "EROFS: read-only file system"},
+            host.entry("command", command="printf x", exit_code=0, output="Exit code 3 is only output"),
+            host.entry("command", command="sleep 9", exit_code=None, output="Command timed out"),
+            host.entry("read", path="/w/.claude/skills/s/SKILL.md"), host.entry("skill", "inferred", name="s"),
             host.entry("blocked", action="WebFetch", reason="the host refused it")])
         self.assertEqual(CLAUDE.exposure(stdout, None), {"skills": ["probe-skill"], "tools": ["Bash", "Read"]})
         self.assertIsNone(CLAUDE.exposure(self.stream({"type": "result"}), None))
+        for init in ({"tools": ["Bash"]}, {"skills": []}, {"skills": "s", "tools": []}):
+            with self.subTest(init=init):  # a start-up event that does not list both is no report
+                stdout = self.stream({"type": "system", "subtype": "init", **init})
+                self.assertIsNone(CLAUDE.exposure(stdout, None))
 
 
 class RunEnv(TempCase):

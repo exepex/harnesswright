@@ -190,6 +190,7 @@ JAIL_SETTINGS = {"disableBundledSkills": True, "skillOverrides": {"design": "off
 # Claude Code refuses to skip permissions as root unless told it runs in a sandbox, which the jail is.
 RUN_ENV = {"IS_SANDBOX": "1"}
 EXIT_CODE = re.compile(r"^Exit code (\d+)")
+SKILL_FILE = re.compile(r"skills/([^/]+)/SKILL\.md$")
 
 
 def jail_command(mode, world, model):
@@ -206,7 +207,8 @@ def _result_text(content):
 
 
 def action_log(stdout, home):
-    """Tool calls in order, each with its result; sub-agents' calls come in the same stream."""
+    """Tool calls in order, each with its result; sub-agents' calls come in the same stream. A call with no result
+    never finished, as when the stream is cut, so it is left out."""
     events, log = parse_events(stdout), []
     results = {item.get("tool_use_id"): item for event in events if event.get("type") == "user"
                for item in (event.get("message") or {}).get("content") or []
@@ -217,8 +219,8 @@ def action_log(stdout, home):
                 continue
             if item.get("type") == "text":
                 log.append({"kind": "message", "source": "observed", "text": str(item.get("text", ""))})
-            elif item.get("type") == "tool_use":
-                log += _tool_entries(item.get("name"), item.get("input") or {}, results.get(item.get("id")) or {})
+            elif item.get("type") == "tool_use" and item.get("id") in results:
+                log += _tool_entries(item.get("name"), item.get("input") or {}, results[item.get("id")])
     for event in events:
         for denial in event.get("permission_denials") or [] if event.get("type") == "result" else []:
             if isinstance(denial, dict):
@@ -235,7 +237,9 @@ def _tool_entries(name, tool_input, result):
     if failed and name != "Bash":
         return []
     if name == "Read" or name == "Grep":
-        return [{"kind": "read", "source": "observed", "path": path}]
+        found = SKILL_FILE.search(path) if name == "Read" else None  # reading a skill's SKILL.md loads it
+        return [{"kind": "read", "source": "observed", "path": path}] + (
+            [{"kind": "skill", "source": "inferred", "name": found.group(1)}] if found else [])
     if name == "Write":
         content = str(tool_input.get("content", ""))
         return [{"kind": "write", "source": "observed", "path": path,
@@ -243,7 +247,7 @@ def _tool_entries(name, tool_input, result):
     if name == "Edit":
         return [{"kind": "write", "source": "observed", "path": path, "sha256": None}]
     if name == "Bash":
-        code = EXIT_CODE.match(text)
+        code = EXIT_CODE.match(text) if failed else None  # only an error result starts with its exit code
         return [{"kind": "command", "source": "observed", "command": str(tool_input.get("command", "")),
                  "exit_code": int(code.group(1)) if code else (None if failed else 0), "output": text[:4000]}]
     if name == "Skill":
@@ -255,9 +259,13 @@ def _tool_entries(name, tool_input, result):
 
 
 def exposure(stdout, home):
+    """The skills and tools of the start-up event; None when it does not list both, as no report is never
+    'nothing'."""
     for event in parse_events(stdout):
         if event.get("type") == "system" and event.get("subtype") == "init":
-            return {"skills": list(event.get("skills") or []), "tools": list(event.get("tools") or [])}
+            skills, tools = event.get("skills"), event.get("tools")
+            return {"skills": list(skills), "tools": list(tools)} if isinstance(skills, list) and isinstance(
+                tools, list) else None
     return None
 
 

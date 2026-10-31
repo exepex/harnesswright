@@ -201,29 +201,47 @@ def failure(events, returncode, timed_out, mode):
 # the run's home, which holds each finished item with its full detail, so the action log is read from there: the
 # `--json` stream on stdout leaves out what sub-agents do.
 RUN_ENV = {}
-TOOLS = {"functions.exec": "command", "collaboration.spawn_agent": "agent", "collaboration.followup_task": "agent",
+# `functions.exec` runs JavaScript that calls the nested tools listed in its description, so each nested tool is a
+# tool too, named `functions.exec/NAME`. Image viewing, goals and web search are turned off. The jail has no MCP
+# server, so the MCP resource tools have nothing to read.
+TOOLS = {"functions.exec": "command", "functions.exec/exec_command": "command",
+         "functions.exec/write_stdin": "command", "functions.exec/apply_patch": "write",
+         "functions.exec/clock__curr_time": "wait",
+         "functions.exec/list_mcp_resources": "wait", "functions.exec/list_mcp_resource_templates": "wait",
+         "functions.exec/read_mcp_resource": "wait",
+         "collaboration.spawn_agent": "agent", "collaboration.followup_task": "agent",
          "collaboration.send_message": "agent", "collaboration.interrupt_agent": "agent",
          "collaboration.list_agents": "agent", "collaboration.wait_agent": "wait", "functions.wait": "wait",
          "clock.sleep": "wait", "functions.request_user_input": "wait",
          "functions.request_user_input_async": "wait"}  # `exec` mode answers no question
 SKILL_ROW = re.compile(r"^- ([A-Za-z0-9._-]+): .*\(file: \S+\)$")
+NESTED = re.compile(r"^### `([^`]+)`", re.M)
 
 
 def jail_command(mode, world, model):
     command = [CLI, "exec", "--json", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox",
-               "-c", "skills.bundled.enabled=false", "--cd", str(world)]
+               "-c", "skills.bundled.enabled=false", "--disable", "view_image", "--disable", "goals",
+               "-c", 'web_search="disabled"', "--cd", str(world)]
     return command + (["--model", model] if model else []) + ["-"]
 
 
-def _session_lines(home):
+def _threads(home):
+    """The records of each thread's session file, one list per thread."""
     for path in sorted(Path(home).glob(".codex/sessions/**/rollout-*.jsonl")):
+        records = []
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             try:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if isinstance(record, dict) and isinstance(record.get("payload"), dict):
-                yield record
+                records.append(record)
+        yield records
+
+
+def _session_lines(home):
+    for records in _threads(home):
+        yield from records
 
 
 def _finished_items(home):
@@ -276,22 +294,55 @@ def action_log(stdout, home):
 
 
 def exposure(stdout, home):
-    """Every skill and tool any thread was given, from the `world_state` records of its session files; None when
-    there are none."""
-    skills, tools, seen = set(), set(), False
-    for record in _session_lines(home):
-        if record.get("type") != "world_state":
+    """Every skill and tool any thread was given, from the session files. A thread's `world_state` records hold its
+    state, each later one only the keys that changed; its `additional_tools` record describes the tools nested in
+    `functions.exec`. None when there is no thread, or when a thread does not report both lists, or the nested
+    tools of an `exec` it has, as no report is never 'nothing'."""
+    skills, tools, threads = set(), set(), 0
+    for records in _threads(home):
+        state, nested = {}, None
+        for record in records:
+            payload = record["payload"]
+            if payload.get("type") == "additional_tools":
+                nested = (nested or set()) | _nested_tools(payload.get("tools"))
+            if record.get("type") == "world_state" and isinstance(payload.get("state"), dict):
+                state.update(payload["state"])
+        if not records:
             continue
-        state = record["payload"].get("state") or {}
-        seen = True
-        body = (state.get("host_skills") or {}).get("body") or ""
-        skills |= {found.group(1) for found in map(SKILL_ROW.match, body.splitlines()) if found}
-        tools |= set(state.get("top_level_tools") or {})
-    if not seen:
+        listed, given = state.get("host_skills"), state.get("top_level_tools")
+        body = listed.get("body") if isinstance(listed, dict) else None
+        if not isinstance(body, str) or not isinstance(given, dict) or ("functions.exec" in given and nested is None):
+            return None
+        threads += 1
+        skills |= _skill_rows(body)
+        tools |= set(given) | {f"functions.exec/{name}" for name in nested or ()}
+    if not threads:
         return None
     # A namespace such as `functions` is listed beside its tools (`functions.exec`); only the tools are tools.
     leaves = [tool for tool in tools if not any(other.startswith(tool + ".") for other in tools)]
     return {"skills": sorted(skills), "tools": sorted(leaves)}
+
+
+def _skill_rows(body):
+    """The skills of the "Available skills" section. Every row there counts: one that does not parse is kept whole,
+    so it is never a declared skill and stops the round."""
+    section, rows = False, []
+    for line in body.splitlines():
+        if line.startswith("#"):
+            section = line.strip() == "### Available skills"
+        elif section and line.startswith("- "):
+            rows.append(line)
+    return {found.group(1) if found else row for row, found in zip(rows, map(SKILL_ROW.match, rows))}
+
+
+def _nested_tools(declared):
+    """The tools nested in `functions.exec`, from the headings of its description."""
+    names = set()
+    for space in declared if isinstance(declared, list) else []:
+        for tool in space.get("tools") or [] if isinstance(space, dict) and space.get("name") == "functions" else []:
+            if isinstance(tool, dict) and tool.get("name") == "exec":
+                names |= set(NESTED.findall(str(tool.get("description", ""))))
+    return names
 
 
 def run_failure(stdout, returncode, timed_out):

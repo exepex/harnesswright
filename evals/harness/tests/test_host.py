@@ -103,8 +103,10 @@ class FakeHost(TempCase):
         self.assertEqual(result.requests, [])
 
     def test_the_jail_not_the_host_decides_what_a_run_may_write(self):
-        result, world = self.run_of("trigger", fake_adapter(), [{"do": "write", "path": "notes.txt", "text": "x"}])
-        # The host's sandbox is off; the jail refused the write, and the log says so.
+        result, world = self.run_of("trigger", fake_adapter(), [{"do": "write", "path": "notes.txt", "text": "x"},
+                                                                {"do": "write", "path": "/tmp/none/x", "text": "x"}])
+        # The host's sandbox is off; the jail refused the write, and the log says so. The private /tmp is writable,
+        # so a write there that failed for want of a folder is left out.
         self.assertEqual([(e["kind"], e["action"]) for e in result.log], [("blocked", "write_file: notes.txt")])
         self.assertIn("does not let a trigger run write it: [Errno 30]", result.log[0]["reason"])
         self.assertFalse((world / "notes.txt").exists())
