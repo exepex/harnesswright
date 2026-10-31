@@ -191,13 +191,15 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **con
         folder = Path(tempfile.mkdtemp(prefix=f"{name}-{mode}-{attempt}-", dir=root))
         world = build_world(folder / "world", adapter, tokens)
         options = dict(containment)
-        if name == "memory":
+        out = (folder / "run").resolve() / "probe-out"  # where the containment puts it, checked below
+        if name == "memory":  # before the containment copies anything from the decoy home
             options["operator_home"] = _decoy_home(adapter, folder / "operator", options.get("operator_home"))
+            plant_memory(adapter, options["operator_home"], world.resolve(), out, tokens["memory"])
             options["tokens"] = [*options.get("tokens", ()), tokens["memory"]]
         contained = contain.Containment(adapter, mode, world, manifest.manifest(world), root=folder / "run",
                                         probe=True, **options)
-        if name == "memory":  # at the containment's own world and folder, before its audit
-            plant_memory(adapter, options["operator_home"], contained.world, contained.probe_out, tokens["memory"])
+        if contained.probe_out != out or contained.world != world.resolve():
+            raise contain.ContainmentError("the probe's folders are not the containment's")
         text = (prompt or PROMPTS[name])(contained.probe_out)
         homes = (Path(containment.get("operator_home") or "~").expanduser(), Path("~").expanduser())
         place = visible_memory(contained, homes) if name == "memory" else None

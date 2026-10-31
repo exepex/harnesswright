@@ -5,8 +5,8 @@ import os
 import re
 import shlex
 import shutil
-import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from helpers import TempCase
@@ -197,6 +197,14 @@ class Memory(ProbeCase):
                                                         "HTTPS_PROXY": self.upstream.url},
                              operator_home=self.tmp / "operator", host_paths=[self.tool, own])
         self.assertIn(f"the run can see {own / 'MEMORY.md'}, where the host reads memory", found)
+        real = self.tmp / "real home"  # the operator's real home, beside the one given: its memory counts too
+        (real / ".fake").mkdir(parents=True)
+        with mock.patch.dict(os.environ, {"HOME": str(real)}):
+            found = probes.probe(fake_adapter(), "memory", "task", self.tmp / "pro bes", prompt=SOUND["memory"],
+                                 timeout=120, operator_env={"PATH": f"{self.tool}:/usr/bin:/bin",
+                                                            "HTTPS_PROXY": self.upstream.url},
+                                 operator_home=self.tmp / "operator", host_paths=[self.tool, real / ".fake"])
+        self.assertIn(f"the run can see {real / '.fake' / 'MEMORY.md'}", found)
         silent = fake_adapter()
         silent.memory_files = lambda home, world: []
         with self.assertRaisesRegex(ValueError, "names no memory place"):
@@ -212,6 +220,14 @@ class Memory(ProbeCase):
         homes = sorted((self.tmp / "pro bes").glob("memory-*/run/home"))
         self.assertTrue(homes and all(sorted(manifest.manifest(h)) == [".fake", ".fake/auth.json", "tmp"]
                                       for h in homes))
+
+    def test_a_credential_file_that_is_a_memory_place_never_carries_memory_in(self):
+        (self.tmp / "operator" / ".fake").mkdir(parents=True)
+        (self.tmp / "operator" / ".fake" / "MEMORY.md").write_text("the operator's real memory\n")
+        both = fake_adapter()
+        both.CREDENTIAL_FILES = (".fake/MEMORY.md",)  # the decoy takes its place, so the audit finds its canary
+        with self.assertRaisesRegex(contain.ContainmentError, "a canary token is in .*/home/.fake/MEMORY.md"):
+            self.probe("memory", "task", SOUND["memory"], both)
 
     def test_the_decoy_home_holds_only_copies_of_the_credential_files(self):
         operator = self.tmp / "operator"
@@ -305,15 +321,16 @@ class Folder(TempCase):
         with self.assertRaisesRegex(contain.ContainmentError, "operator's home"):
             run.mounts("fakehost")
         # A host installed in the real home and found on PATH, not named: refused, as in a run with the real home.
-        installed = Path(tempfile.mkdtemp(prefix=".hw-test-", dir=os.path.expanduser("~")))
-        self.addCleanup(shutil.rmtree, installed)
-        (installed / "bin").mkdir()
+        real = self.tmp / "real home"  # the real home is a scratch folder too: no test writes in the operator's
+        installed = real / ".local"
+        (installed / "bin").mkdir(parents=True)
         shutil.copy(FAKE / "fakehost", installed / "bin" / "fakehost")
-        run = contain.Containment(fake_adapter(), "trigger", world, {}, root=self.tmp / "run2",
-                                  operator_env={"PATH": f"{installed / 'bin'}:/usr/bin:/bin"},
-                                  operator_home=self.tmp / "decoy")
-        with self.assertRaisesRegex(contain.ContainmentError, "is in the operator's home: name the files"):
-            run.mounts("fakehost")
+        with mock.patch.dict(os.environ, {"HOME": str(real)}):
+            run = contain.Containment(fake_adapter(), "trigger", world, {}, root=self.tmp / "run2",
+                                      operator_env={"PATH": f"{installed / 'bin'}:/usr/bin:/bin"},
+                                      operator_home=self.tmp / "decoy")
+            with self.assertRaisesRegex(contain.ContainmentError, "is in the operator's home: name the files"):
+                run.mounts("fakehost")
 
 
 if __name__ == "__main__":

@@ -240,10 +240,11 @@ made is never followed out of the jail.
   with one token and a `CLAUDE.md` that imports it, so every host must report exactly that one token.
 - **Memory:** the host writes `ready` into `memory.txt`, while a decoy memory sits in every place the adapter's
   `memory_files` names: a decoy operator's home, holding only copies of the credential files, and the folder above
-  the world. Each decoy asks for its token in `remembered.txt`. The probe fails before the host runs when a mount
-  lets the run see any memory place of the decoy home, the given operator's home or the real one (such as a host
-  path the operator names in their home); the token is also a canary for the audit. After the run it fails when the
-  folder holds any file but `memory.txt`, or the log the token. An adapter that names no memory place is refused.
+  the world, planted before the run's home is built from it. Each decoy asks for its token in `remembered.txt`. The
+  token is a canary, so the audit refuses a jail that can see a decoy, even one in a credential file. The probe also
+  fails before the host runs when a mount lets the run see a memory place of the given operator's home or the real
+  one, such as a host path the operator names in their home. After the run it fails when the folder holds any file
+  but `memory.txt`, or the log the token. An adapter that names no memory place is refused.
 - **Tools and drift** (`probes.drift`): no pass or fail of its own, only a record. An audited jail runs
   `probes.TOOLS_PROBE` for the host's program and each tool a case declares: where the run finds it, its hash and its
   version line, or `null` when the run has none. Then the host has an empty run in each mode, and every file it
