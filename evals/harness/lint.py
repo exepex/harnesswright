@@ -265,7 +265,7 @@ def lint_case(case, adapter, out, skills_root, skill_dir=None, upstream=(), kit=
     run uses, prove them, and lint the without-skill arm. Raise CaseError when the case cannot run."""
     skill_dir = Path(skill_dir) if skill_dir else Path(skills_root) / case.skill
     base = world.build(case, adapter, Path(out) / "without", skills_root)
-    with_arm = world.add_skill(base, case, adapter, Path(out) / "with", skills_root, skill_dir)
+    with_arm = world.build(case, adapter, Path(out) / "with", skills_root, True, skill_dir)
     world.prove(case, adapter, base, with_arm, skills_root, skill_dir)
     return lint(case, base, skill_dir, upstream, kit, repo, cases)
 

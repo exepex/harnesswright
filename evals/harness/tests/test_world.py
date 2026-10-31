@@ -31,7 +31,7 @@ class Arms(TempCase):
         case = self.case(files or {"README.md": "Notes app.\n", "AGENTS.md": AGENTS},
                          dict({"index": INDEX}, **(data or {})), name=name)
         base = world.build(case, Adapter, self.tmp / f"base-{case.id}", skills)
-        with_arm = world.add_skill(base, case, Adapter, self.tmp / f"with-{case.id}", skills)
+        with_arm = world.build(case, Adapter, self.tmp / f"with-{case.id}", skills, True)
         return case, base, with_arm
 
     def prove(self, case, base, with_arm):
@@ -40,7 +40,7 @@ class Arms(TempCase):
     def tampered(self, case, base, change):
         """A fresh with-skill arm with `change(folder)` applied after it was built."""
         target = self.tmp / f"tampered-{len(list(self.tmp.iterdir()))}"
-        built = world.add_skill(base, case, Adapter, target, self.tmp / "skills")
+        built = world.build(case, Adapter, target, self.tmp / "skills", True)
         change(target)
         return world.Arm(target, "with_skill", built.installs)
 
@@ -72,9 +72,8 @@ class Arms(TempCase):
         case, base, with_arm = self.build_pair(dict(START, commits=[{"message": "Start", "paths": ["README.md", "x"]}]),
                                                files={"README.md": "Notes.\n", "AGENTS.md": AGENTS,
                                                       ".gitignore": "x\n", "x": "ignored but declared\n"})
-        self.assertEqual(base.git, with_arm.git)
         self.assertFalse(any(p.startswith(".git/") for p in base.files))
-        self.assertEqual(len(self.prove(case, base, with_arm)["git_head"]), 40)
+        self.assertEqual([len(head) for head in self.prove(case, base, with_arm)["git_heads"].values()], [40, 40])
         changes = {
             "description": lambda t: (t / ".git" / "description").write_text("Use the skill.\n"),
             "no history": lambda t: shutil.rmtree(t / ".git"),
@@ -89,11 +88,11 @@ class Arms(TempCase):
                 self.prove(case, base, self.tampered(case, base, change))
         shutil.rmtree(base.path / ".git")
         with self.assertRaisesRegex(cases.CaseError, "without_skill arm's git history"):
-            self.prove(case, base, world.add_skill(base, case, Adapter, self.tmp / "no-history", self.tmp / "skills"))
+            self.prove(case, base, world.build(case, Adapter, self.tmp / "no-history", self.tmp / "skills", True))
 
     def test_an_arm_without_history_holds_no_git_of_any_kind(self):
         case, base, with_arm = self.build_pair()
-        self.assertIsNone(self.prove(case, base, with_arm)["git_head"])
+        self.assertEqual(self.prove(case, base, with_arm)["git_heads"], {"without_skill": None, "with_skill": None})
         other = self.tmp / "operator-repo"
         subprocess.run(["git", "init", "-q", str(other)], check=True)
         for name, change in {"link": lambda t: (t / ".git").symlink_to(other / ".git"),
@@ -101,6 +100,33 @@ class Arms(TempCase):
                              "file": lambda t: (t / ".git").write_text("gitdir: /elsewhere\n")}.items():
             with self.subTest(change=name), self.assertRaisesRegex(cases.CaseError, "git history"):
                 self.prove(case, base, self.tampered(case, base, change))
+
+    def test_both_arms_commit_what_the_harness_adds_the_same_way(self):
+        self.skill("note-taker")
+        for data in (START, dict(START, siblings=["note-taker"])):
+            case, base, with_arm = self.build_pair(data)
+            self.prove(case, base, with_arm)
+            for arm in (base, with_arm):
+                with self.subTest(arm=arm.arm, siblings=data.get("siblings")):
+                    self.assertEqual(world._git(arm.path, "log", "--format=%s %an %ad"),
+                                     world._git(base.path, "log", "--format=%s %an %ad"))
+                    self.assertEqual(world._git(arm.path, "log", "--format=%s").split(), ["Set", "up", "the",
+                                                                                         "project", "Start"])
+                    self.assertEqual(world._git(arm.path, "status", "--porcelain"), "")
+
+    def test_a_skill_brings_only_the_files_git_tracks(self):
+        folder = self.skill()
+        (folder / "__pycache__").mkdir()
+        (folder / "__pycache__" / "x.pyc").write_bytes(b"/home/operator/checkout")
+        case = self.case({"README.md": "Notes app.\n"}, START)
+        base = world.build(case, Adapter, self.tmp / "base", self.tmp / "skills")
+        with_arm = world.build(case, Adapter, self.tmp / "with", self.tmp / "skills", True)
+        self.assertNotIn("skills/haiku-writer/__pycache__", with_arm.files)
+        self.prove(case, base, with_arm)
+        candidate = self.tmp / "candidate"
+        shutil.copytree(folder, candidate)
+        with self.assertRaisesRegex(cases.CaseError, "the files git tracks"):
+            world.build(case, Adapter, self.tmp / "candidate-arm", self.tmp / "skills", True, candidate)
 
     def test_skill_files_keep_their_permission_bits(self):
         script = self.skill() / "scripts" / "count.py"
@@ -140,12 +166,12 @@ class Arms(TempCase):
         case, base, with_arm = self.build_pair(files={"README.md": "Notes app.\n", "AGENTS.md": AGENTS})
         (case.world / "readme").symlink_to("README.md")
         base = world.build(case, Adapter, self.tmp / "linked-base", self.tmp / "skills")
-        with_arm = world.add_skill(base, case, Adapter, self.tmp / "linked-with", self.tmp / "skills")
+        with_arm = world.build(case, Adapter, self.tmp / "linked-with", self.tmp / "skills", True)
         self.assertEqual(with_arm.files["readme"], "link README.md")
         self.prove(case, base, with_arm)
         (self.tmp / "skills/haiku-writer/alias.md").symlink_to("SKILL.md")
         with self.assertRaisesRegex(cases.CaseError, "a link"):
-            world.add_skill(base, case, Adapter, self.tmp / "unsound", self.tmp / "skills")
+            world.build(case, Adapter, self.tmp / "unsound", self.tmp / "skills", True)
 
     def test_a_relative_output_folder_works_with_history(self):
         case = self.case({"README.md": "x\n"}, START)

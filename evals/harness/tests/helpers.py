@@ -1,7 +1,9 @@
 """Shared pieces of the harness tests: a temporary folder per test, and small skills and cases."""
 
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -25,7 +27,14 @@ class TempCase(unittest.TestCase):
         folder = self.tmp / "skills" / name
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "SKILL.md").write_text(text.replace("haiku-writer", name))
+        self.track(folder.parent)
         return folder
+
+    def track(self, folder):
+        """Make git track every file under `folder`, as a skill's files are tracked in the repository."""
+        env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+        for args in (["init", "-q"], ["add", "-A"]):
+            subprocess.run(["git", *args], cwd=folder, env=env, check=True, capture_output=True)
 
     def case(self, files, data=None, name=None, skill="haiku-writer"):
         """A case folder with `files` ({path: text}) in its world and `data` as case.json."""

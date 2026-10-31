@@ -7,10 +7,14 @@ Two rules, each a list of what is allowed:
   never read short or read as the wrong type: the index row and the fingerprint are built from it.
 - **Folders** hold only folders, regular files and links that lead, step by step through real folders, to a real
   folder or file inside the folder. A skill folder holds no links at all.
+
+A skill is the files git tracks in its folder, and nothing else on the machine: a cache, a build output or a draft
+left beside them is never part of it.
 """
 
 import os
 import re
+import subprocess
 from pathlib import Path, PurePosixPath
 
 import manifest
@@ -43,7 +47,11 @@ def skill_files(skill_dir, name=None):
     problems = structure(skill_dir, links=False)
     if problems:
         raise CaseError(f"{skill_dir}: the skill is unsound: {problems}")
-    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes() for p in sorted(skill_dir.rglob("*")) if p.is_file()}
+    files = {}
+    for rel in tracked(skill_dir):
+        if manifest.kind(manifest.entry(skill_dir / rel)) != "file":
+            raise CaseError(f"{skill_dir}: {rel} is tracked by git but is not a regular file on disk")
+        files[rel] = (skill_dir / rel).read_bytes()
     if "SKILL.md" not in files:
         raise CaseError(f"{skill_dir}: no SKILL.md")
     try:
@@ -56,6 +64,23 @@ def skill_files(skill_dir, name=None):
         wanted = repr(name) if name is not None else "a skill name"
         raise CaseError(f"{skill_dir}: frontmatter name {meta['name']!r} must be {wanted}")
     return files, meta
+
+
+def tracked(folder):
+    """The paths git tracks under `folder`, staged ones included, relative to it and sorted. CaseError when git
+    cannot list them, such as for a folder outside any git work tree."""
+    # Built from an allow list, never inherited, so the operator's GIT_DIR or git config never take part.
+    env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL") if key in os.environ}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, HOME=os.devnull)
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--", "."], cwd=folder, env=env, check=True,
+                             capture_output=True).stdout
+        return sorted({path.decode("utf-8") for path in out.split(b"\0") if path})
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.decode("utf-8", "replace").strip()
+    except (OSError, UnicodeDecodeError) as error:
+        detail = str(error)
+    raise CaseError(f"{folder}: a skill is the files git tracks, and git cannot list them: {detail}") from None
 
 
 def frontmatter(text):
