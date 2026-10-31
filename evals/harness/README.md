@@ -108,9 +108,10 @@ Text is matched on words after Unicode compatibility folding, with format charac
   `evals/` but `evals/harness/` and `evals/runner/`, the general machinery, which says nothing about a skill. A new
   kit part counts without being listed. A skill's `files/`, `upstream/` and `cases/CASE/world/` folders hold
   project text and are left out. Python is read for its strings, f-string text and comments only, since its code is
-  the same in any Python program.
-- Case data (`case.json`, `tasks.json`, `triggers.json`) may repeat what the case declares: its own `case.json` and
-  its world's paths. Other eval text may not.
+  the same in any Python program. So a check copied with its strings and comments removed is not caught here; the judge who reads
+  the world is the check for that.
+- Case data (`case.json`, `tasks.json`, `triggers.json`) may repeat what the run sees of the case outside its world
+  (its prompt, commits and index rows) and its world's paths. Other eval text may not.
 - Runs found in project text never count: verified copies, installed siblings, the recorded upstream source and,
   except against eval text, the prompt. That text stays in both arms.
 - Every copy must still be byte for byte its recorded source, and the source must not have changed.

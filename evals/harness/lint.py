@@ -198,11 +198,12 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     shared = shared_runs(places, copied, upstream, RUN)
     files, _ = skill_files(skill_dir, case.skill)
     skill = set().union(set(), *(runs(data.decode("utf-8", "replace"), RUN) for data in files.values())) - shared
-    # Eval text is one set. Case data may repeat what this case declares: its own case.json and the paths of its
-    # world, which old task lists name. The rest of the eval text may not, so the prompt is never project text for it.
+    # Eval text is one set. Case data may repeat what the run sees of this case outside its world (its prompt,
+    # commits and index rows) and every path, which old task lists name. The rest of the eval text may not, so the
+    # prompt is never project text for it. The case's own file is read by the other rules.
     own = (case.folder / "case.json").resolve()
-    declared = runs(own.read_bytes().decode("utf-8", "replace"), RUN) if own.is_file() else set()
-    declared |= runs("\n".join(p.key for p in places), RUN)
+    seen = [p.key for p in places] + [p.text for p in places if p.text and p.key.startswith("<")]
+    declared = set().union(set(), *(runs(t, RUN) for t in seen))
     data = set().union(set(), *(runs(t, RUN) for path, t in cases if Path(path).resolve() != own))
     measuring = (set().union(set(), *(runs(t, RUN) for t in kit)) - shared_runs(places, copied, upstream, RUN, False)
                  ) | (data - shared - declared)
