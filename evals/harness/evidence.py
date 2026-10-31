@@ -20,6 +20,8 @@ KINDS = ("read", "search", "write", "command", "blocked", "skill_load", "tool")
 SOURCES = ("observed", "inferred")
 REDACTED = "[REDACTED]"
 NEUTRAL_SKILL = "the-skill"
+# What graders see of a run record: the outcome and the evidence, never the arm, skills, host, model or timings.
+GRADER_FIELDS = ("mode", "final", "failure", "timed_out", "actions", "diff")
 
 
 class EvidenceError(ValueError):
@@ -46,6 +48,17 @@ def redact(text, secrets):
         if secret:
             text = text.replace(secret, REDACTED)
     return text
+
+
+def scrub(value, secrets):
+    """`value` with every credential redacted from every string in it, keys included."""
+    if isinstance(value, str):
+        return redact(value, secrets)
+    if isinstance(value, dict):
+        return {scrub(key, secrets): scrub(item, secrets) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [scrub(item, secrets) for item in value]
+    return value
 
 
 def tokens_in(text, tokens):
@@ -77,7 +90,8 @@ def write_bundle(folder, record, world_after, secrets, tokens):
     """
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    text = redact(json.dumps(record, indent=1, sort_keys=True), secrets)
+    # Values are redacted before serialization, so JSON escaping cannot hide a credential from the match.
+    text = json.dumps(scrub(record, secrets), indent=1, sort_keys=True)
     hits = tokens_in(text, tokens)
     (folder / "bundle.json").write_text(text + "\n")
     files = folder / "files"
@@ -97,14 +111,15 @@ def write_bundle(folder, record, world_after, secrets, tokens):
 
 
 def grader_view(bundle_dir, out_dir, overlay_paths, skill_names, rows=(), skill_texts=()):
-    """Write the view graders get of a bundle. The overlay's files and index rows are gone from the files and
+    """Write the view graders get of a bundle: only the GRADER_FIELDS of its record. The overlay's files and
+    index rows are gone from the files and
     the diff. Skill loads, and every action that names an overlay path or whose text holds an 8-word run of the
     skill (`skill_texts`, such as a command that printed SKILL.md), are gone from the action log. Skill names,
     skill paths and the arm are replaced by neutral words everywhere. Call it with the same names for both arms."""
     bundle_dir, out_dir = Path(bundle_dir), Path(out_dir)
     record = json.loads((bundle_dir / "bundle.json").read_text())
-    for key in ("arm", "overlay", "arm_sha256"):
-        record.pop(key, None)
+    # Allow, never deny: the view holds only these fields, so no record field added later can tell the arm.
+    record = {key: record[key] for key in GRADER_FIELDS if key in record}
 
     def outside(path):
         return not any(path == p or path.startswith(p.rstrip("/") + "/") for p in overlay_paths)

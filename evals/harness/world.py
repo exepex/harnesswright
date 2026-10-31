@@ -44,6 +44,10 @@ def build(case, adapter, out, with_skill, skills_root=None, skill_dir=None):
     out = Path(out)
     if out.exists() and any(out.iterdir()):
         raise CaseError(f"{out} is not empty")
+    # A written world never holds git metadata: hooks in it would run when the history is built.
+    planted = [p.relative_to(case.world).as_posix() for p in case.world.rglob(".git")]
+    if planted:
+        raise CaseError(f"{case.id}: the world holds git metadata {planted}; declare history as commits")
     shutil.copytree(case.world, out, symlinks=True, dirs_exist_ok=True)
     head = _history(out, case.commits)
     skills_root = Path(skills_root) if skills_root else REPO / "skills"
@@ -101,7 +105,8 @@ def _history(world, commits):
     env = {**os.environ, **GIT_ENV}
 
     def git(*args):
-        return subprocess.run(["git", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", *args],
+        return subprocess.run(["git", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main",
+                               "-c", f"core.hooksPath={os.devnull}", *args],
                               cwd=world, env=env, check=True, capture_output=True, text=True).stdout.strip()
 
     git("init", "-q")

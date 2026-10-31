@@ -60,12 +60,26 @@ class LintFaults(TempCase):
         self.assertEqual(self.problems(files, {"allow_words": {"docs/testing.md": ["fixture"]}}), [])
 
     def test_git_folders_outside_symlinks_and_drifted_copies(self):
-        self.assertNotEqual(self.problems({"README.md": "x\n", ".git/HEAD": "ref: x\n"}), [])
+        with self.assertRaisesRegex(cases.CaseError, "git metadata"):
+            self.problems({"README.md": "x\n", ".git/HEAD": "ref: x\n"})
         case = self.case({"README.md": "x\n"}, name="link")
         (case.world / "secrets").symlink_to("/etc")
         self.assertTrue(any("outside the world" in p for p in lint._structure(case.world)))
         stale = {"world": "README.md", "source": "LICENSE", "source_sha256": "0" * 64}
         self.assertTrue(any("changed since" in p for p in self.problems({"README.md": "x\n"}, {"copies": [stale]})))
+
+    def test_a_planted_git_hook_never_runs(self):
+        marker = self.tmp / "hook-ran"
+        hook = f"#!/bin/sh\ntouch {marker}\n"
+        case = self.case({"README.md": "x\n", ".git/hooks/pre-commit": hook},
+                         {"commits": [{"message": "Start", "paths": ["README.md"]}]}, name="hooked")
+        (case.world / ".git" / "hooks" / "pre-commit").chmod(0o755)
+        self.skill()
+        problems = lint.lint_skill("haiku-writer", Adapter, self.tmp / "cases", self.tmp / "skills")
+        self.assertTrue(any("a .git folder" in p for p in problems))
+        with self.assertRaises(cases.CaseError):
+            world.build(case, Adapter, self.tmp / "built", False, self.tmp / "skills")
+        self.assertFalse(marker.exists())
 
     def test_fingerprint_leaves_out_shared_text(self):
         skill = self.skill("other", SKILL_MD)

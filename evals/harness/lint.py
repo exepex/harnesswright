@@ -145,6 +145,10 @@ def lint_skill(skill, adapter, cases_root=None, skills_root=None):
     upstream = REPO / "evals" / "skills" / skill / "upstream"
     problems = []
     for case in load_cases(skill, cases_root):
+        structure = [f"{case.id}: {p}" for p in _structure(case.world)]
+        if structure:
+            problems += structure
+            continue
         with tempfile.TemporaryDirectory(prefix="hw-lint-") as folder:
             try:
                 arm = world_builder.build(case, adapter, Path(folder) / "w", False, skills_root)

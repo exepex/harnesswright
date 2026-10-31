@@ -79,6 +79,23 @@ class Bundles(TempCase):
         self.assertEqual([e["kind"] for e in data["actions"]], ["write"])
         self.assertEqual(data["diff"]["added"], [])
 
+    def test_credentials_with_escaped_characters_are_redacted(self):
+        folder = self.world()
+        for secret in ('sk-back\\slash-0123', 'sk-"quote"-0123', "sk-new\nline-0123", "sk-ünï-0123"):
+            with self.subTest(secret=secret):
+                bundle = self.tmp / f"b{abs(hash(secret))}"
+                evidence.write_bundle(bundle, {"final": f"key {secret}", secret: [secret]}, folder, [secret], [])
+                text = (bundle / "bundle.json").read_text()
+                self.assertNotIn(secret, json.dumps(json.loads(text)) + str(json.loads(text)))
+
+    def test_the_grader_view_keeps_only_allowed_fields(self):
+        folder = self.world()
+        record = {"mode": "task", "final": "done", "exposed_skills": ["haiku-writer"], "model": "m",
+                  "host_version": "v", "seconds": 3, "arm": "with_skill", "actions": [], "diff": {}}
+        evidence.write_bundle(self.tmp / "b", record, folder, [], [])
+        view = evidence.grader_view(self.tmp / "b", self.tmp / "v", ["skills/haiku-writer"], ["haiku-writer"])
+        self.assertEqual(set(json.loads((view / "bundle.json").read_text())), {"mode", "final", "actions", "diff"})
+
     def test_binary_files_are_scrubbed_too(self):
         folder = self.world()
         (folder / "artifact.bin").write_bytes(b"\xff\xfe sk-secret-value HWCANARY-bin \x00")
