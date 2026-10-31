@@ -4,7 +4,7 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 `evals/runner/`, which stays until rounds move here (build step 5).
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
-eval cases and skill reading**. Building and proving the two arms, the world lint, containment and probes,
+eval cases, skill reading, and building and proving the two arms**. The world lint, containment and probes,
 evidence, and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
@@ -16,6 +16,7 @@ Python 3 standard library only, and no network calls of its own (`HW-PORT-04`).
 | `manifest.py` | The one description of a folder: every path with its kind (folder, file, link), mode and hash |
 | `cases.py` | Reads `evals/skills/NAME/cases/<case>/case.json` and checks it against one schema |
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
+| `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
 
 ## Commands
 
@@ -61,3 +62,26 @@ steps, and leads step by step through real folders to a real folder or file insi
 its text against the folder's manifest, never by resolving it on disk, so a link through another link, or one that
 leaves and comes back in through the folder's own name, is refused. A `.git` folder is never allowed, and a skill
 folder holds no links at all.
+
+## How the arms are built and proved
+
+`world.plan` works out, from the case, the adapter and the skill sources alone, which skills an arm installs and
+where: each at its declared path and at the host's discovery path, with its index row. It refuses a plan that
+would overlap the world or another skill, a discovery path outside the arm, an index file that is not a regular
+file, and a trigger case that does not install every other skill as a sibling.
+
+`world.build` makes the without-skill arm: the world as written, its git history and the siblings.
+`world.add_skill` copies that built arm and adds the skill. The index is written in one step from the written world
+with every row of the arm, as the proof expects it. It is edited as bytes, so its encoding and line endings are
+kept.
+
+`world.prove` reads both arms from disk again. It rebuilds each expected manifest from the written world and the
+plan, never from what the builder recorded, and each arm must equal it entry for entry, the index file included.
+Each arm's `.git` must equal the one replayed from the declared commits in a scratch copy of the world. Without
+commits there is no `.git` of any kind, link, file or folder. With them, every entry under `.git` must match byte
+for byte, the index included: it is rebuilt from the head tree with no file times or flags, so every copy holds the
+same bytes. git never runs on an arm to prove it.
+
+Git runs with an allow-listed environment and an explicit git folder, so the operator's `GIT_DIR` or hooks never
+take part. Declared paths are added with `--force`, so a world `.gitignore` cannot drop them, and a git failure is
+a case error.
