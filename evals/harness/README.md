@@ -202,5 +202,11 @@ stops. The jail's audit runs first, and a host that crashes or times out is a `f
 
 `tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
 its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,
-so the contract and its faults are shown end to end in every pull request. The Codex and Claude Code adapters take
-this contract in the next pull request; until then `evals/runner/` uses their older interface.
+so the contract and its faults are shown end to end in every pull request. The Codex and Claude Code adapters give
+the contract too ([adapters](../../adapters/README.md#the-harness-contract)), beside the older interface that
+`evals/runner/` still uses.
+
+An adapter reports a write that failed as `failed`, and `host.run` decides what it was from the jail's own mount
+list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
+is left out, as the world diff shows. Paths inside the world are logged relative to it, on every host. An
+adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator.

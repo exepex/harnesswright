@@ -4,7 +4,9 @@ Runs `claude -p` with the prompt on stdin and reads its stream-json events. A sk
 triggered when the host calls its Skill tool with the skill's name, or reads the skill's SKILL.md.
 """
 
+import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -175,3 +177,97 @@ def failure(events, returncode, timed_out, mode):
     if not any(e.get("type") == "result" for e in events):
         return "no result event"
     return None
+
+
+# The eval harness contract (evals/harness/host.py). The jail enforces the power table, so permission checks are
+# off, and the host gets only the tools below and the skills the case installs: its bundled skills, its built-in
+# plugins and the two skills that survive the bundled-skill switch are turned off.
+TOOLS = {"Bash": "command", "Read": "read", "Write": "write", "Edit": "write", "Glob": "read", "Grep": "read",
+         "Skill": "skill", "Task": "agent"}
+JAIL_SETTINGS = {"disableBundledSkills": True, "skillOverrides": {"design": "off", "doctor": "off"},
+                 "enabledPlugins": {"cc-plugin-agents-md@builtin": False, "cc-plugin-telemetry@builtin": False,
+                                    "cc-plugin-plugin-authoring@builtin": False}}
+# Claude Code refuses to skip permissions as root unless told it runs in a sandbox, which the jail is.
+RUN_ENV = {"IS_SANDBOX": "1"}
+EXIT_CODE = re.compile(r"^Exit code (\d+)")
+SKILL_FILE = re.compile(r"skills/([^/]+)/SKILL\.md$")
+
+
+def jail_command(mode, world, model):
+    command = [CLI, "-p", "--output-format", "stream-json", "--verbose", "--setting-sources", "project",
+               "--no-session-persistence", "--dangerously-skip-permissions", "--settings", json.dumps(JAIL_SETTINGS),
+               "--tools", ",".join(TOOLS)]
+    return command + (["--model", model] if model else [])
+
+
+def _result_text(content):
+    if isinstance(content, list):
+        return "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+    return str(content or "")
+
+
+def action_log(stdout, home):
+    """Tool calls in order, each with its result; sub-agents' calls come in the same stream. A call with no result
+    never finished, as when the stream is cut, so it is left out."""
+    events, log = parse_events(stdout), []
+    results = {item.get("tool_use_id"): item for event in events if event.get("type") == "user"
+               for item in (event.get("message") or {}).get("content") or []
+               if isinstance(item, dict) and item.get("type") == "tool_result"}
+    for event in events:
+        for item in (event.get("message") or {}).get("content") or [] if event.get("type") == "assistant" else []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "text":
+                log.append({"kind": "message", "source": "observed", "text": str(item.get("text", ""))})
+            elif item.get("type") == "tool_use" and item.get("id") in results:
+                log += _tool_entries(item.get("name"), item.get("input") or {}, results[item.get("id")])
+    for event in events:
+        for denial in event.get("permission_denials") or [] if event.get("type") == "result" else []:
+            if isinstance(denial, dict):
+                log.append({"kind": "blocked", "source": "observed", "action": str(denial.get("tool_name", "")),
+                            "reason": "the host refused it"})
+    return log
+
+
+def _tool_entries(name, tool_input, result):
+    path, failed = str(tool_input.get("file_path") or tool_input.get("path") or "."), bool(result.get("is_error"))
+    text = _result_text(result.get("content"))
+    if name in ("Write", "Edit") and failed:
+        return [{"kind": "failed", "source": "observed", "action": f"{name}: {path}", "path": path, "reason": text}]
+    if failed and name != "Bash":
+        return []
+    if name == "Read" or name == "Grep":
+        found = SKILL_FILE.search(path) if name == "Read" else None  # reading a skill's SKILL.md loads it
+        return [{"kind": "read", "source": "observed", "path": path}] + (
+            [{"kind": "skill", "source": "inferred", "name": found.group(1)}] if found else [])
+    if name == "Write":
+        content = str(tool_input.get("content", ""))
+        return [{"kind": "write", "source": "observed", "path": path,
+                 "sha256": hashlib.sha256(content.encode()).hexdigest()}]
+    if name == "Edit":
+        return [{"kind": "write", "source": "observed", "path": path, "sha256": None}]
+    if name == "Bash":
+        code = EXIT_CODE.match(text) if failed else None  # only an error result starts with its exit code
+        return [{"kind": "command", "source": "observed", "command": str(tool_input.get("command", "")),
+                 "exit_code": int(code.group(1)) if code else (None if failed else 0), "output": text[:4000]}]
+    if name == "Skill":
+        return [{"kind": "skill", "source": "observed", "name": str(tool_input.get("skill", "")).split(":")[-1]}]
+    if name == "Task":
+        return [{"kind": "agent", "source": "observed",
+                 "task": str(tool_input.get("description") or tool_input.get("prompt") or "")}]
+    return []  # Glob lists names and reads no file
+
+
+def exposure(stdout, home):
+    """The skills and tools of the start-up event; None when it does not list both, as no report is never
+    'nothing'."""
+    for event in parse_events(stdout):
+        if event.get("type") == "system" and event.get("subtype") == "init":
+            skills, tools = event.get("skills"), event.get("tools")
+            return {"skills": list(skills), "tools": list(tools)} if isinstance(skills, list) and isinstance(
+                tools, list) else None
+    return None
+
+
+def run_failure(stdout, returncode, timed_out):
+    return failure(parse_events(stdout), returncode, timed_out, "task")

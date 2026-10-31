@@ -16,6 +16,7 @@ CLI = "fakehost"
 MODEL_HOSTS = ("model.example.test",)
 ENV_KEYS = ()
 CREDENTIAL_FILES = ()
+RUN_ENV = {}
 TOOLS = {"read_file": "read", "write_file": "write", "shell": "command", "load_skill": "skill", "spawn": "agent"}
 READERS = ("cat", "head", "tail")  # commands whose file arguments the adapter infers as reads
 
@@ -44,7 +45,7 @@ def events(stdout):
     return found
 
 
-def action_log(stdout):
+def action_log(stdout, home):
     log = []
     for event in events(stdout):
         kind, tool = event.get("event"), event.get("tool")
@@ -52,8 +53,9 @@ def action_log(stdout):
             log.append(host.entry("message", text=event["text"]))
         elif kind == "refused":
             log.append(host.entry("blocked", action=f"{tool}: {event['detail']}", reason=event["reason"]))
-        elif kind == "error" and tool:  # the action failed, such as a write the jail refused
-            log.append(host.entry("blocked", action=f"{tool}: {event['detail']}", reason=event["message"]))
+        elif kind == "error" and tool == "write_file":  # the harness decides whether the jail refused it
+            log.append({"kind": "failed", "source": "observed", "action": f"{tool}: {event['detail']}",
+                        "path": event["detail"], "reason": event["message"]})
         elif kind == "tool" and tool == "read_file":
             log.append(host.entry("read", path=event["path"]))
         elif kind == "tool" and tool == "write_file":
@@ -84,7 +86,7 @@ def exposure(stdout, home):
     return None
 
 
-def failure(stdout, returncode, timed_out):
+def run_failure(stdout, returncode, timed_out):
     if timed_out:
         return "timed out"
     if returncode != 0:
