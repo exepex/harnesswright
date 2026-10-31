@@ -1,29 +1,42 @@
 """Read a skill folder, and check that a folder is sound to copy into an arm (doc 11, Worlds).
 
-`frontmatter` reads one small, stated subset of YAML and refuses everything else, so a description is never
-read short without a word: the index row and the fingerprint are built from it.
+Two rules, each a list of what is allowed:
+
+- **Frontmatter** is read from one stated subset of YAML, with only the fields of `HW-PORT-01`
+  ([10 · Skills](../../docs/design/10-skills.md)). Anything else is refused with its line number, so a value is
+  never read short or read as the wrong type: the index row and the fingerprint are built from it.
+- **Folders** hold only folders, regular files and links that lead, step by step through real folders, to a real
+  folder or file inside the folder. A skill folder holds no links at all.
 """
 
 import json
 import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
+import manifest
 from cases import CaseError, is_name
 
-KEY = re.compile(r"([A-Za-z0-9_-]+):(?: (.*))?")
-BLOCK = (">", "|", ">-", "|-", ">+", "|+")
+SCALARS = ("name", "description", "license", "compatibility")
+MAPPINGS = ("metadata",)
+KEY = re.compile(r"([a-z][a-z-]*):(?: (.*))?")
+META = re.compile(r"  ([A-Za-z0-9_-]+): (.+)")
+BLOCK = (">", ">-", "|", "|-")
+# A plain one-line value: no YAML indicator first, and no `: ` or ` #` inside, which YAML reads differently.
+PLAIN = re.compile(r"(?![-?:,\[\]{}#&*!|>'\"%@`\s])(?!.*: )(?!.* #).*\S")
 
 
 def skill_files(skill_dir, name=None):
     """The skill's files as {relative path: bytes}, and its frontmatter.
 
-    The frontmatter name must be a skill name, and `name` when one is given: the name chooses where the host
-    discovers the skill, so it must never be a path.
+    The folder must be sound with no links. The frontmatter name must be a skill name, and `name` when one is
+    given: the name chooses where the host discovers the skill, so it must never be a path.
     """
     skill_dir = Path(skill_dir)
-    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes()
-             for p in sorted(skill_dir.rglob("*")) if p.is_file() and not p.is_symlink()}
+    problems = structure(skill_dir, links=False)
+    if problems:
+        raise CaseError(f"{skill_dir}: the skill is unsound: {problems}")
+    files = {p.relative_to(skill_dir).as_posix(): p.read_bytes() for p in sorted(skill_dir.rglob("*")) if p.is_file()}
     if "SKILL.md" not in files:
         raise CaseError(f"{skill_dir}: no SKILL.md")
     try:
@@ -39,74 +52,110 @@ def skill_files(skill_dir, name=None):
 
 
 def frontmatter(text):
-    """The top-level values of a SKILL.md frontmatter block, or CaseError when it is outside the subset.
+    """The fields of a SKILL.md frontmatter block, or CaseError for anything outside the subset.
 
-    The subset: a `---` line, then lines of `key: value` at the left margin, then a closing `---` line. A value is
-    plain text on one line, a quoted string, or a block scalar (`>` or `|`, then indented lines, blank lines
-    allowed), which is joined into one line. A key with no value may hold an indented mapping, such as
-    `metadata`, which is kept as its raw lines. Blank lines may sit between keys.
+    The subset: a first line `---`, then fields at the left margin, then a line that is exactly `---`. Each field
+    appears once. `name`, `description`, `license` and `compatibility` hold text: a plain value on one line, a
+    quoted value, or a block scalar (`>` or `|`, then indented lines, blank lines allowed), joined into one line.
+    `metadata` holds lines of `  key: value`, all text. Blank lines may sit between fields.
     """
     lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
+    if not lines or lines[0] != "---":
         raise CaseError("no frontmatter: the first line must be ---")
-    if "---" not in [line.strip() for line in lines[1:]]:
-        raise CaseError("the frontmatter has no closing --- line")
     meta, key, mode = {}, None, None
     for number, line in enumerate(lines[1:], 2):
-        if line.strip() == "---":
-            return {k: v.strip() if isinstance(v, str) else v for k, v in meta.items()}
-        if line[:1] in (" ", "\t") and line.strip():
-            if mode is None:
-                raise CaseError(f"frontmatter line {number}: an indented line after a one-line value; write the "
-                                "value on one line or as a block scalar (>)")
-            meta[key] = f"{meta[key]} {line.strip()}" if mode == "block" else meta[key] + [line.strip()]
-            continue
+        if line == "---":
+            return {k: " ".join(v).strip() if mode_of(k) == "text" else v for k, v in meta.items()}
         if not line.strip():
             continue
+        if line[0] == " ":
+            if mode == "block":
+                meta[key].append(line.strip())
+            elif mode == "mapping" and META.fullmatch(line):
+                found = META.fullmatch(line)
+                if found.group(1) in meta[key]:
+                    raise CaseError(f"frontmatter line {number}: metadata key {found.group(1)!r} appears twice")
+                meta[key][found.group(1)] = _text(found.group(2), number)
+            else:
+                raise CaseError(f"frontmatter line {number}: an indented line outside a block scalar or metadata")
+            continue
         found = KEY.fullmatch(line)
-        if not found:
-            raise CaseError(f"frontmatter line {number}: not a `key: value` line")
-        key, value = found.group(1), (found.group(2) or "").strip()
-        if value in BLOCK:
-            meta[key], mode = "", "block"
-        elif not value:
-            meta[key], mode = [], "mapping"
+        if not found or found.group(1) not in SCALARS + MAPPINGS:
+            raise CaseError(f"frontmatter line {number}: not a field of HW-PORT-01 ({', '.join(SCALARS + MAPPINGS)})")
+        key, value = found.group(1), found.group(2) or ""
+        if key in meta:
+            raise CaseError(f"frontmatter line {number}: {key} appears twice")
+        if key in MAPPINGS:
+            if value:
+                raise CaseError(f"frontmatter line {number}: {key} holds indented `key: value` lines")
+            meta[key], mode = {}, "mapping"
+        elif value in BLOCK:
+            meta[key], mode = [], "block"
         else:
-            meta[key], mode = _scalar(value, number), None
+            meta[key], mode = [_text(value, number)], None
     raise CaseError("the frontmatter has no closing --- line")
 
 
-def _scalar(value, number):
-    if value[0] not in "\"'":
-        return value
-    if len(value) < 2 or value[-1] != value[0]:
-        raise CaseError(f"frontmatter line {number}: an unclosed quoted value")
-    if value[0] == "'":
+def mode_of(key):
+    return "mapping" if key in MAPPINGS else "text"
+
+
+def _text(value, number):
+    """A one-line text value: plain, single-quoted or double-quoted (JSON escapes)."""
+    if value[:1] == "'" and len(value) >= 2 and value[-1] == "'" and "'" not in value[1:-1].replace("''", ""):
         return value[1:-1].replace("''", "'")
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        raise CaseError(f"frontmatter line {number}: a double-quoted value with escapes outside JSON") from None
+    if value[:1] == '"':
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            decoded = None
+        if isinstance(decoded, str):
+            return decoded
+    elif PLAIN.fullmatch(value):
+        return value
+    raise CaseError(f"frontmatter line {number}: {value!r} is not plain one-line text or a quoted string")
 
 
-def structure(folder):
-    """A `.git` folder, an absolute symlink or a symlink that points outside `folder`.
+def structure(folder, links=True):
+    """Every entry of `folder` that is not allowed. An empty list means the folder is sound to copy.
 
-    A link is judged by its text alone, from where it sits inside the folder, and never by resolving it on disk:
-    the folder is copied into an arm, and a link that left and came back in through the folder's own name would
-    point outside the copy.
+    Allowed: folders, regular files, and, when `links` is true, relative links whose target leads step by step
+    through real folders of `folder` to a real folder or file in it. A link is judged by its text against the
+    folder's manifest, never by resolving it on disk, so it stays right when the folder is copied. A `.git` folder
+    is never allowed: declare history as commits in case.json.
     """
+    try:
+        entries = manifest.manifest(folder)
+    except manifest.Unreadable as error:
+        return [str(error)]
     problems = []
-    folder = Path(folder)
-    for path in sorted(folder.rglob("*")):
-        relative = path.relative_to(folder).as_posix()
-        if path.name == ".git":
-            problems.append(f"{relative}: a .git folder; declare history as commits in case.json")
-        if path.is_symlink():
-            link = os.readlink(path)
-            target = os.path.normpath(os.path.join(os.path.dirname(relative), link))
-            if os.path.isabs(link):
-                problems.append(f"{relative}: an absolute symlink; use a relative one inside the folder")
-            elif target == ".." or target.startswith("../"):
-                problems.append(f"{relative}: a symlink that points outside the folder")
+    for path, entry in sorted(entries.items()):
+        if ".git" in path.split("/"):
+            if PurePosixPath(path).name == ".git":
+                problems.append(f"{path}: a .git folder; declare history as commits in case.json")
+        elif manifest.kind(entry) == "link":
+            if not links:
+                problems.append(f"{path}: a link; a skill folder holds only folders and files")
+            elif not _leads_inside(entries, path, entry[len("link "):]):
+                problems.append(f"{path}: a link that does not lead to a folder or file inside the folder")
     return problems
+
+
+def _leads_inside(entries, path, target):
+    """True when `target`, read from the folder that holds `path`, passes only through real folders and ends at a
+    real folder or file. A step through a link is refused, so links never chain out of the folder."""
+    if not target or target.startswith("/"):
+        return False
+    at = list(PurePosixPath(path).parent.parts)
+    steps = [part for part in target.split("/") if part not in ("", ".")]
+    for number, part in enumerate(steps, 1):
+        if part == "..":
+            if not at:
+                return False
+            at.pop()
+        else:
+            at.append(part)
+        kind = manifest.kind(entries.get("/".join(at), "missing")) if at else "dir"
+        if kind not in (("dir", "file") if number == len(steps) else ("dir",)):
+            return False
+    return True
