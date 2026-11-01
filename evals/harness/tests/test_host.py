@@ -65,6 +65,22 @@ class Contract(unittest.TestCase):
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
+class Named(TempCase):
+    def test_each_world_file_a_command_names_is_an_inferred_read_once(self):
+        world = (self.tmp / "world").resolve()
+        (world / "docs").mkdir(parents=True)
+        for name in ("a.md", "docs/b.md", "c d.md"):
+            (world / name).write_text("x\n")
+        (world / "link.md").symlink_to("a.md")
+        (self.tmp / "outside.md").write_text("x\n")
+        command = (f"sed -n p a.md|grep x {world}/docs/b.md>out; awk 1 'c d.md' && ls link.md ../outside.md "
+                   "missing.md docs")
+        log = [host.entry("read", path="docs/b.md"), host.entry("command", command=command, exit_code=0),
+               host.entry("command", command="cat a.md 'unclosed", exit_code=0)]
+        self.assertEqual(host.named(world, log), [log[0], log[1], host.entry("read", "inferred", path="a.md"),
+                                                  host.entry("read", "inferred", path="c d.md"), log[2]])
+
+
 class FakeHost(TempCase):
     """The fake host runs in a real jail, so the contract is shown end to end without a model."""
 

@@ -101,8 +101,11 @@ class Missed(Fake):
                 self.assertEqual(len(outcome["bundles"]), 1)  # the judges read the log it was decided from
         setup.adapter = changed(base, action_log=lambda stdout, home: [  # an adapter that infers no read at all
             e for e in base.action_log(stdout, home) if e["kind"] != "read"])
-        self.assertIn("shows no read of the file", faults.run(entry("inferred"), setup, 2, "unusual read")["reason"])
-        self.assertTrue(faults.run(entry("inferred"), setup, 2, "names only")["caught"])  # it read nothing
+        for place in host_faults.PLANTS["inferred"][1]:  # the harness itself infers a read of each file it names
+            self.assertTrue(faults.run(entry("inferred"), setup, 2, place)["caught"])
+        with mock.patch.object(host, "named", lambda world, log: log):  # a harness that does not
+            outcome = faults.run(entry("inferred"), setup, 2, "unusual read")
+        self.assertIn("shows no read of the file", outcome["reason"])
 
     def test_a_host_that_does_more_than_the_command_never_met_the_fault(self):
         setup = self.setup_of()

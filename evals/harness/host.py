@@ -5,7 +5,8 @@ describe. `check_adapter` checks an adapter once, when it is loaded. `run` is th
 run's jail, after its audit and inside its gate, with the command the adapter builds. It returns the host's action
 log and what the host exposed, each checked against one allow list: every entry has exactly the fields of its kind,
 every exposed skill is one the case declares, and every exposed tool is one of the adapter's TOOLS, each of a kind
-on the power table (`powers.TOOLS`). Anything else raises HostError, and the round stops.
+on the power table (`powers.TOOLS`). Anything else raises HostError, and the round stops. Each world file a
+command names becomes an inferred read (`named`), whatever the adapter reported.
 
 Standard library only.
 """
@@ -13,6 +14,7 @@ Standard library only.
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 import time
 
@@ -161,7 +163,7 @@ def run(contained, prompt, skills, model=None, timeout=900):
         seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
     log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
-    log = [item for item in log if item is not None]
+    log = named(contained.world, [item for item in log if item is not None])
     check_log(log, skills)
     exposure = adapter.exposure(stdout, contained.home)
     if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
@@ -192,6 +194,29 @@ def settle(item, contained):
     if isinstance(path, str) and (path + "/").startswith(str(world) + "/"):
         return {**item, "path": path[len(str(world)) + 1:] or "."}
     return item
+
+
+def named(world, log):
+    """`log` with an inferred read after each command of every file in `world` that the command names and no entry
+    of the log reads already. Whether a command read a file it names is never known, so a check never decides on it
+    (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read."""
+    found, read = [], {item.get("path") for item in log if isinstance(item, dict) and item.get("kind") == "read"}
+    for item in log:
+        found.append(item)
+        if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
+            continue
+        try:
+            words = list(shlex.shlex(item["command"], posix=True, punctuation_chars=True))
+        except ValueError:
+            continue
+        for word in words:
+            path = os.path.normpath(os.path.join(world, word))
+            if (path + "/").startswith(str(world) + "/") and os.path.isfile(path) and not os.path.islink(path):
+                relative = os.path.relpath(path, world)
+                if relative not in read:
+                    read.add(relative)
+                    found.append(entry("read", "inferred", path=relative))
+    return found
 
 
 def _text(data):
