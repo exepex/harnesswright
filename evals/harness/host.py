@@ -209,21 +209,25 @@ def named(world, before, log):
     names is never known, so a check never decides on it (doc 11, Harness faults); without an entry, a check would
     wrongly decide the file was not read. One rule decides what a command names, never how a shell would resolve it: a
     file of the world before the run (`before`, its manifest) or after it is named when its name stands whole in the
-    command, or a wildcard word matches its name, or its path when the word holds a folder. Two files of one name are
-    both named. A link is no file, and a folder named alone names none of its files."""
+    command, or a wildcard word matches its name, or, when the word holds a folder, its path read from the world or
+    from any folder below it. Two files of one name are both named. A link is no file, and a folder named alone names none of its files."""
     try:
         after = manifest.manifest(world, skip=(".git",), other=True)
     except manifest.Unreadable:  # the bundle reports a world it cannot read; the files before still count
         after = {}
     files = sorted({p for entries in (before, after) for p, e in entries.items()
                     if manifest.is_file(e) and p.split("/")[0] != ".git"})
-    found = []
+    found, root = [], os.path.normpath(str(world))
     for number, item in enumerate(log):
         found.append(item)
         if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
             continue
         words = re.split(rf"[{EDGE}]+", item["command"])
         globs = [w for w in words if any(c in w for c in "*?[")]
+        bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path, read
+        paths = {form for glob in globs if "/" in glob for form in (  # from the world (./x, /world/x, ../world/x)
+            os.path.normpath(os.path.join(root, glob)), root + "/*/" + os.path.normpath(glob))}  # or below it (a cd)
+        paths |= {form.replace("/**/", "/") for form in paths}  # a **/ may match no folder
         ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
         own = set()  # the inferred reads its adapter put right after it
         for later in log[number + 1:]:
@@ -235,8 +239,8 @@ def named(world, before, log):
             name = path.rsplit("/", 1)[-1]
             whole = name in ends if not re.search(rf"[{EDGE}]", name) else re.search(
                 rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])  # a name with an edge in it
-            matched = any(fnmatch.fnmatchcase(path, glob) or fnmatch.fnmatchcase(path, "*/" + glob) if "/" in glob
-                          else fnmatch.fnmatchcase(name, glob) for glob in globs)  # a glob with a folder, by path
+            matched = any(fnmatch.fnmatchcase(f"{root}/{path}", form) for form in paths) or any(
+                fnmatch.fnmatchcase(name, glob) for glob in bare)
             if (whole or matched) and path not in own:
                 found.append(entry("read", "inferred", path=path))
     return found
