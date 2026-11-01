@@ -276,7 +276,9 @@ def stated_quotes(text):
         data = json.loads(text)
     except ValueError:
         return []
-    found = data.get("expectations", []) if isinstance(data, dict) else []
+    found = data.get("expectations") if isinstance(data, dict) else None
+    if not isinstance(found, list):
+        return []
     return [e["source"]["contract"]["quote"] for e in found if isinstance(e, dict) and isinstance(e.get("source"), dict)
             and isinstance(e["source"].get("contract"), dict) and isinstance(e["source"]["contract"].get("quote"), str)]
 

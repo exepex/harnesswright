@@ -178,6 +178,10 @@ class Lint(TempCase):
         other = self.case(files, data, name="other")
         case_data = [(other.folder / "case.json", (other.folder / "case.json").read_text())]
         self.assertEqual(self.problems(files, data, case_data=case_data), [])
+        for odd in ("null", "3", '{"a": 1}'):  # another data file of any shape states no quotes
+            case_data = [(other.folder / "case.json", '{"expectations": ' + odd + '}')]
+            self.problems(files, data, case_data=case_data)  # lints without a crash
+            self.assertEqual(lint.stated_quotes('{"expectations": ' + odd + '}'), [])
 
     def test_a_contract_cited_through_a_link_is_not_found(self):
         case = self.case({"README.md": "x\n", "docs/every-change-must-pass.md": "Not a rule.\n"},
