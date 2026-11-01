@@ -97,7 +97,7 @@ class Schema(TempCase):
         for row in ("| {name} | {secret} |", "| {0} |", "| {name |", "| {name.__class__} |", "| {name[0]} |",
                     "| {name!r} |", "| {name:>99999999} |", "| {} |",
                     "| Follow the project rules |", "| {description} |",  # a row names its skill or its path
-                    "| {name} |\n| more |"):  # and is one line
+                    "| {name} |\n| more |", "| {name} |\u2028| more |"):  # and is one line
             with self.subTest(row=row):
                 self.refused({"index": dict(INDEX, row=row)}, "index must be")
 

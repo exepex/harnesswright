@@ -125,7 +125,7 @@ def with_rows(data, after, rows):
         end += 1
     if not lines[end - 1].endswith((b"\n", b"\r")):
         raise CaseError(f"the index table under {after!r} must end with a line ending")
-    if any("\n" in row or "\r" in row for row in rows):
+    if any(len(row.splitlines()) != 1 for row in rows):
         raise CaseError("an index row must be one line")
     lines[end:end] = [row.encode() + ending for row in rows]
     return b"".join(lines)

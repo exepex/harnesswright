@@ -25,10 +25,12 @@ Standard library only.
 """
 
 import hashlib
+import re
 
 import evidence
 import host
 import manifest
+import scrub
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
 ACTION_FIELDS = ("path", "command")  # the fields that say what an action acts on
@@ -38,7 +40,7 @@ COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
-    words = [overlay["skill"], *overlay["paths"]]
+    words = names([overlay["skill"], *overlay["paths"]])
     places, own = overlay["paths"], record["own_files"]
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
@@ -70,15 +72,17 @@ def view(record, blob):
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
+    world = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
     for item in record["log"]:
         if on_overlay(item, words):
             continue
+        written = item.get("path")
         item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
                 for name, value in item.items()}
         if item["kind"] == "command":  # what the world printed back differs between the arms, so it stays out
             item = {name: item[name] for name in COMMAND_FIELDS}
         if item["kind"] == "write" and item["sha256"] is not None:
-            seen = hashes.get(item["path"])
+            seen = hashes.get(_relative(written, world))
             item["sha256"] = seen[1] if seen and seen[0] == item["sha256"] else None
         log.append(item)
     final = record["final_message"]
@@ -87,18 +91,32 @@ def view(record, blob):
     return {name: built[name] if name in built else record[name] for name in FIELDS}, blobs
 
 
+def names(words):
+    """A pattern that finds each of `words` (the skill's name and paths) as a whole name: not inside a longer name,
+    so a skill named `test` is not found in `pytest` or `test_save`."""
+    return re.compile("(?<![\\w-])(?:" + "|".join(re.escape(word) for word in words) + ")(?![\\w-])")
+
+
 def on_overlay(item, words):
-    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it."""
-    return item["kind"] == "skill" or any(word in item.get(name, "") for name in ACTION_FIELDS for word in words)
+    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it (`names`)."""
+    return item["kind"] == "skill" or any(words.search(item.get(name, "")) for name in ACTION_FIELDS)
 
 
 def text(value, words, folders):
-    """`value` (text or bytes) without each line that names one of `words`, and with each of the run's `folders`
-    (`scrub.folders`) as its neutral word."""
+    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `names`), and with
+    each of the run's `folders` (`scrub.folders`) as its neutral word."""
     raw = isinstance(value, bytes)
     encode = (lambda word: word.encode()) if raw else (lambda word: word)
-    kept = [line for line in value.splitlines(keepends=True) if not any(encode(word) in line for word in words)]
+    find = re.compile(words.pattern.encode()) if raw else words
+    kept = [line for line in value.splitlines(keepends=True) if not find.search(line)]
     value = (b"" if raw else "").join(kept)
     for folder in sorted(folders, key=len, reverse=True):
         value = value.replace(encode(folder), encode(folders[folder]))
     return value
+
+
+def _relative(path, world):
+    """A reported path as the manifest names it: relative to the world, as a host may report it absolute."""
+    if world and path.startswith(world.rstrip("/") + "/"):
+        return path[len(world.rstrip("/")) + 1:]
+    return path
