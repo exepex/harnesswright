@@ -26,9 +26,11 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   deleted is absent.
 - `line_references`: every reference in the writer's own prose points at lines that exist in its file after the
   run: 1 <= N <= M <= its line count, where a last line without a line feed counts. A reference is an inline code
-  span that is only `path:N` or `path:N-M` whose first part names an entry of the world before or after the run, so
-  the world is the list of what can be cited: `src/gone.py:2` is one when `src` was there, and `localhost:8080` is
-  not. Quoted lines (`>`, such as the quoted story) are someone else's words and are not read.
+  span that is only `path:N` or `path:N-M` and names something in the world before or after the run: its first part
+  is a world entry, or its last part is the name of one. The world is the list of what can be cited, and a
+  reference gives the file's whole path from the world's root, so `src/gone.py:2` (when `src` was there) and
+  `app.py:2` (when the file is `src/app.py`) are broken, and `localhost:8080` is not a reference. Quoted lines
+  (`>`, such as the quoted story) are someone else's words and are not read.
 """
 
 import re
@@ -203,10 +205,10 @@ def line_references(bundle, file=None):
         return "fail", f"{name} does not exist"
     own = [row for row in _prose(text, file is not None) if not QUOTE.match(row)]
     spans = [m.group(0).strip("`").strip() for m in SPAN.finditer("\n".join(own))]
-    world = {p.split("/")[0] for p in bundle.files} | {p.split("/")[0] for p, c in bundle.changes.items()
-                                                        if c["before"] is not None}
-    found = [m.groups() for span in spans for m in [REFERENCE.fullmatch(span)]
-             if m and is_path(m.group(1)) and m.group(1).split("/")[0] in world]
+    entries = set(bundle.files) | {p for p, c in bundle.changes.items() if c["before"] is not None}
+    world = {p.split("/")[0] for p in entries} | {p.split("/")[-1] for p in entries}
+    found = [m.groups() for span in spans for m in [REFERENCE.fullmatch(span)] if m and is_path(m.group(1))
+             and {m.group(1).split("/")[0], m.group(1).split("/")[-1]} & world]
     broken = []
     for path, first, last in found:
         held = bundle.text(path)
