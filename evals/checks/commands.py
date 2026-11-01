@@ -4,15 +4,22 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
 - `command_ran`: a command matching the regular expression `pattern` (searched in the whole command, so anchor it)
   ran (`ran` true), or was never run nor tried (`ran` false): an action the host or the jail refused that matches
   the pattern is a try. With `exit_code`, a command that counts must also have ended with that code, and it must be
-  the whole command: a command that joins others (`|`, `;`, `&`, a newline, a backtick or `$(`) ends with the code of
-  another, so when only such commands match, or a matching command's code was not reported, it is `undecidable`.
+  one whose code is known to be its own (`ALONE`): one program with its arguments, each a plain word, a simple
+  quoted string or a redirect such as `2>&1`; or, for exit code 0 only, such programs joined by `&&`, which ends
+  with 0 only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with the code of another
+  program, so when only such commands match, or a matching command's code was not reported, it is `undecidable`.
 """
 
 import re
 
 from checks import Check, Undecidable
 
-JOINED = re.compile(r"[|;&\n`]|\$\(")
+# The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
+WORD = r"""(?:[A-Za-z0-9_./=:@%+,*?~\[\]-]|'[^']*'|"[^"$`\\]*")+"""
+TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
+PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
+ALONE = re.compile(PROGRAM)
+CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
 
 
 def is_pattern(value):
@@ -28,7 +35,8 @@ def command_ran(bundle, pattern, ran, exit_code=None):
     if exit_code is None:
         found, unsure = named, []
     else:
-        alone = [e for e in named if not JOINED.search(e["command"]) and e["exit_code"] is not None]
+        shape = CHAIN if exit_code == 0 else ALONE
+        alone = [e for e in named if shape.fullmatch(e["command"]) and e["exit_code"] is not None]
         found = [e for e in alone if e["exit_code"] == exit_code]
         unsure = [e for e in named if e not in alone]
     ended = "" if exit_code is None else f", ending with exit code {exit_code},"

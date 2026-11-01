@@ -1,0 +1,7 @@
+{
+  "args": {"pattern": "\\bgo test\\b", "ran": true, "exit_code": 1},
+  "outcome": "undecidable",
+  "log": [
+    {"kind": "command", "source": "observed", "command": "cd limiter && go test ./...", "exit_code": 1, "output": ""}
+  ]
+}

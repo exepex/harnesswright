@@ -2,20 +2,20 @@
 the run's final message. A text that does not exist fails: the files after are the harness's own, and so is the
 final message it took from the host's output.
 
-One rule: every check reads a text through `lines`, which gives each line one kind, from one allow list. A line is
+One rule: every check that reads Markdown reads it through `lines`, which gives each line one kind. A line is
 `frontmatter` (the leading `---` block of a file), `code` (a fenced block, from its opening fence to the closing
 fence of the same character, at least as long, with nothing after it but spaces, or to the end), or `prose`. Each
 check reads only the kinds it names, and a line it cannot read as one of the shapes it allows fails the check.
 
 - `sections`: the ATX headings (`#` to `######`) of level `level` in prose lines are exactly `headings`, in that
   order, compared as written, inline code included.
-- `frontmatter`: the text begins with a `---` block. Every line in it is blank, a `#` comment, indented (part of
-  the field above it), or `field: value`, where a field is letters, digits, `_` and `-`, given once; any other line
-  fails. Its fields include each of `required`, hold none outside `allowed` when it is given, and give each field of
-  `values` exactly that value (one line, quotes and a ` #` comment removed).
-- `ends_with_one_question`: the prose, with inline code removed, holds exactly one question, a `?` that ends a
-  sentence, closed only by quotes, brackets or emphasis; and the text's last line that is not blank is prose and
-  ends with it.
+- `frontmatter`: the text begins with a `---` block. Every line in it is blank, a `#` comment, indented or a `- `
+  list item (part of the field above it), or `field: value`, where a field is letters, digits, `_` and `-`, given
+  once; any other line fails. Its fields include each of `required`, hold none outside `allowed` when it is given,
+  and give each field of `values` exactly that value (one line, quotes and a ` #` comment removed).
+- `ends_with_one_question`: the prose, with inline code removed (a span may wrap), holds exactly one question, a
+  `?` that ends a sentence, closed only by quotes, brackets or emphasis; and the text's last line that is not blank
+  is prose and ends with it.
 - `shares_words`: the text shares a run of `run` consecutive words with the world file `source` after the run
   (`shared` true), or shares none (`shared` false). Words are letters and digits, compared without case. Pair it
   with `file_state` `unchanged` on the source, so a run cannot change the reference.
@@ -32,6 +32,8 @@ FIELD = re.compile(r"([A-Za-z0-9_-]+):(?:[ \t]+(.*))?")
 CLOSERS = "\"')]*_~"
 QUESTION = re.compile(r"\?[" + re.escape(CLOSERS) + r"]*(?=\s|$)")
 WORD = re.compile(r"[^\W_]+")
+QUOTED = re.compile(r"\s*([\"'])(.*?)\1\s*(?:#.*)?")
+SPAN = re.compile(r"(`+)(?:(?!\n[ \t]*\n).)+?\1", re.DOTALL)  # inline code, which may wrap within a paragraph
 
 
 def _text(bundle, file):
@@ -75,10 +77,8 @@ def sections(bundle, headings, level, file=None):
 
 
 def _value(raw):
-    raw = (raw or "").strip()
-    if len(raw) > 1 and raw[0] == raw[-1] and raw[0] in "\"'":
-        return raw[1:-1]
-    return re.sub(r"\s+#.*$", "", raw)
+    quoted = QUOTED.fullmatch(raw or "")
+    return quoted.group(2) if quoted else re.sub(r"\s+#.*$", "", (raw or "").strip())
 
 
 def frontmatter(bundle, required, allowed=None, values=None, file=None):
@@ -93,7 +93,8 @@ def frontmatter(bundle, required, allowed=None, values=None, file=None):
         field = FIELD.fullmatch(row.rstrip())
         if field and field.group(1) not in fields:
             fields[field.group(1)] = _value(field.group(2))
-        elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"):
+        elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"
+                           or row.startswith("- ") and fields):
             return "fail", f"{name}'s frontmatter line {number} is not a field given once: {row[:200]}"
     missing = [f for f in required if f not in fields]
     extra = [f for f in fields if allowed is not None and f not in allowed]
@@ -108,9 +109,11 @@ def ends_with_one_question(bundle, file=None):
     text, name = _text(bundle, file)
     if text is None:
         return "fail", f"{name} does not exist"
-    found = [(kind, re.sub(r"(`+).*?\1", "", row)) for kind, row in lines(text, file is not None) if row.strip()]
-    asked = [q for kind, row in found if kind == "prose" for q in QUESTION.findall(row)]
-    last = bool(found) and found[-1][0] == "prose" and found[-1][1].rstrip().rstrip(CLOSERS).endswith("?")
+    read = lines(text, file is not None)
+    prose = SPAN.sub("", "\n".join(row if kind == "prose" else "" for kind, row in read)).rstrip()
+    asked = QUESTION.findall(prose)
+    filled = [kind for kind, row in read if row.strip()]
+    last = bool(filled) and filled[-1] == "prose" and prose.rstrip(CLOSERS).endswith("?")
     if len(asked) == 1 and last:
         return "pass", f"{name} ends with its one question"
     return "fail", f"{name} holds {len(asked)} questions, and {'ends' if last else 'does not end'} with one"

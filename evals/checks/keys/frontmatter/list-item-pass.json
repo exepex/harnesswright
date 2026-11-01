@@ -1,0 +1,5 @@
+{
+  "args": {"required": ["name", "tags"], "file": "a.md"},
+  "outcome": "pass",
+  "after": {"a.md": "---\nname: a\ntags:\n- one\n- two\n---\n"}
+}
