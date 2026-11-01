@@ -1,0 +1,5 @@
+{
+  "args": {"source": "story.md", "run": 6, "shared": false},
+  "outcome": "fail",
+  "final_message": "Anything."
+}

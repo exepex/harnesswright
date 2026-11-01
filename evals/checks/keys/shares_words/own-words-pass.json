@@ -1,0 +1,6 @@
+{
+  "args": {"source": "story.md", "run": 6, "shared": false},
+  "outcome": "pass",
+  "after": {"story.md": "As a shopper, I want a bulk discount when I buy ten or more items."},
+  "final_message": "Buying ten items or more now lowers the price."
+}

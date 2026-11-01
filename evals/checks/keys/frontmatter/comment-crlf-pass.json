@@ -1,0 +1,5 @@
+{
+  "args": {"required": ["name"], "values": {"name": "notes"}, "file": "SKILL.md"},
+  "outcome": "pass",
+  "after": {"SKILL.md": "---\r\n# made new\r\nname: notes # the folder\r\n---\r\n"}
+}

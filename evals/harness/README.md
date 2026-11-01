@@ -318,6 +318,16 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 |---|---|
 | `file_state` | The file at `path` exists, is absent, is unchanged, or was changed by the run |
 | `changes_only_in` | Every path the run changed matches one of the `allowed` globs (`*` crosses folders) |
+| `command_ran` | A command matching `pattern` ran, or was never run nor tried (`ran`), maybe with its own `exit_code` |
+| `sections` | The Markdown headings of `level` are exactly `headings`, in order |
+| `frontmatter` | Each line is a field given once or part of one: `required`, only `allowed`, with `values` |
+| `ends_with_one_question` | The text holds exactly one question, and ends with it |
+| `shares_words` | The text shares a run of `run` words with the world file `source`, or none (`shared`) |
+
+The text checks read the world file `file` after the run, or the final message when `file` is left out. A text
+that does not exist fails. Those that read Markdown read it through one reader, `text.lines`, which gives every
+line one kind: frontmatter, fenced code or prose. `shares_words` reads only words, and it reads the source after
+the run, so a case pairs it with `file_state` `unchanged` on the source.
 
 ## Harness faults
 

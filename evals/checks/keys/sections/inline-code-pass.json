@@ -1,0 +1,5 @@
+{
+  "args": {"headings": ["Run `make test`"], "level": 2, "file": "a.md"},
+  "outcome": "pass",
+  "after": {"a.md": "---\n# a comment\nname: a\n---\n## Run `make test`\n"}
+}

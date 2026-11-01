@@ -1,0 +1,5 @@
+{
+  "args": {"required": ["name"], "allowed": ["name"], "file": "SKILL.md"},
+  "outcome": "fail",
+  "after": {"SKILL.md": "---\nname: notes\nname: memo\n---\n"}
+}

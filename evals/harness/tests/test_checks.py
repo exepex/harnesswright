@@ -16,7 +16,8 @@ import evidence
 class Library(TempCase):
     def test_every_check_gives_the_outcome_of_each_answer_key(self):
         library = checks.library()
-        self.assertEqual(sorted(library), ["changes_only_in", "file_state"])
+        self.assertEqual(sorted(library), ["changes_only_in", "command_ran", "ends_with_one_question",
+                                         "file_state", "frontmatter", "sections", "shares_words"])
         for name in library:
             with self.subTest(check=name):
                 self.assertEqual(checks.prove(name, library), {})
@@ -72,6 +73,12 @@ class Library(TempCase):
                              ({"path": "a", "state": "absent", "more": 1}, "unknown or missing")):
             with self.subTest(args=args), self.assertRaisesRegex(checks.CheckError, reason):
                 checks.decide("file_state", bundle, args)
+        for name, args in (("command_ran", {"pattern": "(", "ran": True}),
+                           ("sections", {"headings": ["A"], "level": 7}),
+                           ("shares_words", {"source": "a", "run": 0, "shared": True}),
+                           ("frontmatter", {"required": [], "file": "a"})):
+            with self.subTest(check=name), self.assertRaisesRegex(checks.CheckError, "of their shape"):
+                checks.decide(name, bundle, args)
         with self.assertRaisesRegex(checks.CheckError, "no check is named"):
             checks.decide("no_such_check", bundle, {})
         broken = {"boom": checks.Check(lambda bundle: 1 / 0, {}),

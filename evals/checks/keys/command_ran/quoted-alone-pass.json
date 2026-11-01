@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "^pytest\\b", "ran": true, "exit_code": 0},
+  "outcome": "pass",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "pytest -k 'a or b;c' tests/*.py",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

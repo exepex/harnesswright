@@ -1,0 +1,5 @@
+{
+  "args": {"file": "ask.md"},
+  "outcome": "pass",
+  "after": {"ask.md": "```\nwhy?\n```\nMay I delete the old branch?\n"}
+}

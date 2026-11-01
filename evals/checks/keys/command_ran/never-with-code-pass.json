@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "^make test$", "ran": false, "exit_code": 0},
+  "outcome": "pass",
+  "log": [{"kind": "command", "source": "observed", "command": "make test", "exit_code": 2, "output": ""}]
+}
