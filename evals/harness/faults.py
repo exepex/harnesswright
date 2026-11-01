@@ -114,7 +114,10 @@ def run(fault, setup, seed, place=None):
         reason = f"the gate gave another outcome: {type(error).__name__}: {error}"
     if reason is not None:  # one way out for a reason: any run's words in it may hold a canary or a credential
         runs = setup.made[made:]
-        quiet = scrub.Scrub([t for c in runs for t in c.tokens], [v for c in runs for v in scrub.credentials(c)])
+        given = setup.containment.get("operator_env")  # known before any containment is made, which may fail
+        named = _secrets(os.environ if given is None else given, getattr(setup.adapter, "ENV_KEYS", ()))
+        named += [v for c in runs for v in scrub.credentials(c)]
+        quiet = scrub.Scrub([t for c in runs for t in c.tokens], named)
         reason = quiet.quiet(reason)
     return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason,
             "bundles": setup.bundles[stored:]}
@@ -371,7 +374,8 @@ def tells(setup, fault, rng, place):
             return name
         return _refused(setup, plant, "holds eval text")
     if what == "word":
-        text = f"Keep the {rng.choice(lint.TELLS)} notes short."
+        allowed = {" ".join(lint.words(w)) for ws in setup.case.allow_words.values() for w in ws}  # a case's own
+        text = f"Keep the {rng.choice([t for t in lint.TELLS if t not in allowed])} notes short."
     else:
         rows = [w for e in load(Path(setup.repo) / CATALOGUE.relative_to(REPO))
                 for w in [e.get("prompt", "").split()] if len(w) >= lint.RUN]
