@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import unittest
+from pathlib import Path
 
 from helpers import TempCase
 
@@ -32,6 +33,20 @@ class Contract(unittest.TestCase):
         for module in (CODEX, CLAUDE):
             with self.subTest(host=module.NAME):
                 host.check_adapter(module)
+
+    def test_each_adapter_names_its_hosts_memory_places_outside_the_world(self):
+        home, world = Path("/h"), Path("/p/w x")
+        expected = {CODEX: [".codex/AGENTS.override.md", ".codex/AGENTS.md", ".codex/memories/MEMORY.md",
+                            ".codex/memories/memory_summary.md", ".codex/memories/raw_memories.md",
+                            "../AGENTS.override.md", "../AGENTS.md"],
+                    CLAUDE: [".claude/CLAUDE.md", ".claude/rules/hw-probe.md",
+                             ".claude/projects/-p-w-x/memory/MEMORY.md", "../CLAUDE.md", "../CLAUDE.local.md",
+                             "../.claude/CLAUDE.md"]}
+        for module, places in expected.items():
+            with self.subTest(host=module.NAME):
+                found = [str(p.relative_to(home)) if p.is_relative_to(home) else f"../{p.relative_to(world.parent)}"
+                         for p in module.memory_files(home, world)]
+                self.assertEqual(found, places)
 
     def test_the_command_turns_the_hosts_sandbox_and_bundled_skills_off(self):
         command = CODEX.jail_command("trigger", "/w", None)
@@ -109,6 +124,13 @@ class Codex(TempCase):
         self.assertEqual(CODEX.exposure("", self.tmp), {"skills": [odd, "probe-skill"], "tools": [
             "clock.sleep", "collaboration.spawn_agent", "functions.exec", "functions.exec/exec_command",
             "functions.exec/web__run", "functions.wait"]})
+        none = {"host_skills": {"includeInstructions": True}, "top_level_tools": {"functions.wait": "d"}}
+        self.session("sub", [{"type": "world_state", "payload": {"state": none}}])  # a thread with no skills, live
+        self.assertEqual(CODEX.exposure("", self.tmp)["skills"], [odd, "probe-skill"])
+        moved = {"host_skills": {"text": "- bundled: x"}, "top_level_tools": {"functions.wait": "d"}}
+        self.session("sub", [{"type": "world_state", "payload": {"state": moved}}])
+        self.assertIsNone(CODEX.exposure("", self.tmp))  # any other record without a body is no report
+        self.session("sub", [{"type": "world_state", "payload": {"state": none}}])
         drifted = {"host_skills": {"body": "## Available skills\n- x: y\n"}, "top_level_tools": {}}
         self.session("sub", [{"type": "world_state", "payload": {"state": drifted}}])
         self.assertEqual(CODEX.exposure("", self.tmp)["skills"], [odd, "- x: y", "probe-skill"])  # any layout counts

@@ -37,6 +37,19 @@ def skill_dir(workspace, skill_name):
     return Path(workspace) / ".agents" / "skills" / skill_name
 
 
+NO_SKILLS = {"includeInstructions"}  # the only keys of a skills record without a body, seen live in 0.166.0
+
+
+def memory_files(home, world):
+    """Where Codex reads memory and the user's own instructions outside the world, for a home and a world: its
+    global AGENTS.override.md and AGENTS.md and memories under CODEX_HOME (`~/.codex`), and the same instruction
+    files in a folder above the project."""
+    codex, above = Path(home) / ".codex", Path(world).parent
+    return [codex / "AGENTS.override.md", codex / "AGENTS.md", codex / "memories" / "MEMORY.md",
+            codex / "memories" / "memory_summary.md", codex / "memories" / "raw_memories.md",
+            above / "AGENTS.override.md", above / "AGENTS.md"]
+
+
 def build_command(mode, workspace, model, scratch=None):
     """Command for one run. The trailing '-' makes Codex read the prompt from stdin.
 
@@ -319,6 +332,8 @@ def exposure(stdout, home):
                 continue
             listed, top = state.get("host_skills", {"body": ""}), state.get("top_level_tools", {})
             body = listed.get("body") if isinstance(listed, dict) else None
+            if isinstance(listed, dict) and "body" not in listed and set(listed) <= NO_SKILLS:
+                body = ""  # the one shape Codex gives a thread with no skills
             if not isinstance(body, str) or not isinstance(top, dict):
                 return None
             full = full or ("host_skills" in state and "top_level_tools" in state)
