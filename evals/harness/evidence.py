@@ -98,13 +98,16 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
         transcript[name] = hashlib.sha256(data).hexdigest()
         blobs[transcript[name]] = data
     messages = [item["text"] for item in result.log if item["kind"] == "message"]
-    ran = scrub.value({"failure": result.failure, "exposure": result.exposure, "log": result.log,  # what the run
+    log = [dict(item, sha256=None) if item["kind"] == "write" else item for item in result.log]  # a hash is ours
+    ran = scrub.value({"failure": result.failure, "exposure": result.exposure, "log": log,  # what the run
                        "final_message": messages[-1] if messages else None, "requests": result.requests}, "bundle")
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
               "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
               "diff": scrub.names(changes, "bundle/diff"), **ran}
-    for item in record["log"]:
+    for item, made in zip(record["log"], result.log):
+        if item["kind"] == "write":
+            item["sha256"] = made["sha256"] if made["sha256"] and host.SHA256.fullmatch(made["sha256"]) else None
         if item["kind"] == "command":
             item["output"] = item["output"][:host.OUTPUT_LIMIT]
     for item in record["requests"]:
@@ -115,7 +118,9 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
 def _scan(folder, label, scrub):
     if folder is None:
         return
-    for root, dirs, names in os.walk(folder):
+    def unread(error):  # a folder the scan cannot read could hold anything, so the run's evidence is refused
+        raise EvidenceError(f"cannot scan {label}/{scrub.quiet(os.path.relpath(error.filename, folder))}")
+    for root, dirs, names in os.walk(folder, onerror=unread):
         for path in (Path(root) / name for name in dirs + names):  # a link's target is scanned, never followed
             data = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else ""
             where = f"{label}/{path.relative_to(folder)}"

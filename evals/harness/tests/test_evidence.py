@@ -122,6 +122,15 @@ class Bundles(TempCase):
             with self.subTest(where=where), self.assertRaisesRegex(scrub.Leak, where):
                 self.run_of(actions, tokens=[token])
 
+    def test_a_hash_the_harness_made_is_kept_and_a_folder_it_cannot_scan_refuses_the_run(self):
+        hashed = "98ea6e4f"  # the start of the hash of "hi\n", a credential a scrub of the log would cut into
+        adapter = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",))
+        record, _ = self.run_of([{"do": "write", "path": "n.txt", "text": "hi\n"}], adapter, key=hashed)
+        self.assertEqual(record["log"][0]["sha256"], host.sha256("hi\n"))
+        (self.tmp / "not-a-folder").write_text("")  # os.walk reports it as it reports a folder it may not read
+        with self.assertRaisesRegex(evidence.EvidenceError, "cannot scan home/"):
+            evidence._scan(self.tmp / "not-a-folder", "home", scrub.Scrub([], []))
+
     def test_the_without_skill_arm_has_the_same_shape_and_leaves_out_the_same_paths(self):
         made = "mkdir -p skills/haiku-writer && echo > skills/haiku-writer/x.md"
         record, _ = self.run_of([{"do": "command", "command": made}, {"do": "say", "text": "ok"}], arm=False)
