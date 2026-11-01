@@ -48,7 +48,8 @@ Rules for every adapter:
 The new eval harness ([evals/harness](../evals/harness/README.md#the-host-contract)) knows a host only through
 `host.CONTRACT`. There the jail, not the host, confines commands: an adapter turns its host's own sandbox off,
 turns off the skills the host ships where it allows, keeps only tools of a kind on the power table, and reports
-an action log of the entries the contract lists. The sandbox rule above is for the phase 2 runner only, which
+an action log of the entries the contract lists. For the harness faults, its `PLANTS` turn its bundled skills
+back on or take its command tools away, in a copy of its own command. The sandbox rule above is for the phase 2 runner only, which
 runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 runner is removed.
 
 - **Codex** runs with `--dangerously-bypass-approvals-and-sandbox`, `-c skills.bundled.enabled=false`, and image

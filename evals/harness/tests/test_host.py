@@ -38,6 +38,9 @@ class Contract(unittest.TestCase):
         broken = changed(adapter, action_log=None, TOOLS={**adapter.TOOLS, "web_search": "web"})
         with self.assertRaisesRegex(host.HostError, "action_log is missing.*tool web_search has kind 'web'"):
             host.check_adapter(broken)
+        for plants in ({}, {**adapter.PLANTS, "web": lambda c: c}, {**adapter.PLANTS, "no commands": None}):
+            with self.subTest(plants=plants), self.assertRaisesRegex(host.HostError, "PLANTS is not one function"):
+                host.check_adapter(changed(adapter, PLANTS=plants))
 
     def test_the_action_log_takes_only_the_entries_it_lists(self):
         good = [host.entry("read", path="a"), host.entry("read", "inferred", path="b"),

@@ -10,6 +10,8 @@ from unittest import mock
 
 from helpers import TempCase
 from test_host import FAKE, JAIL, changed, fake_adapter
+from test_gate import Upstream
+from test_probes import SOUND
 
 import contain
 import faults
@@ -27,8 +29,10 @@ PROMPTS = {
                                       {"do": "say", "text": "done"}]),
     "not run": lambda out: json.dumps([{"do": "write", "path": f"{out}/sign-in.txt", "text": "ready"},
                                        {"do": "say", "text": "done"}]),
+    "not run/powers": SOUND["powers"],
     "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},
                                             {"do": "say", "text": "done"}]),
+    "exposed": lambda planted: json.dumps([{"do": "say", "text": "ready"}]),
 }
 
 
@@ -69,9 +73,16 @@ class Fake(TempCase):
         adapter = adapter or changed(base, ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",),
                                      jail_command=lambda *args: base.jail_command(*args) + ["--sign-in"])
         drift = {"own files": {"task": ["world/.fake-state", "home/.fake/log"], "trigger": ["home/.fake/log"]}}
+        upstream = Upstream()  # the model host the powers probe must reach through the gate
+        self.addCleanup(upstream.close)
         return faults.Setup(adapter, case, self.tmp / "skills", self.tmp / "faults", drift, prompts=PROMPTS,
-                            operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY},
+                            operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY,
+                                          "HTTPS_PROXY": upstream.url},
                             operator_home=self.tmp / "operator", host_paths=[tool])
+
+
+# What the gate saw when it caught each fault that stops its run before a bundle holds the catch.
+SEEN = {"exposed": "is exposed but the case does not declare it", "not run": ""}
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
@@ -82,8 +93,10 @@ class Planted(Fake):
             for place in faults.plants()[fault["id"]][1]:
                 with self.subTest(fault=fault["id"], place=place):
                     outcome = faults.run(fault, setup, seed=7, place=place)
-                    bundles = outcome.pop("bundles")
+                    bundles, seen = outcome.pop("bundles"), outcome.pop("seen")
                     self.assertEqual(outcome, {"id": fault["id"], "place": place, "caught": True, "reason": None})
+                    self.assertIn(SEEN.get(fault["id"], ""), seen or "")  # its outcome, if it stops its run
+                    self.assertEqual(bool(seen), fault["id"] in SEEN)
                     self.assertEqual(len(bundles), 1 if faults.plants()[fault["id"]][2] else 0)
         self.assertEqual(sorted(p.name for p in faults.REPO.glob(".hw-fault-*")), [])  # the plant is removed
 

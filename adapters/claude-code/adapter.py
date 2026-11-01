@@ -210,6 +210,19 @@ def jail_command(mode, world, model):
     return command + (["--model", model] if model else [])
 
 
+def _planted(command, flag, value):
+    at = command.index(flag) + 1
+    return command[:at] + [value] + command[at + 1:]
+
+
+# The host faults the harness plants (host.PLANTED): the jail settings without what turns bundled skills off, and
+# the tools without Bash, the one command tool.
+PLANTS = {"bundled skills": lambda command: _planted(command, "--settings", json.dumps(
+              {**{k: v for k, v in JAIL_SETTINGS.items() if k != "skillOverrides"}, "disableBundledSkills": False})),
+          "no commands": lambda command: _planted(command, "--tools",
+                                                  ",".join(t for t in TOOLS if TOOLS[t] != "command"))}
+
+
 def _result_text(content):
     if isinstance(content, list):
         return "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
