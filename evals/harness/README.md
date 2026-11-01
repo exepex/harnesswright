@@ -41,7 +41,8 @@ Run from the repository root.
 ```sh
 # Unit tests. The jail tests need Linux and bubblewrap (`apt-get install bubblewrap`); without them they are
 # skipped and say why.
-python3 -m unittest discover -s evals/harness/tests
+# No bytecode: the kit's folders hold only what git tracks (see "The measuring kit").
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s evals/harness/tests
 ```
 
 ## How a case is checked
@@ -328,15 +329,20 @@ harness itself adds an inferred read for every world file a command names by its
 
 ## The measuring kit
 
-The measuring kit (doc 11) is the files `evals/kit.json` lists under its parts, and the list itself. Each part is one
-doc 11 names (`kit.PARTS`); each path is a file git tracks or a folder whose tracked files all count, read from disk
-as regular files, never links. The kit's hash is the manifest digest of those files, so an edit, a new tracked file
-in a listed folder, or a path dropped from the list is a change. Parts that do not exist yet (checks, answer keys,
-goldens, the grader prompt) are added to the list with the pull request that adds them.
+The measuring kit (doc 11) is the files `evals/kit.json` lists under its parts, the list itself, and all of
+`evals/harness`: every part runs on the harness's code, imported or loaded by path (as `audit.py` is), and its tests
+hold the answer keys. Each part is one doc 11 names (`kit.PARTS`); each path is a file git tracks or a folder of
+tracked files, read from disk as regular files, never links. A kit folder that holds any file git does not track is
+refused, as the measuring code reads or runs what a folder holds: an untracked licence text would loosen the lint,
+and bytecode in `__pycache__` would run in place of a module. The kit's hash is the manifest digest of
+those files, so an edit, a new tracked file in a listed folder, or a path dropped from the list is a change. Parts
+that do not exist yet (checks, answer keys, goldens, the grader prompt) are added to the list with the pull request
+that adds them.
 
 A judge session approves the kit as it is by writing `kit-approval.json` to the round store, which must be outside
 the working tree: `python3 evals/harness/kit.py approve --store DIR --judge NAME`. The record holds the hash, every
-file's entry, the judge and the time, and is read back after it is written. The kit check (`kit.py check --store DIR`,
-`kit.check`) refuses unless the record holds the hash of the kit as it is now, and names each file added, removed or
-changed since the approval. The builder's session never writes the store; that is how the round is run, not
-something the harness can prove.
+file's entry, the judge and the time. It is written beside its name and moved into place, so a link at its name is
+replaced, never written through, and it is read back. The kit check (`kit.py check --store DIR`, `kit.check`)
+refuses a record that is not a regular file, and refuses unless the record holds the hash of the kit as it is now,
+naming each file added, removed or changed since the approval. The builder's session never writes the store; that
+is how the round is run, not something the harness can prove.

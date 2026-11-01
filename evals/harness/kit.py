@@ -1,11 +1,13 @@
 """The measuring kit (doc 11, Judges own the measuring kit): its files, its hash, the judges' approval and the
 kit check.
 
-One rule: the kit is the files `evals/kit.json` lists under the parts of PARTS, and the list itself. Each listed
-path is a file git tracks, or a folder whose tracked files all count. The kit's hash is the manifest digest of those
-files. A judge session approves a hash by writing an approval record to the round store, outside the working tree,
-where the builder's session cannot write. The kit check refuses unless the record holds the kit's hash, and names
-each file that changed since.
+One rule: the kit is the files `evals/kit.json` lists under the parts of PARTS, the list itself, and the harness's
+code (`CODE`), which every part runs on, imported or loaded by path, with its tests, which hold the answer keys.
+Each path is a file git tracks, or a folder of tracked files that holds nothing else, as the measuring code reads
+or runs whatever a folder holds (an untracked fixture, or bytecode in place of a module). The kit's hash is the
+manifest digest of those files. A judge session approves a hash by writing an approval record, a regular file, to
+the round store, outside the working tree, where the builder's session cannot write. The kit check refuses unless
+the record holds the kit's hash, and names each file that changed since.
 
 Run from the repository root:
 
@@ -28,6 +30,7 @@ import skills
 from cases import REPO, CaseError
 
 LIST = "evals/kit.json"
+CODE = "evals/harness"  # every part runs on the harness's code, however it loads it, so all of it is the kit's
 # The parts doc 11 names. A part that does not exist yet is added to the list when it does.
 PARTS = ("checks", "answer keys", "lint rules", "power table", "probes", "goldens", "grader prompt",
          "fault catalogue")
@@ -39,7 +42,7 @@ class KitError(RuntimeError):
 
 
 def files(repo=REPO):
-    """{repository path: manifest entry} of every file in the kit, the list itself included."""
+    """{repository path: manifest entry} of every file in the kit: the list, the harness's code and each part."""
     repo = Path(repo)
     try:
         parts = json.loads((repo / LIST).read_text())["parts"]
@@ -48,11 +51,11 @@ def files(repo=REPO):
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise KitError(f"{LIST}: not a kit list: {error}") from None
     wrong = sorted(set(parts) - set(PARTS))
-    if wrong or not parts:
+    if wrong or not parts or not all(parts.values()):
         raise KitError(f"{LIST}: the parts {wrong or 'listed'} are not parts of the kit {list(PARTS)}")
     try:
         tracked = set(skills.tracked(repo))
-        listed = [LIST] + [path for paths in parts.values() for path in paths]
+        listed = [LIST, CODE] + [path for paths in parts.values() for path in paths]
         found = {}
         for path in listed:
             if not isinstance(path, str) or os.path.normpath(path) != path or path.startswith(("/", "..")):
@@ -60,6 +63,11 @@ def files(repo=REPO):
             inside = [rel for rel in tracked if rel == path or rel.startswith(path + "/")]
             if not inside:
                 raise KitError(f"{LIST}: {path} is not a file or folder git tracks")
+            if os.path.isdir(repo / path) and not os.path.islink(repo / path):  # what it reads or runs is tracked
+                extra = sorted(f"{path}/{rel}" for rel, entry in manifest.manifest(repo / path).items()
+                               if entry != "dir" and f"{path}/{rel}" not in tracked)
+                if extra:
+                    raise KitError(f"the kit's folder {path} holds files git does not track: {', '.join(extra)}")
             for rel in inside:
                 skills.tracked_file(repo, rel)  # a regular file in real folders, never a link
                 found[rel] = manifest.entry(repo / rel)
@@ -83,7 +91,9 @@ def approve(store, judge, repo=REPO):
     if not isinstance(judge, str) or not judge.strip():
         raise KitError("an approval names the judge who gave it")
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / RECORD).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    fresh = folder / f".{RECORD}.{os.getpid()}"
+    fresh.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    os.replace(fresh, folder / RECORD)  # replaces a link at the record's name, and never writes through it
     if _read(folder) != record:
         raise KitError(f"{folder / RECORD}: the record read back is not the one written")
     return record
@@ -112,12 +122,18 @@ def _store(store, repo):
 
 def _read(folder):
     try:
+        if manifest.kind(manifest.entry(folder / RECORD)) != "file":
+            raise ValueError("it is not a regular file")  # a link could point into the working tree
         record = json.loads((folder / RECORD).read_text())
         shape = {"kit": str, "files": dict, "judge": str, "approved_at": str}
-        if set(record) != set(shape) or not all(isinstance(record[k], t) for k, t in shape.items()):
-            raise ValueError(f"its fields are not exactly {sorted(shape)}")
-    except FileNotFoundError:
-        raise KitError(f"{folder}: no judge has approved a kit in this store") from None
+        if not isinstance(record, dict) or set(record) != set(shape):
+            raise ValueError(f"it is not an object of exactly the fields {sorted(shape)}")
+        if not all(isinstance(record[k], t) for k, t in shape.items()):
+            raise ValueError(f"its fields are not of the shapes {shape}")
+    except manifest.Unreadable as error:
+        if not os.path.lexists(folder / RECORD):
+            raise KitError(f"{folder}: no judge has approved a kit in this store") from None
+        raise KitError(f"{folder / RECORD}: not an approval record: {error}") from None
     except (OSError, ValueError) as error:
         raise KitError(f"{folder / RECORD}: not an approval record: {error}") from None
     return record

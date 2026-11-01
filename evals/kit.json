@@ -1,6 +1,6 @@
 {
   "parts": {
-    "lint rules": ["evals/harness/lint.py"],
+    "lint rules": ["evals/harness/lint.py", "evals/fixtures/licences"],
     "power table": ["evals/harness/powers.py"],
     "probes": ["evals/harness/probes.py"],
     "fault catalogue": ["evals/faults", "evals/harness/faults.py", "evals/harness/host_faults.py"]
