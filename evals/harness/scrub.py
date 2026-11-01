@@ -47,17 +47,19 @@ def credentials(contained):
     not be redacted reliably without damaging the evidence. A credential file's text and its
     JSON strings of at least MIN_SECRET characters are credentials too; a shorter string there is its metadata, such
     as a token type. Both the operator's file and the run's copy count."""
-    named, pairs = [], []
-    for value in [contained.operator_env.get(key, "") for key in getattr(contained.adapter, "ENV_KEYS", ())] + [
-            getattr(contained, "env", {}).get(key, "") for key in getattr(contained.adapter, "ENV_KEYS", ())] + [
-            contained.upstream or ""]:
-        secret, pair = _userinfo(value) if "://" in value else (value, None)
+    named, pairs, unsafe = [], [], set()
+    keys = getattr(contained.adapter, "ENV_KEYS", ())
+    places = [(key, contained.operator_env.get(key, "")) for key in keys]
+    places += [(key, getattr(contained, "env", {}).get(key, "")) for key in keys]
+    for name, value in places + [("the operator's proxy", contained.upstream or "")]:
+        secret, spellings = _userinfo(value) if "://" in value else (value, [])
         named += [secret] if secret else []
-        pairs += [pair] if pair else []
-    unsafe = [value for value in named if len(value) < MIN_SECRET or not set(value) <= SAFE]
+        pairs += spellings
+        if secret and (len(secret) < MIN_SECRET or not set(secret) <= SAFE):
+            unsafe.add(name)
     if unsafe:
-        raise UnsafeCredential(f"{len(unsafe)} credential(s) cannot be redacted reliably: each must be at least "
-                               f"{MIN_SECRET} characters of letters, digits and -_.~+/=")
+        raise UnsafeCredential(f"the credential in {', '.join(sorted(unsafe))} cannot be redacted reliably: it must "
+                               f"be at least {MIN_SECRET} characters of letters, digits and -_.~+/=")
     found = named + pairs
     for relative in getattr(contained.adapter, "CREDENTIAL_FILES", ()):
         for path in (contained.operator_home / relative, contained.home / relative):
@@ -68,13 +70,17 @@ def credentials(contained):
 
 
 def _userinfo(url):
-    """The secret part of a URL, decoded (its password, or its user when it has none), and its `user:password`."""
+    """The secret part of a URL, decoded (its password, or its user when it has none), and its other spellings: its
+    `user:password`, decoded and as the URL writes it, and the secret as the URL writes it."""
     try:
         parts = urlsplit(url)
     except ValueError:
-        return url, None
-    user, password = unquote(parts.username or ""), unquote(parts.password or "")
-    return (password, f"{user}:{password}") if password else (user or None, None)
+        return url, []
+    if parts.password:
+        raw = parts.password
+        written = [raw, f"{parts.username or ''}:{raw}", f"{unquote(parts.username or '')}:{unquote(raw)}"]
+        return unquote(raw), written
+    return (unquote(parts.username), [parts.username]) if parts.username else (None, [])
 
 
 def _strings(text):
