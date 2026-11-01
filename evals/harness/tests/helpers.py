@@ -15,6 +15,14 @@ SKILL_MD = ("---\nname: haiku-writer\ndescription: Writes a haiku about the proj
             "haiku about this project.\n---\n\n# Haiku writer\n\nCount the syllables of every line twice before you "
             "answer, five then seven then five, and never rhyme the last word.\n")
 
+JUDGED = {"question": "Does it hold?", "pass": "It holds.", "fail": "It does not.",
+          "examples": {"pass": ["A run where it holds."], "fail": ["A run where it does not."]}}
+
+
+def expect(text, source="format", check=None):
+    """An expectation of `text` from `source`, decided by `check` ({name, args}) or else judged."""
+    return {"text": text, "source": source, **({"check": check} if check else {"judged": JUDGED})}
+
 
 class TempCase(unittest.TestCase):
     """A test with its own temporary folder, `self.tmp`, removed afterwards."""

@@ -60,7 +60,10 @@ built instead of failing part way:
 - a commit needs a non-empty message and a list of paths;
 - a copy names a source outside `skills/` and `evals/` and its 64-character sha256;
 - an index row may use only `{name}`, `{path}` and `{description}`, with no index, attribute or format spec;
-- an expectation is a text, or an object holding only a text;
+- an expectation is `{text, source, and check or judged}` (doc 11, Scoring). `source` is `"format"`, the skill's
+  own format, or `{"contract": {"path", "line", "quote"}}`, a rule a world document states. `check` is `{name,
+  args}`, a check of `evals/checks/`; `judged` is `{question, pass, fail, examples: {pass, fail}}`, a yes-or-no
+  question for the graders with its two rules and at least one example of each;
 - a tool is a command name;
 - siblings are distinct skill names, never paths and never the skill under test;
 - `allow_words` keys are world paths, `<prompt>` or `<commit N>` for a declared commit.
@@ -158,8 +161,12 @@ text, since the case author writes it for this case.
   and comments only, since its code is the same in any Python program. So a check copied with its strings and
   comments removed is not caught here; the judge who reads the world is the check for that.
 - Case data (`case.json`, `tasks.json`, `triggers.json`, and the case's own `case.json` wherever it lives) may
-  repeat what the run sees of the case outside its world (its prompt, commits and index row) and its world's paths.
-  Other eval text may not.
+  repeat what the run sees of the case outside its world (its prompt, commits and index row), its world's paths and
+  the quotes of its contracts. Other eval text may not.
+- Each contract is found where it is cited: its quote, of at least three words as the lint reads words, starts on
+  line `line` of the world text file `path` and may run on over the lines after it. An expectation may restate the
+  quote it cites. Each check names a check of the library, with arguments that fit its list (`checks.validate`,
+  the test `decide` runs too).
 - A copy is verified when its source is a regular file git tracks in the repository, spelled exactly as git
   tracks it and reached through real folders; the source still has its recorded `source_sha256`; and the world file
   is the source with its skill rows removed. A skill row is a table row that names a skill of the repository: the

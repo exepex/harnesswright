@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from helpers import TempCase
+from helpers import TempCase, expect
 
 import cases
 import manifest
@@ -20,7 +20,9 @@ class Schema(TempCase):
             self.case({"README.md": "x"}, data)
 
     def test_a_good_case_gets_its_defaults(self):
-        case = self.case({"README.md": "x"}, {"expectations": ["Writes a haiku.", {"text": "Three lines."}]})
+        case = self.case({"README.md": "x"}, {"expectations": [expect("Writes a haiku."), expect(
+            "Three lines.", {"contract": {"path": "README.md", "line": 1, "quote": "x"}},
+            {"name": "file_state", "args": {}})]})
         self.assertEqual(case.siblings, [])
         self.assertEqual(case.allow_words, {})
         self.assertEqual(case.skill_rel, "skills/haiku-writer")
@@ -88,8 +90,17 @@ class Schema(TempCase):
         self.refused({"allow_words": {"<commit 1>": ["eval"]}}, "allow_words key")
         self.refused({"allow_words": {"../x": ["eval"]}}, "allow_words key")
 
-    def test_expectations_are_texts_or_have_a_text(self):
-        for expectation in ("", {"check": "x"}, {"text": ""}, 3, {"text": "Runs go test", "chekc": "x"}):
+    def test_an_expectation_has_a_text_a_source_and_one_way_to_decide_it(self):
+        good, check = expect("Runs go test"), {"name": "command_ran", "args": {}}
+        judged = good["judged"]
+        for expectation in ("Runs go test", {"text": "Runs go test"}, 3, dict(good, text=""), dict(good, chekc=1),
+                            dict(good, check=check), dict(good, source="contract"),
+                            dict(good, source={"contract": {"path": "../a", "line": 1, "quote": "a b c"}}),
+                            dict(good, source={"contract": {"path": "a", "line": 0, "quote": "a b c"}}),
+                            dict(good, source={"contract": {"path": "a", "line": True, "quote": "a b c"}}),
+                            {"text": "x", "source": "format", "check": {"name": "Bad-Name", "args": {}}},
+                            dict(good, judged=dict(judged, examples={"pass": [], "fail": ["x"]})),
+                            dict(good, judged={k: v for k, v in judged.items() if k != "fail"})):
             with self.subTest(expectation=expectation):
                 self.refused({"expectations": [expectation]}, "expectations must be")
 

@@ -125,16 +125,25 @@ def library(folder=LIBRARY):
     return found
 
 
-def decide(name, bundle, args, checks=None):
-    """{"check", "outcome", "reason"} of the check `name` on `bundle` with `args`."""
+def validate(name, args, checks=None):
+    """The check `name`, when `args` fit its list: the one test of a check and its arguments, which the lint runs
+    on every case and `decide` on every call. CheckError otherwise."""
     checks = library() if checks is None else checks
     if name not in checks:
         raise CheckError(f"no check is named {name!r}")
     check = checks[name]
+    if not isinstance(args, dict):
+        raise CheckError(f"{name}: the arguments are not an object")
     wrong = sorted(set(args) - set(check.args)) + sorted(set(check.args) - set(args) - set(check.optional))
     bad = sorted(arg for arg, value in args.items() if arg in check.args and not check.args[arg](value))
     if wrong or bad:
         raise CheckError(f"{name}: arguments {wrong} are unknown or missing, and {bad} are not of their shape")
+    return check
+
+
+def decide(name, bundle, args, checks=None):
+    """{"check", "outcome", "reason"} of the check `name` on `bundle` with `args`."""
+    check = validate(name, args, checks)
     try:
         outcome, reason = check.decide(bundle, **args)
     except Undecidable as error:

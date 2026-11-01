@@ -32,6 +32,7 @@ import tokenize
 import unicodedata
 from pathlib import Path
 
+import checks
 import manifest
 import world
 from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
@@ -226,6 +227,35 @@ def without_skill_rows(data, skills):
         names(Place("", line.decode("utf-8", "replace"), "rows"), skill) for skill in skills)))
 
 
+def citations(case, places):
+    """(quotes, problems): the quote of each contract expectation the world holds where it is cited, and a problem
+    for each one it does not hold there, and for each check whose name or arguments are not in the check library.
+    A quote starts on its line, in the words the lint reads, and may run on over the lines after it."""
+    found, problems, library = [], [], None
+    documents = {p.key: p.text.split("\n", 1)[1] for p in places if p.kind == "world" and p.text is not None}
+    for number, expectation in enumerate(case.expectations, 1):
+        if "check" in expectation:
+            try:
+                library = checks.library() if library is None else library
+                checks.validate(expectation["check"]["name"], expectation["check"]["args"], library)
+            except checks.CheckError as error:
+                problems.append(f"expectation {number}: {error}")
+        source = expectation["source"]
+        if source == "format":
+            continue
+        path, line, quote = source["contract"]["path"], source["contract"]["line"], source["contract"]["quote"]
+        rows = documents[path].splitlines() if path in documents else []
+        here = " ".join(words(rows[line - 1])) if line <= len(rows) else ""
+        rest, said = " ".join(words("\n".join(rows[line - 1:]))), " ".join(words(quote))
+        at = f" {rest} ".find(f" {said} ")  # where the quote's first word starts in `rest`, or -1
+        if len(said.split()) < SHORTEST or not here or not 0 <= at < len(here):
+            problems.append(f"expectation {number}: {path}:{line} does not start the quote {quote[:80]!r}, of at "
+                            f"least {SHORTEST} words" + ("" if path in documents else f"; no world text file {path}"))
+            continue
+        found.append(quote)
+    return found, problems
+
+
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     """Every problem with `case`, given its built and proved without-skill arm and the eval text: `kit`, the
     measuring texts, and `cases`, the case data as (path, text). An empty list means it passes."""
@@ -233,7 +263,9 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     copied, problems = verified_copies(case, repo)
     # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
     # ordinary project words, so a judge reads for it instead.
-    expectations = [words(e if isinstance(e, str) else e["text"]) for e in case.expectations]
+    quotes, cited = citations(case, places)
+    problems += cited
+    expectations = [words(e["text"]) for e in case.expectations]
     expectations = [" ".join(e) for e in expectations if len(e) >= SHORTEST]
     expected_sizes = {min(EXPECTATION_RUN, len(e.split())) for e in expectations}
     project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
@@ -243,11 +275,14 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.
-    declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"], {RUN})
+    # A cited quote is the world's own words, found where the case says, so case data may repeat it.
+    declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"] + quotes, {RUN})
     data = all_runs([(case.folder / "case.json").read_bytes().decode("utf-8", "replace")]
                     + [t for _, t in cases], {RUN})
     measuring = (all_runs(kit, {RUN}) | (data - declared)) - project
-    expected = set().union(set(), *(runs(e, {min(EXPECTATION_RUN, len(e.split()))}) for e in expectations)) - project
+    # An expectation may restate the rule it cites: the world already says it there.
+    expected = set().union(set(), *(runs(e, {min(EXPECTATION_RUN, len(e.split()))}) for e in expectations)) \
+        - project - all_runs(quotes, expected_sizes)
     allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
     # The index row is written into the index file, so it has that file's allowances.
     if case.index:

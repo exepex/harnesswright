@@ -16,8 +16,14 @@ case.json fields:
   Required in trigger cases, which install the full skill set with its index, as in real use.
 - `siblings`: names of other skills installed in both arms.
 - `tools`: commands the case needs on the host, such as `go`; the tools probe records their versions.
-- `expectations`: what the run must show: each a text, or an object holding only its `text`. The checks of doc 11
-  (Scoring) add their fields to this shape when they are built.
+- `expectations`: what the run must show (doc 11, Scoring). Each is `{"text", "source", and "check" or "judged"}`:
+  - `text`: what it says, in plain words.
+  - `source`: where the rule comes from: `"format"`, the skill's own format, or `{"contract": {"path", "line",
+    "quote"}}`, a rule a world document states, which the lint finds: `quote` starts on line `line` of `path`.
+  - `check`: `{"name", "args"}`, a script check of `evals/checks/` and its arguments, which the lint checks
+    against that check's own list; or `judged`, for graders when no check can decide it: `{"question", "pass",
+    "fail", "examples": {"pass": [texts], "fail": [texts]}}`, a yes-or-no question, the rules for each answer,
+    and at least one example of each.
 - `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
 - `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
   "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is never under
@@ -48,6 +54,7 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 PATH_PART = re.compile(r"[A-Za-z0-9._+@-]+")
 NOT_PARTS = (".", "..", ".git")
 COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
+CHECK_NAME = re.compile(r"[a-z][a-z0-9_]*")
 ROW_FIELDS = ("name", "path", "description")
 NOT_PROJECT_TEXT = ("skills", "evals")
 
@@ -108,11 +115,6 @@ def is_row(value):
                for _, field, spec, conversion in fields) and bool({"name", "path"} & {f[1] for f in fields})
 
 
-def is_expectation(value):
-    """A text, or an object holding only a text. Later parts add the fields of checks."""
-    return is_text(value) or record(text=is_text)(value)
-
-
 def list_of(shape):
     return lambda value: isinstance(value, list) and all(shape(item) for item in value)
 
@@ -121,6 +123,28 @@ def record(**fields):
     """An object with exactly these fields, each of its shape."""
     return lambda value: (isinstance(value, dict) and set(value) == set(fields)
                           and all(shape(value[key]) for key, shape in fields.items()))
+
+
+def is_line(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def some(shape):
+    return lambda value: list_of(shape)(value) and bool(value)
+
+
+# Where an expectation's rule comes from, and how it is decided: the one shape of an expectation.
+CONTRACT = record(contract=record(path=is_path, line=is_line, quote=is_text))
+DECIDED = {"check": record(name=lambda v: isinstance(v, str) and CHECK_NAME.fullmatch(v) is not None,
+                           args=lambda v: isinstance(v, dict)),
+           "judged": record(question=is_text, **{"pass": is_text, "fail": is_text},
+                            examples=record(**{"pass": some(is_text), "fail": some(is_text)}))}
+
+
+def is_expectation(value):
+    """{text, source, and check or judged}, each of its shape."""
+    return any(record(text=is_text, source=lambda v: v == "format" or CONTRACT(v), **{how: shape})(value)
+               for how, shape in DECIDED.items())
 
 
 def is_allow_words(value):
@@ -139,7 +163,9 @@ SCHEMA = {
               "and {description}"),
     "siblings": (list_of(is_name), "a list of skill names (lower-case letters, digits and hyphens)"),
     "tools": (list_of(is_command), "a list of command names (letters, digits and . _ + -)"),
-    "expectations": (list_of(is_expectation), "a list of texts, or of objects holding only a non-empty text"),
+    "expectations": (list_of(is_expectation),
+                     "a list of {text, source, and check or judged}: source \"format\" or {contract: {path, line, "
+                     "quote}}, check {name, args}, judged {question, pass, fail, examples: {pass, fail}}"),
     "commits": (list_of(record(message=is_text, paths=list_of(is_path))),
                 "a list of {message, paths}: non-empty text and a list of paths in the world"),
     "copies": (list_of(record(world=is_path, source=is_source, source_sha256=lambda v: isinstance(v, str)
