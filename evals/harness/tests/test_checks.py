@@ -4,6 +4,8 @@ it is broken or given arguments outside its list."""
 
 import hashlib
 import json
+import sys
+from unittest import mock
 
 from helpers import TempCase
 
@@ -18,6 +20,11 @@ class Library(TempCase):
         for name in library:
             with self.subTest(check=name):
                 self.assertEqual(checks.prove(name, library), {})
+
+    def test_loading_the_library_leaves_no_bytecode_in_it(self):
+        with mock.patch.object(sys, "dont_write_bytecode", False):  # as an operator's python runs it
+            checks.library()
+        self.assertEqual(sorted(checks.LIBRARY.rglob("__pycache__")), [])
 
     def test_every_answer_key_folder_names_a_check(self):
         self.assertEqual(sorted(p.name for p in checks.KEYS.iterdir()), sorted(checks.library()))
@@ -57,6 +64,9 @@ class Library(TempCase):
 
     def test_a_broken_check_or_wrong_arguments_stop_the_round(self):
         bundle = checks.Bundle.key({})
+        for path in ("./a", "a//b", "a/", "a/./b", "../a", "/a", ""):  # one spelling of a world path, never a typo
+            with self.subTest(path=path), self.assertRaisesRegex(checks.CheckError, "of their shape"):
+                checks.decide("file_state", bundle, {"path": path, "state": "absent"})
         for args, reason in (({"path": "a"}, "unknown or missing"), ({"path": "a", "state": "gone"}, "of their shape"),
                              ({"path": "a", "state": "absent", "more": 1}, "unknown or missing")):
             with self.subTest(args=args), self.assertRaisesRegex(checks.CheckError, reason):

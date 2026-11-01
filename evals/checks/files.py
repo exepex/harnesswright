@@ -2,16 +2,15 @@
 made: never from what the host said it did.
 
 - `file_state`: the file at `path` exists, is absent, is unchanged, or was changed or added by the run.
-- `changes_only_in`: every path the run changed matches one of the globs in `allowed` (`*` crosses folders).
+- `changes_only_in`: every path the run changed matches one of the globs in `allowed` (`*` crosses folders). A
+  folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
+  `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
 """
 
+from cases import is_path  # the one shape of a world path, as cases and the lint use it
 from checks import Check, matches
 
 STATES = ("exists", "absent", "unchanged", "changed")
-
-
-def is_path(value):
-    return isinstance(value, str) and bool(value) and not value.startswith("/") and ".." not in value.split("/")
 
 
 def is_globs(value):
@@ -29,8 +28,13 @@ def file_state(bundle, path, state):
 
 
 def changes_only_in(bundle, allowed):
-    outside = [path for path, change in bundle.changes.items()
-               if not matches(path, allowed) and not (change["before"] == "dir" or change["after"] == "dir")]
+    def holder(path, change):  # a folder added or removed only to hold allowed changes, such as `.harness` itself
+        below = [other for other in bundle.changes if other.startswith(path + "/")]
+        return ({change["before"], change["after"]} == {"dir", None} and bool(below)
+                and all(matches(other, allowed) or bundle.changes[other]["before"] in ("dir", None)
+                        and bundle.changes[other]["after"] in ("dir", None) for other in below))
+    outside = [path for path, change in bundle.changes.items() if not matches(path, allowed)
+               and not holder(path, change)]
     if outside:
         return "fail", f"the run changed paths outside {allowed}: {', '.join(outside[:20])}"
     return "pass", f"the run changed {len(bundle.changes)} paths, all inside {allowed}"

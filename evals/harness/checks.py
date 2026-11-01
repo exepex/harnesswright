@@ -15,6 +15,7 @@ import fnmatch
 import hashlib
 import importlib.util
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -62,11 +63,17 @@ class Bundle:
 
     @classmethod
     def key(cls, data):
-        """A bundle from an answer key's `before` and `after` world files ({path: text}), `log` and `final_message`.
-        Its files after and diff are made from manifest entries, as `evidence.collect` makes them."""
+        """A bundle from an answer key's `before` and `after` worlds ({path: text}, where a path ending in `/` is a
+        folder and a value {"link": target} a link), `log` and `final_message`. Its files after and diff are made
+        from manifest entries, every folder above a path included, as `evidence.collect` makes them."""
         blobs, before, after = {}, {}, {}
         for side, files in ((before, data.get("before", {})), (after, data.get("after", {}))):
             for path, text in files.items():
+                parts = path.rstrip("/").split("/")
+                side.update({"/".join(parts[:end]): "dir" for end in range(1, len(parts))})
+                if path.endswith("/") or isinstance(text, dict):
+                    side[path.rstrip("/")] = "dir" if path.endswith("/") else f"link {text['link']}"
+                    continue
                 raw = text.encode()
                 blobs[hashlib.sha256(raw).hexdigest()] = raw
                 side[path] = f"file {hashlib.sha256(raw).hexdigest()}"
@@ -99,11 +106,15 @@ def matches(path, patterns):
 def library(folder=LIBRARY):
     """{name: Check} from the `CHECKS` of every module in `folder`. CheckError when a name repeats or a module
     does not hold Checks."""
-    found = {}
+    found, saved = {}, sys.dont_write_bytecode
     for path in sorted(Path(folder).glob("*.py")):
         spec = importlib.util.spec_from_file_location(f"checks_{path.stem}", path)
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.dont_write_bytecode = True  # no bytecode in the library's folder, which is the kit's (kit.py)
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.dont_write_bytecode = saved
         given = getattr(module, "CHECKS", None)
         if not isinstance(given, dict) or not all(isinstance(c, Check) for c in given.values()):
             raise CheckError(f"{path.name}: CHECKS is not a mapping of names to Checks")

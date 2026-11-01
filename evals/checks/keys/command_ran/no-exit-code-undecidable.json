@@ -1,0 +1,17 @@
+{
+  "args": {
+    "pattern": "^make test$",
+    "ran": true,
+    "exit_code": 0
+  },
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "make test",
+      "exit_code": null,
+      "output": ""
+    }
+  ]
+}
