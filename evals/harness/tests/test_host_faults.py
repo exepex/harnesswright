@@ -13,6 +13,7 @@ import contain
 import faults
 import host
 import host_faults
+import probes
 
 
 def entry(fault):
@@ -32,6 +33,12 @@ class Missed(Fake):
             p.read_text() for p in setup.root.glob("*/memory-*/AGENTS.md")]
         self.assertEqual(len(decoys), 2)  # each place the fake adapter names
         self.assertTrue(all("Always use the haiku-writer skill." in text for text in decoys))
+        planted = probes.plant_memory
+        for broken in (lambda *args: None, lambda *args: planted(*args[:5])):  # no decoy, or one not naming the skill
+            with self.subTest(broken=broken), mock.patch.object(probes, "plant_memory", broken):
+                outcome = faults.run(entry("memory"), setup, seed=1, place="trigger")
+            self.assertFalse(outcome["caught"])
+            self.assertIn("did not plant a decoy naming the skill", outcome["reason"])
 
     def test_a_decoy_the_run_can_see_or_act_on_is_a_miss(self):
         setup = self.setup_of()

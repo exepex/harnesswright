@@ -311,11 +311,12 @@ lint fault must be refused by its own rule, and every reason passes one scrub.
 | `environment` | the operator's environment | The harness dumps the environment from inside the run's jail: it holds no planted session, memory or credential name, the run's scrub removes every planted value and credential from the dump, and the bundle holds none |
 | `names` | a new world file, an existing one, the prompt | The skill's name, path or a run of its text there is refused by the lint |
 | `tells` | the same, and a whole eval file | A tell word, a run of the kit's text or a copy of the catalogue there is refused by the lint |
-| `memory` | the memory probe's trigger run, its task run | The probe's decoy memories also name the skill; the probe passes, the harness finds no decoy from inside its jail, and the token file never appears |
+| `memory` | the memory probe's trigger run, its task run | The probe's decoy memories also name the skill; the probe passes, every memory place holds such a decoy, the harness finds none from inside its jail, and the token file never appears |
 | `not run` | the host's program, its key and credential files, the containment | The sign-in probe passes the host as it is and fails it with the part missing; with no containment, the probes give no host a run. Run these one after another, never beside a real run |
 | `inferred` | a command that reads a world file in an unusual way, one that only names it | The stored log holds that command, ended well, and every read of the file is tagged inferred, with at least one when the command read it. It needs a case of kind `task`, where every host may run commands |
 
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
 a gate made to miss is a miss. A host-shipped skill exposed and a host that cannot run commands need an adapter
 hook, and come next with the grading faults. That no check decides on an inferred entry comes with the checks. The
-Claude Code adapter infers no read from a command yet, so it misses the `inferred` fault until that hook's PR.
+Claude Code adapter infers no read from a command yet, and the Codex adapter only the reads its host parses, so
+either may miss the `inferred` fault until that hook's PR. A miss stops the round, so it fails safe.
