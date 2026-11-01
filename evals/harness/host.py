@@ -45,7 +45,12 @@ CONTRACT = {
     # did not report them, which only a failed run may do
     "exposure": callable,
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
+    # each host fault the harness plants (PLANTED), by name: (command) -> the jail command with that fault planted
+    "PLANTS": dict,
 }
+# The host faults an adapter plants in its own command (doc 11, Harness faults): its bundled skills turned on, and its
+# command tools taken away. Only a fault run passes one to `run`.
+PLANTED = ("bundled skills", "no commands")
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # The fields of an entry whose value the harness chooses, with the one test each value passes. A value that passes
@@ -87,6 +92,9 @@ def check_adapter(adapter):
         value = getattr(adapter, name, None)
         if not (callable(value) if shape is callable else isinstance(value, shape)):
             wrong.append(f"{name} is missing or not a {getattr(shape, '__name__', shape)}")
+    plants = getattr(adapter, "PLANTS", None) or {}
+    if sorted(plants) != sorted(PLANTED) or not all(callable(plant) for plant in plants.values()):
+        wrong.append(f"PLANTS is not one function for each of {list(PLANTED)}")
     for tool, kind in (getattr(adapter, "TOOLS", None) or {}).items():
         if kind not in powers.TOOLS:
             wrong.append(f"tool {tool} has kind {kind!r}, which is not on the power table")
@@ -145,13 +153,20 @@ class Result:
         self.seconds = seconds
 
 
-def run(contained, prompt, skills, model=None, timeout=900):
+def run(contained, prompt, skills, model=None, timeout=900, plant=None):
     """Run the host of `contained` (a `contain.Containment`, whose adapter also built its environment and gate)
     once, with `prompt` on stdin. `skills` are the skills the arm installs. Return a Result, whose `failure` says
-    why the host failed (a void run), or raise HostError when the log or the exposure breaks the contract."""
+    why the host failed (a void run), or raise HostError when the log or the exposure breaks the contract. A fault
+    run names the host fault to `plant` (PLANTED) in the command; a plant that changes nothing raises HostError."""
     adapter = contained.adapter
     check_adapter(adapter)
-    command = contained.jail(adapter.jail_command(contained.mode, contained.world, model), program=adapter.CLI)
+    command = adapter.jail_command(contained.mode, contained.world, model)
+    if plant is not None:
+        planted = adapter.PLANTS[plant](list(command))
+        if planted == command:
+            raise HostError(f"the adapter's {plant} plant leaves its command as it is")
+        command = planted
+    command = contained.jail(command, program=adapter.CLI)
     contained.audit(adapter.CLI)  # the jail is checked against its list before the host starts
     with contained.gate() as gate:
         started = time.monotonic()

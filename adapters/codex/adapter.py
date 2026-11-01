@@ -241,6 +241,17 @@ def jail_command(mode, world, model):
     return command + (["--model", model] if model else []) + ["-"]
 
 
+def _bundled(command):
+    """The jail command with Codex's bundled skills on: without its pair that turns them off."""
+    at = command.index("skills.bundled.enabled=false")
+    return command[:at - 1] + command[at + 1:]
+
+
+# The host faults the harness plants (host.PLANTED). Codex runs commands through its shell and exec tools.
+PLANTS = {"bundled skills": _bundled,
+          "no commands": lambda command: command[:-1] + ["--disable", "shell_tool", "--disable", "unified_exec", "-"]}
+
+
 def _threads(home):
     """The records of each thread's session file, one list per thread."""
     for path in sorted(Path(home).glob(".codex/sessions/**/rollout-*.jsonl")):

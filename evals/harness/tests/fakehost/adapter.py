@@ -37,6 +37,12 @@ def jail_command(mode, world, model):
     return [CLI, "--world", str(world), "--sandbox", "off", "--no-bundled", "--tools", ",".join(TOOLS)]
 
 
+# The host faults the harness plants (host.PLANTED): bundled skills on, and the tools without the shell.
+PLANTS = {"bundled skills": lambda command: [word for word in command if word != "--no-bundled"],
+          "no commands": lambda command: [",".join(t for t in TOOLS if TOOLS[t] != "command")
+                                          if word == ",".join(TOOLS) else word for word in command]}
+
+
 def events(stdout):
     found = []
     for line in stdout.splitlines():

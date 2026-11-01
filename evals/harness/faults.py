@@ -149,13 +149,13 @@ def _contained(setup, case, tokens=(), folder=None, **options):
     return contained, [install.name for install in base.installs]
 
 
-def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
-    """One without-skill run of `case` with the fault planted. Return the folder of its bundle, stored and read
-    back, and its containment. A canary that reaches its output raises `scrub.Leak`, and a jail that fails its
-    audit raises `contain.ContainmentError`."""
+def _run(setup, fault, case, planted, tokens=(), folder=None, plant=None, **options):
+    """One without-skill run of `case` with the fault planted, and the host fault `plant` when given (`host.run`).
+    Return the folder of its bundle, stored and read back, and its containment. A canary that reaches its output
+    raises `scrub.Leak`, and a jail that fails its audit raises `contain.ContainmentError`."""
     contained, installed = _contained(setup, case, tokens, folder, **options)
     result = host.run(contained, setup.prompt(fault, planted), skills=installed, model=setup.model,
-                      timeout=setup.timeout)
+                      timeout=setup.timeout, plant=plant)
     if result.failure:  # a host that did not run never met the fault
         raise Missed(f"the host failed, so the fault was never met: {result.failure}")
     layer = evidence.overlay(case, setup.adapter, setup.skills_root, setup.skill_dir)

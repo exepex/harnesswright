@@ -10,6 +10,7 @@
              "XDG_DATA_HOME", "MEMORY_PATH"]},
   {"id": "memory", "row": "A decoy memory naming the skill"},
   {"id": "not run", "row": "A host that cannot run commands, or the containment, host or key missing"},
+  {"id": "exposed", "row": "A host-shipped skill exposed in a run", "prompt": "Reply with the word ready, then stop."},
   {"id": "inferred", "row": "A file read through an unusual command, or a command that names a file without reading it",
    "prompt": "Run this one command exactly as written and do nothing else, then stop: {command}"},
   {"id": "names", "row": "The skill's name, path or fingerprint in a without-skill world or prompt"},

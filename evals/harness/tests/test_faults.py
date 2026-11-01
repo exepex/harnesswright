@@ -10,6 +10,8 @@ from unittest import mock
 
 from helpers import TempCase
 from test_host import FAKE, JAIL, changed, fake_adapter
+from test_gate import Upstream
+from test_probes import SOUND
 
 import contain
 import faults
@@ -27,8 +29,10 @@ PROMPTS = {
                                       {"do": "say", "text": "done"}]),
     "not run": lambda out: json.dumps([{"do": "write", "path": f"{out}/sign-in.txt", "text": "ready"},
                                        {"do": "say", "text": "done"}]),
+    "not run/powers": SOUND["powers"],
     "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},
                                             {"do": "say", "text": "done"}]),
+    "exposed": lambda planted: json.dumps([{"do": "say", "text": "ready"}]),
 }
 
 
@@ -69,8 +73,11 @@ class Fake(TempCase):
         adapter = adapter or changed(base, ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",),
                                      jail_command=lambda *args: base.jail_command(*args) + ["--sign-in"])
         drift = {"own files": {"task": ["world/.fake-state", "home/.fake/log"], "trigger": ["home/.fake/log"]}}
+        upstream = Upstream()  # the model host the powers probe must reach through the gate
+        self.addCleanup(upstream.close)
         return faults.Setup(adapter, case, self.tmp / "skills", self.tmp / "faults", drift, prompts=PROMPTS,
-                            operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY},
+                            operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY,
+                                          "HTTPS_PROXY": upstream.url},
                             operator_home=self.tmp / "operator", host_paths=[tool])
 
 

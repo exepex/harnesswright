@@ -181,12 +181,13 @@ def _check(name, contained, tokens, result):
         f"instructions.txt holds {seen[:5]}, not the one token of the instruction files"
 
 
-def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=None, naming=None, **containment):
+def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=None, naming=None, plant=None,
+          **containment):
     """Run probe `name` in `mode` under `root`, up to its number of tries. Return why it failed, or None. `prompt`
     (given the probe-output folder) replaces the probe's own, as the fake host's tests do; `containment` is passed to
     `contain.Containment` (the operator's environment, home and host paths). Each containment it makes is added to
     `made`, when given, so a caller can scrub what the probe's reason holds. The memory probe's decoy also names the
-    skill `naming`, when given."""
+    skill `naming`, when given, and a fault run names the host fault to `plant` (`host.run`)."""
     reason = None
     for attempt in range(TRIES.get(name, 1)):
         # The memory token is a canary, so the audit also refuses a jail that can see a decoy.
@@ -220,7 +221,7 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=
                 spec = {**powers.spec(contained), "direct": listener.getsockname(),
                         "nonce": tokens["powers"]}
                 contained.put_probe("powers-spec.json", json.dumps(spec))
-            result = host.run(contained, text, skills=[SKILL], model=model, timeout=timeout)
+            result = host.run(contained, text, skills=[SKILL], model=model, timeout=timeout, plant=plant)
         reason = f"the host failed: {result.failure}" if result.failure else _check(name, contained, tokens, result)
         if reason is None:
             return None

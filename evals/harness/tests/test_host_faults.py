@@ -1,6 +1,6 @@
-"""Host faults: a gate that misses a decoy memory, a missing host, sign-in or containment, or a command's read
-tagged observed, is reported as a miss. That every place of each is caught is tested with the others, in
-test_faults."""
+"""Host faults: a gate that misses a decoy memory, a missing host, sign-in, command tool or containment, a
+host-shipped skill, or a command's read tagged observed, is reported as a miss, and so is a plant that
+misses. That every place of each is caught is tested with the others, in test_faults."""
 
 import json
 import shutil
@@ -67,6 +67,25 @@ class Missed(Fake):
         outcome = faults.run(entry("not run"), setup, seed=1, place="key")
         self.assertFalse(outcome["caught"])
         self.assertIn("passed a host whose key is missing", outcome["reason"])
+
+    def test_a_plant_that_misses_its_host_fault_is_a_miss(self):
+        setup = self.setup_of()
+        base = setup.adapter
+        for plants, fault, place, reason in (
+                ({"bundled skills": lambda command: command + ["--sandbox", "off"]}, "exposed", "bundled skills",
+                 "bundled skills were on, and the round went on"),  # a plant that leaves the skills off
+                ({"bundled skills": lambda command: command}, "exposed", "bundled skills", "leaves its command"),
+                ({"no commands": lambda command: command + ["--sandbox", "off"]}, "not run", "commands",
+                 "passed a host whose commands is missing")):
+            setup.adapter = changed(base, PLANTS={**base.PLANTS, **plants})
+            with self.subTest(plants=plants):
+                outcome = faults.run(entry(fault), setup, seed=1, place=place)
+                self.assertFalse(outcome["caught"])
+                self.assertIn(reason, outcome["reason"])
+        setup.adapter = base
+        with mock.patch.object(host, "check_exposure", lambda *args: None):  # a harness that lets any skill through
+            outcome = faults.run(entry("exposed"), setup, seed=1)
+        self.assertIn("the round went on", outcome["reason"])
 
     def test_a_host_beside_bwrap_is_hidden_and_the_jail_still_starts(self):
         setup = self.setup_of()

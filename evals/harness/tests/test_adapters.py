@@ -66,6 +66,21 @@ class Contract(unittest.TestCase):
         self.assertEqual(command[command.index("--settings") + 2:], [
             "--tools", "Bash,Read,Write,Edit,Glob,Grep,Skill,Task", "--model", "m"])
 
+    def test_each_adapter_plants_each_host_fault_in_its_own_command(self):
+        command = CODEX.jail_command("trigger", "/w", "m")
+        self.assertNotIn("skills.bundled.enabled=false", CODEX.PLANTS["bundled skills"](command))
+        self.assertEqual(len(CODEX.PLANTS["bundled skills"](command)), len(command) - 2)
+        self.assertEqual(CODEX.PLANTS["no commands"](command)[-5:],
+                         ["--disable", "shell_tool", "--disable", "unified_exec", "-"])
+        command = CLAUDE.jail_command("task", "/w", "m")
+        planted = CLAUDE.PLANTS["bundled skills"](command)
+        settings = json.loads(planted[planted.index("--settings") + 1])
+        self.assertEqual((settings["disableBundledSkills"], "skillOverrides" in settings), (False, False))
+        planted = CLAUDE.PLANTS["no commands"](command)
+        self.assertEqual(planted[planted.index("--tools") + 1], "Read,Write,Edit,Glob,Grep,Skill,Task")
+        for module in (CODEX, CLAUDE):  # a plant changes only a copy
+            self.assertEqual(module.jail_command("task", "/w", "m"), module.jail_command("task", "/w", "m"))
+
 
 class Codex(TempCase):
     def session(self, name, records):
