@@ -275,6 +275,8 @@ scrubs keys the run chose). A reason the harness reports never repeats a token o
 the run once into a manifest (a pipe or socket the agent made is an `other` entry), and stores each file as a blob
 named by the hash of its scrubbed bytes, so no name the run chose touches the disk and nothing in a bundle is a link.
 The world diff against the proved arm leaves out the host's own files (those paths only) and both copies of the
-skill with the folders above them, the same in both arms. The bundle cuts command output and request lines only
+skill with the folders above them, the same in both arms. In the action log, a value the harness chose
+(`host.FIXED`: kind, source, a write's hash) is kept when it passes its test; every other value is scrubbed. Home and
+scratch are scanned for canaries, and anything the scan cannot read refuses the run. The bundle cuts command output and request lines only
 after the scrub. `evidence.store` writes a new folder outside the repository, and `evidence.load` reads it back,
 refusing missing, extra or changed blobs. The module docstring gives each rule in full.

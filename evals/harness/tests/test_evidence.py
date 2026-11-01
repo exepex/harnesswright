@@ -1,9 +1,12 @@
 """Evidence: a run is read once into manifests and leaves only through one scrub, into a bundle of hashed blobs."""
 
+import contextlib
 import json
 import os
 import shutil
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from helpers import TempCase
 from test_host import FAKE, JAIL, changed, fake_adapter
@@ -122,14 +125,28 @@ class Bundles(TempCase):
             with self.subTest(where=where), self.assertRaisesRegex(scrub.Leak, where):
                 self.run_of(actions, tokens=[token])
 
-    def test_a_hash_the_harness_made_is_kept_and_a_folder_it_cannot_scan_refuses_the_run(self):
-        hashed = "98ea6e4f"  # the start of the hash of "hi\n", a credential a scrub of the log would cut into
+    def test_a_value_the_harness_chose_is_kept_whatever_the_credential(self):
         adapter = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",))
-        record, _ = self.run_of([{"do": "write", "path": "n.txt", "text": "hi\n"}], adapter, key=hashed)
-        self.assertEqual(record["log"][0]["sha256"], host.sha256("hi\n"))
+        for key in ("98ea6e4f", "observed"):  # the start of the hash of "hi\n", and a source tag
+            record, _ = self.run_of([{"do": "write", "path": "n.txt", "text": "hi\n"}], adapter, key=key)
+            with self.subTest(key=key):
+                self.assertEqual((record["log"][0]["source"], record["log"][0]["sha256"]),
+                                 ("observed", host.sha256("hi\n")))
+                host.check_log(record["log"])
+
+    def test_what_the_scan_cannot_read_refuses_the_run_and_names_no_secret(self):
+        clean = scrub.Scrub([], [SECRET])
+        (self.tmp / "home").mkdir()
+        (self.tmp / "home" / f"k-{SECRET}").write_text("")
         (self.tmp / "not-a-folder").write_text("")  # os.walk reports it as it reports a folder it may not read
-        with self.assertRaisesRegex(evidence.EvidenceError, "cannot scan home/"):
-            evidence._scan(self.tmp / "not-a-folder", "home", scrub.Scrub([], []))
+        denied = PermissionError(13, "Permission denied", str(self.tmp / "home" / f"k-{SECRET}"))
+        for folder, patch in ((self.tmp / "not-a-folder", None), (self.tmp / "home", denied)):
+            with self.subTest(folder=folder.name), mock.patch.object(Path, "read_bytes", side_effect=patch) \
+                    if patch else contextlib.nullcontext():
+                with self.assertRaisesRegex(evidence.EvidenceError, "cannot scan home/") as caught:
+                    evidence._scan(folder, "home", clean)
+                self.assertNotIn(SECRET, str(caught.exception))
+                self.assertTrue(caught.exception.__suppress_context__)
 
     def test_the_without_skill_arm_has_the_same_shape_and_leaves_out_the_same_paths(self):
         made = "mkdir -p skills/haiku-writer && echo > skills/haiku-writer/x.md"

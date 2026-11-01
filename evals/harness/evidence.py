@@ -2,10 +2,14 @@
 
 One rule: a run's output is read once into manifests (`manifest.py`) and leaves only through one scrub
 (`scrub.py`), which runs on what the run made (its files, paths, link targets, log and transcript) and never on what
-the harness made (hashes, fields, the case), so a short credential can never change a hash or a field. `collect` reads the world after the run once, diffs it against the proved arm, and scrubs the whole
-record and every file before anything is kept. `store` writes a bundle as `bundle.json`, the scrubbed record, and
-`blobs/<sha256>`, each file's scrubbed bytes named by their own hash. So no name the run chose ever touches the disk,
-names cannot collide on disk, and nothing in a bundle is a link. Every check and grader reads only the bundle.
+the harness made (hashes, fields, the case), so a short credential can never change a hash or a field. In the action
+log, a value the harness chose (`host.FIXED`: an entry's kind, its source, a write's hash) is kept when it passes its
+test, and every other value is the run's. `collect` reads the world after the run once, diffs it against the proved
+arm, and scrubs the whole record and every file before anything is kept. Home and scratch are scanned for canaries
+in every name, link target and file, and anything the scan cannot read refuses the run. `store` writes a bundle as
+`bundle.json`, the scrubbed record, and `blobs/<sha256>`, each file's scrubbed bytes named by their own hash. So no
+name the run chose ever touches the disk, names cannot collide on disk, and nothing in a bundle is a link. Every
+check and grader reads only the bundle.
 
 The record's fields are the ones `collect` writes, as doc 11 lists them. The world diff leaves out the host's own
 files (those paths only) and both copies of the installed skill with the folders above them, the same in both arms.
@@ -98,16 +102,16 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
         transcript[name] = hashlib.sha256(data).hexdigest()
         blobs[transcript[name]] = data
     messages = [item["text"] for item in result.log if item["kind"] == "message"]
-    log = [dict(item, sha256=None) if item["kind"] == "write" else item for item in result.log]  # a hash is ours
-    ran = scrub.value({"failure": result.failure, "exposure": result.exposure, "log": log,  # what the run
+    ran = scrub.value({"failure": result.failure, "exposure": result.exposure,  # what the run reported
                        "final_message": messages[-1] if messages else None, "requests": result.requests}, "bundle")
+    ran["log"] = [{name: value if name in host.FIXED and host.FIXED[name](value)  # a value the harness chose
+                   else scrub.value(value, f"bundle/log/{number}/{name}") for name, value in item.items()}
+                  for number, item in enumerate(result.log)]
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
               "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
               "diff": scrub.names(changes, "bundle/diff"), **ran}
-    for item, made in zip(record["log"], result.log):
-        if item["kind"] == "write":
-            item["sha256"] = made["sha256"] if made["sha256"] and host.SHA256.fullmatch(made["sha256"]) else None
+    for item in record["log"]:
         if item["kind"] == "command":
             item["output"] = item["output"][:host.OUTPUT_LIMIT]
     for item in record["requests"]:
@@ -118,13 +122,17 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
 def _scan(folder, label, scrub):
     if folder is None:
         return
-    def unread(error):  # a folder the scan cannot read could hold anything, so the run's evidence is refused
-        raise EvidenceError(f"cannot scan {label}/{scrub.quiet(os.path.relpath(error.filename, folder))}")
+    def unread(error):  # what the scan cannot read could hold anything, so the run's evidence is refused
+        where = os.path.relpath(error.filename, folder) if error.filename else "a path"
+        raise EvidenceError(f"cannot scan {label}/{scrub.quiet(where)}") from None
     for root, dirs, names in os.walk(folder, onerror=unread):
         for path in (Path(root) / name for name in dirs + names):  # a link's target is scanned, never followed
-            data = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else ""
             where = f"{label}/{path.relative_to(folder)}"
             scrub.check(where, where)  # a name the run chose is output too
+            try:
+                data = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else ""
+            except OSError as error:
+                unread(error)
             scrub.check(data, where)
 
 
