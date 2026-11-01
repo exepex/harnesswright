@@ -326,8 +326,8 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 
 The text checks read the world file `file` after the run, or the final message when `file` is left out. A text
 that does not exist fails. Those that read Markdown read it through one reader, `text.lines`, which gives every
-line one kind: frontmatter, fenced code or prose. `shares_words` reads only words, and it reads the source after the run, so a case pairs it with
-`file_state` `unchanged` on the source.
+line one kind: frontmatter, fenced code or prose. `shares_words` reads only words, and it reads the source after
+the run, so a case pairs it with `file_state` `unchanged` on the source.
 
 ## Harness faults
 
