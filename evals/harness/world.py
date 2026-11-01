@@ -13,6 +13,7 @@ the builder recorded.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -49,6 +50,14 @@ class Install:
         return {"name": self.name, "paths": self.targets, "sha256": manifest.digest(self.files)}
 
 
+def names(words):
+    """A pattern that finds each of `words` (a skill's name and paths) as a whole name: not inside a longer name,
+    so a skill named `test` is not found in `pytest` or `test_save`. A name character is an ASCII letter, digit, `_`
+    or `-`, the same for text and bytes. The grader view removes each line it finds, and every index row must be
+    one (`plan`)."""
+    return re.compile("(?<![\\w-])(?:" + "|".join(re.escape(word) for word in words) + ")(?![\\w-])", re.ASCII)
+
+
 def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
     """The skills one arm of `case` installs, in order, checked. Raise CaseError when the plan is unsound."""
     skills_root = Path(skills_root) if skills_root else REPO / "skills"
@@ -76,6 +85,8 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
         row = None
         if case.index:
             row = case.index["row"].format(name=name, path=f"{rel}/SKILL.md", description=meta["description"])
+            if not names([name, *targets]).search(row):  # the grader view finds the row only by a whole name
+                raise CaseError(f"{case.id}: the index row {row!r} must name {name} or its path as a whole name")
         installs.append(Install(name, source, targets, row, files))
     return installs
 
@@ -125,7 +136,7 @@ def with_rows(data, after, rows):
         end += 1
     if not lines[end - 1].endswith((b"\n", b"\r")):
         raise CaseError(f"the index table under {after!r} must end with a line ending")
-    if any(len(row.splitlines()) != 1 for row in rows):
+    if any(row.splitlines() != [row] for row in rows):
         raise CaseError("an index row must be one line")
     lines[end:end] = [row.encode() + ending for row in rows]
     return b"".join(lines)

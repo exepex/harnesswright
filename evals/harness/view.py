@@ -19,7 +19,8 @@ The diff is the diff of the view's own entries, so a change that only touched ov
 entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
 file's entry is the arm's own, and the index file's is the one it has in the without-skill arm, as the arms differ
 there only by the row. A write's hash is shown only when it is the hash of its file's view bytes. What the agent
-wrote of what it saw, such as a folder listing it saved to a file, is its own output and is not hidden.
+wrote of what it saw, such as a folder listing it saved to a file, or a word it made from the skill's name, is its
+own output and is not hidden.
 
 Standard library only.
 """
@@ -31,6 +32,7 @@ import evidence
 import host
 import manifest
 import scrub
+import world
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
 ACTION_FIELDS = ("path", "command")  # the fields that say what an action acts on
@@ -40,7 +42,7 @@ COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
-    words = names([overlay["skill"], *overlay["paths"]])
+    words = world.names([overlay["skill"], *overlay["paths"]])
     places, own = overlay["paths"], record["own_files"]
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
@@ -72,7 +74,7 @@ def view(record, blob):
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
-    world = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
+    root = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
     for item in record["log"]:
         if on_overlay(item, words):
             continue
@@ -82,7 +84,7 @@ def view(record, blob):
         if item["kind"] == "command":  # what the world printed back differs between the arms, so it stays out
             item = {name: item[name] for name in COMMAND_FIELDS}
         if item["kind"] == "write" and item["sha256"] is not None:
-            seen = hashes.get(_relative(written, world))
+            seen = hashes.get(_relative(written, root))
             item["sha256"] = seen[1] if seen and seen[0] == item["sha256"] else None
         log.append(item)
     final = record["final_message"]
@@ -91,20 +93,15 @@ def view(record, blob):
     return {name: built[name] if name in built else record[name] for name in FIELDS}, blobs
 
 
-def names(words):
-    """A pattern that finds each of `words` (the skill's name and paths) as a whole name: not inside a longer name,
-    so a skill named `test` is not found in `pytest` or `test_save`."""
-    return re.compile("(?<![\\w-])(?:" + "|".join(re.escape(word) for word in words) + ")(?![\\w-])")
-
-
 def on_overlay(item, words):
-    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it (`names`)."""
+    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it
+    (`world.names`)."""
     return item["kind"] == "skill" or any(words.search(item.get(name, "")) for name in ACTION_FIELDS)
 
 
 def text(value, words, folders):
-    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `names`), and with
-    each of the run's `folders` (`scrub.folders`) as its neutral word."""
+    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `world.names`), and
+    with each of the run's `folders` (`scrub.folders`) as its neutral word."""
     raw = isinstance(value, bytes)
     encode = (lambda word: word.encode()) if raw else (lambda word: word)
     find = re.compile(words.pattern.encode()) if raw else words

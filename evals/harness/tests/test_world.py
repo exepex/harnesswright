@@ -243,6 +243,12 @@ class Plans(TempCase):
         with self.assertRaisesRegex(cases.CaseError, "outside the arm"):
             self.plan(adapter=Outside)
 
+    def test_an_index_row_names_its_skill_as_a_whole_name(self):
+        for row in ("| {name}-guide |", "| skill_{name} |"):  # the grader view could not find these rows
+            with self.subTest(row=row), self.assertRaisesRegex(cases.CaseError, "whole name"):
+                self.plan({"index": dict(INDEX, row=row)})
+        self.assertEqual(len(self.plan({"index": dict(INDEX, row="- [{name}]({path})")})), 1)
+
     def test_the_index_file_is_a_regular_file(self):
         self.skill()
         case = self.case({"README.md": "x\n", "docs/AGENTS.md": AGENTS}, {"index": INDEX})

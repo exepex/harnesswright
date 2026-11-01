@@ -12,6 +12,7 @@ import evidence
 import host
 import test_evidence
 import view
+import world
 
 LONG = AGENTS + "x" * 5000 + "\n"  # longer than the output a grader sees, with the row before the cut
 LISTED = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
@@ -66,7 +67,7 @@ class Views(TempCase):
         self.assertEqual(shown["diff"], {"skills": {"before": None, "after": shown["files_after"]["skills"]}})
 
     def test_an_action_is_the_overlay_s_when_it_loads_or_names_the_skill(self):
-        words = view.names(["haiku-writer", "skills/haiku-writer"])
+        words = world.names(["haiku-writer", "skills/haiku-writer"])
         for item, mine in (({"kind": "skill", "source": "observed", "name": "x"}, True),
                            ({"kind": "read", "source": "inferred", "path": "skills/haiku-writer/SKILL.md"}, True),
                            ({"kind": "command", "source": "observed", "command": "ls skills/haiku-writer"}, True),
@@ -78,12 +79,13 @@ class Views(TempCase):
         self.assertEqual(view.text("a\n| haiku-writer |\r\nb /x/w/c", words, {"/x/w": "/run/project"}),
                          "a\nb /run/project/c")
         self.assertEqual(view.text(b"a\n|haiku-writer|\n", words, {}), b"a\n")
-        test = view.names(["test", "skills/test"])  # a skill's name is found only as a whole name
+        test = world.names(["test", "skills/test"])  # a skill's name is found only as a whole name
         self.assertFalse(view.on_overlay({"kind": "command", "source": "observed", "command": "pytest -q"}, test))
         cat = {"kind": "command", "source": "observed", "command": "cat skills/test/a"}
         self.assertTrue(view.on_overlay(cat, test))
         self.assertEqual(view.text("def test_save():\nuse test.\n", test, {}), "def test_save():\n")
         self.assertEqual(view._relative("/x/w/notes.txt", "/x/w"), "notes.txt")  # a host may report it absolute
+        self.assertEqual(view.text("我使用test技能\n", test, {}), "")  # the same for text as for bytes
 
 
 if __name__ == "__main__":
