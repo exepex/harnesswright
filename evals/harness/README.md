@@ -5,8 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table, the host contract, with a fake host, the probes, and the evidence bundle with its one scrub**. The
-grader view and the measuring kit come next.
+the power table, the host contract, with a fake host, the probes, and the scrub**. The evidence bundle and the
+measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -27,7 +27,6 @@ allowed connections.
 | `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
-| `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
 
 ## Commands
 
@@ -197,8 +196,8 @@ skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`
 `powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
-reads, writes with content hashes, commands with exit code and whole output (a bundle cuts it to `host.OUTPUT_LIMIT`
-only after the scrub), actions refused
+reads, writes with content hashes, commands with exit code and whole output (cut to `host.OUTPUT_LIMIT` only after the
+scrub), actions refused
 by the host or the jail (`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed`
 (the host reported it) or `inferred` (the adapter worked it out, such as a file a shell command reads). The host
 may expose and load only the skills the arm installs, and expose only the adapter's tools. A host that ran must
@@ -256,14 +255,14 @@ made is never followed out of the jail.
 
 Every token is fresh for each run. A host or containment that breaks its contract raises, as in any run.
 
-## Evidence
+## The scrub
 
-A run leaves the harness only as a bundle (doc 11, Evidence), and only through one scrub. `scrub.Scrub` sees every
-whole raw value first: a canary token stops it (`scrub.Leak`, the run is void), then every credential the run had is
-redacted, keys and file names included. Nothing is cut before that: the action log keeps each command's whole
-output, and the bundle cuts it to `host.OUTPUT_LIMIT` after the scrub. `evidence.collect` reads the world after the
-run once into a manifest, diffs it against the proved arm (leaving out the host's own files and both copies of the
-skill, the same in both arms), and stores each file as a blob named by the hash of its scrubbed bytes. So no name
-the run chose touches the disk and nothing in a bundle is a link. The transcript has the run's folders and the skill
-replaced by neutral words. `evidence.store` writes a new folder outside the repository and `evidence.load` reads
-it back, refusing missing, extra or changed blobs.
+Every value a run's evidence keeps passes one `scrub.Scrub` (doc 11, Evidence), which sees the whole raw value
+first: a canary token stops it (`scrub.Leak`, the run is void), then every credential is redacted in every form
+output may hold it (as written, JSON-escaped, URL-encoded and decoded). So nothing is cut before it: the action log
+and the gate's log keep whole outputs and request lines. `scrub.credentials` is the one rule of what a credential
+is: each `ENV_KEYS` value, the secret part of a URL (its password with `user:password`, or its user when it has no
+password), and a credential file's strings of at least 8 characters. A named credential shorter than that cannot
+be redacted without damaging the evidence, so the containment refuses the run. The scrub runs only on what the run
+made, never on what the harness made, such as hashes and field names (`Scrub.value` keeps keys, `Scrub.names`
+scrubs keys the run chose). A reason the harness reports never repeats a token or credential (`Scrub.quiet`).
