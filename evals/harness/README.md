@@ -28,6 +28,7 @@ allowed connections.
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
 | `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
+| `view.py` | The grader view of a bundle: allowed fields and paths only, the same in either arm |
 
 ## Commands
 
@@ -277,6 +278,15 @@ named by the hash of its scrubbed bytes, so no name the run chose touches the di
 The world diff against the proved arm leaves out the host's own files (those paths only) and both copies of the
 skill with the folders above them, the same in both arms. In the action log, a value the harness chose
 (`host.FIXED`: kind, source, a write's hash) is kept when it passes its test; every other value is scrubbed. Home and
-scratch are scanned for canaries, and anything the scan cannot read refuses the run. The bundle cuts command output and request lines only
-after the scrub. `evidence.store` writes a new folder outside the repository, and `evidence.load` reads it back,
-refusing missing, extra or changed blobs. The module docstring gives each rule in full.
+scratch are scanned for canaries, and anything the scan cannot read refuses the run. The bundle cuts command output
+and request lines only after the scrub. `evidence.store` writes a new folder outside the repository, and
+`evidence.load` reads it back, refusing missing, extra or changed blobs. The module docstring gives each rule in full.
+
+## The grader view
+
+Graders see `view.view` of a bundle, never the full record, which stays for audits and judges. The view is built by
+allow lists: the fields in `view.FIELDS` (no arm, host, model, timings, exposure, requests or transcript), and the
+world paths outside the overlay and the host's own files. The index row is taken out of the index file and of any
+text, every action that loads or names the skill is dropped, and messages name the skill in neutral words. A file's
+entry before the run shows its kind and mode only. The same run in either arm gives the same view. What the agent
+itself saw of its arm without naming the skill, such as a listing that shows a `skills` folder, is not hidden.

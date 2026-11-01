@@ -92,7 +92,8 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
         elif manifest.kind(entry) == "link":
             entry = "link " + scrub.text(entry[len("link "):], f"world/{path}")
         stored[path] = entry
-    changes = diff(before, after, overlay["paths"], own_files(drift, contained.mode))
+    own = own_files(drift, contained.mode)
+    changes = diff(before, after, overlay["paths"], own)
     for path, change in changes.items():
         if change["after"] is not None:
             change["after"] = stored[path]  # the before entry is the arm's own, as the proof recorded it
@@ -109,6 +110,7 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
                   for number, item in enumerate(result.log)]
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
+              "own_files": own,
               "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
               "diff": scrub.names(changes, "bundle/diff"), **ran}
     for item in record["log"]:

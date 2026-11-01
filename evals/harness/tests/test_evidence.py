@@ -41,7 +41,7 @@ class Diff(unittest.TestCase):
 class Bundles(TempCase):
     """The fake host runs in a real jail, and its run becomes a bundle."""
 
-    def run_of(self, actions, adapter=None, tokens=(), arm=True, key=SECRET):
+    def run_of(self, actions, adapter=None, tokens=(), arm=True, key=SECRET, case=None):
         adapter = adapter or fake_adapter()
         tool = self.tmp / "tool"
         if not tool.exists():
@@ -50,10 +50,10 @@ class Bundles(TempCase):
             operator = self.tmp / "operator" / ".fake"
             operator.mkdir(parents=True)
             (operator / "creds.json").write_text(json.dumps({"refresh": TOKEN}))
-        case = self.case({"README.md": "A notes app.\n"})
-        built = world.build(case, adapter, self.tmp / f"arm-{case.id}", self.tmp / "skills", with_skill=arm)
+        case = case or self.case({"README.md": "A notes app.\n"})
+        built = world.build(case, adapter, self.tmp / f"arm-{case.id}-{arm}", self.tmp / "skills", with_skill=arm)
         contained = contain.Containment(adapter, "task", built.path, manifest.manifest(built.path),
-                                        root=self.tmp / f"run-{case.id}", tokens=tokens,
+                                        root=self.tmp / f"run-{case.id}-{arm}", tokens=tokens,
                                         operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": key},
                                         operator_home=self.tmp / "operator", host_paths=[tool])
         result = host.run(contained, json.dumps(actions), skills=["haiku-writer"] if arm else [], timeout=120)
