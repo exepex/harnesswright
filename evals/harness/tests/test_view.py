@@ -75,10 +75,20 @@ class Views(TempCase):
 
     def test_a_command_on_the_overlay_hides_no_read_of_a_later_command(self):
         guide = "references/guide.md"
-        shown, _ = self.views([{"do": "command", "command": "cat docs/guide.md"}],
+        shown, _ = self.views([{"do": "command", "command": "cat docs/guide.md"}] * 3,  # shown once, not per command
                               {"skill": {guide: "x\n"}, "world": {"docs/guide.md": "y\n"}},
                               [{"do": "command", "command": f"cat skills/haiku-writer/{guide}"}])
-        self.assertIn("docs/guide.md", [item.get("path") for item in shown["log"]])
+        self.assertEqual([item.get("path") for item in shown["log"]].count("docs/guide.md"), 1)
+
+    def test_every_inferred_entry_after_a_command_on_the_overlay_goes_with_it(self):
+        skill = "skills/haiku-writer/SKILL.md"
+        record = {"overlay": {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md"},
+                  "folders": {}, "own_files": [], "files_after": {}, "diff": {}, "final_message": None, "case": None,
+                  "mode": "task", "log": [  # in Codex's order: a read, its skill load, then the command's next read
+                      host.entry("command", command=f"cat {skill} docs/guide.md", exit_code=0, output=""),
+                      host.entry("read", "inferred", path=skill), host.entry("skill", "inferred", name="haiku-writer"),
+                      host.entry("read", "inferred", path="docs/guide.md"), host.entry("message", text="Done.")]}
+        self.assertEqual(view.view(record, None)[0]["log"], [host.entry("message", text="Done.")])
 
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)

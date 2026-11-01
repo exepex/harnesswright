@@ -68,9 +68,10 @@ class Contract(unittest.TestCase):
 class Named(TempCase):
     def test_each_world_file_a_command_names_is_an_inferred_read_of_that_command(self):
         world = (self.tmp / "world").resolve()
-        (world / "docs").mkdir(parents=True)
-        (world / "src").mkdir()
-        for name in ("a.md", "docs/b.md", "docs/a.md", "c d.md", "a+b.md", "kept.md", "notes[1].md", "src/x.py"):
+        for folder in ("docs", "src", "lib/src"):
+            (world / folder).mkdir(parents=True)
+        for name in ("a.md", "docs/b.md", "docs/a.md", "c d.md", "a+b.md", "kept.md", "notes[1].md", "src/x.py",
+                     "lib/src/y.py", "z.py"):  # a glob with a folder matches by path, never by name alone
             (world / name).write_text("x\n")
         before = manifest.manifest(world)
         (world / "a+b.md").unlink()  # a file the run removed was still named
@@ -86,8 +87,8 @@ class Named(TempCase):
         inferred = lambda path: host.entry("read", "inferred", path=path)
         self.assertEqual(host.named(world, before, log), [
             log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
-            inferred("kept.md"), inferred("new.md"), log[3], inferred("notes[1].md"), inferred("src/x.py"), log[4],
-            log[5], inferred("a.md"), inferred("docs/a.md")])  # cd is never followed
+            inferred("kept.md"), inferred("new.md"), log[3], inferred("lib/src/y.py"), inferred("notes[1].md"),
+            inferred("src/x.py"), log[4], log[5], inferred("a.md"), inferred("docs/a.md")])  # cd is never followed
 
     def test_a_large_world_is_named_in_time(self):
         world = (self.tmp / "world").resolve()
