@@ -44,7 +44,7 @@ CONTRACT = {
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
 }
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
-OUTPUT_LIMIT = 4000  # characters of a command's output the log keeps
+OUTPUT_LIMIT = 4000  # characters of a command's output a bundle keeps, cut only after the scrub (evidence.py)
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # Each kind of entry, with every field it holds besides `kind` and `source`, and the one shape each field takes.
 ENTRIES = {
@@ -63,9 +63,10 @@ class HostError(RuntimeError):
 
 
 def entry(kind, source="observed", **fields):
-    """One action log entry. A command's output is cut to OUTPUT_LIMIT characters."""
+    """One action log entry. A command's output is kept whole: only the bundle cuts it, after the scrub has seen it
+    whole, so a credential is never cut in two before it is redacted."""
     if kind == "command":
-        fields["output"] = fields.get("output", "")[:OUTPUT_LIMIT]
+        fields.setdefault("output", "")
     return {"kind": kind, "source": source, **fields}
 
 
@@ -109,8 +110,6 @@ def check_log(entries, skills=None):
                 wrong.append(f"entry {number} ({item['kind']}): {name} is not a {shape}")
         if item["kind"] == "write" and item["sha256"] is not None and not SHA256.fullmatch(item["sha256"]):
             wrong.append(f"entry {number} (write): sha256 is not a hash")
-        if item["kind"] == "command" and len(item["output"]) > OUTPUT_LIMIT:
-            wrong.append(f"entry {number} (command): output longer than {OUTPUT_LIMIT}")
         if item["kind"] == "skill" and skills is not None and item["name"] not in skills:
             wrong.append(f"entry {number}: skill {item['name']} was loaded but the case does not declare it")
     if wrong:

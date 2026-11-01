@@ -197,7 +197,8 @@ skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`
 `powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
-reads, writes with content hashes, commands with exit code and output cut to `host.OUTPUT_LIMIT`, actions refused
+reads, writes with content hashes, commands with exit code and whole output (a bundle cuts it to `host.OUTPUT_LIMIT`
+only after the scrub), actions refused
 by the host or the jail (`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed`
 (the host reported it) or `inferred` (the adapter worked it out, such as a file a shell command reads). The host
 may expose and load only the skills the arm installs, and expose only the adapter's tools. A host that ran must
@@ -259,23 +260,28 @@ Every token is fresh for each run. A host or containment that breaks its contrac
 
 A run leaves the harness only as a bundle (doc 11, Evidence), and only through one scrub.
 
-`scrub.Scrub` holds a run's canary tokens, its credentials (`scrub.credentials`: each `ENV_KEYS` value the operator
-passes, only the user and password of a URL, the user and password of the operator's proxy, and the text and JSON
-string values of each credential file, the operator's and the run's copy) and neutral words for the skill. Every
-text, blob and record goes through it. It looks at the whole raw value first, before anything cuts or encodes it: a
-canary token stops it with `scrub.Leak`, which voids the run. Then each credential, as written and as a JSON string
-holds it, becomes `[redacted]`. A record is scrubbed before it is written as JSON, keys included, and two keys that
-become one are refused (`scrub.Collision`). A transcript also has the skill's name and paths replaced by neutral
-words. The home and scratch folders are scanned for canaries too, since a host keeps its session files there.
+`scrub.Scrub` holds a run's canary tokens, its credentials (`scrub.credentials`: each `ENV_KEYS` value, from the
+operator and in the jail, however short, only the user and password of a URL, the user and password of the
+operator's proxy, and the text and every JSON string value of at least 8 characters of each credential file, the
+operator's and the run's copy) and neutral words for the run's folders and the skill. `evidence.collect` makes it
+after the run, so a credential the host refreshed is known. Every text, blob and record goes through it. It looks at
+the whole raw value first, before anything cuts or encodes it: a canary token stops it with `scrub.Leak`, which
+voids the run. Then each credential, as written and as a JSON string holds it, becomes `[redacted]`. Nothing is cut
+before this: the action log keeps each command's whole output, and the bundle cuts it to `host.OUTPUT_LIMIT` only
+after the scrub. A reason the harness reports, which may name a path the run chose, has every token and credential
+replaced too (`Scrub.quiet`). A record is scrubbed before it is written as JSON, keys included, and two keys that
+become one are refused (`scrub.Collision`). A transcript also has the run's absolute folders, the skill's name and its
+paths replaced by neutral words, since a folder's name on the machine may tell the arm. The home and scratch folders are scanned for canaries too, since a host keeps its session files there.
 
 `evidence.collect` reads the world after the run once into a manifest, without `.git`, and stores each file's
 scrubbed bytes as a blob named by their own hash; the file's entry names that blob and keeps its executable bit. A
-link stays an entry with its scrubbed target. The world diff compares the proved arm with the world after. It leaves
-out the paths the host writes for itself (the drift record's `own files`) and both copies of the installed skill
+link stays an entry with its scrubbed target, and a pipe, socket or device the agent made is an `other` entry. The world diff compares the proved arm with the world after. It leaves
+out the paths the host writes for itself (the drift record's `own files`, those paths only) and both copies of the installed skill
 (`evidence.overlay`), each with the folders above it, so both arms leave out the same paths. The record holds the
 case, arm, mode, host, host version, model, seconds, failure, exposure, action log, final message, gate requests,
 overlay, files after, diff, and the transcript's stdout and stderr as blobs.
 
 `evidence.store` writes `bundle.json` and `blobs/<sha256>` to a new folder outside the repository, and reads every
-blob back by its hash (`evidence.load`). No name the run chose touches the disk, so names cannot leak or collide
+blob back by its hash. `evidence.load` refuses a bundle whose blobs are not exactly the ones the record names, or
+one whose blob does not have its hash. No name the run chose touches the disk, so names cannot leak or collide
 there, and nothing in a bundle is a link.

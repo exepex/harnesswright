@@ -284,7 +284,7 @@ def action_log(stdout, home):
             exit_code = item.get("exit_code")
             log.append({"kind": "command", "source": "observed", "command": _command_text(item.get("command")),
                         "exit_code": exit_code if isinstance(exit_code, int) else None,
-                        "output": str(item.get("aggregated_output") or "")[:4000]})
+                        "output": str(item.get("aggregated_output") or "")})
             # Codex's own reading of the command, so inferred; only a command that worked read anything. A path is
             # relative to the command's folder, which Codex gives as a file URL.
             cwd = unquote(str(item.get("cwd") or "").removeprefix("file://"))

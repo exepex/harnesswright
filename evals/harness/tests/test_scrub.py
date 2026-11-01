@@ -21,11 +21,11 @@ class Values(unittest.TestCase):
         with self.assertRaisesRegex(scrub.Leak, "canary"):
             clean.value({"files": {"HWCANARY-00000000000000aa.txt": "file 0"}})
 
-    def test_every_form_of_a_secret_is_redacted_and_short_values_are_not_secrets(self):
-        clean = scrub.Scrub([], [SECRET, "short", None])
+    def test_every_form_of_every_secret_is_redacted_however_short(self):
+        clean = scrub.Scrub([], [SECRET, "pw7chrs", "", None])
         written = json.dumps({"key": SECRET})  # as a host's JSON event line holds it
         self.assertNotIn("sk-test", clean.text(f"{SECRET} and {written}"))
-        self.assertEqual(clean.text("a short word"), "a short word")
+        self.assertEqual(clean.text("the pw7chrs password"), "the [redacted] password")
         self.assertEqual(clean.blob(SECRET.encode() + b"\xff"), b"[redacted]\xff")
 
     def test_keys_are_scrubbed_and_two_keys_that_become_one_are_refused(self):
@@ -49,16 +49,17 @@ class Credentials(TempCase):
         operator, home = self.tmp / "operator", self.tmp / "home"
         for folder, token in ((operator, "refresh-AAAAAAAAAA"), (home, "refresh-BBBBBBBBBB")):  # refreshed by host
             (folder / ".h").mkdir(parents=True)
-            (folder / ".h" / "auth.json").write_text(json.dumps({"tokens": [{"refresh": token}]}))
+            (folder / ".h" / "auth.json").write_text(json.dumps({"type": "Bearer", "tokens": [{"refresh": token}]}))
         contained = types.SimpleNamespace(
             adapter=types.SimpleNamespace(ENV_KEYS=("H_KEY", "H_URL", "H_NONE"), CREDENTIAL_FILES=(".h/auth.json",)),
-            operator_env={"H_KEY": "key-0123456789", "H_URL": "https://user1234:pass5678@model.example"},
+            operator_env={"H_KEY": "key-0123456789", "H_URL": "https://user1234:pass567@model.example"},
             upstream="http://proxyuser:proxypass@10.0.0.1:3128", operator_home=Path(operator), home=Path(home))
         found = scrub.credentials(contained)
-        for value in ("key-0123456789", "user1234", "pass5678", "proxyuser", "proxypass", "refresh-AAAAAAAAAA",
+        for value in ("key-0123456789", "user1234", "pass567", "proxyuser", "proxypass", "refresh-AAAAAAAAAA",
                       "refresh-BBBBBBBBBB"):
             self.assertIn(value, found)
-        self.assertNotIn("https://user1234:pass5678@model.example", found)  # the URL's host is not a secret
+        self.assertNotIn("https://user1234:pass567@model.example", found)  # the URL's host is not a secret
+        self.assertNotIn("Bearer", found)  # a short string in a credential file is its metadata
 
 
 if __name__ == "__main__":

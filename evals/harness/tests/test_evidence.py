@@ -27,6 +27,11 @@ class Diff(unittest.TestCase):
         self.assertEqual(evidence.diff(before, after, ["s", "d/e"]), {"d/g": {"before": None, "after": "file 6"},
             "a/x": {"before": "file 1", "after": "file 1 x"}, "b": {"before": "file 2", "after": None},
             "c": {"before": None, "after": "link b"}, "sx": {"before": None, "after": "dir"}})
+        self.assertEqual(evidence.diff({}, {"h": "dir", "h/x": "file 8"}, exact=["h"]),
+                         {"h/x": {"before": None, "after": "file 8"}})  # a host's own folder hides only itself
+        # A folder above a left-out path is left out only while it is a folder that holds it.
+        self.assertEqual(evidence.diff({"s": "dir", "s/k": "dir"}, {"s": "file 7"}, ["s/k"]),
+                         {"s": {"before": "dir", "after": "file 7"}})
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
@@ -51,9 +56,8 @@ class Bundles(TempCase):
         result = host.run(contained, json.dumps(actions), skills=["haiku-writer"] if arm else [], timeout=120)
         layer = evidence.overlay(case, adapter, self.tmp / "skills")
         drift = {"own files": {"task": ["world/.fake-state", "home/.fake/log"]}}
-        clean = scrub.Scrub.of_run(contained, layer)
         return evidence.collect(contained, result, case, "with_skill" if arm else "without_skill", layer, drift,
-                                "fakehost 1.0", "fast-model", clean)
+                                "fakehost 1.0", "fast-model")
 
     def stored(self, record, blobs):
         out = evidence.store(record, blobs, self.tmp / "bundles" / "b1")
@@ -63,9 +67,11 @@ class Bundles(TempCase):
         actions = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
                    {"do": "command", "command": "ln -s README.md link.md && printf x > .fake-state"},
                    {"do": "write", "path": "skills/haiku-writer/notes.md", "text": "edited"},
+                   {"do": "command", "command": "mkfifo pipe && pwd"},
                    {"do": "skill", "name": "haiku-writer"}, {"do": "say", "text": "Done with haiku-writer."}]
         out, record, blob = self.stored(*self.run_of(actions))
-        self.assertEqual(sorted(record["diff"]), ["link.md", "notes.txt"])  # not the skill copy, not a self-write
+        self.assertEqual(sorted(record["diff"]), ["link.md", "notes.txt", "pipe"])  # not the skill, not a self-write
+        self.assertEqual(record["files_after"]["pipe"], "other")  # a pipe the agent made is evidence, not a fault
         self.assertEqual(record["diff"]["link.md"], {"before": None, "after": "link README.md"})
         self.assertEqual(blob(record["diff"]["notes.txt"]["after"].split(" ")[1]), b"hi\n")
         self.assertIn("skills/haiku-writer/notes.md", record["files_after"])
@@ -73,10 +79,12 @@ class Bundles(TempCase):
                                              "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
-        self.assertEqual([e["kind"] for e in record["log"]], ["write", "command", "write", "skill", "message"])
+        self.assertEqual([e["kind"] for e in record["log"]], ["write", "command", "write", "command", "skill", "message"])
         stdout = blob(record["transcript"]["stdout"]).decode()
         self.assertNotIn("haiku-writer", stdout)  # the transcript names neither the skill nor its paths
         self.assertIn(scrub.NEUTRAL_NAME, stdout)
+        self.assertNotIn(str(self.tmp), stdout)  # nor the run's folders, whose names may tell the arm
+        self.assertIn(scrub.NEUTRAL_FOLDERS["world"], stdout)
         self.assertGreaterEqual(record["seconds"], 0)
         names = [os.path.relpath(os.path.join(r, n), out) for r, ds, fs in os.walk(out) for n in ds + fs]
         self.assertTrue(all(n in ("bundle.json", "blobs") or n.startswith("blobs/") for n in names), names)
@@ -86,6 +94,7 @@ class Bundles(TempCase):
         adapter = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",))
         actions = [{"do": "command", "command": 'printf %s "$FAKE_API_KEY" > "k-$FAKE_API_KEY" && echo "$FAKE_API_KEY"'
                                                 ' && ln -s "$FAKE_API_KEY" lnk && cat "$HOME/.fake/creds.json" > c'},
+                   {"do": "command", "command": 'printf "%3990s" "" && echo "$FAKE_API_KEY"'},  # across the cut
                    {"do": "write", "path": "t.json", "text": json.dumps({"t": TOKEN})},
                    {"do": "say", "text": f"The key is {SECRET}."}]
         out, record, _ = self.stored(*self.run_of(actions, adapter))
@@ -96,6 +105,11 @@ class Bundles(TempCase):
         self.assertIn("k-[redacted]", record["files_after"])
         self.assertEqual(record["files_after"]["lnk"], "link [redacted]")
         self.assertEqual(record["final_message"], "The key is [redacted].")
+        self.assertEqual(len(record["log"][1]["output"]), 4000)  # cut only after the whole output was redacted
+        token = contain.new_token()
+        with self.assertRaises(scrub.Leak) as caught:  # a reason never repeats a secret the run put in a name
+            self.run_of([{"do": "command", "command": f'printf {token} > "k-$FAKE_API_KEY"'}], adapter, [token])
+        self.assertNotIn(SECRET, str(caught.exception))
 
     def test_a_canary_in_any_output_voids_the_run_even_past_the_cut(self):
         token = contain.new_token()
@@ -121,7 +135,12 @@ class Bundles(TempCase):
         out, _, _ = self.stored(record, blobs)
         with self.assertRaisesRegex(evidence.EvidenceError, "already exists"):
             evidence.store(record, blobs, out)
-        (out / "blobs" / record["transcript"]["stdout"]).write_bytes(b"changed")
+        stdout = out / "blobs" / record["transcript"]["stdout"]
+        kept = stdout.read_bytes()
+        stdout.unlink()
+        with self.assertRaisesRegex(evidence.EvidenceError, "not exactly the ones the record names"):
+            evidence.load(out)
+        stdout.write_bytes(kept + b"changed")
         with self.assertRaisesRegex(evidence.EvidenceError, "does not have its hash"):
             evidence.load(out)
 
