@@ -227,7 +227,7 @@ def named(world, before, log):
         globs = [w for w in words if any(c in w for c in "*?[")]
         bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path, read
         paths = {form for glob in globs if "/" in glob for form in (  # from the world (./x, /world/x, ../world/x)
-            os.path.normpath(os.path.join(root, glob)), root + "/*/" + os.path.normpath(glob))}  # or below it (a cd)
+            os.path.normpath(os.path.join(root, glob)), os.path.normpath(f"{root}/*/{glob}"))}  # or below it (a cd)
         paths |= {form.replace("/**/", "/") for form in paths}  # a **/ may match no folder
         ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
         own = set()  # the inferred reads its adapter put right after it
