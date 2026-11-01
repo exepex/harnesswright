@@ -302,7 +302,9 @@ own entries. A run's folders must never name its arm.
 one plant of `faults.plants()`. `faults.run(fault, setup, seed)` plants it where the seed chooses and runs the
 harness's own gate unchanged (the lint, the audit, or a whole run, whose bundle it stores and lists). It is caught
 only by the one outcome its plant names; anything else is a miss. Refusing plants run a clean control first, a
-lint fault must be refused by its own rule, and every reason passes one scrub.
+lint fault must be refused by its own rule, and every reason passes one scrub. A fault that stops its run before
+a bundle exists (`exposed`, `not run`) is caught with what its gate saw (`faults.Caught`), which the result keeps
+as `seen`, scrubbed the same way, so the judges can check each catch.
 
 | Fault | Places | Caught when |
 |---|---|---|

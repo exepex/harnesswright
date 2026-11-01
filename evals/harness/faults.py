@@ -42,6 +42,11 @@ class Missed(RuntimeError):
     """A plant could not show its fault caught, for the reason given: the fault is a miss."""
 
 
+class Caught(str):
+    """What a gate saw when it caught its fault, returned by a plant whose fault stops the run before it stores a
+    bundle: the outcome the gate named, kept for the judges as the evidence of the catch."""
+
+
 class Setup:
     """What faults run against: a host's `adapter`, a clean `case` of the skill in `skill_dir`, the folder `root`
     (outside the repository) for plants, runs and bundles, the drift record (`probes.drift`), the `prompts` that
@@ -100,8 +105,9 @@ def load(path=CATALOGUE):
 
 def run(fault, setup, seed, place=None):
     """Plant `fault` (a catalogue entry) at `place`, one of its plant's places, or at the one `seed` chooses, and
-    run its gate. Return {"id", "place", "caught", "reason", "bundles"}: `reason` says why it was missed, and
-    `bundles` are the folders of the runs' stored bundles, from which the judges decide each was caught."""
+    run its gate. Return {"id", "place", "caught", "reason", "seen", "bundles"}: `reason` says why it was missed,
+    `seen` is what the gate saw when it caught a fault that stops its run (`Caught`), and `bundles` are the folders
+    of the runs' stored bundles. From these the judges decide each was caught."""
     plant, places, _ = plants()[fault["id"]]
     files = getattr(setup.adapter, "CREDENTIAL_FILES", ())
     has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ())}
@@ -116,15 +122,16 @@ def run(fault, setup, seed, place=None):
         reason = str(error)
     except Exception as error:  # an outcome the plant does not name, whatever it is, is a miss
         reason = f"the gate gave another outcome: {type(error).__name__}: {error}"
-    if reason is not None:  # one way out for a reason: any run's words in it may hold a canary or a credential
+    caught = reason is None or isinstance(reason, Caught)
+    if reason is not None:  # one way out for its words: any run's words may hold a canary or a credential
         runs = setup.made[made:]
         given = setup.containment.get("operator_env")  # known before any containment is made, which may fail
         named = _secrets(os.environ if given is None else given, getattr(setup.adapter, "ENV_KEYS", ()))
         named += [v for c in runs for v in scrub.credentials(c)]
         quiet = scrub.Scrub([t for c in runs for t in c.tokens], named)
         reason = quiet.quiet(reason)
-    return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason,
-            "bundles": setup.bundles[stored:]}
+    return {"id": fault["id"], "place": place, "caught": caught, "reason": None if caught else reason,
+            "seen": reason if caught else None, "bundles": setup.bundles[stored:]}
 
 
 def _copy(setup):

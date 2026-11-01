@@ -81,6 +81,10 @@ class Fake(TempCase):
                             operator_home=self.tmp / "operator", host_paths=[tool])
 
 
+# What the gate saw when it caught each fault that stops its run before a bundle holds the catch.
+SEEN = {"exposed": "is exposed but the case does not declare it", "not run": ""}
+
+
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Planted(Fake):
     def test_every_place_of_every_fault_is_caught(self):
@@ -89,8 +93,10 @@ class Planted(Fake):
             for place in faults.plants()[fault["id"]][1]:
                 with self.subTest(fault=fault["id"], place=place):
                     outcome = faults.run(fault, setup, seed=7, place=place)
-                    bundles = outcome.pop("bundles")
+                    bundles, seen = outcome.pop("bundles"), outcome.pop("seen")
                     self.assertEqual(outcome, {"id": fault["id"], "place": place, "caught": True, "reason": None})
+                    self.assertIn(SEEN.get(fault["id"], ""), seen or "")  # its outcome, if it stops its run
+                    self.assertEqual(bool(seen), fault["id"] in SEEN)
                     self.assertEqual(len(bundles), 1 if faults.plants()[fault["id"]][2] else 0)
         self.assertEqual(sorted(p.name for p in faults.REPO.glob(".hw-fault-*")), [])  # the plant is removed
 

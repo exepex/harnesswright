@@ -76,9 +76,9 @@ class Missed(Fake):
                  "bundled skills were on, and the round went on"),  # a plant that leaves the skills off
                 ({"bundled skills": lambda command: command}, "exposed", "bundled skills", "leaves its command"),
                 ({"no commands": lambda command: command + ["--sandbox", "off"]}, "not run", "commands",
-                 "passed a host whose commands is missing"),
+                 "did not fail the host for running no command"),
                 ({"no commands": lambda command: command + ["--no-such-flag"]}, "not run", "commands",
-                 "passed a host whose commands is missing")):  # a host that never ran ran no command either
+                 "the host failed")):  # a host that never ran ran no command either
             setup.adapter = changed(base, PLANTS={**base.PLANTS, **plants})
             with self.subTest(plants=plants):
                 outcome = faults.run(entry(fault), setup, seed=1, place=place)

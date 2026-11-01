@@ -61,7 +61,7 @@ def not_run(setup, fault, rng, place):
     after another, never beside a real run). Caught when the sign-in probe (the powers probe for `commands`), in the
     mode the seed chooses, passes the host as it is and, with the fault planted, fails it (for `commands`, a host
     that ran but ran no command), or for the containment the probes give the host no run for that reason, so the
-    host is `not run`."""
+    host is `not run`. The probe's reason is what the gate saw (`faults.Caught`)."""
     options, mode = dict(setup.containment), rng.choice(probes.MODES)
     env = dict(os.environ if options.get("operator_env") is None else options["operator_env"])
     name = "powers" if place == "commands" else "sign-in"
@@ -76,7 +76,9 @@ def not_run(setup, fault, rng, place):
     if control:
         return f"the host fails the {name} probe without the fault, so the fault proves nothing: {control}"
     if place == "commands":  # the host ran, and the probe failed for the one reason that it ran no command
-        found = (probe(plant="no commands") or "").endswith(f"run: {probes.NO_COMMAND}")
+        found = probe(plant="no commands")
+        if not (found or "").endswith(f"run: {probes.NO_COMMAND}"):
+            return f"the powers probe did not fail the host for running no command, with its commands missing: {found}"
     elif place == "host":
         found = probe(operator_env={**env, "PATH": _without(env.get("PATH", ""), setup.adapter.CLI)})
     elif place == "key":
@@ -89,8 +91,10 @@ def not_run(setup, fault, rng, place):
             reasons = probes.probe_host(setup.adapter, setup.folder(), **options)["not run"]
         finally:
             os.environ["PATH"] = saved
-        found = any(reason.startswith("no containment: ") for reason in reasons)
-    return None if found else f"the {name} probe passed a host whose {place} is missing"
+        found = "; ".join(reason for reason in reasons if reason.startswith("no containment: "))
+    if not found:
+        return f"the {name} probe passed a host whose {place} is missing"
+    return faults.Caught(found)
 
 
 def _without(path, program):
@@ -123,14 +127,14 @@ def inferred(setup, fault, rng, place):
 def exposed(setup, fault, rng, place):
     """The host's bundled skills turned on by its adapter (`host.PLANTED`), in a without-skill run of the case.
     Caught when the same run without the fault passes and, with it, the host's exposure stops the round for a skill
-    the case does not declare (`host.check_exposure`), as no case declares a host-shipped skill. The error names
-    each such skill, and is the judges' evidence."""
+    the case does not declare (`host.check_exposure`), as no case declares a host-shipped skill. The run stops
+    before it stores a bundle, so the error, which names each such skill, is what the gate saw (`faults.Caught`)."""
     faults._run(setup, fault, setup.case, {})  # the control: a host that fails anyway proves nothing
     try:
         faults._run(setup, fault, setup.case, {}, plant=place)
     except host.HostError as error:
         if re.search(re.escape(host.UNDECLARED).replace(r"\{\}", r"\S+"), str(error)):
-            return None
+            return faults.Caught(str(error))
         raise
     return "the host's bundled skills were on, and the round went on"
 
