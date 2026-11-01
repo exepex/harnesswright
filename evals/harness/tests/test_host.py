@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import shutil
+import time
 import types
 import unittest
 from pathlib import Path
@@ -64,7 +65,6 @@ class Contract(unittest.TestCase):
                 host.check_exposure(adapter, exposure, ["haiku-writer"])
 
 
-@unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Named(TempCase):
     def test_each_world_file_a_command_names_is_an_inferred_read_once(self):
         world = (self.tmp / "world").resolve()
@@ -87,7 +87,20 @@ class Named(TempCase):
             log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
             inferred("new.md"), log[3], inferred("notes[1].md"), inferred("src/x.py"), log[4]])  # cd is never followed
 
+    def test_a_large_world_is_named_in_time(self):
+        world = (self.tmp / "world").resolve()
+        world.mkdir()
+        for number in range(5000):  # as a task that installs its dependencies into the world makes
+            (world / f"f{number}.md").write_text("x\n")
+        log = [host.entry("command", command=f"cat f{n}.md f{n + 1}.md | grep -c x " * 20, exit_code=0)
+               for n in range(0, 200, 2)]
+        start = time.monotonic()
+        found = host.named(world, manifest.manifest(world), log)
+        self.assertLess(time.monotonic() - start, 30)
+        self.assertEqual(len(found), 300)
 
+
+@unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class FakeHost(TempCase):
     """The fake host runs in a real jail, so the contract is shown end to end without a model."""
 

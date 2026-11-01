@@ -202,8 +202,9 @@ EDGE = r"""\s'"`;&|<>(){}="""
 
 
 def named(world, before, log):
-    """`log` with an inferred read, after each command, of every world file the command names that no entry of the
-    log has read before it. Whether a command read a file it names is never known, so a check never decides on it
+    """`log` with an inferred read, right after each command, of every world file the command names that no entry of
+    the log has read before it. It stands where its command does, so the grader view drops it with the
+    command. Whether a command read a file it names is never known, so a check never decides on it
     (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read. One rule decides
     what a command names, never how a shell would resolve it: a file of the world before the run (`before`, its
     manifest) or after it is named when its name stands whole in the command, or a word with a wildcard matches its
@@ -222,10 +223,13 @@ def named(world, before, log):
             read.add(os.path.normpath(str(item.get("path"))))
         if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
             continue
-        globs = [w for w in re.split(rf"[{EDGE}]+", item["command"]) if any(c in w for c in "*?[")]
+        words = re.split(rf"[{EDGE}]+", item["command"])
+        globs = [w for w in words if any(c in w for c in "*?[")]
+        ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
         for path in files:
             name = path.rsplit("/", 1)[-1]
-            whole = re.search(rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])
+            whole = name in ends if not re.search(rf"[{EDGE}]", name) else re.search(
+                rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])  # a name with an edge in it
             matched = any(fnmatch.fnmatchcase(path, glob) or fnmatch.fnmatchcase(name, glob.rsplit("/", 1)[-1])
                           for glob in globs)
             if path not in read and (whole or matched):

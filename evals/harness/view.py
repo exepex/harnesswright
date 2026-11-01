@@ -75,8 +75,13 @@ def view(record, blob):
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
     root = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
+    follows = False  # whether the entry follows a dropped command, with only inferred reads between
     for item in record["log"]:
+        if follows and item["kind"] == "read" and item["source"] == "inferred":
+            continue  # an inferred read stands right after the command it came from, and goes with it
+        follows = False
         if on_overlay(item, words):
+            follows = item["kind"] == "command"
             continue
         written = item.get("path")
         item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
