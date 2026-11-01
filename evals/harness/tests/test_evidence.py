@@ -129,7 +129,7 @@ class Bundles(TempCase):
 
     def test_a_bundle_is_stored_once_outside_the_repository_and_read_back_by_hash(self):
         short = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",))
-        with self.assertRaisesRegex(contain.ContainmentError, "cannot be redacted safely"):
+        with self.assertRaisesRegex(contain.ContainmentError, "cannot be redacted reliably"):
             self.run_of([], short, key="a")  # it would damage the evidence, so the run never starts
         record, blobs = self.run_of([{"do": "say", "text": "ok"}])
         with self.assertRaisesRegex(evidence.EvidenceError, "outside the repository"):
