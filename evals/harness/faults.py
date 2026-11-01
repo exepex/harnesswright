@@ -1,17 +1,9 @@
 """Harness faults: the planted faults the harness must catch (doc 11, Harness faults), from one catalogue.
 
-One rule: a fault is planted as its catalogue entry (`evals/faults/harness.json`) says, with the names and places a
-seed chooses, and then the harness's own gate runs on it unchanged: the lint, the audit with its canary scan, or a
-whole run through `host.run` and `evidence.collect`. The fault is caught only when that gate gives the one outcome
-its plant names. Any other outcome, an error included, is a miss, and the round stops. A plant whose outcome is a
-refusal first runs the same gate without the fault, as a control: a gate that refuses the clean case proves
-nothing, so a control that does not pass is a miss too.
-
-The judges run the faults live, with their own seed and a real host; the unit tests run every place of every fault
-against the fake host. Every run is a without-skill run in an opaque folder, and its bundle is stored for the
-judges to read. A fault planted in an operator's home goes in a decoy home (`probes.decoy_home`), never the real
-one. Each entry's `prompt`, where its plant runs a host, may name the skill as `{skill}`; `Setup.prompts` replaces
-it, as the fake host's tests do, given what was planted.
+One rule: a fault is planted as its entry in `evals/faults/harness.json` says, with names and places a seed chooses,
+and the harness's own gate runs on it unchanged. It is caught only when that gate gives the one outcome its plant
+names; any other outcome, an error included, is a miss. Where a host runs, the harness itself checks the fault from
+inside the run's jail, so what the host chose to do never decides it. The README's "Harness faults" says more.
 
 Standard library only.
 """
@@ -63,6 +55,7 @@ class Setup:
         self.prompts, self.host_version, self.timeout, self.repo = prompts or {}, host_version, timeout, repo
         self.containment = containment
         self.bundles = []  # every bundle a fault run stored, for the judges to read
+        self.made = []  # every containment a fault made, whose scrub every reason passes through
         self.root.mkdir(parents=True, exist_ok=True)
 
     def folder(self):
@@ -108,7 +101,7 @@ def run(fault, setup, seed, place=None):
     plant, places, _ = PLANTS[fault["id"]]
     if not getattr(setup.adapter, "CREDENTIAL_FILES", ()):
         places = tuple(p for p in places if p != "credential")  # a host with no credential file has no such place
-    rng, stored = random.Random(seed), len(setup.bundles)
+    rng, stored, made = random.Random(seed), len(setup.bundles), len(setup.made)
     place = place or rng.choice(places)
     if place not in places:
         raise FaultError(f"{fault['id']}: {place!r} is not one of its places {places}")
@@ -118,6 +111,10 @@ def run(fault, setup, seed, place=None):
         reason = str(error)
     except Exception as error:  # an outcome the plant does not name, whatever it is, is a miss
         reason = f"the gate gave another outcome: {type(error).__name__}: {error}"
+    if reason is not None:  # one way out for a reason: any run's words in it may hold a canary or a credential
+        runs = setup.made[made:]
+        quiet = scrub.Scrub([t for c in runs for t in c.tokens], [v for c in runs for v in scrub.credentials(c)])
+        reason = quiet.quiet(reason)
     return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason,
             "bundles": setup.bundles[stored:]}
 
@@ -140,6 +137,7 @@ def _contained(setup, case, tokens=(), folder=None, **options):
     options["tokens"] = [*options.get("tokens", ()), *tokens]
     contained = contain.Containment(setup.adapter, case.kind, base.path, manifest.manifest(base.path),
                                     root=folder / "run", **options)
+    setup.made.append(contained)
     return contained, [install.name for install in base.installs]
 
 
@@ -150,9 +148,8 @@ def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     contained, installed = _contained(setup, case, tokens, folder, **options)
     result = host.run(contained, setup.prompt(fault, planted), skills=installed, model=setup.model,
                       timeout=setup.timeout)
-    if result.failure:  # a host that did not run never met the fault; what it said is the run's, so it is scrubbed
-        quiet = scrub.Scrub.of_run(contained).quiet(str(result.failure))
-        raise Missed(f"the host failed, so the fault was never met: {quiet}")
+    if result.failure:  # a host that did not run never met the fault
+        raise Missed(f"the host failed, so the fault was never met: {result.failure}")
     layer = evidence.overlay(case, setup.adapter, setup.skills_root, setup.skill_dir)
     record, blobs = evidence.collect(contained, result, case, "without_skill", layer, setup.drift,
                                      setup.host_version, setup.model)
@@ -179,12 +176,16 @@ print(json.dumps(seen))
 """
 
 
-def seen(contained, paths):
-    """The `paths` the jail of `contained`, with its host's mounts, lets a program find: decided by the harness,
-    whatever the host chose to do."""
-    command = contained.jail([contain.PYTHON, "-I", "-c", SEEN], program=contained.adapter.CLI)
+# Run the same way: it prints the environment the jail gives a program.
+ENVIRONMENT = "import json, os\nprint(json.dumps(dict(os.environ)))\n"
+
+
+def jailed(contained, program, data=None):
+    """What `program`, a Python text the harness runs in the jail of `contained` with its host's mounts and
+    environment, prints as JSON: decided by the harness, whatever the host chose to do."""
+    command = contained.jail([contain.PYTHON, "-I", "-c", program], program=contained.adapter.CLI)
     with contained.gate():
-        done = subprocess.run(command, input=json.dumps(paths), capture_output=True, text=True, env=contained.env,
+        done = subprocess.run(command, input=json.dumps(data), capture_output=True, text=True, env=contained.env,
                               timeout=120)
     try:
         return json.loads(done.stdout)
@@ -212,14 +213,16 @@ def outside(setup, fault, rng, place):
         planted = contain.plant_canaries([target])
         token = contain.new_token()
         copy = target / rng.choice(["skills", ".agents", "share"]) / setup.case.skill
-        shutil.copytree(setup.skill_dir, copy)
+        for relative, data in skills.skill_files(setup.skill_dir, setup.case.skill)[0].items():  # tracked files
+            (copy / relative).parent.mkdir(parents=True, exist_ok=True)
+            (copy / relative).write_bytes(data)
         (copy / "SKILL.md").write_text((copy / "SKILL.md").read_text() + f"\n{token}\n")
         planted[token] = str(copy / "SKILL.md")
         paths = sorted(planted.values()) + [str(target), str(copy)]
         _, contained = _run(setup, fault, setup.case, {"paths": sorted(planted.values()),
                                                        "folders": [str(target), str(copy)]},
                             tokens=list(planted), **options)
-        found = seen(contained, paths)
+        found = jailed(contained, SEEN, paths)
     finally:
         if place in ("machine", "repository"):
             shutil.rmtree(target, ignore_errors=True)
@@ -263,9 +266,10 @@ def inside(setup, fault, rng, place):
 
 def environment(setup, fault, rng, place):
     """Session, memory and credential values in the operator's environment: names from the entry the adapter does
-    not pass by design, chosen by the seed, each with a fresh value. Caught when none of them is in the run's
-    environment, and neither their values nor any credential the adapter passes on (its ENV_KEYS) is anywhere in
-    the run's bundle."""
+    not pass by design, chosen by the seed, each with a fresh value. The harness itself dumps the environment from
+    inside the run's jail, so the result never rests on what the host chose to print. Caught when the dump holds
+    none of the planted names, the run's scrub removes every planted value and credential from that dump, and the
+    run's bundle holds none of them either."""
     passed = HOST_KEYS | set(getattr(setup.adapter, "ENV_KEYS", ()))
     names = sorted(n for n in fault["names"] if n not in passed)
     chosen = rng.sample(names, min(3, len(names)))
@@ -273,11 +277,13 @@ def environment(setup, fault, rng, place):
     given = setup.containment.get("operator_env")
     env = {**(os.environ if given is None else given), **decoys}  # as `contain.Containment` reads it
     out, contained = _run(setup, fault, setup.case, {"names": chosen}, operator_env=env)
-    leaked = sorted(set(chosen) & set(contained.env))
+    dump = jailed(contained, ENVIRONMENT)
+    leaked = sorted(set(chosen) & set(dump))
     if leaked:
         return f"the run's environment holds {leaked}"
     values = [*decoys.values(), *scrub.credentials(contained)]  # a base URL is passed on and is no secret
-    stored = [(out / "bundle.json").read_bytes(), *(path.read_bytes() for path in (out / "blobs").iterdir())]
+    scrubbed = scrub.Scrub.of_run(contained).text(json.dumps(dump)).encode()
+    stored = [scrubbed, (out / "bundle.json").read_bytes(), *(p.read_bytes() for p in (out / "blobs").iterdir())]
     if any(value.encode() in data for value in values for data in stored):
         return "a planted value or a credential reached the bundle"
     return None
@@ -331,10 +337,16 @@ def names(setup, fault, rng, place):
     elif what == "path":
         text = f"See {setup.case.skill_rel} first."
     else:
+        # A run of the skill's text that is its own, after the project text the lint excuses (its upstream source
+        # and the standard licences), as the lint finds it.
+        repo = Path(setup.repo)
+        project = lint.texts(repo / "evals" / "skills" / skill / "upstream") + lint.texts(repo.joinpath(*lint.LICENCES))
         files, _ = skills.skill_files(setup.skill_dir, skill)
-        said = files["SKILL.md"].decode().split("\n---\n", 1)[-1].split()
-        start = rng.randrange(max(1, len(said) - lint.RUN))
-        text = " ".join(said[start:start + lint.RUN])
+        own = sorted(lint.all_runs([d.decode("utf-8", "replace") for d in files.values()], {lint.RUN})
+                     - lint.all_runs(project, {lint.RUN}))
+        if not own:
+            raise Missed("the skill has no text of its own for the lint to protect, so no fingerprint can be planted")
+        text = rng.choice(own)
     rule = "of the skill's own text" if what == "fingerprint" else "names the skill"
     return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
 

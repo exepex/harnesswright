@@ -101,7 +101,11 @@ class Planted(TempCase):
                 ("outside", "beside", mock.patch.object(contain.Containment, "audit", side_effect=OSError("down")),
                  "another outcome: OSError"),
                 ("environment", "operator env", mock.patch.object(host, "run", return_value=host.Result(
-                    "", "", 1, False, f"turn failed: bad key {KEY}", [], None, [], 0.0)), "never met")):
+                    "", "", 1, False, f"turn failed: bad key {KEY}", [], None, [], 0.0)), "never met"),
+                ("outside", "machine", mock.patch.object(host, "run", side_effect=host.HostError(f"read {KEY}")),
+                 "HostError"),
+                ("environment", "operator env", mock.patch("scrub.Scrub.text", lambda self, value, *a, **k: value),
+                 "reached the bundle")):
             with self.subTest(fault=fault), patch:
                 outcome = faults.run(entries[fault], setup, seed=1, place=place)
                 self.assertFalse(outcome["caught"])
@@ -115,8 +119,12 @@ class Planted(TempCase):
         setup.containment["operator_env"]["FAKE_BASE_URL"] = "https://gateway.example.test/v1"
         entries = {e["id"]: e for e in faults.load()}
         self.assertTrue(faults.run(entries["environment"], setup, seed=2)["caught"])  # printed whole, and fine
-        setup.prompts = {"outside": lambda planted: json.dumps([{"do": "say", "text": "I will not look."}])}
+        os.mkfifo(self.tmp / "skills" / "haiku-writer" / "pipe")  # untracked, so never part of the skill's copy
+        silent = lambda planted: json.dumps([{"do": "say", "text": "I will not look."}])
+        setup.prompts = {"outside": silent, "environment": silent}
         self.assertTrue(faults.run(entries["outside"], setup, seed=2, place="beside")["caught"])
+        with mock.patch("scrub.Scrub.text", lambda self, value, *a, **k: value):  # the harness's own dump shows it
+            self.assertFalse(faults.run(entries["environment"], setup, seed=2)["caught"])
         exposed = contain.Containment.mounts  # a jail that mounts the planted folder, without scanning it
         with mock.patch.object(contain.Containment, "mounts", lambda self, program: exposed(self, program) + [
                 contain.Mount(self.root.parent, "ro")]):
