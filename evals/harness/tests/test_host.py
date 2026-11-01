@@ -69,16 +69,23 @@ class Named(TempCase):
     def test_each_world_file_a_command_names_is_an_inferred_read_once(self):
         world = (self.tmp / "world").resolve()
         (world / "docs").mkdir(parents=True)
-        for name in ("a.md", "docs/b.md", "c d.md"):
+        (world / "src").mkdir()
+        for name in ("a.md", "docs/b.md", "docs/a.md", "c d.md", "a+b.md", "kept.md", "notes[1].md", "src/x.py"):
             (world / name).write_text("x\n")
-        (world / "link.md").symlink_to("a.md")
-        (self.tmp / "outside.md").write_text("x\n")
-        command = (f"sed -n p a.md|grep x {world}/docs/b.md>out; awk 1 'c d.md' && ls link.md ../outside.md "
-                   "missing.md docs")
-        log = [host.entry("read", path="docs/b.md"), host.entry("command", command=command, exit_code=0),
-               host.entry("command", command="cat a.md 'unclosed", exit_code=0)]
-        self.assertEqual(host.named(world, log), [log[0], log[1], host.entry("read", "inferred", path="a.md"),
-                                                  host.entry("read", "inferred", path="c d.md"), log[2]])
+        before = manifest.manifest(world)
+        (world / "a+b.md").unlink()  # a file the run removed was still named
+        (world / "new.md").write_text("x\n")  # and so is one it made
+        (world / "out").symlink_to(self.tmp)  # a link, even to a folder holding files, is no file
+        (self.tmp / "secret.txt").write_text("x\n")
+        log = [host.entry("read", path="./kept.md"),
+               host.entry("command", command="cd docs && cat a.md|grep x 'c d.md'>out; rm a+b.md", exit_code=0),
+               host.entry("command", command=f"cat {world}/kept.md new.md bdocs/b.mdx a.md.bak ls", exit_code=0),
+               host.entry("command", command="head notes[1].md src/*.py out/secret.txt", exit_code=0),
+               host.entry("read", path="notes[1].md")]  # read later, so the command's own read still counts
+        inferred = lambda path: host.entry("read", "inferred", path=path)
+        self.assertEqual(host.named(world, before, log), [
+            log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
+            inferred("new.md"), log[3], inferred("notes[1].md"), inferred("src/x.py"), log[4]])  # cd is never followed
 
 
 class FakeHost(TempCase):

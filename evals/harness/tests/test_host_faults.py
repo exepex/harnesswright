@@ -103,7 +103,7 @@ class Missed(Fake):
             e for e in base.action_log(stdout, home) if e["kind"] != "read"])
         for place in host_faults.PLANTS["inferred"][1]:  # the harness itself infers a read of each file it names
             self.assertTrue(faults.run(entry("inferred"), setup, 2, place)["caught"])
-        with mock.patch.object(host, "named", lambda world, log: log):  # a harness that does not
+        with mock.patch.object(host, "named", lambda world, before, log: log):  # a harness that does not
             outcome = faults.run(entry("inferred"), setup, 2, "unusual read")
         self.assertIn("shows no read of the file", outcome["reason"])
 

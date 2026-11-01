@@ -11,13 +11,14 @@ command names becomes an inferred read (`named`), whatever the adapter reported.
 Standard library only.
 """
 
+import fnmatch
 import hashlib
 import os
 import re
-import shlex
 import subprocess
 import time
 
+import manifest
 import powers
 
 # The names every harness adapter defines, with what each must be.
@@ -163,7 +164,7 @@ def run(contained, prompt, skills, model=None, timeout=900):
         seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
     log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
-    log = named(contained.world, [item for item in log if item is not None])
+    log = named(contained.world, contained.world_entries, [item for item in log if item is not None])
     check_log(log, skills)
     exposure = adapter.exposure(stdout, contained.home)
     if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
@@ -196,26 +197,39 @@ def settle(item, contained):
     return item
 
 
-def named(world, log):
-    """`log` with an inferred read after each command of every file in `world` that the command names and no entry
-    of the log reads already. Whether a command read a file it names is never known, so a check never decides on it
-    (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read."""
-    found, read = [], {item.get("path") for item in log if isinstance(item, dict) and item.get("kind") == "read"}
+# Where a file's name ends and starts in a command: at its edge, a space, a quote, a shell operator or a bracket.
+EDGE = r"""\s'"`;&|<>(){}="""
+
+
+def named(world, before, log):
+    """`log` with an inferred read, after each command, of every world file the command names that no entry of the
+    log has read before it. Whether a command read a file it names is never known, so a check never decides on it
+    (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read. One rule decides
+    what a command names, never how a shell would resolve it: a file of the world before the run (`before`, its manifest)
+    or after it is named when its name stands whole in the command, or a word with a wildcard matches its name or
+    path. Two files of one name are both named. A link is no file, and a folder named alone names none of its files."""
+    try:
+        after = manifest.manifest(world, skip=(".git",), other=True)
+    except manifest.Unreadable:  # the bundle reports a world it cannot read; the files before still count
+        after = {}
+    files = sorted({p for entries in (before, after) for p, e in entries.items()
+                    if manifest.is_file(e) and p.split("/")[0] != ".git"})
+    found, read = [], set()  # what the log has read so far, in its order
     for item in log:
         found.append(item)
+        if isinstance(item, dict) and item.get("kind") == "read":
+            read.add(os.path.normpath(str(item.get("path"))))
         if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
             continue
-        try:
-            words = list(shlex.shlex(item["command"], posix=True, punctuation_chars=True))
-        except ValueError:
-            continue
-        for word in words:
-            path = os.path.normpath(os.path.join(world, word))
-            if (path + "/").startswith(str(world) + "/") and os.path.isfile(path) and not os.path.islink(path):
-                relative = os.path.relpath(path, world)
-                if relative not in read:
-                    read.add(relative)
-                    found.append(entry("read", "inferred", path=relative))
+        globs = [w for w in re.split(rf"[{EDGE}]+", item["command"]) if any(c in w for c in "*?[")]
+        for path in files:
+            name = path.rsplit("/", 1)[-1]
+            whole = re.search(rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])
+            matched = any(fnmatch.fnmatchcase(path, glob) or fnmatch.fnmatchcase(name, glob.rsplit("/", 1)[-1])
+                          for glob in globs)
+            if path not in read and (whole or matched):
+                read.add(path)
+                found.append(entry("read", "inferred", path=path))
     return found
 
 
