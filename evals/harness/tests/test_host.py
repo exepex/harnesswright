@@ -45,9 +45,9 @@ class Contract(unittest.TestCase):
                 host.entry("blocked", action="shell: rm", reason="denied"), host.entry("skill", name="s"),
                 host.entry("agent", task="judge"), host.entry("message", text="done")]
         host.check_log(good)
-        self.assertEqual(len(good[4]["output"]), host.OUTPUT_LIMIT)
+        self.assertEqual(len(good[4]["output"]), 9000)  # whole: only the bundle cuts it, after the scrub
         for bad in ({"kind": "web", "source": "observed"}, {**good[0], "extra": 1}, {**good[0], "source": "guessed"},
-                    {**good[2], "sha256": "abc"}, {**good[4], "exit_code": True}, {**good[4], "output": "x" * 4001},
+                    {**good[2], "sha256": "abc"}, {**good[4], "exit_code": True},
                     {"kind": "read", "source": "observed"}, "read a", {"kind": ["read"], "source": "observed"}):
             with self.subTest(bad=bad), self.assertRaises(host.HostError):
                 host.check_log([bad])

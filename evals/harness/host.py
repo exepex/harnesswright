@@ -14,6 +14,7 @@ import hashlib
 import os
 import re
 import subprocess
+import time
 
 import powers
 
@@ -43,7 +44,7 @@ CONTRACT = {
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
 }
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
-OUTPUT_LIMIT = 4000  # characters of a command's output the log keeps
+OUTPUT_LIMIT = 4000  # characters of a command's output a bundle keeps, cut only after the scrub (evidence.py)
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # Each kind of entry, with every field it holds besides `kind` and `source`, and the one shape each field takes.
 ENTRIES = {
@@ -62,9 +63,10 @@ class HostError(RuntimeError):
 
 
 def entry(kind, source="observed", **fields):
-    """One action log entry. A command's output is cut to OUTPUT_LIMIT characters."""
+    """One action log entry. A command's output is kept whole: only the bundle cuts it, after the scrub has seen it
+    whole, so a credential is never cut in two before it is redacted."""
     if kind == "command":
-        fields["output"] = fields.get("output", "")[:OUTPUT_LIMIT]
+        fields.setdefault("output", "")
     return {"kind": kind, "source": source, **fields}
 
 
@@ -108,8 +110,6 @@ def check_log(entries, skills=None):
                 wrong.append(f"entry {number} ({item['kind']}): {name} is not a {shape}")
         if item["kind"] == "write" and item["sha256"] is not None and not SHA256.fullmatch(item["sha256"]):
             wrong.append(f"entry {number} (write): sha256 is not a hash")
-        if item["kind"] == "command" and len(item["output"]) > OUTPUT_LIMIT:
-            wrong.append(f"entry {number} (command): output longer than {OUTPUT_LIMIT}")
         if item["kind"] == "skill" and skills is not None and item["name"] not in skills:
             wrong.append(f"entry {number}: skill {item['name']} was loaded but the case does not declare it")
     if wrong:
@@ -130,11 +130,13 @@ def check_exposure(adapter, exposure, skills):
 
 
 class Result:
-    """One host run: what it printed, how it ended, its checked action log and exposure, and the gate's log."""
+    """One host run: what it printed, how it ended, its checked action log and exposure, the gate's log, and how many
+    seconds the host ran."""
 
-    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests):
+    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests, seconds):
         self.stdout, self.stderr, self.returncode, self.timed_out = stdout, stderr, returncode, timed_out
         self.failure, self.log, self.exposure, self.requests = failure, log, exposure, requests
+        self.seconds = seconds
 
 
 def run(contained, prompt, skills, model=None, timeout=900):
@@ -146,12 +148,14 @@ def run(contained, prompt, skills, model=None, timeout=900):
     command = contained.jail(adapter.jail_command(contained.mode, contained.world, model), program=adapter.CLI)
     contained.audit(adapter.CLI)  # the jail is checked against its list before the host starts
     with contained.gate() as gate:
+        started = time.monotonic()
         try:
             done = subprocess.run(command, input=prompt, capture_output=True, text=True, env=contained.env,
                                   timeout=timeout)
             stdout, stderr, returncode, timed_out = done.stdout, done.stderr, done.returncode, False
         except subprocess.TimeoutExpired as expired:
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
+        seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
     log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
     log = [item for item in log if item is not None]
@@ -161,7 +165,7 @@ def run(contained, prompt, skills, model=None, timeout=900):
         raise HostError("exposure: the host did not report the skills and tools it exposed")
     if exposure is not None:
         check_exposure(adapter, exposure, skills)
-    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log))
+    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds)
 
 
 def settle(item, contained):

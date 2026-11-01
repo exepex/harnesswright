@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 
 import gate
 import manifest
+import scrub
 from cases import REPO
 
 BWRAP = "bwrap"
@@ -116,6 +117,10 @@ class Containment:
         if probe:
             self.probe_out.mkdir()
         self.env = self._environment()
+        try:
+            scrub.credentials(self)  # each one must be redactable before the run starts
+        except scrub.UnsafeCredential as error:
+            raise ContainmentError(str(error)) from None
 
     def _hosts(self):
         """The gate's allow list: the adapter's MODEL_HOSTS, and the host of every URL the adapter's ENV_KEYS pass

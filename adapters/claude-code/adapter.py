@@ -259,7 +259,7 @@ def _tool_entries(name, tool_input, result):
     if name == "Bash":
         code = EXIT_CODE.match(text) if failed else None  # only an error result starts with its exit code
         return [{"kind": "command", "source": "observed", "command": str(tool_input.get("command", "")),
-                 "exit_code": int(code.group(1)) if code else (None if failed else 0), "output": text[:4000]}]
+                 "exit_code": int(code.group(1)) if code else (None if failed else 0), "output": text}]
     if name == "Skill":
         return [{"kind": "skill", "source": "observed", "name": str(tool_input.get("skill", "")).split(":")[-1]}]
     if name == "Task":

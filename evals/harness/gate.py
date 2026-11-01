@@ -139,7 +139,7 @@ class Gate:
                 pass
         status = 403 if not ok else 502 if remote is None else 200
         with self._lock:
-            self.log.append({"request": request[:200], "status": status})
+            self.log.append({"request": request, "status": status})  # cut only after the scrub
         if remote is None:
             reason = {403: b"Forbidden", 502: b"Bad Gateway"}[status]
             client.sendall(b"HTTP/1.1 %d %s\r\nContent-Length: 0\r\n\r\n" % (status, reason))
