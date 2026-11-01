@@ -5,8 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table, the host contract, with a fake host, the probes, and the scrub**. The evidence bundle and the
-measuring kit come next.
+the power table, the host contract, with a fake host, the probes, the scrub and the evidence bundle**. The grader
+view and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -27,6 +27,7 @@ allowed connections.
 | `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
+| `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
 
 ## Commands
 
@@ -266,3 +267,13 @@ password), and a credential file's strings of at least 8 characters. A named cre
 be redacted without damaging the evidence, so the containment refuses the run. The scrub runs only on what the run
 made, never on what the harness made, such as hashes and field names (`Scrub.value` keeps keys, `Scrub.names`
 scrubs keys the run chose). A reason the harness reports never repeats a token or credential (`Scrub.quiet`).
+
+## Evidence
+
+`evidence.collect` turns one run into a bundle, after the run, through the run's scrub. It reads the world after
+the run once into a manifest (a pipe or socket the agent made is an `other` entry), and stores each file as a blob
+named by the hash of its scrubbed bytes, so no name the run chose touches the disk and nothing in a bundle is a link.
+The world diff against the proved arm leaves out the host's own files (those paths only) and both copies of the
+skill with the folders above them, the same in both arms. The bundle cuts command output and request lines only
+after the scrub. `evidence.store` writes a new folder outside the repository, and `evidence.load` reads it back,
+refusing missing, extra or changed blobs. The module docstring gives each rule in full.
