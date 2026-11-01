@@ -3,6 +3,7 @@ gate that misses one is reported as a miss."""
 
 import json
 import os
+import shlex
 import shutil
 import tempfile
 import unittest
@@ -23,13 +24,19 @@ PROMPTS = {
         {"do": "say", "text": "done"}]),
     "environment": lambda planted: json.dumps([{"do": "command", "command": "env; env > seen.txt"},
                                                {"do": "say", "text": "done"}]),
+    "memory": lambda planted: json.dumps([{"do": "command", "command": "cat " + shlex.join(planted["paths"])},
+                                          {"do": "say", "text": "done"}]),
+    "not run": lambda out: json.dumps([{"do": "write", "path": f"{out}/sign-in.txt", "text": "ready"},
+                                       {"do": "say", "text": "done"}]),
+    "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},
+                                            {"do": "say", "text": "done"}]),
 }
 
 
 class Catalogue(unittest.TestCase):
     def test_the_catalogue_names_each_plant_once_with_the_fields_it_needs(self):
         entries = faults.load()
-        self.assertEqual(sorted(e["id"] for e in entries), sorted(faults.PLANTS))
+        self.assertEqual(sorted(e["id"] for e in entries), sorted(faults.plants()))
         good = {"faults": entries}
         for broken, reason in (({"faults": entries[1:]}, "not exactly the plants"),
                                ({"faults": [{**entries[0], "extra": 1}] + entries[1:]}, "not allowed"),
@@ -48,9 +55,8 @@ class Catalogue(unittest.TestCase):
         return handle.name
 
 
-@unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
-class Planted(TempCase):
-    """The fake host in a real jail, with a decoy operator home that holds its credential file."""
+class Fake(TempCase):
+    """The fake host in a real jail, signing in with a key or a credential file in a decoy operator home."""
 
     def setup_of(self, adapter=None, data=None):
         tool = self.tmp / "tool"
@@ -60,21 +66,26 @@ class Planted(TempCase):
         operator.mkdir(parents=True)
         (operator / "creds.json").write_text(json.dumps({"refresh": "refresh-0123456789abcdef"}))
         case = self.case({"README.md": "A notes app.\n", "docs/usage.md": "Open the app and write a note.\n"}, data)
-        adapter = adapter or changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",))
+        base = fake_adapter()
+        adapter = adapter or changed(base, ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",),
+                                     jail_command=lambda *args: base.jail_command(*args) + ["--sign-in"])
         drift = {"own files": {"task": ["world/.fake-state", "home/.fake/log"], "trigger": ["home/.fake/log"]}}
         return faults.Setup(adapter, case, self.tmp / "skills", self.tmp / "faults", drift, prompts=PROMPTS,
                             operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY},
                             operator_home=self.tmp / "operator", host_paths=[tool])
 
+
+@unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
+class Planted(Fake):
     def test_every_place_of_every_fault_is_caught(self):
         setup = self.setup_of()
         for fault in faults.load():
-            for place in faults.PLANTS[fault["id"]][1]:
+            for place in faults.plants()[fault["id"]][1]:
                 with self.subTest(fault=fault["id"], place=place):
                     outcome = faults.run(fault, setup, seed=7, place=place)
                     bundles = outcome.pop("bundles")
                     self.assertEqual(outcome, {"id": fault["id"], "place": place, "caught": True, "reason": None})
-                    self.assertEqual(len(bundles), 1 if faults.PLANTS[fault["id"]][2] else 0)
+                    self.assertEqual(len(bundles), 1 if faults.plants()[fault["id"]][2] else 0)
         self.assertEqual(sorted(p.name for p in faults.REPO.glob(".hw-fault-*")), [])  # the plant is removed
 
     def test_the_seed_chooses_the_place_and_a_place_must_be_the_plant_s(self):

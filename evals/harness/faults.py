@@ -1,9 +1,8 @@
 """Harness faults: the planted faults the harness must catch (doc 11, Harness faults), from one catalogue.
 
-One rule: a fault is planted as its entry in `evals/faults/harness.json` says, with names and places a seed chooses,
-and the harness's own gate runs on it unchanged. It is caught only when that gate gives the one outcome its plant
-names; any other outcome, an error included, is a miss. Where a host runs, the harness itself checks the fault from
-inside the run's jail, so what the host chose to do never decides it. The README's "Harness faults" says more.
+One rule: a fault is planted as its entry in `evals/faults/harness.json` says, at a place a seed chooses, and the
+harness's own gate runs on it unchanged. It is caught only when that gate gives the one outcome its plant names; any
+other outcome, an error included, is a miss. The harness, never the host, decides it (README, "Harness faults").
 
 Standard library only.
 """
@@ -45,8 +44,8 @@ class Missed(RuntimeError):
 
 class Setup:
     """What faults run against: a host's `adapter`, a clean `case` of the skill in `skill_dir`, the folder `root`
-    (outside the repository) where plants, runs and bundles go, the host's tools and drift record (`probes.drift`),
-    and `containment`, passed to `contain.Containment` (the operator's environment, home and host paths)."""
+    (outside the repository) for plants, runs and bundles, the drift record (`probes.drift`), the `prompts` that
+    replace the entries' own (fault id: function of what was planted) and options for `contain.Containment`."""
 
     def __init__(self, adapter, case, skills_root, root, drift, skill_dir=None, prompts=None, model=None,
                  host_version="unknown", timeout=900, repo=REPO, **containment):
@@ -64,9 +63,13 @@ class Setup:
         return Path(tempfile.mkdtemp(prefix="f-", dir=self.root))
 
     def prompt(self, fault, planted):
+        """The prompt of `fault`'s run: its entry's, with `{skill}` and each text the plant chose filled in."""
         if fault["id"] in self.prompts:
             return self.prompts[fault["id"]](planted)
-        return fault["prompt"].replace("{skill}", self.case.skill)
+        text = fault["prompt"].replace("{skill}", self.case.skill)
+        for key, value in planted.items():
+            text = text.replace(f"{{{key}}}", value) if isinstance(value, str) else text
+        return text
 
 
 def load(path=CATALOGUE):
@@ -85,11 +88,11 @@ def load(path=CATALOGUE):
         missing = sorted({"id", "row"} - set(entry))
         if wrong or missing:
             problems.append(f"entry {number}: fields {wrong} are not allowed or not of their shape, {missing} missing")
-        elif entry["id"] in PLANTS and PLANTS[entry["id"]][2] and "prompt" not in entry:
+        elif entry["id"] in plants() and plants()[entry["id"]][2] and "prompt" not in entry:
             problems.append(f"{entry['id']}: its plant runs a host, so it needs a prompt")
     ids = [e.get("id") for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
-    if sorted(ids) != sorted(PLANTS):
-        problems.append(f"the ids {sorted(ids)} are not exactly the plants {sorted(PLANTS)}")
+    if sorted(ids) != sorted(plants()):
+        problems.append(f"the ids {sorted(ids)} are not exactly the plants {sorted(plants())}")
     if problems:
         raise FaultError(f"{path}: " + "; ".join(problems))
     return entries
@@ -99,9 +102,10 @@ def run(fault, setup, seed, place=None):
     """Plant `fault` (a catalogue entry) at `place`, one of its plant's places, or at the one `seed` chooses, and
     run its gate. Return {"id", "place", "caught", "reason", "bundles"}: `reason` says why it was missed, and
     `bundles` are the folders of the runs' stored bundles, from which the judges decide each was caught."""
-    plant, places, _ = PLANTS[fault["id"]]
-    if not getattr(setup.adapter, "CREDENTIAL_FILES", ()):
-        places = tuple(p for p in places if p != "credential")  # a host with no credential file has no such place
+    plant, places, _ = plants()[fault["id"]]
+    files = getattr(setup.adapter, "CREDENTIAL_FILES", ())
+    has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ())}
+    places = tuple(p for p in places if has.get(p, True))  # a host has no place for a sign-in it does not use
     rng, stored, made = random.Random(seed), len(setup.bundles), len(setup.made)
     place = place or rng.choice(places)
     if place not in places:
@@ -123,8 +127,7 @@ def run(fault, setup, seed, place=None):
             "bundles": setup.bundles[stored:]}
 
 
-def _copy(setup):
-    """A copy of the setup's case in a new folder, to plant in. Return (the copy's folder, its case.json data)."""
+def _copy(setup):  # a copy of the case to plant in: (its folder, its case.json data)
     folder = setup.folder() / "cases" / setup.case.id
     shutil.copytree(setup.case.folder, folder, symlinks=True)
     return folder, json.loads((folder / "case.json").read_text())
@@ -162,7 +165,7 @@ def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     return out, contained
 
 
-def _decoy(setup, folder):
+def _decoy(setup, folder):  # a decoy operator home, holding copies of the operator's credential files only
     return probes.decoy_home(setup.adapter, folder, setup.containment.get("operator_home"))
 
 
@@ -179,9 +182,7 @@ for path in json.load(sys.stdin):
 print(json.dumps(seen))
 """
 
-
-# Run the same way: it prints the environment the jail gives a program.
-ENVIRONMENT = "import json, os\nprint(json.dumps(dict(os.environ)))\n"
+ENVIRONMENT = "import json, os\nprint(json.dumps(dict(os.environ)))\n"  # run the same way: the jail's environment
 
 
 def jailed(contained, program, data=None):
@@ -198,11 +199,10 @@ def jailed(contained, program, data=None):
 
 
 def outside(setup, fault, rng, place):
-    """A canary file and a copy of the skill holding a canary, at a place outside the run: beside its world, in a
-    decoy operator home, in another run's folder, in the machine's temporary folder or in the repository checkout.
-    One rule decides it: the harness looks for every planted path from inside the run's own jail and finds none.
-    The run itself must also pass its audit, end without failing, and keep every canary out of its output (one
-    that reaches it raises `scrub.Leak`). What the host chose to look at never decides it."""
+    """A canary file and a copy of the skill holding a canary, outside the run: beside its world, in a decoy
+    operator home, in another run's folder, in the machine's temporary folder or in the repository. Caught when the
+    harness, from inside the run's jail, finds no planted path, and the run passes its audit, ends without failing
+    and keeps every canary out of its output (one that reaches it raises `scrub.Leak`)."""
     folder = setup.folder()  # the run's own folder: its world is built in it, at `a`
     options = {"folder": folder}
     if place == "operator":
@@ -222,11 +222,9 @@ def outside(setup, fault, rng, place):
             (copy / relative).write_bytes(data)
         (copy / "SKILL.md").write_text((copy / "SKILL.md").read_text() + f"\n{token}\n")
         planted[token] = str(copy / "SKILL.md")
-        paths = sorted(planted.values()) + [str(target), str(copy)]
-        _, contained = _run(setup, fault, setup.case, {"paths": sorted(planted.values()),
-                                                       "folders": [str(target), str(copy)]},
-                            tokens=list(planted), **options)
-        found = jailed(contained, SEEN, paths)
+        shown = {"paths": sorted(planted.values()), "folders": [str(target), str(copy)]}
+        _, contained = _run(setup, fault, setup.case, shown, tokens=list(planted), **options)
+        found = jailed(contained, SEEN, shown["paths"] + shown["folders"])
     finally:
         if place in ("machine", "repository"):
             shutil.rmtree(target, ignore_errors=True)
@@ -234,8 +232,8 @@ def outside(setup, fault, rng, place):
 
 
 def inside(setup, fault, rng, place):
-    """A canary in a place the run sees: its world, a host path the operator names, or a credential file copied
-    from a decoy home. Caught when the audit refuses the run for it, and passes the same run without it."""
+    """A canary in its world, a host path the operator names or a credential file copied from a decoy home: places
+    the run sees. Caught when the audit refuses the run for it, and passes the same run without it."""
     options, token = {}, contain.new_token()
     if place == "credential":
         names = list(setup.adapter.CREDENTIAL_FILES)
@@ -270,10 +268,9 @@ def inside(setup, fault, rng, place):
 
 def environment(setup, fault, rng, place):
     """Session, memory and credential values in the operator's environment: names from the entry the adapter does
-    not pass by design, chosen by the seed, each with a fresh value. The harness itself dumps the environment from
-    inside the run's jail, so the result never rests on what the host chose to print. Caught when the dump holds
-    none of the planted names, the run's scrub removes every planted value and credential from that dump, and the
-    run's bundle holds none of them either."""
+    not pass by design, chosen by the seed, each with a fresh value. Caught when the environment the harness dumps
+    from inside the run's jail holds none of the names, and neither its scrubbed dump nor the run's bundle holds a
+    planted value or a credential."""
     passed = HOST_KEYS | set(getattr(setup.adapter, "ENV_KEYS", ()))
     names = sorted(n for n in fault["names"] if n not in passed)
     chosen = rng.sample(names, min(3, len(names)))
@@ -349,8 +346,7 @@ def names(setup, fault, rng, place):
     elif what == "path":
         text = f"See {setup.case.skill_rel} first."
     else:
-        # A run of the skill's text that is its own, after the project text the lint excuses (its upstream source
-        # and the standard licences), as the lint finds it.
+        # A run of the skill's own text, after what the lint excuses (its upstream source and the licences).
         repo = Path(setup.repo)
         project = lint.texts(repo / "evals" / "skills" / skill / "upstream") + lint.texts(repo.joinpath(*lint.LICENCES))
         files, _ = skills.skill_files(setup.skill_dir, skill)
@@ -386,8 +382,14 @@ def tells(setup, fault, rng, place):
     return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
 
 
+def plants():
+    """Every plant, by id: this module's and the host faults' (`host_faults.py`, which uses this module)."""
+    import host_faults
+    return {**PLANTS, **host_faults.PLANTS}
+
+
 SPOTS = ("file", "existing", "prompt")
-# Each plant: its function, its places, and whether it runs a host (and so needs a prompt).
+# Each plant: its function, its places, and whether it runs a case on a host (so needs a prompt, and stores a bundle).
 PLANTS = {
     "outside": (outside, ("beside", "operator", "other run", "machine", "repository"), True),
     "inside": (inside, ("world", "host path", "credential"), False),

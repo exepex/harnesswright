@@ -182,6 +182,9 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **con
     """Run probe `name` in `mode` under `root`, up to its number of tries. Return why it failed, or None. `prompt`
     (given the probe-output folder) replaces the probe's own, as the fake host's tests do; `containment` is passed to
     `contain.Containment` (the operator's environment, home and host paths)."""
+    missing = contain.available()
+    if missing:  # no run can be contained on this machine, so the host gets none
+        return f"{name} probe, {mode} run: no containment: {missing}"
     reason = None
     for attempt in range(TRIES.get(name, 1)):
         # The memory token is a canary, so the audit also refuses a jail that can see a decoy.
