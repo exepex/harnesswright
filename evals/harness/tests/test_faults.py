@@ -72,7 +72,10 @@ class Planted(TempCase):
             for place in faults.PLANTS[fault["id"]][1]:
                 with self.subTest(fault=fault["id"], place=place):
                     outcome = faults.run(fault, setup, seed=7, place=place)
+                    bundles = outcome.pop("bundles")
                     self.assertEqual(outcome, {"id": fault["id"], "place": place, "caught": True, "reason": None})
+                    self.assertEqual(len(bundles), 1 if faults.PLANTS[fault["id"]][2] else 0)
+        self.assertEqual(sorted(p.name for p in faults.REPO.glob(".hw-fault-*")), [])  # the plant is removed
 
     def test_the_seed_chooses_the_place_and_a_place_must_be_the_plant_s(self):
         setup = self.setup_of(fake_adapter())  # no credential file, so it has no credential place
@@ -90,6 +93,8 @@ class Planted(TempCase):
         passes = lambda self: {**built(self), **{k: v for k, v in self.operator_env.items() if k.isupper()}}
         for fault, place, patch, reason in (
                 ("names", "prompt/name", mock.patch.object(lint, "lint", return_value=[]), "did not refuse"),
+                ("tells", "file/eval file", mock.patch.object(lint, "RULES", {**lint.RULES, "world": ("tells",)}),
+                 "as 'holds eval text'"),
                 ("inside", "world", mock.patch.object(contain.Containment, "audit"), "audit passed"),
                 ("environment", "operator env", mock.patch.object(contain.Containment, "_environment", passes),
                  "environment holds"),
@@ -102,6 +107,21 @@ class Planted(TempCase):
                 self.assertFalse(outcome["caught"])
                 self.assertIn(reason, outcome["reason"])
 
+
+    def test_the_jail_not_the_host_decides_outside_and_a_base_url_is_no_secret(self):
+        adapter = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY", "FAKE_BASE_URL"))
+        setup = self.setup_of(adapter)
+        setup.containment["operator_env"]["FAKE_BASE_URL"] = "https://gateway.example.test/v1"
+        entries = {e["id"]: e for e in faults.load()}
+        self.assertTrue(faults.run(entries["environment"], setup, seed=2)["caught"])  # printed whole, and fine
+        setup.prompts = {"outside": lambda planted: json.dumps([{"do": "say", "text": "I will not look."}])}
+        self.assertTrue(faults.run(entries["outside"], setup, seed=2, place="beside")["caught"])
+        exposed = contain.Containment.mounts  # a jail that mounts the planted folder, without scanning it
+        with mock.patch.object(contain.Containment, "mounts", lambda self, program: exposed(self, program) + [
+                contain.Mount(self.root.parent, "ro")]):
+            outcome = faults.run(entries["outside"], setup, seed=2, place="beside")  # the host still never looks
+        self.assertFalse(outcome["caught"])
+        self.assertIn("jail can find", outcome["reason"])
 
     def test_a_credential_file_that_is_a_link_is_never_followed(self):
         setup = self.setup_of()

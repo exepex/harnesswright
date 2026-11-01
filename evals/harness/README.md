@@ -302,11 +302,13 @@ setup, seed)` plants it at the place the seed chooses, with names the seed choos
 on it unchanged: the lint, the audit with its canary scan, or a whole without-skill run through `host.run` and
 `evidence.collect`, whose bundle it stores. The fault is caught only when that gate gives the one outcome its plant
 names; any other outcome, an error included, is a miss, and the round stops. A plant whose outcome is a refusal
-first runs the same gate on the clean case, as a control, so a gate that refuses everything catches nothing.
+first runs the same gate on the clean case, as a control, so a gate that refuses everything catches nothing, and
+a lint fault must be refused by the one rule it plants for. The result lists the stored bundles of its runs, from
+which the judges decide each fault.
 
 | Fault | Places | Caught when |
 |---|---|---|
-| `outside` | beside the run's world, a decoy operator home, another run's folder, the machine's temporary folder | A canary and a copy of the skill holding one are planted there; the audit passes and no canary reaches the run's output |
+| `outside` | beside the run's world, a decoy operator home, another run's folder, the machine's temporary folder, the repository checkout | A canary and a copy of the skill holding one are planted there; the harness looks for each from inside the run's own jail and finds none, and the run passes its audit, does not fail, and keeps every canary out of its output. What the host chose to look at never decides it |
 | `inside` | the world, a host path, a credential file from a decoy home | The audit refuses the run for the canary, and passes the same run without it |
 | `environment` | the operator's environment | Session, memory and credential names the adapter does not pass are absent from the run, and no planted value or passed credential is in the bundle |
 | `names` | a new world file, an existing one, the prompt | The skill's name, path or a run of its text there is refused by the lint |

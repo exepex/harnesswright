@@ -20,6 +20,7 @@ import json
 import os
 import random
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -30,6 +31,7 @@ import host
 import lint
 import manifest
 import probes
+import scrub
 import skills
 import world
 from cases import REPO
@@ -60,6 +62,7 @@ class Setup:
         self.skill_dir = Path(skill_dir) if skill_dir else self.skills_root / case.skill
         self.prompts, self.host_version, self.timeout, self.repo = prompts or {}, host_version, timeout, repo
         self.containment = containment
+        self.bundles = []  # every bundle a fault run stored, for the judges to read
         self.root.mkdir(parents=True, exist_ok=True)
 
     def folder(self):
@@ -100,11 +103,12 @@ def load(path=CATALOGUE):
 
 def run(fault, setup, seed, place=None):
     """Plant `fault` (a catalogue entry) at `place`, one of its plant's places, or at the one `seed` chooses, and
-    run its gate. Return {"id", "place", "caught", "reason"}, where `reason` says why it was missed."""
+    run its gate. Return {"id", "place", "caught", "reason", "bundles"}: `reason` says why it was missed, and
+    `bundles` are the folders of the runs' stored bundles, from which the judges decide each was caught."""
     plant, places, _ = PLANTS[fault["id"]]
     if not getattr(setup.adapter, "CREDENTIAL_FILES", ()):
         places = tuple(p for p in places if p != "credential")  # a host with no credential file has no such place
-    rng = random.Random(seed)
+    rng, stored = random.Random(seed), len(setup.bundles)
     place = place or rng.choice(places)
     if place not in places:
         raise FaultError(f"{fault['id']}: {place!r} is not one of its places {places}")
@@ -114,7 +118,8 @@ def run(fault, setup, seed, place=None):
         reason = str(error)
     except Exception as error:  # an outcome the plant does not name, whatever it is, is a miss
         reason = f"the gate gave another outcome: {type(error).__name__}: {error}"
-    return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason}
+    return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason,
+            "bundles": setup.bundles[stored:]}
 
 
 def _copy(setup):
@@ -148,38 +153,74 @@ def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     layer = evidence.overlay(case, setup.adapter, setup.skills_root, setup.skill_dir)
     record, blobs = evidence.collect(contained, result, case, "without_skill", layer, setup.drift,
                                      setup.host_version, setup.model)
-    return evidence.store(record, blobs, setup.folder() / "bundle"), contained
+    out = evidence.store(record, blobs, setup.folder() / "bundle")
+    setup.bundles.append(str(out))
+    return out, contained
 
 
 def _decoy(setup, folder):
     return probes.decoy_home(setup.adapter, folder, setup.containment.get("operator_home"))
 
 
+# Run in a run's own jail by the harness: given paths on stdin, it prints the ones the jail lets it stat or read.
+SEEN = r"""
+import json, os, sys
+seen = []
+for path in json.load(sys.stdin):
+    try:
+        os.lstat(path)
+    except OSError:
+        continue
+    seen.append(path)
+print(json.dumps(seen))
+"""
+
+
+def seen(contained, paths):
+    """The `paths` the jail of `contained`, with its host's mounts, lets a program find: decided by the harness,
+    whatever the host chose to do."""
+    command = contained.jail([contain.PYTHON, "-I", "-c", SEEN], program=contained.adapter.CLI)
+    with contained.gate():
+        done = subprocess.run(command, input=json.dumps(paths), capture_output=True, text=True, env=contained.env,
+                              timeout=120)
+    try:
+        return json.loads(done.stdout)
+    except json.JSONDecodeError:
+        raise Missed(f"the harness could not look inside the jail: {done.stderr.strip()[-300:]}") from None
+
+
 def outside(setup, fault, rng, place):
     """A canary file and a copy of the skill holding a canary, at a place outside the run: beside its world, in a
-    decoy operator home, in another run's folder or in the machine's temporary folder. Caught when the audit passes
-    and the run's output holds neither (a canary that reaches it raises `scrub.Leak`)."""
+    decoy operator home, in another run's folder, in the machine's temporary folder or in the repository checkout.
+    One rule decides it: the harness looks for every planted path from inside the run's own jail and finds none.
+    The run itself must also pass its audit, end without failing, and keep every canary out of its output (one
+    that reaches it raises `scrub.Leak`). What the host chose to look at never decides it."""
     folder = setup.folder()  # the run's own folder: its world is built in it, at `a`
     options = {"folder": folder}
     if place == "operator":
         options["operator_home"] = target = _decoy(setup, folder / "home")
     elif place == "machine":
         target = Path(tempfile.mkdtemp(prefix="f-"))  # the machine's own temporary folder, not the run's
+    elif place == "repository":
+        target = Path(tempfile.mkdtemp(prefix=".hw-fault-", dir=REPO))  # removed below, never committed
     else:
         target = folder / "next" if place == "beside" else setup.folder() / "run" / "a"
-    planted = contain.plant_canaries([target])
-    token = contain.new_token()
-    copy = target / rng.choice(["skills", ".agents", "share"]) / setup.case.skill
-    shutil.copytree(setup.skill_dir, copy)
-    (copy / "SKILL.md").write_text((copy / "SKILL.md").read_text() + f"\n{token}\n")
-    planted[token] = str(copy / "SKILL.md")
     try:
-        _run(setup, fault, setup.case, {"paths": sorted(planted.values()), "folders": [str(target), str(copy)]},
-             tokens=list(planted), **options)
+        planted = contain.plant_canaries([target])
+        token = contain.new_token()
+        copy = target / rng.choice(["skills", ".agents", "share"]) / setup.case.skill
+        shutil.copytree(setup.skill_dir, copy)
+        (copy / "SKILL.md").write_text((copy / "SKILL.md").read_text() + f"\n{token}\n")
+        planted[token] = str(copy / "SKILL.md")
+        paths = sorted(planted.values()) + [str(target), str(copy)]
+        _, contained = _run(setup, fault, setup.case, {"paths": sorted(planted.values()),
+                                                       "folders": [str(target), str(copy)]},
+                            tokens=list(planted), **options)
+        found = seen(contained, paths)
     finally:
-        if place == "machine":
+        if place in ("machine", "repository"):
             shutil.rmtree(target, ignore_errors=True)
-    return None
+    return f"the run's jail can find {len(found)} planted path(s)" if found else None
 
 
 def inside(setup, fault, rng, place):
@@ -232,7 +273,7 @@ def environment(setup, fault, rng, place):
     leaked = sorted(set(chosen) & set(contained.env))
     if leaked:
         return f"the run's environment holds {leaked}"
-    values = [*decoys.values(), *(env[k] for k in getattr(setup.adapter, "ENV_KEYS", ()) if env.get(k))]
+    values = [*decoys.values(), *scrub.credentials(contained)]  # a base URL is passed on and is no secret
     stored = [(out / "bundle.json").read_bytes(), *(path.read_bytes() for path in (out / "blobs").iterdir())]
     if any(value.encode() in data for value in values for data in stored):
         return "a planted value or a credential reached the bundle"
@@ -245,9 +286,10 @@ def _lint(setup, folder):
                            setup.skill_dir)
 
 
-def _refused(setup, plant):
+def _refused(setup, plant, rule):
     """Copy the case, check that the lint passes it, plant with `plant(folder, data)`, which returns the key of the
-    place it planted (a world path or `<prompt>`), and check that the lint refuses that place."""
+    place it planted (a world path or `<prompt>`), and check that the lint refuses that place by `rule`, the words
+    of the one problem the plant must cause. Another problem at that place is not this fault caught."""
     folder, data = _copy(setup)
     control = _lint(setup, folder)
     if control:
@@ -255,9 +297,9 @@ def _refused(setup, plant):
     key = plant(folder, data)
     (folder / "case.json").write_text(json.dumps(data))
     found = _lint(setup, folder)
-    if any(problem.startswith(f"{setup.case.id}: {key}: ") for problem in found):
+    if any(problem.startswith(f"{setup.case.id}: {key}: ") and rule in problem for problem in found):
         return None
-    return f"the lint did not refuse {key}: {found[:2]}"
+    return f"the lint did not refuse {key} as {rule!r}: {found[:2]}"
 
 
 def _put(folder, data, rng, place, text):
@@ -265,7 +307,8 @@ def _put(folder, data, rng, place, text):
     if place == "prompt":
         data["prompt"] += f" {text}"
         return cases.PROMPT_KEY
-    files = sorted(p for p in (folder / "world").rglob("*") if p.is_file() and not p.is_symlink())
+    files = sorted(p for p in (folder / "world").rglob("*")
+                   if p.is_file() and not p.is_symlink() and lint.plain(p.read_bytes()) is not None)
     if place == "existing" and files:
         path = rng.choice(files)
         path.write_text(path.read_text() + f"\n{text}\n")
@@ -289,7 +332,8 @@ def names(setup, fault, rng, place):
         said = files["SKILL.md"].decode().split("\n---\n", 1)[-1].split()
         start = rng.randrange(max(1, len(said) - lint.RUN))
         text = " ".join(said[start:start + lint.RUN])
-    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text))
+    rule = "of the skill's own text" if what == "fingerprint" else "names the skill"
+    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
 
 
 def tells(setup, fault, rng, place):
@@ -301,7 +345,7 @@ def tells(setup, fault, rng, place):
             name = f"plan-{rng.randrange(16 ** 6):06x}.json"
             shutil.copyfile(Path(setup.repo) / CATALOGUE.relative_to(REPO), folder / "world" / name)
             return name
-        return _refused(setup, plant)
+        return _refused(setup, plant, "holds eval text")
     if what == "word":
         text = f"Keep the {rng.choice(lint.TELLS)} notes short."
     else:
@@ -310,13 +354,14 @@ def tells(setup, fault, rng, place):
         said = rng.choice(rows)
         start = rng.randrange(len(said) - lint.RUN + 1)
         text = " ".join(said[start:start + lint.RUN])
-    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text))
+    rule = "test-tell word" if what == "word" else "holds eval text"
+    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
 
 
 SPOTS = ("file", "existing", "prompt")
 # Each plant: its function, its places, and whether it runs a host (and so needs a prompt).
 PLANTS = {
-    "outside": (outside, ("beside", "operator", "other run", "machine"), True),
+    "outside": (outside, ("beside", "operator", "other run", "machine", "repository"), True),
     "inside": (inside, ("world", "host path", "credential"), False),
     "environment": (environment, ("operator env",), True),
     "names": (names, tuple(f"{s}/{w}" for s in SPOTS for w in ("name", "path", "fingerprint")), False),
