@@ -33,7 +33,8 @@ CLOSERS = "\"')]*_~"
 QUESTION = re.compile(r"\?[" + re.escape(CLOSERS) + r"]*(?=\s|$)")
 WORD = re.compile(r"[^\W_]+")
 QUOTED = re.compile(r"\s*([\"'])(.*?)\1\s*(?:#.*)?")
-SPAN = re.compile(r"(`+)(?:(?!\n[ \t]*\n).)+?\1", re.DOTALL)  # inline code, which may wrap within a paragraph
+# Inline code: a whole run of backticks, to the next run of the same length; it may wrap within a paragraph.
+SPAN = re.compile(r"(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n).)+?(?<!`)\1(?!`)", re.DOTALL)
 
 
 def _text(bundle, file):
@@ -110,10 +111,12 @@ def ends_with_one_question(bundle, file=None):
     if text is None:
         return "fail", f"{name} does not exist"
     read = lines(text, file is not None)
-    prose = SPAN.sub("", "\n".join(row if kind == "prose" else "" for kind, row in read)).rstrip()
+    # Each span leaves its line breaks, so line N of the prose is still line N of the text.
+    prose = SPAN.sub(lambda m: "\n" * m.group(0).count("\n"), "\n".join(r if k == "prose" else "" for k, r in read))
     asked = QUESTION.findall(prose)
-    filled = [kind for kind, row in read if row.strip()]
-    last = bool(filled) and filled[-1] == "prose" and prose.rstrip(CLOSERS).endswith("?")
+    filled = [number for number, (kind, row) in enumerate(read) if row.strip()]
+    end = prose.split("\n")[filled[-1]].rstrip().rstrip(CLOSERS) if filled and read[filled[-1]][0] == "prose" else ""
+    last = end.endswith("?")
     if len(asked) == 1 and last:
         return "pass", f"{name} ends with its one question"
     return "fail", f"{name} holds {len(asked)} questions, and {'ends' if last else 'does not end'} with one"
