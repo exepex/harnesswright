@@ -253,7 +253,8 @@ class Containment:
             raise ContainmentError(reason)
         # Its own user, process, IPC, host name, cgroup and network namespaces. The network holds only loopback, where
         # the forwarder passes connections to the gate, so the gate's allow list is the only way out (doc 11, Powers).
-        args = [BWRAP, "--die-with-parent", "--new-session", "--unshare-user", "--unshare-pid", "--unshare-ipc",
+        # The jail starts from where the harness finds bwrap, never from the run's PATH, which may hide a host.
+        args = [shutil.which(BWRAP) or BWRAP, "--die-with-parent", "--new-session", "--unshare-user", "--unshare-pid", "--unshare-ipc",
                 "--unshare-uts", "--unshare-cgroup-try", "--unshare-net"]
         for mount in self.mounts(program or command[0]):
             args += mount.args()

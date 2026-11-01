@@ -3,6 +3,7 @@ tagged observed, is reported as a miss. That every place of each is caught is te
 test_faults."""
 
 import json
+import shutil
 import unittest
 from unittest import mock
 
@@ -66,6 +67,13 @@ class Missed(Fake):
         outcome = faults.run(entry("not run"), setup, seed=1, place="key")
         self.assertFalse(outcome["caught"])
         self.assertIn("passed a host whose key is missing", outcome["reason"])
+
+    def test_a_host_beside_bwrap_is_hidden_and_the_jail_still_starts(self):
+        setup = self.setup_of()
+        tool = setup.containment["host_paths"][0]
+        (tool / "bwrap").symlink_to(shutil.which("bwrap"))  # one folder holds both, as /usr/bin may
+        setup.containment["operator_env"]["PATH"] = str(tool)
+        self.assertEqual(faults.run(entry("not run"), setup, seed=1, place="host")["reason"], None)
 
     def test_a_host_that_fails_the_probe_anyway_proves_nothing(self):
         setup = self.setup_of()
