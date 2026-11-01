@@ -46,6 +46,10 @@ CONTRACT = {
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
 OUTPUT_LIMIT = 4000  # characters of a command's output a bundle keeps, cut only after the scrub (evidence.py)
 SHA256 = re.compile(r"[0-9a-f]{64}")
+# The fields of an entry whose value the harness chooses, with the one test each value passes. A value that passes
+# cannot hold the run's text, so the bundle keeps it as it is (evidence.py); any other value is the run's.
+FIXED = {"kind": lambda value: value in ENTRIES, "source": lambda value: value in SOURCES,
+         "sha256": lambda value: isinstance(value, str) and bool(SHA256.fullmatch(value))}
 # Each kind of entry, with every field it holds besides `kind` and `source`, and the one shape each field takes.
 ENTRIES = {
     "read": {"path": str},
