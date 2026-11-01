@@ -41,7 +41,7 @@ class Diff(unittest.TestCase):
 class Bundles(TempCase):
     """The fake host runs in a real jail, and its run becomes a bundle."""
 
-    def run_of(self, actions, adapter=None, tokens=(), arm=True, key=SECRET):
+    def run_of(self, actions, adapter=None, tokens=(), arm=True, key=SECRET, case=None):
         adapter = adapter or fake_adapter()
         tool = self.tmp / "tool"
         if not tool.exists():
@@ -50,10 +50,11 @@ class Bundles(TempCase):
             operator = self.tmp / "operator" / ".fake"
             operator.mkdir(parents=True)
             (operator / "creds.json").write_text(json.dumps({"refresh": TOKEN}))
-        case = self.case({"README.md": "A notes app.\n"})
-        built = world.build(case, adapter, self.tmp / f"arm-{case.id}", self.tmp / "skills", with_skill=arm)
+        case = case or self.case({"README.md": "A notes app.\n"})
+        run = os.urandom(4).hex()  # a run's folders never name its arm
+        built = world.build(case, adapter, self.tmp / f"arm-{run}", self.tmp / "skills", with_skill=arm)
         contained = contain.Containment(adapter, "task", built.path, manifest.manifest(built.path),
-                                        root=self.tmp / f"run-{case.id}", tokens=tokens,
+                                        root=self.tmp / f"run-{run}", tokens=tokens,
                                         operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": key},
                                         operator_home=self.tmp / "operator", host_paths=[tool])
         result = host.run(contained, json.dumps(actions), skills=["haiku-writer"] if arm else [], timeout=120)
@@ -78,7 +79,7 @@ class Bundles(TempCase):
         self.assertEqual(record["diff"]["link.md"], {"before": None, "after": "link README.md"})
         self.assertEqual(blob(record["diff"]["notes.txt"]["after"].split(" ")[1]), b"hi\n")
         self.assertIn("skills/haiku-writer/notes.md", record["files_after"])
-        self.assertEqual(record["overlay"], {"skill": "haiku-writer", "row": None, "index": None,
+        self.assertEqual(record["overlay"], {"skill": "haiku-writer", "row": None, "index": None, "index_without": None,
                                              "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
@@ -108,7 +109,7 @@ class Bundles(TempCase):
         self.assertIn("k-[redacted]", record["files_after"])
         self.assertEqual(record["files_after"]["lnk"], "link [redacted]")
         self.assertEqual(record["final_message"], "The key is [redacted].")
-        self.assertEqual(len(record["log"][1]["output"]), 4000)  # cut only after the whole output was redacted
+        self.assertEqual(len(record["log"][1]["output"]), 3990 + len("[redacted]\n"))  # kept whole and redacted
         token = contain.new_token()
         with self.assertRaises(scrub.Leak) as caught:  # a reason never repeats a secret the run put in a name
             self.run_of([{"do": "command", "command": f'printf {token} > "k-$FAKE_API_KEY"'}], adapter, [token])

@@ -95,7 +95,9 @@ class Schema(TempCase):
 
     def test_an_index_row_uses_only_its_three_names(self):
         for row in ("| {name} | {secret} |", "| {0} |", "| {name |", "| {name.__class__} |", "| {name[0]} |",
-                    "| {name!r} |", "| {name:>99999999} |", "| {} |"):
+                    "| {name!r} |", "| {name:>99999999} |", "| {} |",
+                    "| Follow the project rules |", "| {description} |",  # a row names its skill or its path
+                    "| {name} |\n| more |", "| {name} |\u2028| more |", "| {name} |\n"):  # and is one line
             with self.subTest(row=row):
                 self.refused({"index": dict(INDEX, row=row)}, "index must be")
 

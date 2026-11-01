@@ -44,7 +44,6 @@ CONTRACT = {
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
 }
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
-OUTPUT_LIMIT = 4000  # characters of a command's output a bundle keeps, cut only after the scrub (evidence.py)
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # The fields of an entry whose value the harness chooses, with the one test each value passes. A value that passes
 # cannot hold the run's text, so the bundle keeps it as it is (evidence.py); any other value is the run's.
@@ -67,8 +66,8 @@ class HostError(RuntimeError):
 
 
 def entry(kind, source="observed", **fields):
-    """One action log entry. A command's output is kept whole: only the bundle cuts it, after the scrub has seen it
-    whole, so a credential is never cut in two before it is redacted."""
+    """One action log entry. A command's output is kept whole, so the scrub always sees a credential whole; the
+    grader view never shows it (view.py)."""
     if kind == "command":
         fields.setdefault("output", "")
     return {"kind": kind, "source": source, **fields}

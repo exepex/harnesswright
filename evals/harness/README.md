@@ -28,6 +28,7 @@ allowed connections.
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
 | `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
+| `view.py` | The grader view of a bundle: allowed fields and paths only, the same in either arm |
 
 ## Commands
 
@@ -197,8 +198,7 @@ skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`
 `powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
-reads, writes with content hashes, commands with exit code and whole output (cut to `host.OUTPUT_LIMIT` only after the
-scrub), actions refused
+reads, writes with content hashes, commands with exit code and whole output, actions refused
 by the host or the jail (`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed`
 (the host reported it) or `inferred` (the adapter worked it out, such as a file a shell command reads). The host
 may expose and load only the skills the arm installs, and expose only the adapter's tools. A host that ran must
@@ -277,6 +277,18 @@ named by the hash of its scrubbed bytes, so no name the run chose touches the di
 The world diff against the proved arm leaves out the host's own files (those paths only) and both copies of the
 skill with the folders above them, the same in both arms. In the action log, a value the harness chose
 (`host.FIXED`: kind, source, a write's hash) is kept when it passes its test; every other value is scrubbed. Home and
-scratch are scanned for canaries, and anything the scan cannot read refuses the run. The bundle cuts command output and request lines only
-after the scrub. `evidence.store` writes a new folder outside the repository, and `evidence.load` reads it back,
-refusing missing, extra or changed blobs. The module docstring gives each rule in full.
+scratch are scanned for canaries, and anything the scan cannot read refuses the run. The bundle keeps command output
+whole and cuts request lines only after the scrub. `evidence.store` writes a new folder outside the repository, and
+`evidence.load` reads it back, refusing missing, extra or changed blobs. The module docstring gives each rule in full.
+
+## The grader view
+
+Graders see `view.view` of a bundle, never the full record, which stays for checks, audits and judges. The view is
+built by allow lists and four rules, each applied the same way in both arms, so the same run in either arm gives
+the same view. Fields and paths: only `view.FIELDS` (no arm, host, model, timings, exposure, requests or
+transcript), and only world paths outside the overlay and the host's own files. Actions: a log entry is dropped
+when it loads the skill or its path or command names the skill. What the agent did, not what the world showed it:
+a command is shown as the command the agent ran, without output or exit code, since the two arms are different
+worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
+with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
+own entries. A run's folders must never name its arm.

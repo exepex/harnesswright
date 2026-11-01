@@ -114,8 +114,7 @@ class Scrub:
     def of_run(cls, contained, overlay=None):
         """The scrub of the run `contained`, made after it ran so a credential the host refreshed is known, with
         neutral words for the run's folders and for the skill of `overlay` (`evidence.overlay`)."""
-        neutral = {str(getattr(contained, name)): word for name, word in NEUTRAL_FOLDERS.items()
-                   if getattr(contained, name) is not None}
+        neutral = folders(contained)
         if overlay:
             neutral.update({overlay["skill"]: NEUTRAL_NAME, **{path: NEUTRAL_PATH for path in overlay["paths"]}})
         return cls(contained.tokens, credentials(contained), neutral)
@@ -177,6 +176,12 @@ class Scrub:
                 raise Collision(f"{where}: two keys are both {name!r} once scrubbed")
             out[name] = part
         return out
+
+
+def folders(contained):
+    """{the path of each of the run's folders: its neutral word}, as a folder's name may tell the arm or the round."""
+    return {str(getattr(contained, name)): word for name, word in NEUTRAL_FOLDERS.items()
+            if getattr(contained, name) is not None}
 
 
 def forms(secret):

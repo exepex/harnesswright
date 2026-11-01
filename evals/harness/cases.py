@@ -96,15 +96,16 @@ def is_source(value):
 
 def is_row(value):
     """A row whose every replacement field is exactly `{name}`, `{path}` or `{description}`: no index,
-    attribute, conversion or format spec."""
-    if not is_text(value):
+    attribute, conversion or format spec. It is one line and holds `{name}` or `{path}`, so the row names its skill
+    and the grader view removes it with every line that names the skill (`view.text`)."""
+    if not is_text(value) or value.splitlines() != [value]:
         return False
     try:
         fields = list(string.Formatter().parse(value))
     except ValueError:
         return False
     return all(field is None or (field in ROW_FIELDS and not spec and conversion is None)
-               for _, field, spec, conversion in fields)
+               for _, field, spec, conversion in fields) and bool({"name", "path"} & {f[1] for f in fields})
 
 
 def is_expectation(value):
