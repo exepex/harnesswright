@@ -1,0 +1,12 @@
+{
+  "args": {
+    "section": "Files changed",
+    "file": "claims.md"
+  },
+  "outcome": "pass",
+  "before": {},
+  "after": {
+    "VERSION": "1.0\n",
+    "claims.md": "# Claims\n\n## Files changed\n\n* `VERSION` (1 line)\n"
+  }
+}

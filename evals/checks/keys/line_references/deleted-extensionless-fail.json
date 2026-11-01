@@ -1,0 +1,9 @@
+{
+  "args": {},
+  "outcome": "fail",
+  "before": {
+    "NOTES": "a\n"
+  },
+  "after": {},
+  "final_message": "Implemented in `NOTES:1`.\n"
+}

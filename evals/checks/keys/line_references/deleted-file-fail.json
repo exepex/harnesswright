@@ -1,0 +1,12 @@
+{
+  "args": {
+    "file": "claims.md"
+  },
+  "outcome": "fail",
+  "before": {
+    "old.py": "x\n"
+  },
+  "after": {
+    "claims.md": "# Claims\n\nRemoved from `old.py:1`.\n"
+  }
+}

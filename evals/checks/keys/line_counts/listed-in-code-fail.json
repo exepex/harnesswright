@@ -1,0 +1,14 @@
+{
+  "args": {
+    "section": "Files changed",
+    "file": "claims.md"
+  },
+  "outcome": "fail",
+  "before": {
+    "src/app.py": "a = 1\n"
+  },
+  "after": {
+    "src/app.py": "a = 1\nb = 2\nc = 3\n",
+    "claims.md": "# Claims\n\n## Files changed\n\n```\n- `src/app.py` (3 lines)\n```\n"
+  }
+}

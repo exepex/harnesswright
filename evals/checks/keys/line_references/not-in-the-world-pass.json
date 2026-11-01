@@ -1,0 +1,10 @@
+{
+  "args": {
+    "file": "claims.md"
+  },
+  "outcome": "pass",
+  "before": {},
+  "after": {
+    "claims.md": "# Claims\n\nServed on `localhost:8080`, built at `v1:2`.\n"
+  }
+}

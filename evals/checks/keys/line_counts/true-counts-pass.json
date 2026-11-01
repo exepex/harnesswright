@@ -1,0 +1,17 @@
+{
+  "args": {
+    "section": "Files changed",
+    "file": "claims.md"
+  },
+  "outcome": "pass",
+  "before": {
+    "src/app.py": "a = 1\n",
+    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
+    "old.py": "x\n"
+  },
+  "after": {
+    "src/app.py": "a = 1\nb = 2\nc = 3\n",
+    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
+    "claims.md": "# Claims\n\n## Files changed\n\n- `src/app.py` (3 lines)\n- `tests/test_app.py` (5 lines)\n- `old.py` (deleted)\n"
+  }
+}

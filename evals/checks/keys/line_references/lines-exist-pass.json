@@ -1,0 +1,15 @@
+{
+  "args": {
+    "file": "claims.md"
+  },
+  "outcome": "pass",
+  "before": {
+    "src/app.py": "a = 1\n",
+    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n"
+  },
+  "after": {
+    "src/app.py": "a = 1\nb = 2\nc = 3\n",
+    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
+    "claims.md": "# Claims\n\nDone in `src/app.py:2`, tested in `tests/test_app.py:4-5`.\nRuns on `localhost:8080`.\n"
+  }
+}
