@@ -14,6 +14,7 @@ import random
 import shutil
 import subprocess
 import tempfile
+import urllib.parse
 from pathlib import Path
 
 import cases
@@ -281,12 +282,20 @@ def environment(setup, fault, rng, place):
     leaked = sorted(set(chosen) & set(dump))
     if leaked:
         return f"the run's environment holds {leaked}"
-    values = [*decoys.values(), *scrub.credentials(contained)]  # a base URL is passed on and is no secret
+    values = [*decoys.values(), *_secrets(env, getattr(setup.adapter, "ENV_KEYS", ()))]
     scrubbed = scrub.Scrub.of_run(contained).text(json.dumps(dump)).encode()
     stored = [scrubbed, (out / "bundle.json").read_bytes(), *(p.read_bytes() for p in (out / "blobs").iterdir())]
     if any(value.encode() in data for value in values for data in stored):
         return "a planted value or a credential reached the bundle"
     return None
+
+
+def _secrets(env, keys):
+    """The credentials of `keys` in `env`, worked out here and never by the scrub the fault tests: a value as it is,
+    or for a URL its password, else its user (a token), so a base URL with neither is no secret."""
+    urls = {v: urllib.parse.urlsplit(v) for v in (env.get(k, "") for k in keys) if "://" in v}
+    found = [(u.password or u.username) if v in urls and (u := urls[v]) else v for v in (env.get(k, "") for k in keys)]
+    return [urllib.parse.unquote(v) for v in found if v]
 
 
 def _lint(setup, folder):

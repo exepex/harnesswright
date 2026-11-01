@@ -296,15 +296,11 @@ own entries. A run's folders must never name its arm.
 
 ## Harness faults
 
-`evals/faults/harness.json` is the catalogue of harness faults (doc 11, Harness faults), and part of the measuring
-kit. Each entry names a plant of `faults.PLANTS`, one to one, and the row of doc 11 it plants. `faults.run(fault,
-setup, seed)` plants it at the place the seed chooses, with names the seed chooses, and runs the harness's own gate
-on it unchanged: the lint, the audit with its canary scan, or a whole without-skill run through `host.run` and
-`evidence.collect`, whose bundle it stores. The fault is caught only when that gate gives the one outcome its plant
-names; any other outcome, an error included, is a miss, and the round stops. A plant whose outcome is a refusal
-first runs the same gate on the clean case, as a control, so a gate that refuses everything catches nothing, and
-a lint fault must be refused by the one rule it plants for. The result lists the stored bundles of its runs, from
-which the judges decide each fault. Every reason passes through one scrub, of every run the fault made.
+`evals/faults/harness.json` is the catalogue of harness faults (doc 11), part of the measuring kit; each entry names
+one plant of `faults.PLANTS`. `faults.run(fault, setup, seed)` plants it where the seed chooses and runs the
+harness's own gate unchanged (the lint, the audit, or a whole run, whose bundle it stores and lists). It is caught
+only by the one outcome its plant names; anything else is a miss. Refusing plants run a clean control first, a
+lint fault must be refused by its own rule, and every reason passes one scrub.
 
 | Fault | Places | Caught when |
 |---|---|---|
@@ -314,6 +310,5 @@ which the judges decide each fault. Every reason passes through one scrub, of ev
 | `names` | a new world file, an existing one, the prompt | The skill's name, path or a run of its text there is refused by the lint |
 | `tells` | the same, and a whole eval file | A tell word, a run of the kit's text or a copy of the catalogue there is refused by the lint |
 
-The judges run these live with their own seed, a real host and a decoy operator home. The unit tests run every place
-of every fault against the fake host, and show that a gate made to miss one is reported as a miss. The faults of the
-host and its probes, and those of grading, come with their own pull requests.
+The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
+a gate made to miss is a miss. Host, probe and grading faults come in their own pull requests.

@@ -105,7 +105,8 @@ class Planted(TempCase):
                 ("outside", "machine", mock.patch.object(host, "run", side_effect=host.HostError(f"read {KEY}")),
                  "HostError"),
                 ("environment", "operator env", mock.patch("scrub.Scrub.text", lambda self, value, *a, **k: value),
-                 "reached the bundle")):
+                 "reached the bundle"),
+                ("environment", "operator env", mock.patch("scrub.credentials", return_value=[]), "reached the bundle")):
             with self.subTest(fault=fault), patch:
                 outcome = faults.run(entries[fault], setup, seed=1, place=place)
                 self.assertFalse(outcome["caught"])
