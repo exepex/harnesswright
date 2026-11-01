@@ -99,6 +99,14 @@ class Named(TempCase):
             log[8], inferred("lib/src/y.py"), inferred("src/x.py"),  # cd is never followed, so a glob after a
             log[9], inferred("lib/src/y.py"), inferred("src/x.py")])  # parent step is the end of a path
 
+    def test_each_globstar_may_match_no_folder(self):
+        world = (self.tmp / "world").resolve()
+        (world / "src/a/n").mkdir(parents=True)
+        (world / "src/a/n/w.py").write_text("x\n")
+        log = [host.entry("command", command="cat src/**/n/**/*.py", exit_code=0)]
+        self.assertEqual(host.named(world, manifest.manifest(world), log)[1:],
+                         [host.entry("read", "inferred", path="src/a/n/w.py")])
+
     def test_a_large_world_is_named_in_time(self):
         world = (self.tmp / "world").resolve()
         world.mkdir()

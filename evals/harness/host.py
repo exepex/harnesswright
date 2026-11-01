@@ -253,7 +253,7 @@ def _read_from(root, glob):
     forms = {os.path.normpath(os.path.join(root, glob))}
     if rest and not os.path.isabs(rest):
         forms |= {f"{root}/{rest}", f"{root}/*/{rest}"}
-    return forms | {form.replace("/**/", "/") for form in forms}
+    return {form.replace("**/", "*") for form in forms}  # fnmatch's * spans folders, so each **/ may match none
 
 
 def part_of_command(item):
