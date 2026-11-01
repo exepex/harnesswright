@@ -106,7 +106,7 @@ def visible_memory(contained, homes):
     return None
 
 
-def _decoy_home(adapter, folder, operator_home=None):
+def decoy_home(adapter, folder, operator_home=None):
     """A decoy operator's home in `folder`: copies of the adapter's credential files from the operator's home (a
     link stays a link, so the containment refuses it as it would the real one), and nothing else."""
     source, home = Path(operator_home or os.path.expanduser("~")), Path(folder)
@@ -193,7 +193,7 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, **con
         options = dict(containment)
         out = (folder / "run").resolve() / "probe-out"  # where the containment puts it, checked below
         if name == "memory":  # before the containment copies anything from the decoy home
-            options["operator_home"] = _decoy_home(adapter, folder / "operator", options.get("operator_home"))
+            options["operator_home"] = decoy_home(adapter, folder / "operator", options.get("operator_home"))
             plant_memory(adapter, options["operator_home"], world.resolve(), out, tokens["memory"])
             options["tokens"] = [*options.get("tokens", ()), tokens["memory"]]
         contained = contain.Containment(adapter, mode, world, manifest.manifest(world), root=folder / "run",

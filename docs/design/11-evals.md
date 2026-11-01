@@ -280,9 +280,12 @@ Every harness fault must be caught, or the round stops.
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
 | A grading file missing an expectation | The schema check rejects it |
 
-The judges run the live faults themselves. They choose placements and names from their own seed, interleave the
-fault runs with real runs, and decide from the stored evidence whether each was caught. Operator-home faults use a
-decoy home, never the real one. The same faults run against a fake host in the unit tests of every pull request.
+Each fault is an entry of the catalogue `evals/faults/harness.json`. The harness plants it with the names and
+places a seed chooses and runs its own gate on it unchanged; the fault is caught only when that gate gives the one
+outcome the fault names, and any other outcome is a miss. The judges run the live faults themselves. They choose
+placements and names from their own seed, interleave the fault runs with real runs, and decide from the stored
+evidence whether each was caught. Operator-home faults use a decoy home, never the real one. The same faults run
+against a fake host in the unit tests of every pull request.
 
 ### Skill faults
 

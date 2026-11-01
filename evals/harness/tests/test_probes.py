@@ -236,7 +236,7 @@ class Memory(ProbeCase):
         (operator / ".fake" / "MEMORY.md").write_text("the operator's own memory\n")
         signed = fake_adapter()
         signed.CREDENTIAL_FILES = (".fake/auth.json",)
-        home = probes._decoy_home(signed, self.tmp / "decoy", operator)
+        home = probes.decoy_home(signed, self.tmp / "decoy", operator)
         self.assertEqual(sorted(manifest.manifest(home)), [".fake", ".fake/auth.json"])
 
 
