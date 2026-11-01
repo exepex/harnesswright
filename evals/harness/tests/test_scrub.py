@@ -62,9 +62,10 @@ class Credentials(TempCase):
             self.assertIn(value, found)
         self.assertNotIn("u", found)  # a user name beside a password is not a credential, nor the URL's host
         self.assertNotIn("Bearer", found)  # a short string in a credential file is its metadata
-        contained.operator_env["H_URL"] = "https://u:pw7char@model.example"  # too short to redact safely
-        with self.assertRaisesRegex(scrub.ShortCredential, "1 credential"):
-            scrub.credentials(contained)
+        for url in ("https://u:pw7char@m.example", "https://u:%61%62%63@m.example", 'https://u:quo"ted-pass@m.example'):
+            contained.operator_env["H_URL"] = url  # too short once decoded, or a character JSON would escape
+            with self.subTest(url=url), self.assertRaisesRegex(scrub.UnsafeCredential, "1 credential"):
+                scrub.credentials(contained)
 
 
 if __name__ == "__main__":

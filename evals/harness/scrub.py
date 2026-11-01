@@ -1,21 +1,25 @@
 """The one way out of a run (doc 11, Evidence): every value a bundle keeps passes one `Scrub`.
 
-One rule: a value leaves a run only through `Scrub.text`, `Scrub.blob` or `Scrub.value`, and each looks at the
-whole raw value before anything cuts or encodes it. A canary token anywhere stops it with `Leak`: the run is void
-and the round stops. Then every credential value of the run is redacted. Transcript text also has the skill's name
-and paths replaced by neutral words (`neutral=True`). A record is scrubbed before it is written as JSON, so an
-escape can never hide a value, and its keys are scrubbed too, so a name that differs from another only by a secret
-is refused rather than merged.
+One rule: what a run made leaves only through `Scrub.text`, `Scrub.blob`, `Scrub.value` or `Scrub.names`, and each
+looks at the whole raw value before anything cuts or encodes it. A canary token anywhere stops it with `Leak`: the
+run is void and the round stops. Then every credential of the run (`credentials`) is redacted in every form
+(`forms`). Transcript text also gets neutral words (`neutral=True`). A record is scrubbed before it is written as
+JSON, so an escape can never hide a value. Its own field names are the harness's and are kept; keys the run chose,
+such as paths, go through `names`, which refuses two that become one. What the harness made, such as a hash, is
+never scrubbed.
 
 Standard library only.
 """
 
 import json
-import re
+import string
 from urllib.parse import quote, unquote, urlsplit
 
 REDACTED = "[redacted]"
 MIN_SECRET = 8  # the shortest credential a scrub can redact without damaging the evidence around it
+# The characters a named credential may hold. Keys and tokens use only these, so a credential's every JSON form is
+# itself and only URL encoding changes it: the scrub knows each form a run's output may hold.
+SAFE = frozenset(string.ascii_letters + string.digits + "-_.~+/=")
 NEUTRAL_NAME = "project-guide"  # the skill's name in a transcript
 NEUTRAL_PATH = "guide-folder"  # each path the with-skill overlay installs, in a transcript
 # The run's own folders, in a transcript, as their names on the machine may tell the arm or the round.
@@ -26,8 +30,9 @@ class Leak(RuntimeError):
     """A canary token reached a run's output. The run is void and the round stops."""
 
 
-class ShortCredential(ValueError):
-    """A credential the adapter names is too short to redact without damaging the evidence. The run cannot start."""
+class UnsafeCredential(ValueError):
+    """A credential the adapter names is too short, or holds a character outside SAFE, so it cannot be redacted
+    reliably without damaging the evidence. The run cannot start."""
 
 
 class Collision(RuntimeError):
@@ -37,36 +42,39 @@ class Collision(RuntimeError):
 def credentials(contained):
     """Every credential of the run `contained`, by one rule. A named credential is each value of the adapter's ENV_KEYS
     (from the operator and in the jail) and the secret part of a URL among them or of the operator's proxy: its
-    password with its `user:password`, or its user when it has no password (a token). A named credential shorter than
-    MIN_SECRET raises ShortCredential, since redacting it would damage the evidence. A credential file's text and its
+    password with its `user:password`, or its user when it has no password (a token), each as decoded. A named
+    credential must be MIN_SECRET characters or more, all in SAFE; any other raises UnsafeCredential, since it could
+    not be redacted reliably without damaging the evidence. A credential file's text and its
     JSON strings of at least MIN_SECRET characters are credentials too; a shorter string there is its metadata, such
     as a token type. Both the operator's file and the run's copy count."""
-    named = []
-    for key in getattr(contained.adapter, "ENV_KEYS", ()):
-        for value in {contained.operator_env.get(key, ""), getattr(contained, "env", {}).get(key, "")}:
-            named += _userinfo(value) if "://" in value else [value] if value else []
-    named += _userinfo(contained.upstream or "")
-    short = [value for value in named if len(value) < MIN_SECRET]
-    if short:
-        raise ShortCredential(f"{len(short)} credential(s) shorter than {MIN_SECRET} characters cannot be redacted "
-                              "safely: use longer ones")
-    found = list(named)
+    named, pairs = [], []
+    for value in [contained.operator_env.get(key, "") for key in getattr(contained.adapter, "ENV_KEYS", ())] + [
+            getattr(contained, "env", {}).get(key, "") for key in getattr(contained.adapter, "ENV_KEYS", ())] + [
+            contained.upstream or ""]:
+        secret, pair = _userinfo(value) if "://" in value else (value, None)
+        named += [secret] if secret else []
+        pairs += [pair] if pair else []
+    unsafe = [value for value in named if len(value) < MIN_SECRET or not set(value) <= SAFE]
+    if unsafe:
+        raise UnsafeCredential(f"{len(unsafe)} credential(s) cannot be redacted reliably: each must be at least "
+                               f"{MIN_SECRET} characters of letters, digits and -_.~+/=")
+    found = named + pairs
     for relative in getattr(contained.adapter, "CREDENTIAL_FILES", ()):
         for path in (contained.operator_home / relative, contained.home / relative):
             if path.is_file() and not path.is_symlink():
                 text = path.read_text(errors="replace")
-                found += [text.strip(), *(item for item in _strings(text) if len(item) >= MIN_SECRET)]
+                found += [item for item in [text.strip(), *_strings(text)] if len(item) >= MIN_SECRET]
     return found
 
 
 def _userinfo(url):
+    """The secret part of a URL, decoded (its password, or its user when it has none), and its `user:password`."""
     try:
         parts = urlsplit(url)
     except ValueError:
-        return [url]
-    if parts.password:
-        return [parts.password, f"{parts.username or ''}:{parts.password}"]
-    return [parts.username] if parts.username else []
+        return url, None
+    user, password = unquote(parts.username or ""), unquote(parts.password or "")
+    return (password, f"{user}:{password}") if password else (user or None, None)
 
 
 def _strings(text):
