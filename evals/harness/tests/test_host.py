@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import shutil
+import time
 import types
 import unittest
 from pathlib import Path
@@ -62,6 +63,61 @@ class Contract(unittest.TestCase):
                                  ({"skills": []}, "exposure is not")):
             with self.subTest(exposure=exposure), self.assertRaisesRegex(host.HostError, reason):
                 host.check_exposure(adapter, exposure, ["haiku-writer"])
+
+
+class Named(TempCase):
+    def test_each_world_file_a_command_names_is_an_inferred_read_of_that_command(self):
+        world = (self.tmp / "world").resolve()
+        for folder in ("docs", "src", "lib/src"):
+            (world / folder).mkdir(parents=True)
+        for name in ("a.md", "docs/b.md", "docs/a.md", "c d.md", "a+b.md", "kept.md", "notes[1].md", "src/x.py",
+                     "lib/src/y.py", "z.py"):  # a glob with a folder matches by path, never by name alone
+            (world / name).write_text("x\n")
+        before = manifest.manifest(world)
+        (world / "a+b.md").unlink()  # a file the run removed was still named
+        (world / "new.md").write_text("x\n")  # and so is one it made
+        (world / "out").symlink_to(self.tmp)  # a link, even to a folder holding files, is no file
+        (self.tmp / "secret.txt").write_text("x\n")
+        log = [host.entry("read", path="./kept.md"),
+               host.entry("command", command="cd docs && cat a.md|grep x 'c d.md'>out; rm a+b.md", exit_code=0),
+               host.entry("command", command=f"cat {world}/kept.md new.md bdocs/b.mdx a.md.bak ls", exit_code=0),
+               host.entry("command", command="head notes[1].md src/*.py out/secret.txt", exit_code=0),
+               host.entry("read", path="notes[1].md"),
+               host.entry("command", command="cat a.md && cat a.md", exit_code=0),  # read before, and named again
+               host.entry("command", command=f"wc ./src/*.py {world}/src/*.py ../world/src/*.py", exit_code=0),
+               host.entry("command", command=f"wc ./*.py {world}/*.py lib/**/*.py", exit_code=0),
+               host.entry("command", command="cd docs && cat ../src/*.py", exit_code=0),
+               host.entry("command", command="cd lib/src && cat ../../src/*.py /etc/*.py ../../../*/x/*.py",
+                          exit_code=0)]
+        inferred = lambda path: host.entry("read", "inferred", path=path)
+        self.assertEqual(host.named(world, before, log), [
+            log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
+            inferred("kept.md"), inferred("new.md"), log[3], inferred("lib/src/y.py"), inferred("notes[1].md"),
+            inferred("src/x.py"), log[4], log[5], inferred("a.md"), inferred("docs/a.md"),
+            log[6], inferred("lib/src/y.py"), inferred("src/x.py"),
+            log[7], inferred("lib/src/y.py"), inferred("src/x.py"), inferred("z.py"),
+            log[8], inferred("lib/src/y.py"), inferred("src/x.py"),  # cd is never followed, so a glob after a
+            log[9], inferred("lib/src/y.py"), inferred("src/x.py")])  # parent step is the end of a path
+
+    def test_each_globstar_may_match_no_folder(self):
+        world = (self.tmp / "world").resolve()
+        (world / "src/a/n").mkdir(parents=True)
+        (world / "src/a/n/w.py").write_text("x\n")
+        log = [host.entry("command", command="cat src/**/n/**/*.py", exit_code=0)]
+        self.assertEqual(host.named(world, manifest.manifest(world), log)[1:],
+                         [host.entry("read", "inferred", path="src/a/n/w.py")])
+
+    def test_a_large_world_is_named_in_time(self):
+        world = (self.tmp / "world").resolve()
+        world.mkdir()
+        for number in range(5000):  # as a task that installs its dependencies into the world makes
+            (world / f"f{number}.md").write_text("x\n")
+        log = [host.entry("command", command=f"cat f{n}.md f{n + 1}.md | grep -c x " * 20, exit_code=0)
+               for n in range(0, 200, 2)]
+        start = time.monotonic()
+        found = host.named(world, manifest.manifest(world), log)
+        self.assertLess(time.monotonic() - start, 30)
+        self.assertEqual(len(found), 300)
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")

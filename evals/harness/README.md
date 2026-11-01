@@ -318,5 +318,5 @@ lint fault must be refused by its own rule, and every reason passes one scrub.
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
 a gate made to miss is a miss. A host-shipped skill exposed and a host that cannot run commands need an adapter
 hook, and come next with the grading faults. That no check decides on an inferred entry comes with the checks. The
-Claude Code adapter infers no read from a command yet, and the Codex adapter only the reads its host parses, so
-either may miss the `inferred` fault until that hook's PR. A miss stops the round, so it fails safe.
+harness itself adds an inferred read for every world file a command names by its whole name or a wildcard
+(`host.named`), so no host depends on its adapter parsing commands.

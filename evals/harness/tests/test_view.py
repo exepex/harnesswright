@@ -30,11 +30,16 @@ class Views(TempCase):
 
     run_of = test_evidence.Bundles.run_of
 
-    def views(self, same):
-        self.skill()
-        case = self.case({"README.md": "A notes app.\n", "AGENTS.md": LONG}, {"index": INDEX})
+    def views(self, same, files=None, skill_only=SKILL_ONLY):
+        folder = self.skill()
+        for path, content in (files or {}).get("skill", {}).items():
+            (folder / path).parent.mkdir(parents=True, exist_ok=True)
+            (folder / path).write_text(content)
+            self.track(folder.parent)
+        world = {"README.md": "A notes app.\n", "AGENTS.md": LONG, **(files or {}).get("world", {})}
+        case = self.case(world, {"index": INDEX})
         views = {}
-        for arm, actions in ((True, SKILL_ONLY + same), (False, same)):
+        for arm, actions in ((True, skill_only + same), (False, same)):
             out = evidence.store(*self.run_of(actions, arm=arm, case=case), self.tmp / f"bundle-{arm}")
             record, blob = evidence.load(out)
             self.assertIn("haiku-writer", json.dumps(record))  # the full bundle keeps the overlay for audits
@@ -61,6 +66,29 @@ class Views(TempCase):
         self.assertEqual(shown["log"][0]["sha256"], host.sha256("hi\n"))
         self.assertEqual(sorted(shown["diff"]), ["AGENTS.md", "copy.md", "notes.txt"])
         self.assertEqual(blobs[shown["files_after"]["copy.md"].split(" ")[1]].decode(), LONG)
+
+    def test_a_read_inferred_from_a_command_on_the_overlay_goes_with_it(self):
+        guide = "references/guide.md"  # one name in the skill and in the world, so the command names both
+        shown, _ = self.views(LISTED, {"skill": {guide: "x\n"}, "world": {"docs/guide.md": "y\n"}},
+                              [{"do": "command", "command": f"cat skills/haiku-writer/{guide}"}])
+        self.assertNotIn("docs/guide.md", [item.get("path") for item in shown["log"]])
+
+    def test_a_command_on_the_overlay_hides_no_read_of_a_later_command(self):
+        guide = "references/guide.md"
+        shown, _ = self.views([{"do": "command", "command": "cat docs/guide.md"}] * 3,  # shown once, not per command
+                              {"skill": {guide: "x\n"}, "world": {"docs/guide.md": "y\n"}},
+                              [{"do": "command", "command": f"cat skills/haiku-writer/{guide}"}])
+        self.assertEqual([item.get("path") for item in shown["log"]].count("docs/guide.md"), 1)
+
+    def test_every_inferred_entry_after_a_command_on_the_overlay_goes_with_it(self):
+        skill = "skills/haiku-writer/SKILL.md"
+        record = {"overlay": {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md"},
+                  "folders": {}, "own_files": [], "files_after": {}, "diff": {}, "final_message": None, "case": None,
+                  "mode": "task", "log": [  # in Codex's order: a read, its skill load, then the command's next read
+                      host.entry("command", command=f"cat {skill} docs/guide.md", exit_code=0, output=""),
+                      host.entry("read", "inferred", path=skill), host.entry("skill", "inferred", name="haiku-writer"),
+                      host.entry("read", "inferred", path="docs/guide.md"), host.entry("message", text="Done.")]}
+        self.assertEqual(view.view(record, None)[0]["log"], [host.entry("message", text="Done.")])
 
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)

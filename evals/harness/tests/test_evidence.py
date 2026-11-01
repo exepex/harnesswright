@@ -83,7 +83,8 @@ class Bundles(TempCase):
                                              "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
-        self.assertEqual(" ".join(e["kind"] for e in record["log"]), "write command write command skill message")
+        self.assertEqual(" ".join(e["kind"] for e in record["log"]),  # the files a command names are inferred reads
+                         "write command read read write command skill message")
         stdout = blob(record["transcript"]["stdout"]).decode()
         self.assertNotIn("haiku-writer", stdout)  # the transcript names neither the skill nor its paths
         self.assertIn(scrub.NEUTRAL_NAME, stdout)
@@ -109,7 +110,8 @@ class Bundles(TempCase):
         self.assertIn("k-[redacted]", record["files_after"])
         self.assertEqual(record["files_after"]["lnk"], "link [redacted]")
         self.assertEqual(record["final_message"], "The key is [redacted].")
-        self.assertEqual(len(record["log"][1]["output"]), 3990 + len("[redacted]\n"))  # kept whole and redacted
+        commands = [e for e in record["log"] if e["kind"] == "command"]
+        self.assertEqual(len(commands[1]["output"]), 3990 + len("[redacted]\n"))  # kept whole and redacted
         token = contain.new_token()
         with self.assertRaises(scrub.Leak) as caught:  # a reason never repeats a secret the run put in a name
             self.run_of([{"do": "command", "command": f'printf {token} > "k-$FAKE_API_KEY"'}], adapter, [token])

@@ -26,6 +26,7 @@ Standard library only.
 """
 
 import hashlib
+import os
 import re
 
 import evidence
@@ -75,12 +76,21 @@ def view(record, blob):
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
     root = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
+    follows, read = False, set()  # whether the entry follows a dropped command; the paths the view shows read
     for item in record["log"]:
+        if follows and host.part_of_command(item):
+            continue  # it stands right after the command it came from, and goes with it
+        follows = False
         if on_overlay(item, words):
+            follows = item["kind"] == "command"
             continue
         written = item.get("path")
         item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
                 for name, value in item.items()}
+        if item["kind"] == "read":  # a file's inferred read is shown once, the first time, the same in either arm
+            if item["source"] == "inferred" and os.path.normpath(item["path"]) in read:
+                continue
+            read.add(os.path.normpath(item["path"]))
         if item["kind"] == "command":  # what the world printed back differs between the arms, so it stays out
             item = {name: item[name] for name in COMMAND_FIELDS}
         if item["kind"] == "write" and item["sha256"] is not None:
