@@ -295,7 +295,7 @@ def _secrets(env, keys):
     or for a URL its password, else its user (a token), so a base URL with neither is no secret."""
     urls = {v: urllib.parse.urlsplit(v) for v in (env.get(k, "") for k in keys) if "://" in v}
     found = [(u.password or u.username) if v in urls and (u := urls[v]) else v for v in (env.get(k, "") for k in keys)]
-    return [urllib.parse.unquote(v) for v in found if v]
+    return [spelling for v in found if v for spelling in {v, urllib.parse.unquote(v)}]  # as written, and decoded
 
 
 def _lint(setup, folder):
