@@ -262,7 +262,8 @@ first: a canary token stops it (`scrub.Leak`, the run is void), then every crede
 output may hold it (as written, JSON-escaped, URL-encoded and decoded). So nothing is cut before it: the action log
 and the gate's log keep whole outputs and request lines. `scrub.credentials` is the one rule of what a credential
 is: each `ENV_KEYS` value, the secret part of a URL (its password with `user:password`, or its user when it has no
-password), and a credential file's strings of at least 8 characters. A named credential shorter than that cannot
-be redacted without damaging the evidence, so the containment refuses the run. The scrub runs only on what the run
+password), each decoded, and a credential file's strings of at least 8 characters. A named credential must be 8 or
+more letters, digits or `-_.~+/=`, so the scrub knows every form it can take; any other cannot be redacted reliably
+without damaging the evidence, so the containment refuses the run. The scrub runs only on what the run
 made, never on what the harness made, such as hashes and field names (`Scrub.value` keeps keys, `Scrub.names`
 scrubs keys the run chose). A reason the harness reports never repeats a token or credential (`Scrub.quiet`).

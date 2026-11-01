@@ -119,7 +119,7 @@ class Containment:
         self.env = self._environment()
         try:
             scrub.credentials(self)  # each one must be redactable before the run starts
-        except scrub.ShortCredential as error:
+        except scrub.UnsafeCredential as error:
             raise ContainmentError(str(error)) from None
 
     def _hosts(self):

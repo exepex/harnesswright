@@ -40,7 +40,7 @@ class Upstream:
 
         self.server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler)
         self.server.daemon_threads = True
-        self.url = f"http://user:p%40ss-0123@127.0.0.1:{self.server.server_address[1]}"
+        self.url = f"http://user:p%2Bss-0123@127.0.0.1:{self.server.server_address[1]}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def close(self):
@@ -82,7 +82,7 @@ class Gate(TempCase):
         self.assertEqual(len(self.upstream.requests), 1)
         sent = self.upstream.requests[0]
         self.assertTrue(sent.startswith("CONNECT api.example.com:443 HTTP/1.1\r\n"))
-        self.assertIn(f"Proxy-Authorization: Basic {base64.b64encode(b'user:p@ss-0123').decode()}", sent)
+        self.assertIn(f"Proxy-Authorization: Basic {base64.b64encode(b'user:p+ss-0123').decode()}", sent)
         self.assertNotIn("X-Secret", sent)
         self.assertFalse((self.tmp / "gate.sock").exists())
 
