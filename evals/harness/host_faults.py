@@ -8,6 +8,7 @@ Standard library only.
 
 import json
 import os
+import re
 
 import cases
 import contain
@@ -58,8 +59,9 @@ def not_run(setup, fault, rng, place):
     adapter's ENV_KEYS and an empty home, so no credential file), its command tools taken away by its adapter
     (`commands`), or no containment on the machine (`containment`: no `bwrap` on the harness's PATH, so run one
     after another, never beside a real run). Caught when the sign-in probe (the powers probe for `commands`), in the
-    mode the seed chooses, passes the host as it is and, with the fault planted, fails it, or for the containment
-    the probes give the host no run for that reason, so the host is `not run`."""
+    mode the seed chooses, passes the host as it is and, with the fault planted, fails it (for `commands`, a host
+    that ran but ran no command), or for the containment the probes give the host no run for that reason, so the
+    host is `not run`."""
     options, mode = dict(setup.containment), rng.choice(probes.MODES)
     env = dict(os.environ if options.get("operator_env") is None else options["operator_env"])
     name = "powers" if place == "commands" else "sign-in"
@@ -73,8 +75,8 @@ def not_run(setup, fault, rng, place):
     control = probe()
     if control:
         return f"the host fails the {name} probe without the fault, so the fault proves nothing: {control}"
-    if place == "commands":
-        found = probe(plant="no commands")
+    if place == "commands":  # the host ran, and the probe failed for the one reason that it ran no command
+        found = (probe(plant="no commands") or "").endswith(f"run: {probes.NO_COMMAND}")
     elif place == "host":
         found = probe(operator_env={**env, "PATH": _without(env.get("PATH", ""), setup.adapter.CLI)})
     elif place == "key":
@@ -120,13 +122,14 @@ def inferred(setup, fault, rng, place):
 
 def exposed(setup, fault, rng, place):
     """The host's bundled skills turned on by its adapter (`host.PLANTED`), in a without-skill run of the case.
-    Caught when the same run without the fault passes and, with it, the host's exposure stops the round
-    (`host.check_exposure`), as no case declares a host-shipped skill."""
+    Caught when the same run without the fault passes and, with it, the host's exposure stops the round for a skill
+    the case does not declare (`host.check_exposure`), as no case declares a host-shipped skill. The error names
+    each such skill, and is the judges' evidence."""
     faults._run(setup, fault, setup.case, {})  # the control: a host that fails anyway proves nothing
     try:
         faults._run(setup, fault, setup.case, {}, plant=place)
     except host.HostError as error:
-        if " is exposed" in str(error):
+        if re.search(re.escape(host.UNDECLARED).replace(r"\{\}", r"\S+"), str(error)):
             return None
         raise
     return "the host's bundled skills were on, and the round went on"

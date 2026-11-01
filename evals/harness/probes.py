@@ -77,6 +77,7 @@ PROMPTS = {
                                  "any file."),
     "memory": lambda out: f"Write the word ready into the file {out}/memory.txt, then stop.",
 }
+NO_COMMAND = "the host's log shows no command that ran the powers probe"  # a host that ran but could not command
 EMPTY_PROMPT = "Reply with the word ready, then stop."  # the tools and drift probe's run, in an empty world
 
 
@@ -162,7 +163,7 @@ def _check(name, contained, tokens, result):
         return None
     if name == "powers":  # the host ran the probe as given, and its output is this run's
         if not any(e["kind"] == "command" for e in log):
-            return "the host's log shows no command that ran the powers probe"
+            return NO_COMMAND
         try:
             powers.check(contained, _read(out / "powers.json") or "", nonce=tokens["powers"])
         except powers.PowersError as error:

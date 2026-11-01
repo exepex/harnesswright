@@ -76,7 +76,9 @@ class Missed(Fake):
                  "bundled skills were on, and the round went on"),  # a plant that leaves the skills off
                 ({"bundled skills": lambda command: command}, "exposed", "bundled skills", "leaves its command"),
                 ({"no commands": lambda command: command + ["--sandbox", "off"]}, "not run", "commands",
-                 "passed a host whose commands is missing")):
+                 "passed a host whose commands is missing"),
+                ({"no commands": lambda command: command + ["--no-such-flag"]}, "not run", "commands",
+                 "passed a host whose commands is missing")):  # a host that never ran ran no command either
             setup.adapter = changed(base, PLANTS={**base.PLANTS, **plants})
             with self.subTest(plants=plants):
                 outcome = faults.run(entry(fault), setup, seed=1, place=place)
@@ -86,6 +88,18 @@ class Missed(Fake):
         with mock.patch.object(host, "check_exposure", lambda *args: None):  # a harness that lets any skill through
             outcome = faults.run(entry("exposed"), setup, seed=1)
         self.assertIn("the round went on", outcome["reason"])
+        checked = host.check_exposure
+        calls = []
+
+        def tools_only(adapter, exposure, skills):  # the planted run stops, though for a tool, not the skill
+            calls.append(1)
+            if len(calls) == 2:
+                raise host.HostError("exposure: tool clock is exposed but has no kind on the power table")
+            checked(adapter, exposure, skills)
+        with mock.patch.object(host, "check_exposure", tools_only):
+            outcome = faults.run(entry("exposed"), setup, seed=1)
+        self.assertFalse(outcome["caught"])
+        self.assertIn("tool clock is exposed", outcome["reason"])
 
     def test_a_host_beside_bwrap_is_hidden_and_the_jail_still_starts(self):
         setup = self.setup_of()

@@ -130,13 +130,15 @@ def check_log(entries, skills=None):
         raise HostError("action log: " + "; ".join(wrong))
 
 
+UNDECLARED = "skill {} is exposed but the case does not declare it"
+
+
 def check_exposure(adapter, exposure, skills):
     """Raise HostError naming every skill the host exposed that is not in `skills` (the skills the case installs in
     this arm), and every tool that is not one of the adapter's TOOLS."""
     if not isinstance(exposure, dict) or set(exposure) != {"skills", "tools"}:
         raise HostError(f"exposure is not {{'skills': [...], 'tools': [...]}}: {exposure!r}")
-    wrong = [f"skill {name} is exposed but the case does not declare it"
-             for name in exposure["skills"] if name not in skills]
+    wrong = [UNDECLARED.format(name) for name in exposure["skills"] if name not in skills]
     wrong += [f"tool {name} is exposed but has no kind on the power table"
               for name in exposure["tools"] if name not in adapter.TOOLS]
     if wrong:
