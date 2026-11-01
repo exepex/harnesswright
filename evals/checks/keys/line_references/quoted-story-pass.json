@@ -5,12 +5,10 @@
   "outcome": "pass",
   "before": {
     "src/app.py": "a = 1\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
     "old.py": "x\n"
   },
   "after": {
     "src/app.py": "a = 1\nb = 2\nc = 3\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
     "claims.md": "# Claims\n\n## Request\n\n> Fix the bug at `old.py:40`.\n\n## Requirements\n\nDone in `src/app.py:2`.\n"
   }
 }

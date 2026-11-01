@@ -4,14 +4,8 @@
     "file": "claims.md"
   },
   "outcome": "pass",
-  "before": {
-    "src/app.py": "a = 1\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
-    "old.py": "x\n"
-  },
+  "before": {},
   "after": {
-    "src/app.py": "a = 1\nb = 2\nc = 3\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
     "VERSION": "1.0\n",
     "claims.md": "# Claims\n\n## Files changed\n\n* `VERSION` (1 line)\n"
   }

@@ -2,14 +2,8 @@
   "args": {},
   "outcome": "fail",
   "before": {
-    "src/app.py": "a = 1\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n",
-    "old.py": "x\n",
     "NOTES": "a\n"
   },
-  "after": {
-    "src/app.py": "a = 1\nb = 2\nc = 3\n",
-    "tests/test_app.py": "import unittest\n\n\nclass T(unittest.TestCase):\n    pass\n"
-  },
+  "after": {},
   "final_message": "Implemented in `NOTES:1`.\n"
 }
