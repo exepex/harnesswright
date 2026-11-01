@@ -19,6 +19,13 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
 - `shares_words`: the text shares a run of `run` consecutive words with the world file `source` after the run
   (`shared` true), or shares none (`shared` false). Words are letters and digits, compared without case. Pair it
   with `file_state` `unchanged` on the source, so a run cannot change the reference.
+- `line_counts`: the prose lists at least one file, each on a list line that is only `` - `path` (N lines) `` (or
+  `1 line`) or `` - `path` (deleted) ``. Each listed file is a file after the run with exactly N lines, counted as
+  its newline characters (as `wc -l` counts), and each file listed deleted is absent.
+- `line_references`: every inline code span in the prose that is only `path:N` or `path:N-M` points at lines that
+  exist in that file after the run: 1 <= N <= M <= its line count. A span whose path is not a file is a broken
+  reference when its last part has a `.`, as a file name does, and is not a reference otherwise, such as
+  `localhost:8080`.
 """
 
 import re
@@ -32,6 +39,8 @@ FIELD = re.compile(r"([A-Za-z0-9_-]+):(?:[ \t]+(.*))?")
 CLOSERS = "\"')]*_~"
 QUESTION = re.compile(r"\?[" + re.escape(CLOSERS) + r"]*(?=\s|$)")
 WORD = re.compile(r"[^\W_]+")
+ENTRY = re.compile(r"[ \t]*[-*][ \t]+`([^`]+)`[ \t]+\((?:(\d+) lines?|(deleted))\)[ \t]*")
+REFERENCE = re.compile(r"([^\s:`]+):(\d+)(?:-(\d+))?")
 QUOTED = re.compile(r"\s*([\"'])(.*?)\1\s*(?:#.*)?")
 # Inline code: a whole run of backticks, to the next run of the same length; it may wrap within a paragraph.
 SPAN = re.compile(r"(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n).)+?(?<!`)\1(?!`)", re.DOTALL)
@@ -64,6 +73,11 @@ def lines(text, frontmatter):
         else:
             found.append(("prose", row))
     return found
+
+
+def _prose(text, frontmatter):
+    """The rows of `text`, each prose row as written and every other row empty, so row N is still line N."""
+    return [row if kind == "prose" else "" for kind, row in lines(text, frontmatter)]
 
 
 def sections(bundle, headings, level, file=None):
@@ -136,6 +150,49 @@ def shares_words(bundle, source, run, shared, file=None):
     return ("fail" if shared else "pass"), f"{name} shares no run of {run} words with {source}"
 
 
+def line_counts(bundle, file=None):
+    text, name = _text(bundle, file)
+    if text is None:
+        return "fail", f"{name} does not exist"
+    listed = [m.groups() for row in _prose(text, file is not None) for m in [ENTRY.fullmatch(row)] if m]
+    if not listed:
+        return "fail", f"{name} lists no file as - `path` (N lines) or - `path` (deleted)"
+    wrong = []
+    for path, count, deleted in listed:
+        held = bundle.text(path) if is_path(path) else None
+        true = None if held is None else held.count("\n")
+        if deleted and path in bundle.files:
+            wrong.append(f"{path} is listed deleted but is there")
+        elif not deleted and true is None:
+            wrong.append(f"{path} is not a file")
+        elif not deleted and true != int(count):
+            wrong.append(f"{path} has {true} lines, not {count}")
+    if wrong:
+        return "fail", f"{name} lists {len(listed)} files, and " + "; ".join(wrong[:20])
+    return "pass", f"{name} lists {len(listed)} files, each with its true line count or absent when deleted"
+
+
+def line_references(bundle, file=None):
+    text, name = _text(bundle, file)
+    if text is None:
+        return "fail", f"{name} does not exist"
+    spans = [m.group(0).strip("`").strip() for m in SPAN.finditer("\n".join(_prose(text, file is not None)))]
+    found = [m.groups() for span in spans for m in [REFERENCE.fullmatch(span)] if m]
+    checked, broken = 0, []
+    for path, first, last in found:
+        held = bundle.text(path) if is_path(path) else None
+        if held is None:
+            if "." in path.rsplit("/", 1)[-1]:
+                broken.append(f"{path} is not a file")
+            continue
+        checked, count = checked + 1, len(held.splitlines())
+        if not 1 <= int(first) <= int(last or first) <= count:
+            broken.append(f"{path}:{first}{'-' + last if last else ''} is outside its {count} lines")
+    if broken:
+        return "fail", f"{name} holds broken file:line references: " + "; ".join(broken[:20])
+    return "pass", f"{name} holds {checked} file:line references, each to lines that exist"
+
+
 def is_texts(value):
     return isinstance(value, list) and bool(value) and all(isinstance(v, str) and v for v in value)
 
@@ -160,4 +217,8 @@ CHECKS = {
     "shares_words": Check(shares_words, {"source": is_path, "run": is_count, "shared": lambda v: isinstance(v, bool),
                                          **FILE},
                           optional=("file",), about="the text shares a run of words with a source file, or none"),
+    "line_counts": Check(line_counts, dict(FILE), optional=("file",),
+                         about="each file the text lists has the line count it gives, or is absent when deleted"),
+    "line_references": Check(line_references, dict(FILE), optional=("file",),
+                             about="every file:line reference in the text points at lines that exist"),
 }
