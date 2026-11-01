@@ -78,7 +78,7 @@ class Bundles(TempCase):
         self.assertEqual(record["diff"]["link.md"], {"before": None, "after": "link README.md"})
         self.assertEqual(blob(record["diff"]["notes.txt"]["after"].split(" ")[1]), b"hi\n")
         self.assertIn("skills/haiku-writer/notes.md", record["files_after"])
-        self.assertEqual(record["overlay"], {"skill": "haiku-writer", "row": None, "index": None,
+        self.assertEqual(record["overlay"], {"skill": "haiku-writer", "row": None, "index": None, "index_without": None,
                                              "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
@@ -108,7 +108,7 @@ class Bundles(TempCase):
         self.assertIn("k-[redacted]", record["files_after"])
         self.assertEqual(record["files_after"]["lnk"], "link [redacted]")
         self.assertEqual(record["final_message"], "The key is [redacted].")
-        self.assertEqual(len(record["log"][1]["output"]), 4000)  # cut only after the whole output was redacted
+        self.assertEqual(len(record["log"][1]["output"]), 3990 + len("[redacted]\n"))  # kept whole and redacted
         token = contain.new_token()
         with self.assertRaises(scrub.Leak) as caught:  # a reason never repeats a secret the run put in a name
             self.run_of([{"do": "command", "command": f'printf {token} > "k-$FAKE_API_KEY"'}], adapter, [token])

@@ -1,18 +1,22 @@
 """The grader view: what a grader sees of one bundle (doc 11, Evidence). Graders never read the full record.
 
-One rule: the view is built from the bundle by allow lists, never by copying it and deleting what is known to be
-risky. It holds only the fields in FIELDS, and only the world paths outside the overlay (`evidence.covers`) and
-outside the host's own files. Everything the with-skill overlay added to the arm is left out, so the same run in
-either arm gives the same view:
+The view is built from the bundle by allow lists and three rules, never by copying the bundle and deleting what is
+known to be risky. Each rule is applied the same way in both arms, so the same run in either arm gives the same view.
 
-- both copies of the skill, and the folders above them while they only hold them;
-- the generated index row, as a line of the index file and of any text in the view (`unrow`);
-- every action in the log that loads the skill or names it or its paths (`marked`);
-- the skill's name and paths in the agent's messages and final message, which become neutral words.
+- **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
+  copies of the skill, and the folders above them while they only hold them) and outside the host's own files.
+- **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path or command
+  names the skill or one of its paths (`on_overlay`). No without-skill run can act on the skill.
+- **Text.** In every text the view shows (each log value, the final message, each file and each link target), a
+  line that names the skill or one of its paths is removed, so the generated index row and every copy or edit of
+  it goes too, and the run's folders become neutral words (`text`). A command's output is cut to
+  `host.OUTPUT_LIMIT` only after that.
 
-A file's entry before the run is shown by its kind and mode only, as a bundle keeps no blob of it and the index file
-differs between the arms before the run. Every file in the view's files after names a blob of the view, and a write's
-hash follows its file when the view changed that file's bytes.
+The diff is the diff of the view's own entries, so a change that only touched overlay lines is no change. A file's
+entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
+file's entry is the arm's own, and the index file's is the one it has in the without-skill arm, as the arms differ
+there only by the row. What the agent saw of its arm without naming the skill, such as the line count of the index
+file, is not hidden.
 
 Standard library only.
 """
@@ -20,82 +24,77 @@ Standard library only.
 import hashlib
 
 import evidence
+import host
 import manifest
-import scrub
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
+ACTION_FIELDS = ("path", "command")  # the fields that say what an action acts on
 
 
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
-    overlay = record["overlay"]
-    places, own = overlay["paths"], set(record["own_files"])
-    blobs, renamed = {}, {}
+    overlay, folders = record["overlay"], record["folders"]
+    words = [overlay["skill"], *overlay["paths"]]
+    places, own = overlay["paths"], record["own_files"]
+    blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
-    def shown(path, entry):
-        if not manifest.is_file(entry):
-            return entry
-        digest, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-        data = blob(digest)
-        if path == overlay["index"]:
-            data = unrow(data, overlay["row"])
-        renamed[digest] = hashlib.sha256(data).hexdigest()
-        blobs[renamed[digest]] = data
-        return f"file {renamed[digest]}{rest}"
+    def after(path, entry):
+        if manifest.is_file(entry):
+            digest, rest = entry.split(" ")[1], entry[len("file ") + 64:]
+            data = text(blob(digest), words, folders)
+            hashes[path] = (digest, hashlib.sha256(data).hexdigest())
+            blobs[hashes[path][1]] = data
+            return f"file {hashes[path][1]}{rest}"
+        if manifest.kind(entry) == "link":
+            return "link " + text(entry[len("link "):], words, folders)
+        return entry
 
-    def outside(path, entry=None):
-        return path not in own and not evidence.covers(places, path, entry, entry)
+    def before(path, entry):
+        if evidence.covers(places, path, entry, entry):
+            return None  # a folder that held the skill before the run is the overlay's
+        if path == overlay["index"] and manifest.is_file(entry):
+            return overlay["index_without"]
+        return "link " + text(entry[len("link "):], words, folders) if manifest.kind(entry) == "link" else entry
 
-    files = {path: shown(path, entry) for path, entry in record["files_after"].items() if outside(path, entry)}
-    changes = {path: {"before": _kind(change["before"]), "after": files.get(path) if change["after"] else None}
-               for path, change in record["diff"].items() if outside(path)}
+    shown = {path: after(path, entry) for path, entry in record["files_after"].items()}
+    old = {path: before(path, change["before"]) for path, change in record["diff"].items() if change["before"]}
+    old = {path: entry for path, entry in old.items() if entry is not None}
+    new = {path: shown[path] for path, change in record["diff"].items() if change["after"]}
+    files = {path: entry for path, entry in shown.items()
+             if path not in own and not evidence.covers(places, path, entry, entry)}
+    changes = evidence.diff(old, new, places, own)
+    named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
+    blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
     for item in record["log"]:
-        item = {name: unrow(value, overlay["row"]) if isinstance(value, str) and name not in ("kind", "source")
-                else value for name, value in item.items()}
-        if item["kind"] == "message":
-            item["text"] = _neutral(item["text"], overlay)  # the agent's words are kept, as the final message is
-        elif marked(item, overlay):
+        if on_overlay(item, words):
             continue
+        item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
+                for name, value in item.items()}
+        if item["kind"] == "command":
+            item["output"] = item["output"][:host.OUTPUT_LIMIT]
         if item["kind"] == "write" and item["sha256"] is not None:
-            item["sha256"] = renamed.get(item["sha256"], item["sha256"])
+            seen = hashes.get(item["path"])
+            item["sha256"] = seen[1] if seen and seen[0] == item["sha256"] else item["sha256"]
         log.append(item)
     final = record["final_message"]
-    if final is not None:
-        final = _neutral(unrow(final, overlay["row"]), overlay)
-    built = {"files_after": files, "diff": changes, "log": log, "final_message": final}
+    built = {"files_after": files, "diff": changes, "log": log,
+             "final_message": None if final is None else text(final, words, folders)}
     return {name: built[name] if name in built else record[name] for name in FIELDS}, blobs
 
 
-def unrow(value, row):
-    """`value` (text or bytes) without the index row's line, wherever it stands; unchanged when there is no row."""
-    if not row:
-        return value
-    line, empty = (row, "") if isinstance(value, str) else (row.encode(), b"")
-    for ending in ("\r\n", "\n"):
-        value = value.replace(line + (ending if isinstance(value, str) else ending.encode()), empty)
-    return value.replace(line, empty)
+def on_overlay(item, words):
+    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it."""
+    return item["kind"] == "skill" or any(word in item.get(name, "") for name in ACTION_FIELDS for word in words)
 
 
-def marked(item, overlay):
-    """Whether an action in the log is the overlay's: it loads the skill, or any of its text names the skill or its
-    paths. The view drops it, as acting on the skill tells the arm. A message is the agent's words and is kept."""
-    if item["kind"] == "skill":
-        return True
-    words = [overlay["skill"], *overlay["paths"]]
-    return any(isinstance(value, str) and any(word in value for word in words)
-               for name, value in item.items() if name not in ("kind", "source"))
-
-
-def _neutral(text, overlay):
-    words = {overlay["skill"]: scrub.NEUTRAL_NAME, **{path: scrub.NEUTRAL_PATH for path in overlay["paths"]}}
-    for word in sorted(words, key=len, reverse=True):
-        text = text.replace(word, words[word])
-    return text
-
-
-def _kind(entry):
-    """An entry before the run as the view shows it: a file by its kind and mode, any other entry as it is."""
-    if entry is None or not manifest.is_file(entry):
-        return entry
-    return "file" + entry[len("file ") + 64:]
+def text(value, words, folders):
+    """`value` (text or bytes) without each line that names one of `words`, and with each of the run's `folders`
+    (`scrub.folders`) as its neutral word."""
+    raw = isinstance(value, bytes)
+    encode = (lambda word: word.encode()) if raw else (lambda word: word)
+    kept = [line for line in value.splitlines(keepends=True) if not any(encode(word) in line for word in words)]
+    value = (b"" if raw else "").join(kept)
+    for folder in sorted(folders, key=len, reverse=True):
+        value = value.replace(encode(folder), encode(folders[folder]))
+    return value

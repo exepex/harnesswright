@@ -1,4 +1,5 @@
-"""The grader view: built from a bundle by allow lists, it is the same for the same run in either arm."""
+"""The grader view: built from a bundle by allow lists and three rules, it is the same for the same run in either
+arm."""
 
 import json
 import unittest
@@ -10,10 +11,16 @@ from test_world import AGENTS, INDEX
 import evidence
 import host
 import test_evidence
-import scrub
 import view
 
-SKILL_WORDS = ("haiku-writer", "SKILL.md", ".fake/skills")
+LONG = AGENTS + "x" * 5000 + "\n"  # longer than the output a grader sees, with the row before the cut
+LISTED = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
+          {"do": "command", "command": "pwd && find . -type f -not -path './.git/*' | sort"},
+          {"do": "command", "command": "cat AGENTS.md && cp AGENTS.md copy.md && sed -i 's/ | /|/g' AGENTS.md"},
+          {"do": "say", "text": "Done."}]
+RESTORED = [{"do": "command", "command": f"printf '%s' '{LONG}' > AGENTS.md"},  # the index without its row
+            {"do": "command", "command": "rm -rf skills && echo x > skills"}]  # a folder above the skill replaced
+SKILL_ONLY = [{"do": "skill", "name": "haiku-writer"}, {"do": "command", "command": "cat skills/haiku-writer/SKILL.md"}]
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
@@ -22,50 +29,55 @@ class Views(TempCase):
 
     run_of = test_evidence.Bundles.run_of
 
-    def test_the_same_run_in_either_arm_gives_the_same_view(self):
+    def views(self, same):
         self.skill()
-        case = self.case({"README.md": "A notes app.\n", "AGENTS.md": AGENTS}, {"index": INDEX})
-        same = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
-                {"do": "command", "command": "cat AGENTS.md && printf 'Note.\\n' >> AGENTS.md"},
-                {"do": "say", "text": "Done with haiku-writer."}]
-        skill_only = [{"do": "skill", "name": "haiku-writer"},
-                      {"do": "command", "command": "cat skills/haiku-writer/SKILL.md"}]
+        case = self.case({"README.md": "A notes app.\n", "AGENTS.md": LONG}, {"index": INDEX})
         views = {}
-        for arm, actions in ((True, skill_only + same), (False, same)):
-            record, blob = evidence.load(evidence.store(*self.run_of(actions, arm=arm, case=case), self.tmp / str(arm)))
-            views[arm] = view.view(record, blob)
+        for arm, actions in ((True, SKILL_ONLY + same), (False, same)):
+            out = evidence.store(*self.run_of(actions, arm=arm, case=case), self.tmp / f"bundle-{arm}")
+            record, blob = evidence.load(out)
             self.assertIn("haiku-writer", json.dumps(record))  # the full bundle keeps the overlay for audits
-        (shown, blobs), (other, other_blobs) = views[True], views[False]
-        self.assertEqual(shown, other)
-        self.assertEqual(blobs, other_blobs)
+            views[arm] = view.view(record, blob)
+        self.assertEqual(views[True], views[False])
+        shown, blobs = views[True]
         self.assertEqual(tuple(shown), view.FIELDS)
         text = json.dumps(shown) + b"".join(blobs.values()).decode()
-        for word in SKILL_WORDS:
+        for word in ("haiku-writer", "SKILL.md", str(self.tmp)):
             self.assertNotIn(word, text)
-        self.assertEqual(shown["final_message"], f"Done with {scrub.NEUTRAL_NAME}.")
-        self.assertEqual(shown["diff"]["AGENTS.md"]["before"], "file")  # its kind only: the arms differ before
-        index = shown["files_after"]["AGENTS.md"].split(" ")[1]
-        self.assertEqual(blobs[index].decode(), AGENTS + "Note.\n")
-        self.assertEqual({entry.split(" ")[1] for entry in shown["files_after"].values() if entry.startswith("file")},
-                         set(blobs))  # every hash in the view names one of its blobs
-        self.assertEqual(shown["log"][-1]["text"], shown["final_message"])  # a message is kept, in neutral words
-        writes = [item for item in shown["log"] if item["kind"] == "write"]
-        self.assertEqual(writes[0]["sha256"], host.sha256("hi\n"))
-        self.assertNotIn(".fake-state", shown["files_after"])  # the host's own file is left out
+        named = [*shown["files_after"].values(), *(c["after"] for c in shown["diff"].values() if c["after"])]
+        self.assertEqual({entry.split(" ")[1] for entry in named if entry.startswith("file")}, set(blobs))
         host.check_log(shown["log"])
+        return shown, blobs
 
-    def test_an_entry_is_the_overlay_s_when_it_loads_or_names_the_skill(self):
-        overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "row": "| haiku-writer |"}
+    def test_the_same_run_in_either_arm_gives_the_same_view(self):
+        shown, blobs = self.views(LISTED)
+        commands = [item for item in shown["log"] if item["kind"] == "command"]
+        self.assertEqual(len(commands), 2)  # a listing that shows the skill is kept, without the skill's lines
+        self.assertIn("./notes.txt", commands[0]["output"])
+        self.assertTrue(commands[0]["output"].startswith("/run/project\n"))  # the run's folder in a neutral word
+        self.assertEqual(len(commands[1]["output"]), host.OUTPUT_LIMIT)  # cut after the row's line went
+        self.assertEqual(shown["final_message"], "Done.")
+        self.assertEqual(shown["log"][0]["sha256"], host.sha256("hi\n"))
+        self.assertEqual(sorted(shown["diff"]), ["AGENTS.md", "copy.md", "notes.txt"])
+        self.assertEqual(blobs[shown["files_after"]["copy.md"].split(" ")[1]].decode(), LONG)
+
+    def test_a_change_only_to_the_overlay_is_no_change(self):
+        shown, _ = self.views(RESTORED)
+        self.assertEqual(shown["diff"], {"skills": {"before": None, "after": shown["files_after"]["skills"]}})
+
+    def test_an_action_is_the_overlay_s_when_it_loads_or_names_the_skill(self):
+        words = ["haiku-writer", "skills/haiku-writer"]
         for item, mine in (({"kind": "skill", "source": "observed", "name": "x"}, True),
                            ({"kind": "read", "source": "inferred", "path": "skills/haiku-writer/SKILL.md"}, True),
-                           ({"kind": "command", "source": "observed", "command": "ls", "exit_code": 0,
-                             "output": "haiku-writer"}, True),
-                           ({"kind": "read", "source": "observed", "path": "README.md"}, False)):
+                           ({"kind": "command", "source": "observed", "command": "ls skills/haiku-writer"}, True),
+                           ({"kind": "command", "source": "observed", "command": "ls", "output": "haiku-writer"},
+                            False),
+                           ({"kind": "message", "source": "observed", "text": "I used haiku-writer"}, False)):
             with self.subTest(item=item):
-                self.assertEqual(view.marked(item, overlay), mine)
-        self.assertEqual(view.unrow("a\n| haiku-writer |\r\nb", overlay["row"]), "a\nb")
-        self.assertEqual(view.unrow(b"a\n| haiku-writer |\n", overlay["row"]), b"a\n")
-        self.assertEqual(view.unrow("a", None), "a")
+                self.assertEqual(view.on_overlay(item, words), mine)
+        self.assertEqual(view.text("a\n| haiku-writer |\r\nb /x/w/c", words, {"/x/w": "/run/project"}),
+                         "a\nb /run/project/c")
+        self.assertEqual(view.text(b"a\n|haiku-writer|\n", words, {}), b"a\n")
 
 
 if __name__ == "__main__":

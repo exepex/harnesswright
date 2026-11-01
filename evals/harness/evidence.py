@@ -39,10 +39,13 @@ class EvidenceError(RuntimeError):
 
 def overlay(case, adapter, skills_root=None, skill_dir=None):
     """What the with-skill arm of `case` adds to the without-skill arm: the skill, the paths it is installed at (its
-    declared folder and the host's discovery copy), and its index file and row (both None without an index)."""
+    declared folder and the host's discovery copy), its index file and row, and the index file's entry in the
+    without-skill arm (all three None without an index)."""
     skill = worlds.plan(case, adapter, True, skills_root, skill_dir)[-1]  # the plan installs the skill last
-    return {"skill": skill.name, "paths": list(skill.targets),
-            "index": case.index["file"] if case.index else None, "row": skill.row}
+    index = case.index["file"] if case.index else None
+    without = worlds.expected(case, worlds.plan(case, adapter, False, skills_root, skill_dir))[0]
+    return {"skill": skill.name, "paths": list(skill.targets), "index": index, "row": skill.row,
+            "index_without": without.get(index) if index else None}
 
 
 def own_files(drift, mode):
@@ -73,7 +76,7 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     `arm` is `with_skill` or `without_skill`, `overlay` is the case's `overlay` and `drift` the host's tools and drift
     record. The run's scrub is made here, after the run, so a credential the host refreshed is known. Raise
     `scrub.Leak` when a canary token reached the run's output, which voids it, and `EvidenceError` when the world
-    cannot be read. A command's output is cut to `host.OUTPUT_LIMIT` only once the scrub has seen it whole."""
+    cannot be read. A command's output is kept whole; only the grader view cuts it."""
     scrub = scrubs.Scrub.of_run(contained, overlay)
     for label, folder in (("home", contained.home), ("scratch", contained.scratch)):
         _scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too
@@ -110,12 +113,9 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
                   for number, item in enumerate(result.log)]
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
-              "own_files": own,
+              "own_files": own, "folders": scrubs.folders(contained),
               "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
               "diff": scrub.names(changes, "bundle/diff"), **ran}
-    for item in record["log"]:
-        if item["kind"] == "command":
-            item["output"] = item["output"][:host.OUTPUT_LIMIT]
     for item in record["requests"]:
         item["request"] = item["request"][:REQUEST_LIMIT]
     return record, blobs
