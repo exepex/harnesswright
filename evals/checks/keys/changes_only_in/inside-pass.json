@@ -1,0 +1,17 @@
+{
+  "args": {
+    "allowed": [
+      ".harness/*"
+    ]
+  },
+  "outcome": "pass",
+  "before": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('hi')\n"
+  },
+  "after": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('hi')\n",
+    ".harness/runs/r1/claims/S01.md": "# Claims\n"
+  }
+}

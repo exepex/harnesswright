@@ -1,0 +1,18 @@
+{
+  "args": {
+    "allowed": [
+      ".harness/*"
+    ]
+  },
+  "outcome": "fail",
+  "before": {
+    "README.md": "# Notes\n",
+    "docs/guide.md": "Use it.\n"
+  },
+  "after": {
+    "README.md": "# Notes\n",
+    "docs": {
+      "link": "/etc"
+    }
+  }
+}

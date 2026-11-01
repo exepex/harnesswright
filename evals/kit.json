@@ -1,5 +1,7 @@
 {
   "parts": {
+    "checks": ["evals/checks"],
+    "answer keys": ["evals/checks/keys"],
     "lint rules": ["evals/harness/lint.py", "evals/fixtures/licences"],
     "power table": ["evals/harness/powers.py"],
     "probes": ["evals/harness/probes.py"],

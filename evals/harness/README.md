@@ -32,6 +32,7 @@ allowed connections.
 | `faults.py` | Plants each fault of the catalogue, `evals/faults/harness.json`, and runs the gate that must catch it |
 | `look.py` | Runs a harness program inside a run's jail, to see what the run can see, whatever its host did |
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
+| `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
 
 ## Commands
@@ -297,6 +298,26 @@ a command is shown as the command the agent ran, without output or exit code, si
 worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
 with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
 own entries. A run's folders must never name its arm.
+
+## Script checks
+
+`checks.py` is the one way a script check decides an expectation (doc 11, Script checks). A check is a function of
+the full bundle and its arguments that returns `pass` or `fail` with a reason, or `undecidable`. The checks are the
+`CHECKS` of the modules in `evals/checks/`, each with an allow list of its arguments; arguments outside it, an
+unknown check, or a check that breaks raise `CheckError`, and the round stops. A check reads the bundle only through
+`checks.Bundle`: the files after and the world diff, which the harness made, the final message, and the action log
+by kind. That door refuses inferred evidence: when an entry of a kind the check reads is tagged inferred, the check
+is `undecidable` and the expectation goes to the graders.
+
+Every check has answer keys in `evals/checks/keys/<check>/`, at least one that must pass and one that must fail. A
+key holds the check's `args`, the `outcome` it must give, and the run it is given: the world files `before` and
+`after` ({path: text}), the `log` and the `final_message`, made into a bundle the way `evidence.collect` makes one.
+The unit tests run every key, and a stored bundle is decided as its key is.
+
+| Check | Decides |
+|---|---|
+| `file_state` | The file at `path` exists, is absent, is unchanged, or was changed by the run |
+| `changes_only_in` | Every path the run changed matches one of the `allowed` globs (`*` crosses folders) |
 
 ## Harness faults
 
