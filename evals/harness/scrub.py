@@ -15,9 +15,7 @@ import re
 from urllib.parse import urlsplit
 
 REDACTED = "[redacted]"
-# A shorter string in a credential file is its metadata, such as a token type, not a credential. Every value the
-# adapter names as a credential is one, however short.
-MIN_SECRET = 8
+MIN_SECRET = 8  # a shorter string in a credential file is metadata, such as a token type; not so for ENV_KEYS
 NEUTRAL_NAME = "project-guide"  # the skill's name in a transcript
 NEUTRAL_PATH = "guide-folder"  # each path the with-skill overlay installs, in a transcript
 # The run's own folders, in a transcript, as their names on the machine may tell the arm or the round.
@@ -33,10 +31,9 @@ class Collision(RuntimeError):
 
 
 def credentials(contained):
-    """Every credential value of the run `contained`: each value of its adapter's ENV_KEYS, from the operator and in the jail (for
-    a URL, only its user and password), the user and password of the operator's proxy, and the text and every JSON
-    string value of at least MIN_SECRET characters in each credential file, both the operator's and the run's copy,
-    which the host may have refreshed."""
+    """Every credential value of the run `contained`: each value of its adapter's ENV_KEYS, from the operator and in
+    the jail (for a URL, only its user and password), the user and password of the operator's proxy, and the text and
+    every JSON string of at least MIN_SECRET characters in each credential file, the operator's and the run's copy."""
     found = []
     for key in getattr(contained.adapter, "ENV_KEYS", ()):
         for value in {contained.operator_env.get(key, ""), getattr(contained, "env", {}).get(key, "")}:

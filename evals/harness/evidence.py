@@ -6,14 +6,9 @@ record and every file before anything is kept. `store` writes a bundle as `bundl
 `blobs/<sha256>`, each file's scrubbed bytes named by their own hash. So no name the run chose ever touches the disk,
 names cannot collide on disk, and nothing in a bundle is a link. Every check and grader reads only the bundle.
 
-What the bundle holds: the case, the arm, the mode, the host, its version and model, the run's time, its failure (a
-void run, or None), what the host exposed, the action log, the final message, the gate's requests, the overlay the
-with-skill arm adds, the files after (the world's manifest, with each file's entry naming its stored blob), the
-world diff, and the transcript: the host's stdout and stderr as blobs, with the skill neutralised.
-
-The world diff leaves out the paths the host writes for itself, as the tools and drift probe measured them (those
-paths only), and both copies of the installed skill, each with the folders above it, so both arms leave out the
-same paths. A pipe, socket or device the agent left in the world is an `other` entry. `.git` is not read: what the agent did to the history is in its commands.
+The record's fields are the ones `collect` writes, as doc 11 lists them. The world diff leaves out the host's own
+files (those paths only) and both copies of the installed skill with the folders above them, the same in both arms.
+A pipe, socket or device the agent made is an `other` entry. `.git` is not read: the agent's git commands are logged.
 
 Standard library only.
 """

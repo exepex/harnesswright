@@ -10,8 +10,8 @@ A manifest maps each relative posix path to one entry string:
 
 World hashes, the arm proof and world diffs all use this one representation, so a change of contents, of the
 executable bit, of a folder or of a link is always a change. Any other kind of entry (a pipe, socket or
-device) where the caller does not allow it, and any entry that cannot be read, is refused, so a manifest is never partial. The module uses only the
-standard library and imports nothing from the harness, so the same code can run inside a jail.
+device) unless the caller allows it, and any entry that cannot be read, is refused, so a manifest is never
+partial. The module uses only the standard library and imports nothing from the harness, so it can run in a jail.
 """
 
 import hashlib

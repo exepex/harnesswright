@@ -92,7 +92,7 @@ class Codex(TempCase):
                                       "parsed_cmd": [{"type": "read", "path": "SKILL.md"}]})])
         self.assertEqual(CODEX.action_log("", self.tmp), [
             host.entry("message", text="On it."),
-            host.entry("command", command=f"cat {skill}", exit_code=0, output="x" * 5000),  # whole: only the bundle cuts it
+            host.entry("command", command=f"cat {skill}", exit_code=0, output="x" * 5000),  # kept whole
             host.entry("read", "inferred", path=skill), host.entry("skill", "inferred", name="probe-skill"),
             host.entry("write", path="/w/notes.txt", sha256=host.sha256("hi\n")),
             host.entry("write", path="/w/old", sha256=None), host.entry("agent", task="/root/read_a"),

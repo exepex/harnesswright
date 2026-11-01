@@ -79,7 +79,7 @@ class Bundles(TempCase):
                                              "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
-        self.assertEqual([e["kind"] for e in record["log"]], ["write", "command", "write", "command", "skill", "message"])
+        self.assertEqual(" ".join(e["kind"] for e in record["log"]), "write command write command skill message")
         stdout = blob(record["transcript"]["stdout"]).decode()
         self.assertNotIn("haiku-writer", stdout)  # the transcript names neither the skill nor its paths
         self.assertIn(scrub.NEUTRAL_NAME, stdout)
