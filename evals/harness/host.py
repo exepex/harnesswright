@@ -207,7 +207,8 @@ def named(world, before, log):
     (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read. One rule decides
     what a command names, never how a shell would resolve it: a file of the world before the run (`before`, its
     manifest) or after it is named when its name stands whole in the command, or a word with a wildcard matches its
-    name or path. Two files of one name are both named. A link is no file, and a folder named alone names none of its files."""
+    name or path. Two files of one name are both named. A link is no file, and a folder named alone names none of
+    its files."""
     try:
         after = manifest.manifest(world, skip=(".git",), other=True)
     except manifest.Unreadable:  # the bundle reports a world it cannot read; the files before still count
