@@ -3,7 +3,7 @@
 import subprocess
 import unittest
 
-from helpers import SKILL_MD, TempCase
+from helpers import SKILL_MD, TempCase, expect
 
 import cases
 import lint
@@ -94,7 +94,8 @@ class Lint(TempCase):
 
     def test_tells_kit_text_and_expectations_are_refused_wherever_the_author_put_them(self):
         repo, copy = self.source("The evaluator reads each case.\n")
-        data = {"expectations": ["The reply is a poem of three lines about notes", "Ends with one question"]}
+        data = {"expectations": [expect("The reply is a poem of three lines about notes"),
+                                 expect("Ends with one question")]}
         planted = {
             "tell stem": ({"README.md": "The evaluator compares with the goldens.\n"}, {}, "README.md: test-tell"),
             "tell in a copy": ({"STYLE.md": "The evaluator reads each case.\n"}, {"copies": [copy]},
@@ -115,19 +116,86 @@ class Lint(TempCase):
 
     def test_project_text_is_never_counted_against_the_case(self):
         data = {"prompt": "Write a poem of three lines about notes.",
-                "expectations": ["The reply is a poem of three lines about notes", "Uses tags", "!!!",
-                                 "回答包含三行诗"]}
+                "expectations": [expect("The reply is a poem of three lines about notes"), expect("Uses tags"),
+                                 expect("!!!"), expect("回答包含三行诗")]}
         self.assertEqual(self.problems({"README.md": "This app uses tags.\n", "src/cases/list.py": "x = 1\n"},
                                        data), [])
         repo, copy = self.source("Every file ends with a newline.\n")
         self.assertEqual(self.problems({"STYLE.md": "Every file ends with a newline.\n", "NOTES.md": "Every file "
                                         "ends with a newline.\n"}, {"copies": [copy], "expectations": [
-                                            "Every file ends with a newline"]}, repo=repo), [])
+                                            expect("Every file ends with a newline")]}, repo=repo), [])
+
+    def test_a_contract_is_found_where_it_is_cited_and_a_check_fits_the_library(self):
+        rule = "Every change to the\nlimiter keeps the tests in limiter_test.go passing before it is merged."
+        files = {"README.md": "x\n", "docs/rules.md": f"# Rules\n\n{rule}\n"}
+        def cited(line, quote, path="docs/rules.md", check=None):
+            return {"expectations": [expect("The limiter tests pass", {"contract": {"path": path, "line": line,
+                                                                                  "quote": quote}}, check)]}
+        quote = "every change to the limiter keeps the tests in limiter_test.go passing"  # 12 words, over two lines
+        self.assertEqual(self.problems(files, cited(3, quote)), [])  # the case may repeat the world's own words
+        ran = {"name": "command_ran", "args": {"pattern": "^go test", "ran": True, "exit_code": 0}}
+        self.assertEqual(self.problems(files, cited(3, "Every change to", check=ran)), [])
+        for data, reason in ((cited(4, quote), "docs/rules.md:4 does not start the quote"),
+                             (cited(1, quote), "docs/rules.md:1 does not start"),
+                             (cited(9, quote), "docs/rules.md:9 does not start"),
+                             (cited(3, "Every change"), "of at least 3 words"),
+                             (cited(3, "limiter keeps the"), "docs/rules.md:3 does not start"),
+                             (cited(3, quote, "docs/other.md"), "no world text file docs/other.md"),
+                             (cited(3, quote, check={"name": "no_such", "args": {}}), "no check is named 'no_such'"),
+                             (cited(3, quote, check=dict(ran, args={"ran": True})), "unknown or missing")):
+            with self.subTest(reason=reason):
+                problems = self.problems(files, data)
+                self.assertTrue(any(reason in p for p in problems), problems)
+
+    def test_a_quote_excuses_only_itself_and_judged_text_is_expectation_text(self):
+        rule = "Each release note names the ticket it closes.\n"
+        files = {"README.md": "x\n", "docs/rules.md": rule}
+        cite = {"contract": {"path": "docs/rules.md", "line": 1,
+                             "quote": "Each release note names the ticket it closes"}}
+        restated = expect("Each release note names the ticket it closes", cite)
+        self.assertEqual(self.problems(files, {"expectations": [restated]}), [])
+        lower = dict(restated, source={"contract": dict(cite["contract"], quote=cite["contract"]["quote"].lower())})
+        self.assertEqual(self.problems(files, {"expectations": [lower]}), [])  # the same words, in any case
+        judged = dict(restated, judged=dict(restated["judged"], **{"pass": "Explains why the boundary helps."}))
+        problems = self.problems(dict(files, **{"NOTES.md": "Explains why the boundary helps.\n"}),
+                                 {"expectations": [judged]})
+        self.assertTrue(any("NOTES.md: holds expectation text" in p for p in problems), problems)
+        other = expect("Each release note names the ticket it closes")  # not excused by another's quote
+        problems = self.problems(files, {"expectations": [restated, other]})
+        self.assertTrue(any("docs/rules.md: holds expectation text" in p for p in problems), problems)
+        planted = "The reply lists every ticket the release closes, in order."
+        case_data = [(self.tmp / "evals" / "skills" / "x" / "tasks.json", f'{{"text": "{planted}"}}')]
+        problems = self.problems({"README.md": "x\n", "docs/rules.md": planted + "\n"}, {"expectations": [expect(
+            "Lists tickets", {"contract": {"path": "docs/rules.md", "line": 1, "quote": planted}})]},
+            case_data=case_data)
+        self.assertTrue(any("docs/rules.md: holds eval text" in p for p in problems), problems)
+
+    def test_two_cases_may_cite_the_same_rule_from_their_own_worlds(self):
+        rule = "Every release note names the ticket it closes and the person who reviewed it."
+        files = {"README.md": "x\n", "docs/rules.md": rule + "\n"}
+        data = {"expectations": [expect("Names tickets", {"contract": {"path": "docs/rules.md", "line": 1,
+                                                                      "quote": rule}})]}
+        other = self.case(files, data, name="other")
+        case_data = [(other.folder / "case.json", (other.folder / "case.json").read_text())]
+        self.assertEqual(self.problems(files, data, case_data=case_data), [])
+        for odd in ("null", "3", '{"a": 1}'):  # another data file of any shape states no quotes
+            case_data = [(other.folder / "case.json", '{"expectations": ' + odd + '}')]
+            self.problems(files, data, case_data=case_data)  # lints without a crash
+            self.assertEqual(lint.stated_quotes('{"expectations": ' + odd + '}'), [])
+
+    def test_a_contract_cited_through_a_link_is_not_found(self):
+        case = self.case({"README.md": "x\n", "docs/every-change-must-pass.md": "Not a rule.\n"},
+                         {"expectations": [expect("Passes", {"contract": {
+                             "path": "rule.md", "line": 1, "quote": "every change must pass"}})]})
+        (case.world / "rule.md").symlink_to("docs/every-change-must-pass.md")  # its text is not the target's
+        problems = lint.lint_case(cases.Case(case.folder, case.skill), Adapter, self.tmp / "arms-link",
+                                  self.skill().parent)
+        self.assertTrue(any("no world text file rule.md" in p for p in problems), problems)
 
     def test_the_rows_the_run_reads_are_checked_as_it_reads_them(self):
         files = {"README.md": "x\n", "AGENTS.md": AGENTS}
         sibling = "---\nname: note-taker\ndescription: of three lines about notes.\n---\n# Notes\n"
-        data = {"siblings": ["note-taker"], "expectations": ["The reply is a poem of three lines about notes"],
+        data = {"siblings": ["note-taker"], "expectations": [expect("The reply is a poem of three lines about notes")],
                 "index": dict(INDEX, row="| {name} | {path} | The reply is a poem {description} |")}
         problems = self.problems(files, data, siblings={"note-taker": sibling})
         self.assertTrue(any("<sibling rows>: holds expectation text" in p for p in problems), problems)
