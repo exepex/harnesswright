@@ -52,14 +52,14 @@ class Catalogue(unittest.TestCase):
 class Planted(TempCase):
     """The fake host in a real jail, with a decoy operator home that holds its credential file."""
 
-    def setup_of(self, adapter=None):
+    def setup_of(self, adapter=None, data=None):
         tool = self.tmp / "tool"
         shutil.copytree(FAKE, tool, ignore=shutil.ignore_patterns("adapter.py", "__pycache__"))
         self.skill()
         operator = self.tmp / "operator" / ".fake"
         operator.mkdir(parents=True)
         (operator / "creds.json").write_text(json.dumps({"refresh": "refresh-0123456789abcdef"}))
-        case = self.case({"README.md": "A notes app.\n", "docs/usage.md": "Open the app and write a note.\n"})
+        case = self.case({"README.md": "A notes app.\n", "docs/usage.md": "Open the app and write a note.\n"}, data)
         adapter = adapter or changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",))
         drift = {"own files": {"task": ["world/.fake-state", "home/.fake/log"], "trigger": ["home/.fake/log"]}}
         return faults.Setup(adapter, case, self.tmp / "skills", self.tmp / "faults", drift, prompts=PROMPTS,
@@ -101,11 +101,12 @@ class Planted(TempCase):
                 ("outside", "beside", mock.patch.object(contain.Containment, "audit", side_effect=OSError("down")),
                  "another outcome: OSError"),
                 ("environment", "operator env", mock.patch.object(host, "run", return_value=host.Result(
-                    "", "", 1, False, "exit code 1", [], None, [], 0.0)), "never met")):
+                    "", "", 1, False, f"turn failed: bad key {KEY}", [], None, [], 0.0)), "never met")):
             with self.subTest(fault=fault), patch:
                 outcome = faults.run(entries[fault], setup, seed=1, place=place)
                 self.assertFalse(outcome["caught"])
                 self.assertIn(reason, outcome["reason"])
+                self.assertNotIn(KEY, outcome["reason"])  # a failure's words are the run's, and scrubbed
 
 
     def test_the_jail_not_the_host_decides_outside_and_a_base_url_is_no_secret(self):
@@ -122,6 +123,12 @@ class Planted(TempCase):
             outcome = faults.run(entries["outside"], setup, seed=2, place="beside")  # the host still never looks
         self.assertFalse(outcome["caught"])
         self.assertIn("jail can find", outcome["reason"])
+
+    def test_a_sibling_the_without_skill_arm_installs_may_be_exposed(self):
+        self.skill("note-taker")
+        setup = self.setup_of(data={"siblings": ["note-taker"]})
+        environment = next(e for e in faults.load() if e["id"] == "environment")
+        self.assertTrue(faults.run(environment, setup, seed=4)["caught"])
 
     def test_a_credential_file_that_is_a_link_is_never_followed(self):
         setup = self.setup_of()

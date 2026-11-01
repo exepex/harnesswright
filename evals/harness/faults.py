@@ -131,25 +131,28 @@ def _copy(setup):
 
 def _contained(setup, case, tokens=(), folder=None, **options):
     """The containment of the without-skill run of `case`, built and proved as a round builds it, in `folder` or a
-    new one."""
+    new one, and the skills that arm installs (its siblings), which its host may expose."""
     folder = folder or setup.folder()
     base = world.build(case, setup.adapter, folder / "a", setup.skills_root)
     other = world.build(case, setup.adapter, folder / "b", setup.skills_root, True, setup.skill_dir)
     world.prove(case, setup.adapter, base, other, setup.skills_root, setup.skill_dir)
     options = {**setup.containment, **options}
     options["tokens"] = [*options.get("tokens", ()), *tokens]
-    return contain.Containment(setup.adapter, case.kind, base.path, manifest.manifest(base.path), root=folder / "run",
-                               **options)
+    contained = contain.Containment(setup.adapter, case.kind, base.path, manifest.manifest(base.path),
+                                    root=folder / "run", **options)
+    return contained, [install.name for install in base.installs]
 
 
 def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     """One without-skill run of `case` with the fault planted. Return the folder of its bundle, stored and read
     back, and its containment. A canary that reaches its output raises `scrub.Leak`, and a jail that fails its
     audit raises `contain.ContainmentError`."""
-    contained = _contained(setup, case, tokens, folder, **options)
-    result = host.run(contained, setup.prompt(fault, planted), skills=[], model=setup.model, timeout=setup.timeout)
-    if result.failure:  # a host that did not run never met the fault, so the run shows nothing caught
-        raise Missed(f"the host failed, so the fault was never met: {result.failure}")
+    contained, installed = _contained(setup, case, tokens, folder, **options)
+    result = host.run(contained, setup.prompt(fault, planted), skills=installed, model=setup.model,
+                      timeout=setup.timeout)
+    if result.failure:  # a host that did not run never met the fault; what it said is the run's, so it is scrubbed
+        quiet = scrub.Scrub.of_run(contained).quiet(str(result.failure))
+        raise Missed(f"the host failed, so the fault was never met: {quiet}")
     layer = evidence.overlay(case, setup.adapter, setup.skills_root, setup.skill_dir)
     record, blobs = evidence.collect(contained, result, case, "without_skill", layer, setup.drift,
                                      setup.host_version, setup.model)
@@ -250,9 +253,9 @@ def inside(setup, fault, rng, place):
         named.mkdir()
         (named / f"{CANARY}{rng.randrange(16 ** 6):06x}").write_text(f"{token}\n")
         options["host_paths"] = [*setup.containment.get("host_paths", ()), named]
-    _contained(setup, case, **options).audit(setup.adapter.CLI)  # the control: the same run, no canary listed
+    _contained(setup, case, **options)[0].audit(setup.adapter.CLI)  # the control: the same run, no canary listed
     try:
-        _contained(setup, case, [token], **options).audit(setup.adapter.CLI)
+        _contained(setup, case, [token], **options)[0].audit(setup.adapter.CLI)
     except contain.ContainmentError as error:
         return None if "a canary token is in" in str(error) else f"the audit refused it for another reason: {error}"
     return "the audit passed a run that can see a canary"
