@@ -32,6 +32,7 @@ allowed connections.
 | `faults.py` | Plants each fault of the catalogue, `evals/faults/harness.json`, and runs the gate that must catch it |
 | `look.py` | Runs a harness program inside a run's jail, to see what the run can see, whatever its host did |
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
+| `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
 
 ## Commands
 
@@ -324,3 +325,18 @@ each of `host.PLANTED`), and `host.run` refuses a plant that leaves the command 
 with grading, and that no check decides on an inferred entry comes with the checks. The
 harness itself adds an inferred read for every world file a command names by its whole name or a wildcard
 (`host.named`), so no host depends on its adapter parsing commands.
+
+## The measuring kit
+
+The measuring kit (doc 11) is the files `evals/kit.json` lists under its parts, and the list itself. Each part is one
+doc 11 names (`kit.PARTS`); each path is a file git tracks or a folder whose tracked files all count, read from disk
+as regular files, never links. The kit's hash is the manifest digest of those files, so an edit, a new tracked file
+in a listed folder, or a path dropped from the list is a change. Parts that do not exist yet (checks, answer keys,
+goldens, the grader prompt) are added to the list with the pull request that adds them.
+
+A judge session approves the kit as it is by writing `kit-approval.json` to the round store, which must be outside
+the working tree: `python3 evals/harness/kit.py approve --store DIR --judge NAME`. The record holds the hash, every
+file's entry, the judge and the time, and is read back after it is written. The kit check (`kit.py check --store DIR`,
+`kit.check`) refuses unless the record holds the hash of the kit as it is now, and names each file added, removed or
+changed since the approval. The builder's session never writes the store; that is how the round is run, not
+something the harness can prove.
