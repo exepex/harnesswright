@@ -1,5 +1,6 @@
 {
   "args": {
+    "section": "Files changed",
     "file": "claims.md"
   },
   "outcome": "fail",
