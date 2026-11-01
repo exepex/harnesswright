@@ -61,12 +61,17 @@ class Arms(TempCase):
                   b"| Skill | Path | Use when |\n|---|\n| a |\n| new |\n\nAfter.\n",
                   b"| Skill | Path | Use when |\r\n|---|\r\n\r\n":
                   b"| Skill | Path | Use when |\r\n|---|\r\n| new |\r\n\r\n",
-                  b"\xff\xfe old\n| Skill | Path | Use when |\n|---|": b"\xff\xfe old\n| Skill | Path | Use when |\n|---|\n| new |\n"}
+                  b"\xff\xfe old\n| Skill | Path | Use when |\n|---|\n":
+                  b"\xff\xfe old\n| Skill | Path | Use when |\n|---|\n| new |\n"}
         for before, after in cases_.items():
             with self.subTest(before=before):
                 self.assertEqual(world.with_rows(before, header, ["| new |"]), after)
         with self.assertRaisesRegex(cases.CaseError, "no line"):
             world.with_rows(b"# none\n", header, ["| new |"])
+        with self.assertRaisesRegex(cases.CaseError, "line ending"):  # the row would change the line above it
+            world.with_rows(b"| Skill | Path | Use when |\n|---|", header, ["| new |"])
+        with self.assertRaisesRegex(cases.CaseError, "one line"):
+            world.with_rows(b"| Skill | Path | Use when |\n", header, ["| {name} |\n| more |"])
 
     def test_history_is_replayed_from_the_case_and_proved(self):
         case, base, with_arm = self.build_pair(dict(START, commits=[{"message": "Start", "paths": ["README.md", "x"]}]),

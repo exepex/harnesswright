@@ -109,7 +109,10 @@ def _overlaps(a, b):
 def with_rows(data, after, rows):
     """`data` (bytes) with `rows` added at the end of the table whose header line is `after`.
 
-    The file is edited as bytes, so its encoding and line endings are kept; each row takes the header's ending.
+    The file is edited as bytes, so its encoding and line endings are kept; each row takes the header's ending. Each
+    row is one whole line and the only bytes added, so the grader view, which removes every line naming the skill,
+    gives the index back exactly as the without-skill arm has it: a row with a line break, or a table whose last
+    line has no ending, is refused.
     """
     lines = data.splitlines(keepends=True)
     header = after.strip().encode()
@@ -121,7 +124,9 @@ def with_rows(data, after, rows):
     while end < len(lines) and lines[end].lstrip().startswith(b"|"):
         end += 1
     if not lines[end - 1].endswith((b"\n", b"\r")):
-        lines[end - 1] += ending
+        raise CaseError(f"the index table under {after!r} must end with a line ending")
+    if any("\n" in row or "\r" in row for row in rows):
+        raise CaseError("an index row must be one line")
     lines[end:end] = [row.encode() + ending for row in rows]
     return b"".join(lines)
 

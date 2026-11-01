@@ -210,7 +210,11 @@ and skill loads replaced by neutral words, and credentials redacted. Every check
 
 Graders get a **grader view** of the bundle, never the full record. It leaves out both copies of the installed
 skill, the generated index row, the host discovery copy and everything else the with-skill overlay added, from the
-files after as well as from the diff. The full bundle is kept for audits and judges.
+files after as well as from the diff. It shows each command as the command the agent ran, without its output or
+exit code, since the two arms are different worlds and what a world prints back tells the arm; outcomes such as
+"the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
+removed from the view's text. What the agent itself wrote or said about what it saw is its own output and stays
+visible. The full bundle is kept for checks, audits and judges.
 
 ## Scoring
 
