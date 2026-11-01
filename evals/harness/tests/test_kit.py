@@ -4,6 +4,7 @@ hash, and the kit check refuses a kit no judge approved, naming each file that c
 import json
 import os
 import subprocess
+import sys
 
 from helpers import TempCase
 
@@ -37,6 +38,13 @@ class Kit(TempCase):
         self.assertIn("evals/harness/powers.py", found)
         self.assertIn("evals/harness/audit.py", found)  # loaded by path, not imported, and still the kit's
         self.assertIn("evals/harness/tests/test_kit.py", found)  # the tests hold the answer keys
+
+    def test_the_command_leaves_no_bytecode_in_the_kit(self):
+        env = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}  # as an operator runs it
+        done = subprocess.run([sys.executable, "evals/harness/kit.py", "hash"], cwd=REPO, env=env,
+                              capture_output=True, text=True)
+        self.assertEqual((done.returncode, done.stderr), (0, ""))
+        self.assertEqual(sorted(REPO.glob("evals/harness/**/__pycache__")), [])
 
     def test_a_list_outside_its_rule_is_refused(self):
         for parts, reason in (({"parts": {"helpers": ["lint.py"]}}, "not parts of the kit"),

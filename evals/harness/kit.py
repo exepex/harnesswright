@@ -25,9 +25,10 @@ import os
 import sys
 from pathlib import Path
 
-import manifest
-import skills
-from cases import REPO, CaseError
+sys.dont_write_bytecode = True  # its imports leave no bytecode in the kit's folder, which must hold only tracked files
+import manifest  # noqa: E402
+import skills  # noqa: E402
+from cases import REPO, CaseError  # noqa: E402
 
 LIST = "evals/kit.json"
 CODE = "evals/harness"  # every part runs on the harness's code, however it loads it, so all of it is the kit's
