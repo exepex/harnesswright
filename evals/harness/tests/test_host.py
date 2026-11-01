@@ -86,7 +86,9 @@ class Named(TempCase):
                host.entry("command", command="cat a.md && cat a.md", exit_code=0),  # read before, and named again
                host.entry("command", command=f"wc ./src/*.py {world}/src/*.py ../world/src/*.py", exit_code=0),
                host.entry("command", command=f"wc ./*.py {world}/*.py lib/**/*.py", exit_code=0),
-               host.entry("command", command="cd docs && cat ../src/*.py", exit_code=0)]
+               host.entry("command", command="cd docs && cat ../src/*.py", exit_code=0),
+               host.entry("command", command="cd lib/src && cat ../../src/*.py /etc/*.py ../../../*/x/*.py",
+                          exit_code=0)]
         inferred = lambda path: host.entry("read", "inferred", path=path)
         self.assertEqual(host.named(world, before, log), [
             log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
@@ -94,7 +96,8 @@ class Named(TempCase):
             inferred("src/x.py"), log[4], log[5], inferred("a.md"), inferred("docs/a.md"),
             log[6], inferred("lib/src/y.py"), inferred("src/x.py"),
             log[7], inferred("lib/src/y.py"), inferred("src/x.py"), inferred("z.py"),
-            log[8], inferred("src/x.py")])  # cd is never followed, but a glob may be read from a folder below
+            log[8], inferred("lib/src/y.py"), inferred("src/x.py"),  # cd is never followed, so a glob after a
+            log[9], inferred("lib/src/y.py"), inferred("src/x.py")])  # parent step is the end of a path
 
     def test_a_large_world_is_named_in_time(self):
         world = (self.tmp / "world").resolve()

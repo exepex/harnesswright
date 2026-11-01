@@ -209,9 +209,8 @@ def named(world, before, log):
     names is never known, so a check never decides on it (doc 11, Harness faults); without an entry, a check would
     wrongly decide the file was not read. One rule decides what a command names, never how a shell would resolve it: a
     file of the world before the run (`before`, its manifest) or after it is named when its name stands whole in the
-    command, or a wildcard word matches its name, or, when the word holds a folder, its path read from the world or
-    from any folder below it. Two files of one name are both named. A link is no file, and a folder named alone
-    names none of its files."""
+    command, or a wildcard word matches its name, or, when the word holds a folder, its path (`_read_from`). Two
+    files of one name are both named. A link is no file, and a folder named alone names none of its files."""
     try:
         after = manifest.manifest(world, skip=(".git",), other=True)
     except manifest.Unreadable:  # the bundle reports a world it cannot read; the files before still count
@@ -225,10 +224,8 @@ def named(world, before, log):
             continue
         words = re.split(rf"[{EDGE}]+", item["command"])
         globs = [w for w in words if any(c in w for c in "*?[")]
-        bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path, read
-        paths = {form for glob in globs if "/" in glob for form in (  # from the world (./x, /world/x, ../world/x)
-            os.path.normpath(os.path.join(root, glob)), os.path.normpath(f"{root}/*/{glob}"))}  # or below it (a cd)
-        paths |= {form.replace("/**/", "/") for form in paths}  # a **/ may match no folder
+        bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path
+        paths = {form for glob in globs if "/" in glob for form in _read_from(root, glob)}
         ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
         own = set()  # the inferred reads its adapter put right after it
         for later in log[number + 1:]:
@@ -245,6 +242,18 @@ def named(world, before, log):
             if (whole or matched) and path not in own:
                 found.append(entry("read", "inferred", path=path))
     return found
+
+
+def _read_from(root, glob):
+    """The patterns of world paths a wildcard word with a folder may name: the word read from the world (./src/*.py,
+    /world/src/*.py, ../world/src/*.py), and its part after its last parent step, as the end of a path, since a
+    command may run from any folder below the world (cd docs/x && cat ../../src/*.py). A **/ may match no folder."""
+    parts = os.path.normpath(glob).split("/")
+    rest = "/".join(parts[max((i for i, part in enumerate(parts) if part == ".."), default=-1) + 1:])
+    forms = {os.path.normpath(os.path.join(root, glob))}
+    if rest and not os.path.isabs(rest):
+        forms |= {f"{root}/{rest}", f"{root}/*/{rest}"}
+    return forms | {form.replace("/**/", "/") for form in forms}
 
 
 def part_of_command(item):
