@@ -90,15 +90,16 @@ class Schema(TempCase):
         self.refused({"allow_words": {"<commit 1>": ["eval"]}}, "allow_words key")
         self.refused({"allow_words": {"../x": ["eval"]}}, "allow_words key")
 
-    def test_an_expectation_has_a_text_a_source_and_one_way_to_decide_it(self):
+    def test_an_expectation_has_a_text_a_source_a_judged_question_and_maybe_a_check(self):
         good, check = expect("Runs go test"), {"name": "command_ran", "args": {}}
         judged = good["judged"]
+        no_judged = {k: v for k, v in dict(good, check=check).items() if k != "judged"}
         for expectation in ("Runs go test", {"text": "Runs go test"}, 3, dict(good, text=""), dict(good, chekc=1),
-                            dict(good, check=check), dict(good, source="contract"),
+                            no_judged, dict(good, check={"name": "x"}), dict(good, source="contract"),
                             dict(good, source={"contract": {"path": "../a", "line": 1, "quote": "a b c"}}),
                             dict(good, source={"contract": {"path": "a", "line": 0, "quote": "a b c"}}),
                             dict(good, source={"contract": {"path": "a", "line": True, "quote": "a b c"}}),
-                            {"text": "x", "source": "format", "check": {"name": "Bad-Name", "args": {}}},
+                            dict(good, check={"name": "Bad-Name", "args": {}}),
                             dict(good, judged=dict(judged, examples={"pass": [], "fail": ["x"]})),
                             dict(good, judged={k: v for k, v in judged.items() if k != "fail"})):
             with self.subTest(expectation=expectation):

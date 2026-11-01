@@ -20,8 +20,8 @@ JUDGED = {"question": "Does it hold?", "pass": "It holds.", "fail": "It does not
 
 
 def expect(text, source="format", check=None):
-    """An expectation of `text` from `source`, decided by `check` ({name, args}) or else judged."""
-    return {"text": text, "source": source, **({"check": check} if check else {"judged": JUDGED})}
+    """An expectation of `text` from `source`, judged, and decided first by `check` ({name, args}) when given."""
+    return {"text": text, "source": source, "judged": JUDGED, **({"check": check} if check else {})}
 
 
 class TempCase(unittest.TestCase):

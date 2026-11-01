@@ -147,6 +147,36 @@ class Lint(TempCase):
                 problems = self.problems(files, data)
                 self.assertTrue(any(reason in p for p in problems), problems)
 
+    def test_a_quote_excuses_only_itself_and_judged_text_is_expectation_text(self):
+        rule = "Each release note names the ticket it closes.\n"
+        files = {"README.md": "x\n", "docs/rules.md": rule}
+        cite = {"contract": {"path": "docs/rules.md", "line": 1,
+                             "quote": "Each release note names the ticket it closes"}}
+        restated = expect("Each release note names the ticket it closes", cite)
+        self.assertEqual(self.problems(files, {"expectations": [restated]}), [])
+        judged = dict(restated, judged=dict(restated["judged"], **{"pass": "Explains why the boundary helps."}))
+        problems = self.problems(dict(files, **{"NOTES.md": "Explains why the boundary helps.\n"}),
+                                 {"expectations": [judged]})
+        self.assertTrue(any("NOTES.md: holds expectation text" in p for p in problems), problems)
+        other = expect("Each release note names the ticket it closes")  # not excused by another's quote
+        problems = self.problems(files, {"expectations": [restated, other]})
+        self.assertTrue(any("docs/rules.md: holds expectation text" in p for p in problems), problems)
+        planted = "The reply lists every ticket the release closes, in order."
+        case_data = [(self.tmp / "evals" / "skills" / "x" / "tasks.json", f'{{"text": "{planted}"}}')]
+        problems = self.problems({"README.md": "x\n", "docs/rules.md": planted + "\n"}, {"expectations": [expect(
+            "Lists tickets", {"contract": {"path": "docs/rules.md", "line": 1, "quote": planted}})]},
+            case_data=case_data)
+        self.assertTrue(any("docs/rules.md: holds eval text" in p for p in problems), problems)
+
+    def test_a_contract_cited_through_a_link_is_not_found(self):
+        case = self.case({"README.md": "x\n", "docs/every-change-must-pass.md": "Not a rule.\n"},
+                         {"expectations": [expect("Passes", {"contract": {
+                             "path": "rule.md", "line": 1, "quote": "every change must pass"}})]})
+        (case.world / "rule.md").symlink_to("docs/every-change-must-pass.md")  # its text is not the target's
+        problems = lint.lint_case(cases.Case(case.folder, case.skill), Adapter, self.tmp / "arms-link",
+                                  self.skill().parent)
+        self.assertTrue(any("no world text file rule.md" in p for p in problems), problems)
+
     def test_the_rows_the_run_reads_are_checked_as_it_reads_them(self):
         files = {"README.md": "x\n", "AGENTS.md": AGENTS}
         sibling = "---\nname: note-taker\ndescription: of three lines about notes.\n---\n# Notes\n"

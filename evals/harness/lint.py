@@ -26,6 +26,7 @@ as soft hyphens removed, so look-alike spellings match too.
 """
 
 import io
+import json
 import re
 import tempfile
 import tokenize
@@ -70,6 +71,7 @@ class Place:
 
     def __init__(self, key, text, kind):
         self.key, self.text, self.kind = key, text, kind
+        self.link = False
         self.words = " ".join(words(text or ""))
 
 
@@ -133,6 +135,7 @@ def visible(case, arm):
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
         places.append(Place(path, None if body is None else f"{path}\n{body}", "installed" if installed else "world"))
+        places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]
     if rows:
         places.append(Place(SIBLING_ROWS, "\n".join(rows), "rows"))
@@ -228,11 +231,13 @@ def without_skill_rows(data, skills):
 
 
 def citations(case, places):
-    """(quotes, problems): the quote of each contract expectation the world holds where it is cited, and a problem
-    for each one it does not hold there, and for each check whose name or arguments are not in the check library.
-    A quote starts on its line, in the words the lint reads, and may run on over the lines after it."""
+    """(quotes, problems): for each expectation, the quote of its contract when a world text file holds it where it
+    is cited, else None; and a problem for each quote not held there, and for each check whose name or arguments
+    are not in the check library. A quote starts on its line, in the words the lint reads, and may run on over the
+    lines after it."""
     found, problems, library = [], [], None
-    documents = {p.key: p.text.split("\n", 1)[1] for p in places if p.kind == "world" and p.text is not None}
+    documents = {p.key: p.text.split("\n", 1)[1] for p in places
+                 if p.kind == "world" and p.text is not None and not p.link}
     for number, expectation in enumerate(case.expectations, 1):
         if "check" in expectation:
             try:
@@ -241,6 +246,7 @@ def citations(case, places):
             except checks.CheckError as error:
                 problems.append(f"expectation {number}: {error}")
         source = expectation["source"]
+        found.append(None)
         if source == "format":
             continue
         path, line, quote = source["contract"]["path"], source["contract"]["line"], source["contract"]["quote"]
@@ -252,8 +258,23 @@ def citations(case, places):
             problems.append(f"expectation {number}: {path}:{line} does not start the quote {quote[:80]!r}, of at "
                             f"least {SHORTEST} words" + ("" if path in documents else f"; no world text file {path}"))
             continue
-        found.append(quote)
+        found[-1] = quote
     return found, problems
+
+
+def expectation_texts(expectation):
+    """Every text an expectation holds: what it says, and its judged question, rules and examples."""
+    judged = expectation.get("judged") or {}
+    examples = judged.get("examples", {})
+    return [expectation["text"]] + [judged[k] for k in ("question", "pass", "fail") if k in judged] \
+        + examples.get("pass", []) + examples.get("fail", [])
+
+
+def unquoted(text, quotes):
+    """`text` with each of `quotes` removed, as written and as JSON writes it."""
+    for quote in quotes:
+        text = text.replace(quote, " ").replace(json.dumps(quote)[1:-1], " ")
+    return text
 
 
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
@@ -265,9 +286,10 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     # ordinary project words, so a judge reads for it instead.
     quotes, cited = citations(case, places)
     problems += cited
-    expectations = [words(e["text"]) for e in case.expectations]
-    expectations = [" ".join(e) for e in expectations if len(e) >= SHORTEST]
-    expected_sizes = {min(EXPECTATION_RUN, len(e.split())) for e in expectations}
+    # Every text of an expectation is expectation text: what it says, and its question, rules and examples.
+    expectations = [[" ".join(words(t)) for t in expectation_texts(e) if len(words(t)) >= SHORTEST]
+                    for e in case.expectations]
+    expected_sizes = {min(EXPECTATION_RUN, len(t.split())) for texts_ in expectations for t in texts_}
     project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
                        + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | expected_sizes)
     files, _ = skill_files(skill_dir, case.skill)
@@ -275,14 +297,18 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.
-    # A cited quote is the world's own words, found where the case says, so case data may repeat it.
-    declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"] + quotes, {RUN})
-    data = all_runs([(case.folder / "case.json").read_bytes().decode("utf-8", "replace")]
-                    + [t for _, t in cases], {RUN})
+    # A quote excuses only itself: its words, found where the case cites them, are removed from the case's own
+    # case.json and from the expectation that cites them. Nothing else is excused.
+    cited_quotes = [q for q in quotes if q]
+    declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"], {RUN})
+    own = unquoted((case.folder / "case.json").read_bytes().decode("utf-8", "replace"), cited_quotes)
+    mine = (case.folder / "case.json").resolve()
+    data = all_runs([own] + [t for path, t in cases if Path(path).resolve() != mine], {RUN})
     measuring = (all_runs(kit, {RUN}) | (data - declared)) - project
     # An expectation may restate the rule it cites: the world already says it there.
-    expected = set().union(set(), *(runs(e, {min(EXPECTATION_RUN, len(e.split()))}) for e in expectations)) \
-        - project - all_runs(quotes, expected_sizes)
+    expected = set().union(set(), *(runs(t, {min(EXPECTATION_RUN, len(t.split()))}) - all_runs([q or ""],
+                                                                                              expected_sizes)
+                                    for texts_, q in zip(expectations, quotes) for t in texts_)) - project
     allowed = {key: [" ".join(words(w)) for w in ws] for key, ws in case.allow_words.items()}
     # The index row is written into the index file, so it has that file's allowances.
     if case.index:
