@@ -118,7 +118,9 @@ def _scan(folder, label, scrub):
     for root, dirs, names in os.walk(folder):
         for path in (Path(root) / name for name in dirs + names):  # a link's target is scanned, never followed
             data = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else ""
-            scrub.check(data, f"{label}/{path.relative_to(folder)}")
+            where = f"{label}/{path.relative_to(folder)}"
+            scrub.check(where, where)  # a name the run chose is output too
+            scrub.check(data, where)
 
 
 def store(record, blobs, out):

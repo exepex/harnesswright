@@ -117,7 +117,8 @@ class Bundles(TempCase):
         for actions, where in (([{"do": "write", "path": "n.txt", "text": token}], "world/n.txt"),
                                ([{"do": "command", "command": long}], "stdout"),
                                ([{"do": "command", "command": f"printf {token} > $HOME/kept"}], "home/kept"),
-                               ([{"do": "command", "command": f"ln -s {token} $HOME/to"}], "home/to")):
+                               ([{"do": "command", "command": f"ln -s {token} $HOME/to"}], "home/to"),
+                               ([{"do": "command", "command": f"touch $HOME/{token}"}], "home/")):
             with self.subTest(where=where), self.assertRaisesRegex(scrub.Leak, where):
                 self.run_of(actions, tokens=[token])
 
