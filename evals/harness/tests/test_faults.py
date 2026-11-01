@@ -13,6 +13,7 @@ from test_host import FAKE, JAIL, changed, fake_adapter
 
 import contain
 import faults
+import host
 import lint
 
 KEY = "fake-key-0123456789abcdef"
@@ -93,11 +94,27 @@ class Planted(TempCase):
                 ("environment", "operator env", mock.patch.object(contain.Containment, "_environment", passes),
                  "environment holds"),
                 ("outside", "beside", mock.patch.object(contain.Containment, "audit", side_effect=OSError("down")),
-                 "another outcome: OSError")):
+                 "another outcome: OSError"),
+                ("environment", "operator env", mock.patch.object(host, "run", return_value=host.Result(
+                    "", "", 1, False, "exit code 1", [], None, [], 0.0)), "never met")):
             with self.subTest(fault=fault), patch:
                 outcome = faults.run(entries[fault], setup, seed=1, place=place)
                 self.assertFalse(outcome["caught"])
                 self.assertIn(reason, outcome["reason"])
+
+
+    def test_a_credential_file_that_is_a_link_is_never_followed(self):
+        setup = self.setup_of()
+        real = self.tmp / "real-creds.json"
+        real.write_text("{}\n")
+        link = self.tmp / "operator" / ".fake" / "creds.json"
+        link.unlink()
+        link.symlink_to(real)
+        inside = next(e for e in faults.load() if e["id"] == "inside")
+        outcome = faults.run(inside, setup, seed=1, place="credential")
+        self.assertFalse(outcome["caught"])
+        self.assertIn("without following a link", outcome["reason"])
+        self.assertEqual(real.read_text(), "{}\n")
 
 
 if __name__ == "__main__":

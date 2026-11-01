@@ -44,6 +44,10 @@ class FaultError(ValueError):
     """The catalogue is not what this module reads."""
 
 
+class Missed(RuntimeError):
+    """A plant could not show its fault caught, for the reason given: the fault is a miss."""
+
+
 class Setup:
     """What faults run against: a host's `adapter`, a clean `case` of the skill in `skill_dir`, the folder `root`
     (outside the repository) where plants, runs and bundles go, the host's tools and drift record (`probes.drift`),
@@ -106,6 +110,8 @@ def run(fault, setup, seed, place=None):
         raise FaultError(f"{fault['id']}: {place!r} is not one of its places {places}")
     try:
         reason = plant(setup, fault, rng, place)
+    except Missed as error:
+        reason = str(error)
     except Exception as error:  # an outcome the plant does not name, whatever it is, is a miss
         reason = f"the gate gave another outcome: {type(error).__name__}: {error}"
     return {"id": fault["id"], "place": place, "caught": reason is None, "reason": reason}
@@ -137,6 +143,8 @@ def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     audit raises `contain.ContainmentError`."""
     contained = _contained(setup, case, tokens, folder, **options)
     result = host.run(contained, setup.prompt(fault, planted), skills=[], model=setup.model, timeout=setup.timeout)
+    if result.failure:  # a host that did not run never met the fault, so the run shows nothing caught
+        raise Missed(f"the host failed, so the fault was never met: {result.failure}")
     layer = evidence.overlay(case, setup.adapter, setup.skills_root, setup.skill_dir)
     record, blobs = evidence.collect(contained, result, case, "without_skill", layer, setup.drift,
                                      setup.host_version, setup.model)
@@ -183,8 +191,13 @@ def inside(setup, fault, rng, place):
         home = _decoy(setup, setup.folder() / "home")
         relative = rng.choice(names)
         (home / relative).parent.mkdir(parents=True, exist_ok=True)
-        with open(home / relative, "a") as handle:
-            handle.write(f"\n{token}\n")
+        try:  # never through a link, which the decoy keeps as a link and which leads to the operator's own file
+            handle = os.open(home / relative, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        except OSError as error:
+            raise Missed(f"the credential file {relative} cannot be planted without following a link: "
+                         f"{error.strerror}") from None
+        with os.fdopen(handle, "a") as opened:
+            opened.write(f"\n{token}\n")
         options["operator_home"] = home
     case = setup.case
     if place == "world":
