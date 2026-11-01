@@ -1,0 +1,5 @@
+{
+  "args": {"headings": ["Criteria"], "level": 2, "file": "a.md"},
+  "outcome": "fail",
+  "after": {"a.md": "```text\n```not-a-fence\n## Criteria\n```\n"}
+}

@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "claims_check\\.py", "ran": false},
+  "outcome": "fail",
+  "log": [{"kind": "blocked", "source": "observed", "action": "python3 claims_check.py check", "reason": "denied"}]
+}

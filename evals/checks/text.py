@@ -2,14 +2,23 @@
 the run's final message. A text that does not exist fails: the files after are the harness's own, and so is the
 final message it took from the host's output.
 
-- `sections`: the Markdown headings (`#` to `######`, outside code fences) of level `level` are exactly
-  `headings`, in that order, and no other heading of that level.
-- `frontmatter`: the text begins with a `---` block whose top-level fields include each of `required`, hold none
-  outside `allowed` when it is given, and give each field of `values` exactly that one-line value.
-- `ends_with_one_question`: the text, outside code, holds exactly one question, a `?` that ends a sentence, and it
-  is the last thing in the text.
-- `shares_words`: the text shares a run of `run` consecutive words with the world file `source` (`shared` true), or
-  shares none (`shared` false). Words are letters and digits, compared without case.
+One rule: every check reads a text through `lines`, which gives each line one kind, from one allow list. A line is
+`frontmatter` (the leading `---` block of a file), `code` (a fenced block, from its opening fence to the closing
+fence of the same character, at least as long, with nothing after it but spaces, or to the end), or `prose`. Each
+check reads only the kinds it names, and a line it cannot read as one of the shapes it allows fails the check.
+
+- `sections`: the ATX headings (`#` to `######`) of level `level` in prose lines are exactly `headings`, in that
+  order, compared as written, inline code included.
+- `frontmatter`: the text begins with a `---` block. Every line in it is blank, a `#` comment, indented (part of
+  the field above it), or `field: value`, where a field is letters, digits, `_` and `-`, given once; any other line
+  fails. Its fields include each of `required`, hold none outside `allowed` when it is given, and give each field of
+  `values` exactly that value (one line, quotes and a ` #` comment removed).
+- `ends_with_one_question`: the prose, with inline code removed, holds exactly one question, a `?` that ends a
+  sentence, closed only by quotes, brackets or emphasis; and the text's last line that is not blank is prose and
+  ends with it.
+- `shares_words`: the text shares a run of `run` consecutive words with the world file `source` after the run
+  (`shared` true), or shares none (`shared` false). Words are letters and digits, compared without case. Pair it
+  with `file_state` `unchanged` on the source, so a run cannot change the reference.
 """
 
 import re
@@ -17,55 +26,75 @@ import re
 from cases import is_path
 from checks import Check
 
-HEADING = re.compile(r" {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*")
-FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
-FIELD = re.compile(r"([A-Za-z0-9_-]+):(.*)")
-QUESTION = re.compile(r"\?+(?=[\"')\]]*(?:\s|$))")
+HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*")
+OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
+FIELD = re.compile(r"([A-Za-z0-9_-]+):(?:[ \t]+(.*))?")
+CLOSERS = "\"')]*_~"
+QUESTION = re.compile(r"\?[" + re.escape(CLOSERS) + r"]*(?=\s|$)")
 WORD = re.compile(r"[^\W_]+")
 
 
 def _text(bundle, file):
     text = bundle.final_message if file is None else bundle.text(file)
-    name = "the final message" if file is None else file
-    return text, name
+    return text, ("the final message" if file is None else file)
 
 
-def _prose(text):
-    """The lines of `text` outside code fences, with inline code removed."""
-    lines, fence = [], None
-    for line in text.splitlines():
-        opened = FENCE.match(line)
-        if opened and (fence is None or opened.group(1)[0] == fence[0] and len(opened.group(1)) >= len(fence)):
-            fence = opened.group(1) if fence is None else None
+def lines(text, frontmatter):
+    """[(kind, line)] of `text`: `frontmatter` for a leading `---` block when `frontmatter` is true, `code` for a
+    fenced block, fences included, and `prose` for every other line."""
+    found, fence, rows = [], None, text.splitlines()
+    end = next((i for i, row in enumerate(rows[1:], 1) if row.rstrip() == "---"), None) \
+        if frontmatter and rows and rows[0].rstrip() == "---" else None
+    for number, row in enumerate(rows):
+        if end is not None and number <= end:
+            found.append(("frontmatter", row))
             continue
-        if fence is None:
-            lines.append(re.sub(r"`+[^`]*`+", "", line))
-    return lines
+        opened = OPEN.fullmatch(row)
+        if fence is None and opened and not (opened.group(1)[0] == "`" and "`" in opened.group(2)):
+            fence = opened.group(1)
+            found.append(("code", row))
+        elif fence is not None:
+            if opened and opened.group(1)[0] == fence[0] and len(opened.group(1)) >= len(fence) \
+                    and not opened.group(2).strip():
+                fence = None
+            found.append(("code", row))
+        else:
+            found.append(("prose", row))
+    return found
 
 
 def sections(bundle, headings, level, file=None):
     text, name = _text(bundle, file)
     if text is None:
         return "fail", f"{name} does not exist"
-    found = [m.group(2) for m in map(HEADING.fullmatch, _prose(text)) if m and len(m.group(1)) == level]
+    found = [(m.group(2) or "") for kind, row in lines(text, file is not None) if kind == "prose"
+             for m in [HEADING.fullmatch(row)] if m and len(m.group(1)) == level]
     if found == headings:
         return "pass", f"{name} has the level {level} headings {headings}, in order"
     return "fail", f"{name} has the level {level} headings {found[:20]}, and the expectation is {headings}"
+
+
+def _value(raw):
+    raw = (raw or "").strip()
+    if len(raw) > 1 and raw[0] == raw[-1] and raw[0] in "\"'":
+        return raw[1:-1]
+    return re.sub(r"\s+#.*$", "", raw)
 
 
 def frontmatter(bundle, required, allowed=None, values=None, file=None):
     text, name = _text(bundle, file)
     if text is None:
         return "fail", f"{name} does not exist"
-    lines = text.splitlines()
-    end = next((i for i, line in enumerate(lines[1:], 1) if line.rstrip() == "---"), None)
-    if not lines or lines[0].rstrip() != "---" or end is None:
+    block = [row for kind, row in lines(text, True) if kind == "frontmatter"]
+    if len(block) < 2:
         return "fail", f"{name} does not begin with a frontmatter block between --- lines"
     fields = {}
-    for line in lines[1:end]:
-        field = FIELD.fullmatch(line.rstrip())
-        if field:
-            fields[field.group(1)] = field.group(2).strip().strip("\"'")
+    for number, row in enumerate(block[1:-1], 2):
+        field = FIELD.fullmatch(row.rstrip())
+        if field and field.group(1) not in fields:
+            fields[field.group(1)] = _value(field.group(2))
+        elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"):
+            return "fail", f"{name}'s frontmatter line {number} is not a field given once: {row[:200]}"
     missing = [f for f in required if f not in fields]
     extra = [f for f in fields if allowed is not None and f not in allowed]
     wrong = [f for f, value in (values or {}).items() if fields.get(f) != value]
@@ -79,9 +108,9 @@ def ends_with_one_question(bundle, file=None):
     text, name = _text(bundle, file)
     if text is None:
         return "fail", f"{name} does not exist"
-    prose = "\n".join(_prose(text)).rstrip()
-    asked = QUESTION.findall(prose)
-    last = prose.rstrip("\"')]").endswith("?")
+    found = [(kind, re.sub(r"(`+).*?\1", "", row)) for kind, row in lines(text, file is not None) if row.strip()]
+    asked = [q for kind, row in found if kind == "prose" for q in QUESTION.findall(row)]
+    last = bool(found) and found[-1][0] == "prose" and found[-1][1].rstrip().rstrip(CLOSERS).endswith("?")
     if len(asked) == 1 and last:
         return "pass", f"{name} ends with its one question"
     return "fail", f"{name} holds {len(asked)} questions, and {'ends' if last else 'does not end'} with one"
