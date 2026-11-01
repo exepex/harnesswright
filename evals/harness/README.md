@@ -318,7 +318,6 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 |---|---|
 | `file_state` | The file at `path` exists, is absent, is unchanged, or was changed by the run |
 | `changes_only_in` | Every path the run changed matches one of the `allowed` globs (`*` crosses folders) |
-| `command_ran` | A command matching `pattern` ran, or never ran (`ran`), optionally ending with `exit_code` |
 
 ## Harness faults
 

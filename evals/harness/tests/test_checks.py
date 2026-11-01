@@ -16,7 +16,7 @@ import evidence
 class Library(TempCase):
     def test_every_check_gives_the_outcome_of_each_answer_key(self):
         library = checks.library()
-        self.assertEqual(sorted(library), ["changes_only_in", "command_ran", "file_state"])
+        self.assertEqual(sorted(library), ["changes_only_in", "file_state"])
         for name in library:
             with self.subTest(check=name):
                 self.assertEqual(checks.prove(name, library), {})
@@ -58,7 +58,8 @@ class Library(TempCase):
                                              "exit_code": 0, "output": ""},
                                             {"kind": "command", "source": "inferred", "command": "git push",
                                              "exit_code": 0, "output": ""}]})
-        verdict = checks.decide("command_ran", bundle, {"pattern": "git push", "ran": True})
+        reader = {"pushed": checks.Check(lambda bundle: ("pass", str(len(bundle.entries("command")))), {})}
+        verdict = checks.decide("pushed", bundle, {}, reader)  # a check that reads the log, through its one door
         self.assertEqual(verdict["outcome"], "undecidable")
         self.assertIn("inferred, not observed", verdict["reason"])
 
