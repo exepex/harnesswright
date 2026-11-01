@@ -66,7 +66,7 @@ class Contract(unittest.TestCase):
 
 
 class Named(TempCase):
-    def test_each_world_file_a_command_names_is_an_inferred_read_once(self):
+    def test_each_world_file_a_command_names_is_an_inferred_read_of_that_command(self):
         world = (self.tmp / "world").resolve()
         (world / "docs").mkdir(parents=True)
         (world / "src").mkdir()
@@ -81,11 +81,13 @@ class Named(TempCase):
                host.entry("command", command="cd docs && cat a.md|grep x 'c d.md'>out; rm a+b.md", exit_code=0),
                host.entry("command", command=f"cat {world}/kept.md new.md bdocs/b.mdx a.md.bak ls", exit_code=0),
                host.entry("command", command="head notes[1].md src/*.py out/secret.txt", exit_code=0),
-               host.entry("read", path="notes[1].md")]  # read later, so the command's own read still counts
+               host.entry("read", path="notes[1].md"),
+               host.entry("command", command="cat a.md && cat a.md", exit_code=0)]  # read before, and named again
         inferred = lambda path: host.entry("read", "inferred", path=path)
         self.assertEqual(host.named(world, before, log), [
             log[0], log[1], inferred("a+b.md"), inferred("a.md"), inferred("c d.md"), inferred("docs/a.md"), log[2],
-            inferred("new.md"), log[3], inferred("notes[1].md"), inferred("src/x.py"), log[4]])  # cd is never followed
+            inferred("kept.md"), inferred("new.md"), log[3], inferred("notes[1].md"), inferred("src/x.py"), log[4],
+            log[5], inferred("a.md"), inferred("docs/a.md")])  # cd is never followed
 
     def test_a_large_world_is_named_in_time(self):
         world = (self.tmp / "world").resolve()

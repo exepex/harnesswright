@@ -202,38 +202,41 @@ EDGE = r"""\s'"`;&|<>(){}="""
 
 
 def named(world, before, log):
-    """`log` with an inferred read, right after each command, of every world file the command names that no entry of
-    the log has read before it. It stands where its command does, so the grader view drops it with the
-    command. Whether a command read a file it names is never known, so a check never decides on it
-    (doc 11, Harness faults); without an entry, a check would wrongly decide the file was not read. One rule decides
-    what a command names, never how a shell would resolve it: a file of the world before the run (`before`, its
-    manifest) or after it is named when its name stands whole in the command, or a word with a wildcard matches its
-    name or path. Two files of one name are both named. A link is no file, and a folder named alone names none of
-    its files."""
+    """`log` with an inferred read, right after each command, of every world file the command names. Each command's
+    reads depend on that command alone, never on what the log read before, so the grader view drops them with their
+    command and no hidden entry changes what a shown command reads; a file its adapter already inferred there is
+    not added twice. Whether a command read a file it names is never
+    known, so a check never decides on it (doc 11, Harness faults); without an entry, a check would wrongly decide
+    the file was not read. One rule decides what a command names, never how a shell would resolve it: a file of the
+    world before the run (`before`, its manifest) or after it is named when its name stands whole in the command, or
+    a word with a wildcard matches its name or path. Two files of one name are both named. A link is no file, and a
+    folder named alone names none of its files."""
     try:
         after = manifest.manifest(world, skip=(".git",), other=True)
     except manifest.Unreadable:  # the bundle reports a world it cannot read; the files before still count
         after = {}
     files = sorted({p for entries in (before, after) for p, e in entries.items()
                     if manifest.is_file(e) and p.split("/")[0] != ".git"})
-    found, read = [], set()  # what the log has read so far, in its order
-    for item in log:
+    found = []
+    for number, item in enumerate(log):
         found.append(item)
-        if isinstance(item, dict) and item.get("kind") == "read":
-            read.add(os.path.normpath(str(item.get("path"))))
         if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
             continue
         words = re.split(rf"[{EDGE}]+", item["command"])
         globs = [w for w in words if any(c in w for c in "*?[")]
         ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
+        own = set()  # the inferred reads its adapter put right after it
+        for later in log[number + 1:]:
+            if not isinstance(later, dict) or later.get("kind") != "read" or later.get("source") != "inferred":
+                break
+            own.add(os.path.normpath(str(later.get("path"))))
         for path in files:
             name = path.rsplit("/", 1)[-1]
             whole = name in ends if not re.search(rf"[{EDGE}]", name) else re.search(
                 rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])  # a name with an edge in it
             matched = any(fnmatch.fnmatchcase(path, glob) or fnmatch.fnmatchcase(name, glob.rsplit("/", 1)[-1])
                           for glob in globs)
-            if path not in read and (whole or matched):
-                read.add(path)
+            if (whole or matched) and path not in own:
                 found.append(entry("read", "inferred", path=path))
     return found
 

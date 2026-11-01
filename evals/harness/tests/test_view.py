@@ -73,6 +73,13 @@ class Views(TempCase):
                               [{"do": "command", "command": f"cat skills/haiku-writer/{guide}"}])
         self.assertNotIn("docs/guide.md", [item.get("path") for item in shown["log"]])
 
+    def test_a_command_on_the_overlay_hides_no_read_of_a_later_command(self):
+        guide = "references/guide.md"
+        shown, _ = self.views([{"do": "command", "command": "cat docs/guide.md"}],
+                              {"skill": {guide: "x\n"}, "world": {"docs/guide.md": "y\n"}},
+                              [{"do": "command", "command": f"cat skills/haiku-writer/{guide}"}])
+        self.assertIn("docs/guide.md", [item.get("path") for item in shown["log"]])
+
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)
         self.assertEqual(shown["diff"], {"skills": {"before": None, "after": shown["files_after"]["skills"]}})
