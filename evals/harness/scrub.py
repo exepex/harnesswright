@@ -12,10 +12,10 @@ Standard library only.
 
 import json
 import re
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 REDACTED = "[redacted]"
-MIN_SECRET = 8  # a shorter string in a credential file is metadata, such as a token type; not so for ENV_KEYS
+MIN_SECRET = 8  # the shortest credential a scrub can redact without damaging the evidence around it
 NEUTRAL_NAME = "project-guide"  # the skill's name in a transcript
 NEUTRAL_PATH = "guide-folder"  # each path the with-skill overlay installs, in a transcript
 # The run's own folders, in a transcript, as their names on the machine may tell the arm or the round.
@@ -26,19 +26,31 @@ class Leak(RuntimeError):
     """A canary token reached a run's output. The run is void and the round stops."""
 
 
+class ShortCredential(ValueError):
+    """A credential the adapter names is too short to redact without damaging the evidence. The run cannot start."""
+
+
 class Collision(RuntimeError):
     """Two keys of a record became one after scrubbing. The bundle cannot be written."""
 
 
 def credentials(contained):
-    """Every credential value of the run `contained`: each value of its adapter's ENV_KEYS, from the operator and in
-    the jail (for a URL, only its user and password), the user and password of the operator's proxy, and the text and
-    every JSON string of at least MIN_SECRET characters in each credential file, the operator's and the run's copy."""
-    found = []
+    """Every credential of the run `contained`, by one rule. A named credential is each value of the adapter's ENV_KEYS
+    (from the operator and in the jail) and the secret part of a URL among them or of the operator's proxy: its
+    password with its `user:password`, or its user when it has no password (a token). A named credential shorter than
+    MIN_SECRET raises ShortCredential, since redacting it would damage the evidence. A credential file's text and its
+    JSON strings of at least MIN_SECRET characters are credentials too; a shorter string there is its metadata, such
+    as a token type. Both the operator's file and the run's copy count."""
+    named = []
     for key in getattr(contained.adapter, "ENV_KEYS", ()):
         for value in {contained.operator_env.get(key, ""), getattr(contained, "env", {}).get(key, "")}:
-            found += _userinfo(value) if "://" in value else [value]  # as the operator has it, and as the jail got it
-    found += _userinfo(contained.upstream or "")
+            named += _userinfo(value) if "://" in value else [value] if value else []
+    named += _userinfo(contained.upstream or "")
+    short = [value for value in named if len(value) < MIN_SECRET]
+    if short:
+        raise ShortCredential(f"{len(short)} credential(s) shorter than {MIN_SECRET} characters cannot be redacted "
+                              "safely: use longer ones")
+    found = list(named)
     for relative in getattr(contained.adapter, "CREDENTIAL_FILES", ()):
         for path in (contained.operator_home / relative, contained.home / relative):
             if path.is_file() and not path.is_symlink():
@@ -52,7 +64,9 @@ def _userinfo(url):
         parts = urlsplit(url)
     except ValueError:
         return [url]
-    return [part for part in (parts.username, parts.password) if part]
+    if parts.password:
+        return [parts.password, f"{parts.username or ''}:{parts.password}"]
+    return [parts.username] if parts.username else []
 
 
 def _strings(text):
@@ -78,11 +92,8 @@ class Scrub:
 
     def __init__(self, tokens, secrets, neutral=None):
         self.tokens = sorted(set(tokens))
-        forms = set()
-        for secret in secrets:
-            if isinstance(secret, str) and secret:
-                forms |= {secret, json.dumps(secret)[1:-1]}  # as written, and as a JSON string holds it
-        self.secrets = sorted(forms, key=len, reverse=True)  # a longer secret first, so none is left half redacted
+        found = {form for secret in secrets if isinstance(secret, str) and secret for form in forms(secret)}
+        self.secrets = sorted(found, key=len, reverse=True)  # a longer secret first, so none is left half redacted
         self.neutral = sorted((neutral or {}).items(), key=lambda pair: len(pair[0]), reverse=True)
 
     @classmethod
@@ -127,19 +138,34 @@ class Scrub:
         return data
 
     def value(self, item, where="record"):
-        """A record (dicts, lists, strings and plain values) with every string scrubbed, keys included."""
+        """A record (dicts, lists, strings and plain values) with every string value scrubbed. Its keys are the
+        record's own fields, which the harness names, so they are checked for canaries and kept: a credential that
+        happens to be part of a field's name never changes the record's shape. Keys the run chose go in `names`."""
         if isinstance(item, str):
             return self.text(item, where)
         if isinstance(item, list):
             return [self.value(part, where) for part in item]
         if isinstance(item, dict):
-            out = {}
-            for key, part in item.items():
-                name = self.text(key, where) if isinstance(key, str) else key
-                if name in out:
-                    raise Collision(f"{where}: two keys are both {name!r} once scrubbed")
-                out[name] = self.value(part, f"{where}/{name}")
-            return out
+            for key in item:
+                self.check(key, where)
+            return {key: self.value(part, f"{where}/{key}") for key, part in item.items()}
         if item is None or isinstance(item, (bool, int, float)):
             return item
         raise TypeError(f"{where}: a record holds only dicts, lists, strings and plain values, not {type(item)}")
+
+    def names(self, mapping, where="record"):
+        """A map whose keys the run chose, such as paths, with its keys scrubbed; its values are the caller's. Two
+        keys that become one are refused."""
+        out = {}
+        for key, part in mapping.items():
+            name = self.text(key, where)
+            if name in out:
+                raise Collision(f"{where}: two keys are both {name!r} once scrubbed")
+            out[name] = part
+        return out
+
+
+def forms(secret):
+    """Every form of a credential a run's output may hold: as written, as a JSON string holds it, and decoded and
+    encoded as a URL holds it (a URL's user and password are encoded, and a proxy decodes them)."""
+    return {secret, json.dumps(secret)[1:-1], unquote(secret), quote(secret, safe="")} - {""}

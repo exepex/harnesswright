@@ -28,12 +28,14 @@ class Values(unittest.TestCase):
         self.assertEqual(clean.text("the pw7chrs password"), "the [redacted] password")
         self.assertEqual(clean.blob(SECRET.encode() + b"\xff"), b"[redacted]\xff")
 
-    def test_keys_are_scrubbed_and_two_keys_that_become_one_are_refused(self):
-        clean = scrub.Scrub([], [SECRET])
-        self.assertEqual(clean.value({f"k-{SECRET}": [1, None, True, f"v {SECRET}"]}),
-                         {"k-[redacted]": [1, None, True, "v [redacted]"]})
+    def test_names_the_run_chose_are_scrubbed_and_the_record_s_own_fields_are_kept(self):
+        clean = scrub.Scrub([], [SECRET, "out", "p%40ss%2Fw0rd"])
+        self.assertEqual(clean.names({f"k-{SECRET}": "file ab"}), {"k-[redacted]": "file ab"})
+        self.assertEqual(clean.value({"k": [1, None, True, f"v {SECRET}"]}), {"k": [1, None, True, "v [redacted]"]})
         with self.assertRaisesRegex(scrub.Collision, "both 'a-\\[redacted\\]'"):
-            clean.value({f"a-{SECRET}": "x", "a-[redacted]": "y"})
+            clean.names({f"a-{SECRET}": "x", "a-[redacted]": "y"})
+        self.assertEqual(clean.value({"output": "out"}), {"output": "[redacted]"})  # a field's name is kept
+        self.assertEqual(clean.text("p@ss/w0rd and p%40ss%2Fw0rd"), "[redacted] and [redacted]")  # decoded too
         with self.assertRaises(TypeError):
             clean.value({"a": b"bytes"})
 
@@ -52,14 +54,17 @@ class Credentials(TempCase):
             (folder / ".h" / "auth.json").write_text(json.dumps({"type": "Bearer", "tokens": [{"refresh": token}]}))
         contained = types.SimpleNamespace(
             adapter=types.SimpleNamespace(ENV_KEYS=("H_KEY", "H_URL", "H_NONE"), CREDENTIAL_FILES=(".h/auth.json",)),
-            operator_env={"H_KEY": "key-0123456789", "H_URL": "https://user1234:pass567@model.example"},
+            operator_env={"H_KEY": "key-0123456789", "H_URL": "https://u:pass5678@model.example"},
             upstream="http://proxyuser:proxypass@10.0.0.1:3128", operator_home=Path(operator), home=Path(home))
         found = scrub.credentials(contained)
-        for value in ("key-0123456789", "user1234", "pass567", "proxyuser", "proxypass", "refresh-AAAAAAAAAA",
-                      "refresh-BBBBBBBBBB"):
+        for value in ("key-0123456789", "pass5678", "u:pass5678", "proxypass", "proxyuser:proxypass",
+                      "refresh-AAAAAAAAAA", "refresh-BBBBBBBBBB"):
             self.assertIn(value, found)
-        self.assertNotIn("https://user1234:pass567@model.example", found)  # the URL's host is not a secret
+        self.assertNotIn("u", found)  # a user name beside a password is not a credential, nor the URL's host
         self.assertNotIn("Bearer", found)  # a short string in a credential file is its metadata
+        contained.operator_env["H_URL"] = "https://u:pw7char@model.example"  # too short to redact safely
+        with self.assertRaisesRegex(scrub.ShortCredential, "1 credential"):
+            scrub.credentials(contained)
 
 
 if __name__ == "__main__":

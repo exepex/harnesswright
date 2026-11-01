@@ -1,7 +1,8 @@
 """Evidence: one host-neutral record of every run (doc 11, Evidence).
 
 One rule: a run's output is read once into manifests (`manifest.py`) and leaves only through one scrub
-(`scrub.py`). `collect` reads the world after the run once, diffs it against the proved arm, and scrubs the whole
+(`scrub.py`), which runs on what the run made (its files, paths, link targets, log and transcript) and never on what
+the harness made (hashes, fields, the case), so a short credential can never change a hash or a field. `collect` reads the world after the run once, diffs it against the proved arm, and scrubs the whole
 record and every file before anything is kept. `store` writes a bundle as `bundle.json`, the scrubbed record, and
 `blobs/<sha256>`, each file's scrubbed bytes named by their own hash. So no name the run chose ever touches the disk,
 names cannot collide on disk, and nothing in a bundle is a link. Every check and grader reads only the bundle.
@@ -25,6 +26,7 @@ import world as worlds
 from cases import REPO
 
 SKIP = (".git",)
+REQUEST_LIMIT = 200  # characters of a gate request line a bundle keeps, cut after the scrub
 
 
 class EvidenceError(RuntimeError):
@@ -83,6 +85,8 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
             digest = hashlib.sha256(data).hexdigest()
             blobs[digest] = data
             entry = f"file {digest}" + entry[len("file ") + 64:]  # the executable bit is kept
+        elif manifest.kind(entry) == "link":
+            entry = "link " + scrub.text(entry[len("link "):], f"world/{path}")
         stored[path] = entry
     changes = diff(before, after, overlay["paths"], own_files(drift, contained.mode))
     for path, change in changes.items():
@@ -94,28 +98,27 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
         transcript[name] = hashlib.sha256(data).hexdigest()
         blobs[transcript[name]] = data
     messages = [item["text"] for item in result.log if item["kind"] == "message"]
-    record = {
-        "case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,
-        "host_version": host_version, "model": model, "seconds": result.seconds, "failure": result.failure,
-        "exposure": result.exposure, "log": result.log, "final_message": messages[-1] if messages else None,
-        "requests": result.requests, "overlay": overlay, "files_after": stored, "diff": changes,
-        "transcript": transcript,
-    }
-    record = scrub.value(record, "bundle")
+    ran = scrub.value({"failure": result.failure, "exposure": result.exposure, "log": result.log,  # what the run
+                       "final_message": messages[-1] if messages else None, "requests": result.requests}, "bundle")
+    record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
+              "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
+              "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
+              "diff": scrub.names(changes, "bundle/diff"), **ran}
     for item in record["log"]:
         if item["kind"] == "command":
             item["output"] = item["output"][:host.OUTPUT_LIMIT]
+    for item in record["requests"]:
+        item["request"] = item["request"][:REQUEST_LIMIT]
     return record, blobs
 
 
 def _scan(folder, label, scrub):
     if folder is None:
         return
-    for root, _, names in os.walk(folder):
-        for name in names:
-            path = Path(root) / name
-            if path.is_file() and not path.is_symlink():
-                scrub.check(path.read_bytes(), f"{label}/{path.relative_to(folder)}")
+    for root, dirs, names in os.walk(folder):
+        for path in (Path(root) / name for name in dirs + names):  # a link's target is scanned, never followed
+            data = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else ""
+            scrub.check(data, f"{label}/{path.relative_to(folder)}")
 
 
 def store(record, blobs, out):

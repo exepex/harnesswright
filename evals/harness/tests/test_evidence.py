@@ -38,7 +38,7 @@ class Diff(unittest.TestCase):
 class Bundles(TempCase):
     """The fake host runs in a real jail, and its run becomes a bundle."""
 
-    def run_of(self, actions, adapter=None, tokens=(), arm=True):
+    def run_of(self, actions, adapter=None, tokens=(), arm=True, key=SECRET):
         adapter = adapter or fake_adapter()
         tool = self.tmp / "tool"
         if not tool.exists():
@@ -51,7 +51,7 @@ class Bundles(TempCase):
         built = world.build(case, adapter, self.tmp / f"arm-{case.id}", self.tmp / "skills", with_skill=arm)
         contained = contain.Containment(adapter, "task", built.path, manifest.manifest(built.path),
                                         root=self.tmp / f"run-{case.id}", tokens=tokens,
-                                        operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": SECRET},
+                                        operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": key},
                                         operator_home=self.tmp / "operator", host_paths=[tool])
         result = host.run(contained, json.dumps(actions), skills=["haiku-writer"] if arm else [], timeout=120)
         layer = evidence.overlay(case, adapter, self.tmp / "skills")
@@ -116,7 +116,8 @@ class Bundles(TempCase):
         long = f"python3 -c \"print('x' * 5000 + '{token}')\""
         for actions, where in (([{"do": "write", "path": "n.txt", "text": token}], "world/n.txt"),
                                ([{"do": "command", "command": long}], "stdout"),
-                               ([{"do": "command", "command": f"printf {token} > $HOME/kept"}], "home/kept")):
+                               ([{"do": "command", "command": f"printf {token} > $HOME/kept"}], "home/kept"),
+                               ([{"do": "command", "command": f"ln -s {token} $HOME/to"}], "home/to")):
             with self.subTest(where=where), self.assertRaisesRegex(scrub.Leak, where):
                 self.run_of(actions, tokens=[token])
 
@@ -127,6 +128,9 @@ class Bundles(TempCase):
         self.assertIn("skills/haiku-writer/x.md", record["files_after"])
 
     def test_a_bundle_is_stored_once_outside_the_repository_and_read_back_by_hash(self):
+        short = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",))
+        with self.assertRaisesRegex(contain.ContainmentError, "cannot be redacted safely"):
+            self.run_of([], short, key="a")  # it would damage the evidence, so the run never starts
         record, blobs = self.run_of([{"do": "say", "text": "ok"}])
         with self.assertRaisesRegex(evidence.EvidenceError, "outside the repository"):
             evidence.store(record, blobs, world.REPO / "evals" / "results" / "b")
