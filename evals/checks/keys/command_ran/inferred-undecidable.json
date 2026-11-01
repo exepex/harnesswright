@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "\\bgit push\\b", "ran": false},
+  "outcome": "undecidable",
+  "log": [{"kind": "command", "source": "inferred", "command": "git status", "exit_code": 0, "output": ""}]
+}

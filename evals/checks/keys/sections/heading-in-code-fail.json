@@ -1,0 +1,5 @@
+{
+  "args": {"headings": ["Story", "Criteria", "Not verified"], "level": 2, "file": "claims.md"},
+  "outcome": "fail",
+  "after": {"claims.md": "## Story\n\n```\n## Criteria\n```\n\n## Not verified\n"}
+}

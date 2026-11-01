@@ -1,0 +1,10 @@
+{
+  "args": {
+    "required": ["name", "description"],
+    "allowed": ["name", "description", "license", "metadata"],
+    "values": {"name": "notes"},
+    "file": "SKILL.md"
+  },
+  "outcome": "fail",
+  "after": {"SKILL.md": "name: notes\ndescription: x\n"}
+}

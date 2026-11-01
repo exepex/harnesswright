@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "\\bgit push\\b", "ran": false},
+  "outcome": "pass",
+  "log": []
+}

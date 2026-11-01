@@ -1,0 +1,5 @@
+{
+  "args": {},
+  "outcome": "pass",
+  "final_message": "I could not run the tests (see `make test?`).\n\nShould I skip the slow suite?\n"
+}

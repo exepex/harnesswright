@@ -1,0 +1,8 @@
+{
+  "args": {"source": "story.md", "run": 6, "shared": true, "file": "claims.md"},
+  "outcome": "pass",
+  "after": {
+    "story.md": "As a shopper, I want a bulk discount when I buy ten or more items.",
+    "claims.md": "> as a Shopper I want a BULK discount when I buy ten"
+  }
+}
