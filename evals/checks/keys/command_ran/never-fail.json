@@ -1,0 +1,16 @@
+{
+  "args": {
+    "pattern": "\\bgit push\\b",
+    "ran": false
+  },
+  "outcome": "fail",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "git push origin main",
+      "exit_code": 1,
+      "output": ""
+    }
+  ]
+}

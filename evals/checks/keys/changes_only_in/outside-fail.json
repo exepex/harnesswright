@@ -1,0 +1,17 @@
+{
+  "args": {
+    "allowed": [
+      ".harness/*"
+    ]
+  },
+  "outcome": "fail",
+  "before": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('hi')\n"
+  },
+  "after": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('bye')\n",
+    ".harness/claims.md": "x\n"
+  }
+}

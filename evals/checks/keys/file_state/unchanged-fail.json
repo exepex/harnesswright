@@ -1,0 +1,15 @@
+{
+  "args": {
+    "path": "src/app.py",
+    "state": "unchanged"
+  },
+  "outcome": "fail",
+  "before": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('hi')\n"
+  },
+  "after": {
+    "README.md": "# Notes\n",
+    "src/app.py": "print('bye')\n"
+  }
+}

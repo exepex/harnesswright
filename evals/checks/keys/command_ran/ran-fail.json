@@ -1,0 +1,17 @@
+{
+  "args": {
+    "pattern": "^python3 -m unittest\\b",
+    "ran": true,
+    "exit_code": 0
+  },
+  "outcome": "fail",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "python3 -m unittest discover -s tests",
+      "exit_code": 1,
+      "output": ""
+    }
+  ]
+}
