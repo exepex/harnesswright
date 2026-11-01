@@ -5,8 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table, the host contract, with a fake host, the probes, the scrub and the evidence bundle**. The grader
-view and the measuring kit come next.
+the power table, the host contract, with a fake host, the probes, the scrub, the evidence bundle, the grader view
+and the harness faults**. The rest of the fault catalogue and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -29,6 +29,7 @@ allowed connections.
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
 | `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
 | `view.py` | The grader view of a bundle: allowed fields and paths only, the same in either arm |
+| `faults.py` | Plants each fault of the catalogue, `evals/faults/harness.json`, and runs the gate that must catch it |
 
 ## Commands
 
@@ -292,3 +293,22 @@ a command is shown as the command the agent ran, without output or exit code, si
 worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
 with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
 own entries. A run's folders must never name its arm.
+
+## Harness faults
+
+`evals/faults/harness.json` is the catalogue of harness faults (doc 11), part of the measuring kit; each entry names
+one plant of `faults.PLANTS`. `faults.run(fault, setup, seed)` plants it where the seed chooses and runs the
+harness's own gate unchanged (the lint, the audit, or a whole run, whose bundle it stores and lists). It is caught
+only by the one outcome its plant names; anything else is a miss. Refusing plants run a clean control first, a
+lint fault must be refused by its own rule, and every reason passes one scrub.
+
+| Fault | Places | Caught when |
+|---|---|---|
+| `outside` | beside the run's world, a decoy operator home, another run's folder, the machine's temporary folder, the repository checkout | A canary and a copy of the skill holding one are planted there; the harness looks for each from inside the run's own jail and finds none, and the run passes its audit, does not fail, and keeps every canary out of its output. What the host chose to look at never decides it |
+| `inside` | the world, a host path, a credential file from a decoy home | The audit refuses the run for the canary, and passes the same run without it |
+| `environment` | the operator's environment | The harness dumps the environment from inside the run's jail: it holds no planted session, memory or credential name, the run's scrub removes every planted value and credential from the dump, and the bundle holds none |
+| `names` | a new world file, an existing one, the prompt | The skill's name, path or a run of its text there is refused by the lint |
+| `tells` | the same, and a whole eval file | A tell word, a run of the kit's text or a copy of the catalogue there is refused by the lint |
+
+The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
+a gate made to miss is a miss. Host, probe and grading faults come in their own pull requests.
