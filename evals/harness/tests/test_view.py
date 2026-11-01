@@ -15,7 +15,7 @@ import view
 
 LONG = AGENTS + "x" * 5000 + "\n"  # longer than the output a grader sees, with the row before the cut
 LISTED = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
-          {"do": "command", "command": "pwd && find . -type f -not -path './.git/*' | sort"},
+          {"do": "command", "command": "pwd && ls -a && ls skills; find . | sort && wc -l AGENTS.md"},
           {"do": "command", "command": "cat AGENTS.md && cp AGENTS.md copy.md && sed -i 's/ | /|/g' AGENTS.md"},
           {"do": "say", "text": "Done."}]
 RESTORED = [{"do": "command", "command": f"printf '%s' '{LONG}' > AGENTS.md"},  # the index without its row
@@ -46,16 +46,16 @@ class Views(TempCase):
             self.assertNotIn(word, text)
         named = [*shown["files_after"].values(), *(c["after"] for c in shown["diff"].values() if c["after"])]
         self.assertEqual({entry.split(" ")[1] for entry in named if entry.startswith("file")}, set(blobs))
-        host.check_log(shown["log"])
+        for item in shown["log"]:
+            fields = ("kind", "source", *host.ENTRIES[item["kind"]])
+            fields = view.COMMAND_FIELDS if item["kind"] == "command" else fields
+            self.assertEqual(set(item), set(fields))
         return shown, blobs
 
     def test_the_same_run_in_either_arm_gives_the_same_view(self):
         shown, blobs = self.views(LISTED)
-        commands = [item for item in shown["log"] if item["kind"] == "command"]
-        self.assertEqual(len(commands), 2)  # a listing that shows the skill is kept, without the skill's lines
-        self.assertIn("./notes.txt", commands[0]["output"])
-        self.assertTrue(commands[0]["output"].startswith("/run/project\n"))  # the run's folder in a neutral word
-        self.assertEqual(len(commands[1]["output"]), host.OUTPUT_LIMIT)  # cut after the row's line went
+        commands = [item["command"] for item in shown["log"] if item["kind"] == "command"]
+        self.assertEqual(commands, [LISTED[1]["command"], LISTED[2]["command"]])  # what the agent ran, no output
         self.assertEqual(shown["final_message"], "Done.")
         self.assertEqual(shown["log"][0]["sha256"], host.sha256("hi\n"))
         self.assertEqual(sorted(shown["diff"]), ["AGENTS.md", "copy.md", "notes.txt"])

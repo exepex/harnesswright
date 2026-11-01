@@ -1,22 +1,25 @@
 """The grader view: what a grader sees of one bundle (doc 11, Evidence). Graders never read the full record.
 
-The view is built from the bundle by allow lists and three rules, never by copying the bundle and deleting what is
+The view is built from the bundle by allow lists and four rules, never by copying the bundle and deleting what is
 known to be risky. Each rule is applied the same way in both arms, so the same run in either arm gives the same view.
 
 - **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
   copies of the skill, and the folders above them while they only hold them) and outside the host's own files.
 - **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path or command
   names the skill or one of its paths (`on_overlay`). No without-skill run can act on the skill.
+- **What the agent did, not what the world showed it.** A command is shown by what the agent ran
+  (`COMMAND_FIELDS`), never by its output or exit code: the arms are different worlds, so what a world prints back
+  (a listing, a line count, a commit's size) tells the arm, however it is filtered. Doc 11 gives graders the command
+  list; the full record keeps the output for checks, audits and judges.
 - **Text.** In every text the view shows (each log value, the final message, each file and each link target), a
   line that names the skill or one of its paths is removed, so the generated index row and every copy or edit of
-  it goes too, and the run's folders become neutral words (`text`). A command's output is cut to
-  `host.OUTPUT_LIMIT` only after that.
+  it goes too, and the run's folders become neutral words (`text`).
 
 The diff is the diff of the view's own entries, so a change that only touched overlay lines is no change. A file's
 entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
 file's entry is the arm's own, and the index file's is the one it has in the without-skill arm, as the arms differ
-there only by the row. What the agent saw of its arm without naming the skill, such as the line count of the index
-file, is not hidden.
+there only by the row. A write's hash is shown only when it is the hash of its file's view bytes. What the agent
+wrote of what it saw, such as a folder listing it saved to a file, is its own output and is not hidden.
 
 Standard library only.
 """
@@ -29,6 +32,7 @@ import manifest
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
 ACTION_FIELDS = ("path", "command")  # the fields that say what an action acts on
+COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command: what the agent ran
 
 
 def view(record, blob):
@@ -71,11 +75,11 @@ def view(record, blob):
             continue
         item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
                 for name, value in item.items()}
-        if item["kind"] == "command":
-            item["output"] = item["output"][:host.OUTPUT_LIMIT]
+        if item["kind"] == "command":  # what the world printed back differs between the arms, so it stays out
+            item = {name: item[name] for name in COMMAND_FIELDS}
         if item["kind"] == "write" and item["sha256"] is not None:
             seen = hashes.get(item["path"])
-            item["sha256"] = seen[1] if seen and seen[0] == item["sha256"] else item["sha256"]
+            item["sha256"] = seen[1] if seen and seen[0] == item["sha256"] else None
         log.append(item)
     final = record["final_message"]
     built = {"files_after": files, "diff": changes, "log": log,

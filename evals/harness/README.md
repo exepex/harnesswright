@@ -198,8 +198,7 @@ skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`
 `powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
-reads, writes with content hashes, commands with exit code and whole output (cut to `host.OUTPUT_LIMIT` only in the
-grader view), actions refused
+reads, writes with content hashes, commands with exit code and whole output, actions refused
 by the host or the jail (`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed`
 (the host reported it) or `inferred` (the adapter worked it out, such as a file a shell command reads). The host
 may expose and load only the skills the arm installs, and expose only the adapter's tools. A host that ran must
@@ -284,11 +283,12 @@ whole and cuts request lines only after the scrub. `evidence.store` writes a new
 
 ## The grader view
 
-Graders see `view.view` of a bundle, never the full record, which stays for audits and judges. The view is built by
-allow lists and three rules, each applied the same way in both arms, so the same run in either arm gives the same
-view. Fields and paths: only `view.FIELDS` (no arm, host, model, timings, exposure, requests or transcript), and only
-world paths outside the overlay and the host's own files. Actions: a log entry is dropped when it loads the skill or
-its path or command names the skill. Text: in every text the view shows, each line that names the skill or its
-paths is removed (the index row with it, however edited or copied), and the run's folders become neutral words;
-command output is cut only after that. The diff is the diff of the view's own entries. What the agent saw of its
-arm without naming the skill, such as the index file's line count, is not hidden.
+Graders see `view.view` of a bundle, never the full record, which stays for checks, audits and judges. The view is
+built by allow lists and four rules, each applied the same way in both arms, so the same run in either arm gives
+the same view. Fields and paths: only `view.FIELDS` (no arm, host, model, timings, exposure, requests or
+transcript), and only world paths outside the overlay and the host's own files. Actions: a log entry is dropped
+when it loads the skill or its path or command names the skill. What the agent did, not what the world showed it:
+a command is shown as the command the agent ran, without output or exit code, since the two arms are different
+worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
+with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
+own entries. A run's folders must never name its arm.

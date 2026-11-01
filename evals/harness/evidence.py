@@ -76,7 +76,7 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     `arm` is `with_skill` or `without_skill`, `overlay` is the case's `overlay` and `drift` the host's tools and drift
     record. The run's scrub is made here, after the run, so a credential the host refreshed is known. Raise
     `scrub.Leak` when a canary token reached the run's output, which voids it, and `EvidenceError` when the world
-    cannot be read. A command's output is kept whole; only the grader view cuts it."""
+    cannot be read. A command's output is kept whole."""
     scrub = scrubs.Scrub.of_run(contained, overlay)
     for label, folder in (("home", contained.home), ("scratch", contained.scratch)):
         _scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too

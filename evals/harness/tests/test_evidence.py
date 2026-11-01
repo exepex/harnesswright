@@ -51,9 +51,10 @@ class Bundles(TempCase):
             operator.mkdir(parents=True)
             (operator / "creds.json").write_text(json.dumps({"refresh": TOKEN}))
         case = case or self.case({"README.md": "A notes app.\n"})
-        built = world.build(case, adapter, self.tmp / f"arm-{case.id}-{arm}", self.tmp / "skills", with_skill=arm)
+        run = os.urandom(4).hex()  # a run's folders never name its arm
+        built = world.build(case, adapter, self.tmp / f"arm-{run}", self.tmp / "skills", with_skill=arm)
         contained = contain.Containment(adapter, "task", built.path, manifest.manifest(built.path),
-                                        root=self.tmp / f"run-{case.id}-{arm}", tokens=tokens,
+                                        root=self.tmp / f"run-{run}", tokens=tokens,
                                         operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": key},
                                         operator_home=self.tmp / "operator", host_paths=[tool])
         result = host.run(contained, json.dumps(actions), skills=["haiku-writer"] if arm else [], timeout=120)
