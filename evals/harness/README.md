@@ -5,8 +5,8 @@ The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It r
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
-the power table, the host contract, with a fake host, and the probes**. Evidence and the measuring kit come
-next.
+the power table, the host contract, with a fake host, the probes, and the evidence bundle with its one scrub**. The
+grader view and the measuring kit come next.
 
 Python 3 standard library only, and no network calls of its own (`HW-PORT-04`): the gate only passes on a host's
 allowed connections.
@@ -26,6 +26,8 @@ allowed connections.
 | `powers.py` | The power table of each mode, and the probe that proves the jail gives exactly that |
 | `host.py` | The one contract between the harness and a host's adapter, and the one place a host runs |
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
+| `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
+| `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
 
 ## Commands
 
@@ -252,3 +254,28 @@ made is never followed out of the jail.
   records between host versions, and storing them, belongs to the evidence step.
 
 Every token is fresh for each run. A host or containment that breaks its contract raises, as in any run.
+
+## Evidence
+
+A run leaves the harness only as a bundle (doc 11, Evidence), and only through one scrub.
+
+`scrub.Scrub` holds a run's canary tokens, its credentials (`scrub.credentials`: each `ENV_KEYS` value the operator
+passes, only the user and password of a URL, the user and password of the operator's proxy, and the text and JSON
+string values of each credential file, the operator's and the run's copy) and neutral words for the skill. Every
+text, blob and record goes through it. It looks at the whole raw value first, before anything cuts or encodes it: a
+canary token stops it with `scrub.Leak`, which voids the run. Then each credential, as written and as a JSON string
+holds it, becomes `[redacted]`. A record is scrubbed before it is written as JSON, keys included, and two keys that
+become one are refused (`scrub.Collision`). A transcript also has the skill's name and paths replaced by neutral
+words. The home and scratch folders are scanned for canaries too, since a host keeps its session files there.
+
+`evidence.collect` reads the world after the run once into a manifest, without `.git`, and stores each file's
+scrubbed bytes as a blob named by their own hash; the file's entry names that blob and keeps its executable bit. A
+link stays an entry with its scrubbed target. The world diff compares the proved arm with the world after. It leaves
+out the paths the host writes for itself (the drift record's `own files`) and both copies of the installed skill
+(`evidence.overlay`), each with the folders above it, so both arms leave out the same paths. The record holds the
+case, arm, mode, host, host version, model, seconds, failure, exposure, action log, final message, gate requests,
+overlay, files after, diff, and the transcript's stdout and stderr as blobs.
+
+`evidence.store` writes `bundle.json` and `blobs/<sha256>` to a new folder outside the repository, and reads every
+blob back by its hash (`evidence.load`). No name the run chose touches the disk, so names cannot leak or collide
+there, and nothing in a bundle is a link.

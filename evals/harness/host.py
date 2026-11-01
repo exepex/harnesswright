@@ -14,6 +14,7 @@ import hashlib
 import os
 import re
 import subprocess
+import time
 
 import powers
 
@@ -130,11 +131,13 @@ def check_exposure(adapter, exposure, skills):
 
 
 class Result:
-    """One host run: what it printed, how it ended, its checked action log and exposure, and the gate's log."""
+    """One host run: what it printed, how it ended, its checked action log and exposure, the gate's log, and how many
+    seconds the host ran."""
 
-    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests):
+    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests, seconds):
         self.stdout, self.stderr, self.returncode, self.timed_out = stdout, stderr, returncode, timed_out
         self.failure, self.log, self.exposure, self.requests = failure, log, exposure, requests
+        self.seconds = seconds
 
 
 def run(contained, prompt, skills, model=None, timeout=900):
@@ -146,12 +149,14 @@ def run(contained, prompt, skills, model=None, timeout=900):
     command = contained.jail(adapter.jail_command(contained.mode, contained.world, model), program=adapter.CLI)
     contained.audit(adapter.CLI)  # the jail is checked against its list before the host starts
     with contained.gate() as gate:
+        started = time.monotonic()
         try:
             done = subprocess.run(command, input=prompt, capture_output=True, text=True, env=contained.env,
                                   timeout=timeout)
             stdout, stderr, returncode, timed_out = done.stdout, done.stderr, done.returncode, False
         except subprocess.TimeoutExpired as expired:
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
+        seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
     log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
     log = [item for item in log if item is not None]
@@ -161,7 +166,7 @@ def run(contained, prompt, skills, model=None, timeout=900):
         raise HostError("exposure: the host did not report the skills and tools it exposed")
     if exposure is not None:
         check_exposure(adapter, exposure, skills)
-    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log))
+    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds)
 
 
 def settle(item, contained):
