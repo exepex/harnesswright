@@ -11,7 +11,6 @@ import json
 import os
 import random
 import shutil
-import subprocess
 import tempfile
 import urllib.parse
 from pathlib import Path
@@ -21,6 +20,7 @@ import contain
 import evidence
 import host
 import lint
+import look
 import manifest
 import probes
 import scrub
@@ -127,7 +127,8 @@ def run(fault, setup, seed, place=None):
             "bundles": setup.bundles[stored:]}
 
 
-def _copy(setup):  # a copy of the case to plant in: (its folder, its case.json data)
+def _copy(setup):
+    """A copy of the setup's case in a new folder, to plant in. Return (the copy's folder, its case.json data)."""
     folder = setup.folder() / "cases" / setup.case.id
     shutil.copytree(setup.case.folder, folder, symlinks=True)
     return folder, json.loads((folder / "case.json").read_text())
@@ -165,37 +166,8 @@ def _run(setup, fault, case, planted, tokens=(), folder=None, **options):
     return out, contained
 
 
-def _decoy(setup, folder):  # a decoy operator home, holding copies of the operator's credential files only
+def _decoy(setup, folder):
     return probes.decoy_home(setup.adapter, folder, setup.containment.get("operator_home"))
-
-
-# Run in a run's own jail by the harness: given paths on stdin, it prints the ones the jail lets it stat or read.
-SEEN = r"""
-import json, os, sys
-seen = []
-for path in json.load(sys.stdin):
-    try:
-        os.lstat(path)
-    except OSError:
-        continue
-    seen.append(path)
-print(json.dumps(seen))
-"""
-
-ENVIRONMENT = "import json, os\nprint(json.dumps(dict(os.environ)))\n"  # run the same way: the jail's environment
-
-
-def jailed(contained, program, data=None):
-    """What `program`, a Python text the harness runs in the jail of `contained` with its host's mounts and
-    environment, prints as JSON: decided by the harness, whatever the host chose to do."""
-    command = contained.jail([contain.PYTHON, "-I", "-c", program], program=contained.adapter.CLI)
-    with contained.gate():
-        done = subprocess.run(command, input=json.dumps(data), capture_output=True, text=True, env=contained.env,
-                              timeout=120)
-    try:
-        return json.loads(done.stdout)
-    except json.JSONDecodeError:
-        raise Missed(f"the harness could not look inside the jail: {done.stderr.strip()[-300:]}") from None
 
 
 def outside(setup, fault, rng, place):
@@ -224,7 +196,7 @@ def outside(setup, fault, rng, place):
         planted[token] = str(copy / "SKILL.md")
         shown = {"paths": sorted(planted.values()), "folders": [str(target), str(copy)]}
         _, contained = _run(setup, fault, setup.case, shown, tokens=list(planted), **options)
-        found = jailed(contained, SEEN, shown["paths"] + shown["folders"])
+        found = look.look(contained, look.SEEN, shown["paths"] + shown["folders"])
     finally:
         if place in ("machine", "repository"):
             shutil.rmtree(target, ignore_errors=True)
@@ -278,7 +250,7 @@ def environment(setup, fault, rng, place):
     given = setup.containment.get("operator_env")
     env = {**(os.environ if given is None else given), **decoys}  # as `contain.Containment` reads it
     out, contained = _run(setup, fault, setup.case, {"names": chosen}, operator_env=env)
-    dump = jailed(contained, ENVIRONMENT)
+    dump = look.look(contained, look.ENVIRONMENT)
     leaked = sorted(set(chosen) & set(dump))
     if leaked:
         return f"the run's environment holds {leaked}"

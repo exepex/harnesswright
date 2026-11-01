@@ -3,7 +3,6 @@ gate that misses one is reported as a miss."""
 
 import json
 import os
-import shlex
 import shutil
 import tempfile
 import unittest
@@ -24,8 +23,8 @@ PROMPTS = {
         {"do": "say", "text": "done"}]),
     "environment": lambda planted: json.dumps([{"do": "command", "command": "env; env > seen.txt"},
                                                {"do": "say", "text": "done"}]),
-    "memory": lambda planted: json.dumps([{"do": "command", "command": "cat " + shlex.join(planted["paths"])},
-                                          {"do": "say", "text": "done"}]),
+    "memory": lambda out: json.dumps([{"do": "write", "path": f"{out}/memory.txt", "text": "ready"},
+                                      {"do": "say", "text": "done"}]),
     "not run": lambda out: json.dumps([{"do": "write", "path": f"{out}/sign-in.txt", "text": "ready"},
                                        {"do": "say", "text": "done"}]),
     "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},

@@ -18,7 +18,7 @@ ENV_KEYS = ()
 CREDENTIAL_FILES = ()
 RUN_ENV = {}
 TOOLS = {"read_file": "read", "write_file": "write", "shell": "command", "load_skill": "skill", "spawn": "agent"}
-READERS = ("cat", "head", "tail")  # commands whose file arguments the adapter infers as reads
+READERS = ("cat", "head", "tail", "sed", "awk", "grep", "tr")  # commands whose file arguments it infers as reads
 
 
 def skill_dir(world, name):
