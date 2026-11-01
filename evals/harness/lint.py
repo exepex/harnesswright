@@ -270,11 +270,15 @@ def expectation_texts(expectation):
         + examples.get("pass", []) + examples.get("fail", [])
 
 
-def unquoted(text, quotes):
-    """`text` with each of `quotes` removed, as written and as JSON writes it."""
-    for quote in quotes:
-        text = text.replace(quote, " ").replace(json.dumps(quote)[1:-1], " ")
-    return text
+def stated_quotes(text):
+    """The contract quotes a case data file states, or none when it is not a case.json of that shape."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return []
+    found = data.get("expectations", []) if isinstance(data, dict) else []
+    return [e["source"]["contract"]["quote"] for e in found if isinstance(e, dict) and isinstance(e.get("source"), dict)
+            and isinstance(e["source"].get("contract"), dict) and isinstance(e["source"]["contract"].get("quote"), str)]
 
 
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
@@ -297,13 +301,15 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.
-    # A quote excuses only itself: its words, found where the case cites them, are removed from the case's own
-    # case.json and from the expectation that cites them. Nothing else is excused.
+    # A quote excuses only itself: the runs of its words, in the case data file that cites it and in the
+    # expectation that cites it. Nothing else is excused. This case's quotes count only where the world holds them;
+    # another case's are checked when that case is linted.
     cited_quotes = [q for q in quotes if q]
     declared = all_runs([p.key for p in places] + [p.text for p in places if p.kind == "declared"], {RUN})
-    own = unquoted((case.folder / "case.json").read_bytes().decode("utf-8", "replace"), cited_quotes)
     mine = (case.folder / "case.json").resolve()
-    data = all_runs([own] + [t for path, t in cases if Path(path).resolve() != mine], {RUN})
+    own = all_runs([mine.read_bytes().decode("utf-8", "replace")], {RUN}) - all_runs(cited_quotes, {RUN})
+    data = own.union(*(all_runs([t], {RUN}) - all_runs(stated_quotes(t), {RUN})
+                       for path, t in cases if Path(path).resolve() != mine))
     measuring = (all_runs(kit, {RUN}) | (data - declared)) - project
     # An expectation may restate the rule it cites: the world already says it there.
     expected = set().union(set(), *(runs(t, {min(EXPECTATION_RUN, len(t.split()))}) - all_runs([q or ""],

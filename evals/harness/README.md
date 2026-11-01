@@ -167,9 +167,9 @@ text, since the case author writes it for this case.
 - Every text of an expectation is expectation text: what it says, and its judged question, rules and examples.
 - Each contract is found where it is cited: its quote, of at least three words as the lint reads words, starts on
   line `line` of the world text file `path`, never a link, and may run on over the lines after it. A quote excuses
-  only itself: the case's own `case.json` may hold it, and the expectation that cites it may restate it. Each
-  check names a check of the library, with arguments that fit its list (`checks.validate`, the test `decide` runs
-  too).
+  only itself, by its words: the case data file that cites it may hold it, and the expectation that cites it may
+  restate it. Each check names a check of the library, with arguments that fit its list (`checks.validate`, the
+  test `decide` runs too).
 - A copy is verified when its source is a regular file git tracks in the repository, spelled exactly as git
   tracks it and reached through real folders; the source still has its recorded `source_sha256`; and the world file
   is the source with its skill rows removed. A skill row is a table row that names a skill of the repository: the

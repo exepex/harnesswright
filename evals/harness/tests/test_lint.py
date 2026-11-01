@@ -154,6 +154,8 @@ class Lint(TempCase):
                              "quote": "Each release note names the ticket it closes"}}
         restated = expect("Each release note names the ticket it closes", cite)
         self.assertEqual(self.problems(files, {"expectations": [restated]}), [])
+        lower = dict(restated, source={"contract": dict(cite["contract"], quote=cite["contract"]["quote"].lower())})
+        self.assertEqual(self.problems(files, {"expectations": [lower]}), [])  # the same words, in any case
         judged = dict(restated, judged=dict(restated["judged"], **{"pass": "Explains why the boundary helps."}))
         problems = self.problems(dict(files, **{"NOTES.md": "Explains why the boundary helps.\n"}),
                                  {"expectations": [judged]})
@@ -167,6 +169,15 @@ class Lint(TempCase):
             "Lists tickets", {"contract": {"path": "docs/rules.md", "line": 1, "quote": planted}})]},
             case_data=case_data)
         self.assertTrue(any("docs/rules.md: holds eval text" in p for p in problems), problems)
+
+    def test_two_cases_may_cite_the_same_rule_from_their_own_worlds(self):
+        rule = "Every release note names the ticket it closes and the person who reviewed it."
+        files = {"README.md": "x\n", "docs/rules.md": rule + "\n"}
+        data = {"expectations": [expect("Names tickets", {"contract": {"path": "docs/rules.md", "line": 1,
+                                                                      "quote": rule}})]}
+        other = self.case(files, data, name="other")
+        case_data = [(other.folder / "case.json", (other.folder / "case.json").read_text())]
+        self.assertEqual(self.problems(files, data, case_data=case_data), [])
 
     def test_a_contract_cited_through_a_link_is_not_found(self):
         case = self.case({"README.md": "x\n", "docs/every-change-must-pass.md": "Not a rule.\n"},
