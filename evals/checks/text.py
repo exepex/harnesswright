@@ -29,8 +29,9 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   span that is only `path:N` or `path:N-M` and names something in the world before or after the run: its first part
   is a world entry, or its last part is the name of one. The world is the list of what can be cited, and a
   reference gives the file's whole path from the world's root, so `src/gone.py:2` (when `src` was there) and
-  `app.py:2` (when the file is `src/app.py`) are broken, and `localhost:8080` is not a reference. Quoted lines
-  (`>`, such as the quoted story) are someone else's words and are not read.
+  `app.py:2` (when the file is `src/app.py`) are broken, as is any other spelling, such as `./src/app.py:2`, and
+  `localhost:8080` is not a reference. Quoted lines (`>`, such as the quoted story) are someone else's words and
+  are not read. A file `line_counts` lists is also only ever a world path.
 """
 
 import re
@@ -188,7 +189,9 @@ def line_counts(bundle, section, file=None):
     for path, count, deleted in listed:
         held = bundle.text(path) if is_path(path) else None
         true = None if held is None else held.count("\n")
-        if deleted and path in bundle.files:
+        if not is_path(path):  # a path spelled any other way, such as ./src/app.py, names no world file
+            wrong.append(f"{path} is not a world path")
+        elif deleted and path in bundle.files:
             wrong.append(f"{path} is listed deleted but is there")
         elif not deleted and true is None:
             wrong.append(f"{path} is not a file")
@@ -207,11 +210,11 @@ def line_references(bundle, file=None):
     spans = [m.group(0).strip("`").strip() for m in SPAN.finditer("\n".join(own))]
     entries = set(bundle.files) | {p for p, c in bundle.changes.items() if c["before"] is not None}
     world = {p.split("/")[0] for p in entries} | {p.split("/")[-1] for p in entries}
-    found = [m.groups() for span in spans for m in [REFERENCE.fullmatch(span)] if m and is_path(m.group(1))
-             and {m.group(1).split("/")[0], m.group(1).split("/")[-1]} & world]
+    found = [m.groups() for span in spans for m in [REFERENCE.fullmatch(span)]
+             if m and {m.group(1).split("/")[0], m.group(1).split("/")[-1]} & world]
     broken = []
     for path, first, last in found:
-        held = bundle.text(path)
+        held = bundle.text(path) if is_path(path) else None  # ./src/app.py or src/../app.py is no world path
         if held is None:
             broken.append(f"{path} is not a file after the run")
             continue
