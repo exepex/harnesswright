@@ -25,6 +25,13 @@ Each run has a folder, `.harness/runs/<run-id>/`, on the change's branch:
 
 Whether the run folder stays in the repository after merge is an open question (see [09 · Roadmap](09-roadmap.md)).
 
+## Approvals
+
+**One rule for approvals.** Wherever a contract records a person's approval (`gaps-accepted-by`, a waiver's
+approver, an accepted open proof item), it records who, when, and a link to where the person gave it: a pull request
+review or comment from their own account. A name typed into a file is not an approval. A role that cannot open the
+link marks the approval "not verified", and an approval that is not verified counts as missing.
+
 ## Triage
 
 ```yaml
@@ -51,9 +58,12 @@ Written by the functional planner for a planned item (an epic or a feature).
 ---
 id: P-order-retry
 status: draft               # draft | approved | rejected
-gaps-accepted-by: none      # who accepted the plan's gaps, and when; "none" when it has no gaps
+gaps-accepted-by: none      # an approval (see Approvals); "none" when the plan has no gaps
 ---
 ```
+
+A planned item lives in one repository. Work that spans repositories is split into one planned item per
+repository.
 
 Sections: **Goal** (one paragraph) · **In scope** · **Out of scope**, with reasons · **Acceptance criteria**,
 numbered `AC-1`, `AC-2`, …, each testable · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency,
@@ -62,15 +72,18 @@ throughput, memory, CPU, availability), each in one of the states below · **Gap
 **One rule for requirements.** Every acceptance criterion and every target not marked "not applicable" or "not
 testable here" is a *requirement*. Each requirement names the test types it requires, chosen only from the process
 setting `test-types`, which lists the types the team has. No other test type is ever required. In a plan, the
-functional planner proposes them and they are approved with the plan. A story with no plan takes them from the same
-setting. Everything below that says "requirement" means both kinds.
+functional planner proposes them and they are approved with the plan. A story with no plan takes them from the
+process setting `default-test-types` for its change type. Everything below that says "requirement" means both
+kinds.
 
 **Performance targets.** The functional planner asks the person for each target and never reads monitoring tools.
-No number is ever invented. Each target is in one of five states:
+No number is ever invented. A target may be relative to a figure that has been measured and saved, such as "five
+times the measured peak"; relative to a figure nobody has measured, it is unknown. Each target is in one of five
+states:
 
 - **Exact**, for example "p95 under 200 ms". Its test must pass.
-- **Estimated**: a ballpark the planner turns into a range and marks `estimated`. Its test must exist, but a missed
-  range is a warning, not a fail.
+- **Estimated**: a ballpark range that the person gives or confirms, marked `estimated`. Its test must exist, but a
+  missed range is a warning, not a fail.
 - **Unknown**: the requirement is a baseline benchmark. The test measures the target's metric in the test
   environment, saves the figure, and fails when a later change makes that metric worse by more than the process
   setting `baseline-tolerance`.
@@ -78,8 +91,7 @@ No number is ever invented. Each target is in one of five states:
 - **Not testable here**: the team has no performance test type in `test-types`. Not a requirement.
 
 **One rule for gaps.** A target that is unknown ("performance not verified"), not applicable or not testable here is
-a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them; `gaps-accepted-by`
-records who and when. This holds at every tier: a plan with gaps waits for a person even where its tier has no
+a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them in `gaps-accepted-by`. This holds at every tier: a plan with gaps waits for a person even where its tier has no
 human plan gate. The plan reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan whose team
 has a performance test type needs at least one performance requirement; a baseline benchmark counts.
 
@@ -117,7 +129,8 @@ plan: P-order-retry         # or "none" for a change with no plan
 depends-on: [S01]
 covers: [AC-1, AC-3, NFR-1, TD-2]   # the criteria, targets and design elements this story delivers
 tests: {AC-1: [unit], AC-3: [unit, integration], NFR-1: [performance]}   # test types for each requirement
-waivers: []                 # story-scoped waivers: rule ID, reason, end date, approver
+waivers: []                 # story-scoped waivers: rule ID, reason, end date, approval
+gaps-accepted-by: none      # only when plan is "none"; same rule as the plan's
 ---
 ```
 
@@ -126,8 +139,10 @@ Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: t
 quoted from the plan with its state and number or range) · **Out of scope** · **Tasks** (optional,
 only when the team tracks tasks).
 
-A story with a plan uses the plan's IDs. A story with `plan: none` numbers its own criteria `AC-1`, `AC-2`, …,
-lists them in `covers`, and keys `tests` by them.
+A story with a plan uses the plan's IDs. A story with `plan: none` numbers its own criteria `AC-1`, `AC-2`, … and
+targets `NFR-1`, `NFR-2`, …, lists them in `covers`, and keys `tests` by them. Triage asks the person for its
+targets as the functional planner would, and the story lists its gaps and records their acceptance in
+`gaps-accepted-by`, under the same rules as a plan.
 
 A story may be tests only, such as "add contract tests for API X". A story-scoped waiver is recorded in `waivers`
 before work starts, approved as [03 · Standards](03-standards.md) says, and cited in the claims. It lives only in
@@ -139,7 +154,8 @@ the change against that story's own acceptance criteria.
 
 A story is small enough to review in one sitting. The alignment judge checks that every requirement and
 design element is covered by at least one story, that each story's `tests` include every test type the plan
-requires for each requirement it covers, and that no story does anything the plan or the design does not ask for.
+requires for each requirement it covers, that each quoted target state matches the plan, and that no story does
+anything the plan or the design does not ask for.
 
 ## Claims
 
@@ -147,9 +163,15 @@ Written by the implementer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
 done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
-proves it, with the measured figure for each performance target · **Standards**: the hash of `rules.md`, the rules
+proves it, with the measured figure for each performance target · **Open proof items** · **Standards**: the hash of `rules.md`, the rules
 applied, by ID, and each waiver used · **Out of scope**, with reasons · **Files changed**, each with its line
 count · **Not verified**: anything the implementer could not prove.
+
+An *open proof item* is proof that cannot be made in the pull request, such as a full load run in another
+environment or tests in a repository the agent cannot reach. For each one the claims give the requirement, what is
+unproven, where and when the proof will come from, and who owns it. The claims writer lists every open proof item
+at the top of the pull request description, where a person accepts it (see Approvals). Nothing about it is tracked
+after merge.
 
 ## Finding
 
@@ -196,8 +218,9 @@ warnings: []                # missed estimated ranges; never forces fail
 ```
 
 Body: each claim, checked or refuted with evidence; then what must change for a pass. The story judge fails a
-requirement whose required test type has no test. It reads each target's state from the story: a missed exact
-target or a failed baseline benchmark is a blocker, and a missed `estimated` range goes under `warnings`.
+requirement whose required test type has no test, unless that test is an open proof item a person has accepted. It
+reads each target's state from the plan by ID, or from the story when `plan` is `none`: a missed exact target or a
+failed baseline benchmark is a blocker, and a missed `estimated` range goes under `warnings`.
 
 A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
 valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
