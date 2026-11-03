@@ -312,9 +312,9 @@ the same view. Fields and paths: only `view.FIELDS` (no arm, host, model, timing
 transcript), and only world paths outside the overlay and the host's own files. Actions: a log entry is dropped
 when it loads the skill or its path, command or refused action names the skill. What the agent did, not what the
 world showed it: a command is shown as the command the agent ran, without output or exit code, since the two
-arms are different worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
-with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
-own entries. A run's folders must never name its arm.
+arms are different worlds. Text: in every text the view shows, each line that names the skill or its paths is
+removed (the index row with it, however edited or copied), and the run's folders become neutral words. The diff is
+the diff of the view's own entries. A run's folders must never name its arm.
 
 ## Grading
 
@@ -405,10 +405,10 @@ as `seen`, scrubbed the same way, so the judges can check each catch.
 | `not run` | the host's program, its key and credential files, its command tools, the containment | The sign-in probe (the powers probe for the command tools, which the adapter's plant takes away) passes the host as it is and fails it with the part missing; with no containment, the probes give no host a run. Run these one after another, never beside a real run |
 | `exposed` | the host's bundled skills, which the adapter's plant turns on | The same without-skill run passes without the plant, and with it the host's exposure stops the round |
 | `inferred` | a command that reads a world file in an unusual way, one that only names it | The stored log holds that command, ended well, and every read of the file is tagged inferred, with at least one when the command read it. It needs a case of kind `task`, where every host may run commands |
-| `sheet` | each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every bad word), misquoted, quoting nothing or with another field (the file too), and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
+| `sheet` | each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every bad word), misquoted (every way), quoting nothing or with another field (the file too), and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
 | `golden` | graders that answer `yes` to everything or `no` to everything, one question of one golden wrong (each in turn), or no answer on one golden (each in turn); goldens that settle a question one way only (each question, each way) | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
 | `tie` | two graders that split on one question (each in turn) or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, none is asked and nothing is answered |
-| `view` | the arm, or the skill's name and each of its paths on lines of their own, in a record's arm, final message, every kind of log entry, or files and changes (a file on each path, a link to one, lines in a world file) | Neither the view (its record and every blob) nor the page names any of them, the clean ones name none, and both equal those of a control: the record without the plant's overlay actions and naming lines |
+| `view` | the arm, or the skill's name and each of its paths, on lines of their own and inside a sentence, in a record's arm, final message, every kind of log entry (with a command's inferred entries), or files and changes (each overlay path with its folders, the folders above it, its files and writes; a link to one; lines in a world file and its write) | Neither the view (its record and every blob) nor the page names any of them, the clean ones name none, and both equal those of a control: the record without the plant's overlay actions and naming lines |
 
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
 a gate made to miss is a miss. Each adapter plants the host faults in its own command (`PLANTS`, one function for

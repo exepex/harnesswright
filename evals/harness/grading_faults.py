@@ -23,12 +23,13 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   grader must be asked exactly the split questions, and its answer, which sides with each grader on some question,
   must decide them; with one grader ungraded no question is answered and no fresh grader is asked, so one grader
   never decides alone (`grader.panel`).
-- `view`: the arm, or the skill's name and each of its paths on lines of their own, put in a record's arm, final
-  message, every kind of log entry, or files and changes (a file on each path, a link to one, and lines in a world
-  file's text). Neither the view (`view.view`, its record and every blob) nor the page (`grading.page`) may name
-  any of them, and the clean ones name none. And the planted view and page must equal those of a control, the same
-  record without the plant's actions on the overlay and its lines that name the skill: a tell with its names taken
-  out, such as an empty skill-load entry, still shows.
+- `view`: the arm, or the skill's name and each of its paths, on lines of their own and inside a sentence, put in a
+  record's arm, final message, every kind of log entry (with the inferred entries of a command), or files and changes
+  (each overlay path as a run holds it, with its folders, the folders above it, its files and their writes; a link to
+  one; lines in a world file's text, and its write). Neither the view (`view.view`, its record and every blob) nor the
+  page (`grading.page`) may name any of them, and the clean ones name none. And the planted view and page must equal
+  those of a control, the same record without the plant's actions on the overlay and its lines that name the skill: a
+  tell with its names taken out, such as an empty skill-load entry, still shows.
 
 Standard library only.
 """
@@ -37,6 +38,7 @@ import copy
 import hashlib
 import json
 import shutil
+from pathlib import PurePosixPath
 
 import cases
 import checks
@@ -112,7 +114,8 @@ def _grader(answer, calls=None):
 
 def sheet(setup, fault, rng, place):
     """A correct sheet of one golden's page, then planted sheets for each of its answers in turn, given as `yes` and as
-    `no`, with every word of WORDS for `not yes or no` and empty or blank evidence for `no quote`, and for `extra
+    `no`, with every word of WORDS for `not yes or no`, every misquote (invented, in other case, a word changed,
+    the words reversed) for `misquoted` and empty or blank evidence for `no quote`, and for `extra
     field` the file itself holding another field too. Caught when the sheet check accepts the correct sheet and
     refuses every planted one for the reason the place names."""
     _, pages = _pages(setup, rng)
@@ -122,9 +125,13 @@ def sheet(setup, fault, rng, place):
     problems = grading.check(clean, ids, page)
     if problems:
         return f"the sheet check refused the clean sheet: {problems}"
-    answers, quote = clean["answers"], f"hw-{rng.getrandbits(32):08x} says so"
+    answers, line = clean["answers"], clean["answers"][0]["evidence"]
+    words = line.split()
+    misquotes = [quote for quote in (f"hw-{rng.getrandbits(32):08x} says so", line.swapcase(),
+                                     " ".join(words[:-1] + ["hw-other"]), " ".join(reversed(words)))
+                 if grading._flat(quote) != grading._flat(line)]  # invented, in other case, a word changed, reversed
     edits = {"not yes or no": [lambda one, word=word: {**one, "answer": word} for word in WORDS],
-             "misquoted": [lambda one: {**one, "evidence": quote}],
+             "misquoted": [lambda one, quote=quote: {**one, "evidence": quote} for quote in misquotes],
              "no quote": [lambda one, empty=empty: {**one, "evidence": empty} for empty in ("", " ", "\n\t ")],
              "extra field": [lambda one: {**one, "confidence": "high"}]}
     planted = []
@@ -214,8 +221,8 @@ def tie(setup, fault, rng, place):
     golden, record, blob, asked = _asked(pages, rng)
     page, ids, settled = _text(record, blob), [question["id"] for question in asked], golden.settled
     splits = {"one split": [[id_] for id_ in ids], "all split": [ids], "one ungraded": [[]]}[place]
-    for split, turn in ((split, turn) for split in splits for turn in (0, 1)):
-        order = rng.sample(split, len(split))
+    orders = [rng.sample(split, len(split)) for split in splits]  # one order for both turns of a split
+    for (split, order), turn in ((pair, turn) for pair in zip(splits, orders) for turn in (0, 1)):
         calls = []
         if place == "one ungraded":
             pair = [_grader(settled.get), _grader(None)]
@@ -234,56 +241,76 @@ def tie(setup, fault, rng, place):
 
 
 def view_(setup, fault, rng, place):
-    """The arm, or the skill's name and each of its paths on lines of their own, put in one golden's record at
-    `place`, everywhere that place can carry them: the final message; every kind of log entry (`host.ENTRIES`), as an
-    action on each path or as lines in its text; a world file's text, a file on each path, a link to one, and their
-    changes. Its control is the same record with the plant's actions on the overlay left out and its lines that name
-    the skill left out. Caught when the clean view and page name none of them, and the planted view and page equal
-    the control's: nothing of the plant shows, not even an entry with its names taken out."""
+    """The arm, or the skill's name and each of its paths, on lines of their own and inside a sentence, put in one
+    golden's record at `place`, everywhere that place can carry them: the final message; every kind of log entry
+    (`host.ENTRIES`), as an action on each path, with an inferred entry after its command, or as lines in its text; each
+    overlay path as a run holds it (its folders, the folders above it, its files, their writes and changes), a link to
+    one, and a world file's text and its write. Its control is the same record with the plant's actions on the overlay
+    left out and its lines that name the skill left out. Caught when the clean view and page name none of them, and the
+    planted view and page equal the control's: nothing of the plant shows, not even an entry with its names taken
+    out."""
     _, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
     names = [skill, *layer["paths"], "with_skill", "without_skill"]
-    lines = "".join(f"{line}\n" for line in (skill, *files))
+    lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here."))
+    kept = f"hw-kept-{rng.getrandbits(32):08x}\n"  # a neutral line next to the plant, which the view must keep
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
+
+    def stored(data):
+        added[hashlib.sha256(data).hexdigest()] = data
+        return hashlib.sha256(data).hexdigest()
+
     if place == "arm":
         planted["arm"], control["arm"] = "with_skill", "without_skill"
     elif place == "message":
-        planted["final_message"] = lines + (record["final_message"] or "")
-        control["final_message"] = record["final_message"] or ""
+        planted["final_message"] = lines + kept + (record["final_message"] or "")
+        control["final_message"] = kept + (record["final_message"] or "")
     elif place == "log":
+        world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file "))[0]
         acts = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (
             {"kind": "read", "path": file}, {"kind": "write", "path": file, "sha256": None},
-            {"kind": "command", "command": f"cat {file}", "output": "", "exit_code": 0},
+            {"kind": "command", "command": f"cat {file} {world_file}", "output": "", "exit_code": 0},
+            {"kind": "read", "path": world_file, "source": "inferred"},  # part of the command before it
             {"kind": "blocked", "action": f"cat {file}", "reason": "refused"})]
         texts = [("agent", "task", {}), ("message", "text", {}), ("blocked", "reason", {"action": "ls"})]
         made = lambda text: [{"kind": kind, field: text, **other} for kind, field, other in texts]
-        planted["log"][:0] = [{**entry, "source": "observed"} for entry in acts + made(f"{lines}do the work\n")]
-        control["log"][:0] = [{**entry, "source": "observed"} for entry in made("do the work\n")]
+        planted["log"][:0] = [{"source": "observed", **entry} for entry in acts + made(lines + kept)]
+        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept)]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file "))
-        old, data = entry.split(" ")[1], lines.encode() + blob(entry.split(" ")[1])
-        new = hashlib.sha256(data).hexdigest()
-        added[new] = data
-        planted["files_after"][target] = f"file {new}{entry[len('file ') + 64:]}"
-        for item in planted["log"]:  # the agent wrote the planted bytes, so its write's hash is theirs
-            if item["kind"] == "write" and item.get("sha256") == old:
-                item["sha256"] = new
+        old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
+        for one, data in ((planted, lines + kept), (control, kept)):  # the agent wrote it, so its writes are its
+            digest = stored(data.encode() + blob(old))
+            one["files_after"][target] = f"file {digest}{rest}"
+            for item in one["log"]:
+                if item["kind"] == "write" and item.get("sha256") == old:
+                    item["sha256"] = digest
+            one["log"].append({"kind": "write", "source": "observed", "path": target, "sha256": digest})
         link = f"{target}.hw-link"
-        for one, target_ in ((planted, files[0]), (control, "")):
-            one["files_after"][link] = f"link {target_}"
-            one["diff"][link] = {"before": None, "after": f"link {target_}"}
-        for file in files:
-            planted["files_after"][file] = entry
-            planted["diff"][file] = {"before": None, "after": entry}
+        for one, to, was in ((planted, files[0], files[-1]), (control, "", "")):
+            one["files_after"][link] = f"link {to}"
+            one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
+        for path in layer["paths"]:  # the overlay as a run holds it: its folders, the folders above, its files
+            above = [str(folder) for folder in PurePosixPath(path).parents if str(folder) != "."]
+            own = stored(f"# {skill}\n{lines}".encode())  # the skill's own bytes, which the view must not hold
+            made = {**{folder: "dir" for folder in above if folder not in record["files_after"]}, path: "dir",
+                    f"{path}/SKILL.md": f"file {own}{rest}", f"{path}/references": "dir",
+                    f"{path}/references/notes.md": f"file {own}{rest}"}
+            planted["files_after"].update(made)
+            planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
+            planted["log"].append({"kind": "write", "source": "observed", "path": f"{path}/SKILL.md", "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
     if _shown(record, blob, names):
         return "the clean view already names the arm or the skill, so the plant proves nothing"
     shown = _shown(planted, read, names)
     if shown:
         return f"the view a grader gets names {shown}"
-    if _seen(planted, read) != _seen(control, blob):
+    seen = _seen(control, read)
+    if place != "arm" and kept.strip() not in seen[2]:
+        return "the control's page lost the neutral line next to the plant, so the view hides what it must show"
+    if _seen(planted, read) != seen:
         return "the view a grader gets differs from its control's: the plant shows"
     return None
 

@@ -1,7 +1,9 @@
 """Grading faults: each is caught by the harness's own sheet check, panel, golden gate or view on the repository's
 goldens (every place is run in test_faults), and a gate made to miss one is reported as a miss."""
 
+import re
 import unittest
+from pathlib import PurePosixPath
 from unittest import mock
 
 from test_faults import Fake
@@ -44,6 +46,13 @@ def folded(sheet, ids, page):
     return CHECK({**sheet, "answers": [fold(a) for a in sheet["answers"]]}, ids, page)
 
 
+def caseless(sheet, ids, page):
+    """A sheet check that finds a quote in the page in any case."""
+    low = lambda a: {**a, "evidence": a["evidence"].lower()} if isinstance(a, dict) and isinstance(
+        a.get("evidence"), str) else a
+    return CHECK({**sheet, "answers": [low(a) for a in sheet["answers"]]}, ids, page.lower())
+
+
 def blind_to_last(case, found, graded):
     """A golden gate that never looks at the last golden."""
     return GATE(case, found[:-1], {name: one for name, one in graded.items() if name != found[-1].name})
@@ -61,6 +70,17 @@ def first_on_first(page, asked, graders, tiebreak):
     if asked and found.graded[0].answers:
         answers[asked[0]["id"]] = found.graded[0].answers[asked[0]["id"]]
     return grader.Panel(answers, found.unanswered, found.agreed, found.asked, found.graded)
+
+
+def covers_without(clause):
+    """`evidence.covers` without one of its clauses: the place itself, or the folders above it."""
+    def covers(places, path, before=None, after=None):
+        mine = {str(p) for p in PurePosixPath(path).parents}
+        holder = before in ("dir", None) and after in ("dir", None)
+        return any((clause != "place" and path == place) or place in mine or (
+            clause != "above" and holder and path in {str(p) for p in PurePosixPath(place).parents})
+            for place in places)
+    return covers
 
 
 def second_alone(page, asked, graders, tiebreak):
@@ -87,6 +107,11 @@ class Missed(Fake):
                 ("sheet", "twice", mock.patch.object(grading, "check", return_value=[]), "did not refuse"),
                 ("sheet", "misquoted", mock.patch.object(grading, "check", unquoted), "did not refuse"),
                 ("sheet", "not yes or no", mock.patch.object(grading, "check", folded), "did not refuse"),
+                ("sheet", "misquoted", mock.patch.object(grading, "check", caseless), "did not refuse"),
+                ("view", "message", mock.patch.object(view.world, "names", lambda n: re.compile(
+                    f"^(?:{NAMES(n).pattern})")), "names"),
+                *(("view", place, mock.patch.object(view, "text", lambda value, *args: value[:0]), "neutral line")
+                  for place in ("message", "log", "file")),
                 ("sheet", "no quote", mock.patch.object(grading, "check", lambda *a: [
                     p for p in CHECK(*a) if "quotes nothing" not in p]), "did not refuse"),
                 ("sheet", "extra field", mock.patch.object(grading, "check", lambda sheet, *a: CHECK(
@@ -100,7 +125,14 @@ class Missed(Fake):
                     old, new, [], own)), "the view a grader gets"),
                 ("view", "log", mock.patch.object(view, "on_overlay", lambda item, words: ON_OVERLAY(
                     {**item, "kind": "read"}, words)), "the view a grader gets"),
-                ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")), "the view a grader gets"),
+                ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")),
+                 "the view a grader gets"),
+                ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("place")),
+                 "the view a grader gets"),
+                ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("above")),
+                 "the view a grader gets"),
+                ("view", "log", mock.patch.object(view.host, "part_of_command", lambda item: False),
+                 "the view a grader gets"),
                 ("golden", "one wrong", mock.patch.object(goldens, "gate", blind_to_last), "the plant made wrong"),
                 ("golden", "unanswered", mock.patch.object(goldens, "gate", unanswered_ok), "the plant made wrong"),
                 ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "the plant made wrong"),
