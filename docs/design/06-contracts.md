@@ -56,14 +56,26 @@ status: draft               # draft | approved | rejected
 
 Sections: **Goal** (one paragraph) · **In scope** · **Out of scope**, with reasons · **Acceptance criteria**,
 numbered `AC-1`, `AC-2`, …, each testable · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency,
-throughput, memory, CPU, availability, each with a number or "not applicable") · **Risks**.
+throughput, memory, CPU, availability, each exact, estimated, unknown or "not applicable") · **Risks**.
 
-**One rule for requirements.** Every acceptance criterion and every target with a number is a *requirement*. Each
-requirement names the test types it requires, from the process setting `test-types`. A target marked "not
-applicable" is not a requirement. Everything below that says "requirement" means both kinds.
+**One rule for requirements.** Every acceptance criterion and every target not marked "not applicable" is a
+*requirement*. Each requirement names the test types it requires. The functional planner proposes them from the
+process setting `test-types`, and the plan reviewer and a person approve them with the plan. Everything below that
+says "requirement" means both kinds.
 
-Performance and load tests are written against the non-functional targets. A functional plan without them cannot
-be approved for a T3 change.
+**Performance targets.** The functional planner asks the person for each target and never reads monitoring tools.
+A target is in one of three states:
+
+- **Exact**, for example "p95 under 200 ms". Its test must pass.
+- **Estimated**: a ballpark the planner turns into a range and marks `estimated`. Its test must exist, but a missed
+  range is a warning to the person, not a fail.
+- **Unknown**: no number is invented. The plan lists the risk "performance not verified", and the person accepts
+  it when approving the plan. The requirement is a baseline benchmark: the test measures the feature in the test
+  environment, saves the figure, and fails when a later change makes it slower by more than the process setting
+  `baseline-tolerance`.
+
+A later planned item replaces an estimate or a baseline with a real number. No number is ever invented, and no
+target is skipped without the person's approval.
 
 ## Technical design
 
@@ -79,7 +91,11 @@ status: draft               # draft | approved | rejected
 ```
 
 Sections: **Approach** (one paragraph) · **Design elements**, numbered `TD-1`, `TD-2`, …, each naming the
-criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Decisions** (links to decision records) · **Risks**.
+criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Test data**: the data each test type needs, with its
+shape, volume and sensitive fields · **Decisions** (links to decision records) · **Risks**.
+
+The test writer builds the test data: fixtures for unit and integration tests, and generated data for performance
+tests, shaped like the traffic the person describes. Real customer data is never used.
 
 The plan reviewer checks that the two match: every element serves at least one requirement, and every
 requirement is served by at least one element.
@@ -122,9 +138,9 @@ Written by the implementer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
 done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
-proves it · **Standards**: the hash of `rules.md`, the rules applied, by ID, and each waiver used · **Out of
-scope**, with reasons · **Files changed**, each with its line count · **Not verified**: anything the implementer
-could not prove.
+proves it, with the measured figure for each performance target · **Standards**: the hash of `rules.md`, the rules
+applied, by ID, and each waiver used · **Out of scope**, with reasons · **Files changed**, each with its line
+count · **Not verified**: anything the implementer could not prove.
 
 ## Finding
 
@@ -170,7 +186,8 @@ blockers: []                # confirmed blockers; any entry forces fail
 ```
 
 Body: each claim, checked or refuted with evidence; then what must change for a pass. The story judge fails a
-requirement whose required test type has no test.
+requirement whose required test type has no test. A performance test that misses an `estimated` range is listed as
+a warning, not a blocker.
 
 A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
 valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
