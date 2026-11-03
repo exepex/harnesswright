@@ -79,9 +79,9 @@ ID, is a restatement and a defect. The requirements of one piece of work, such a
 a quoted request, are not standards and are not restatements.
 A skill is its template. Two kinds of file hold rule text and are copies, not a second source: the release skills a
 build script generates from templates, and the `rules-text-<skill>.md` file the standards reader writes beside
-`rules.md` for a run. A script proves each copy exact. Release skills are only ever generated; where scripts cannot run, the rules text is
-written by reading and marked "not verified". Neither is edited by hand, and the restatement test above does not
-apply to them.
+`rules.md` for a run. A script proves each copy exact. Release skills are only ever generated; where scripts cannot
+run, the rules text is written by reading and marked "not verified". Neither is edited by hand, and the restatement
+test above does not apply to them.
 
 **HW-RULE-02 · Every rule has one kind,** from the table above, and lives only in a layer that kind allows. A
 decision point lives only in the principles, language and framework layers.
