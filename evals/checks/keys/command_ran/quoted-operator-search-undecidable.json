@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "go test\\b", "ran": true},
+  "outcome": "undecidable",
+  "log": [{"kind": "command", "source": "observed", "command": "echo 'then && go test ./...'", "exit_code": 0, "output": ""}]
+}
