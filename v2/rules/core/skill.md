@@ -4,8 +4,8 @@ Principles layer, area `SKILL`. These rules say what a good skill is. They apply
 own and the skills a company, department or team writes. A more specific layer may override a principle with a
 stated reason and may tighten a floor, never loosen it ([03 · Standards](../../../docs/design/03-standards.md)).
 
-How skills are tested and judged is area `EVAL`. How rules are made and kept is area `RULE`. Both come in later
-changes.
+That every skill has evals is CORE-SKILL-24. How evals are built, run and scored is area `EVAL`, and how rules are
+made and kept is area `RULE`. Both come in later changes.
 
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule or checklist item it carries over.
@@ -216,7 +216,8 @@ with the older rule or checklist item it carries over.
   to a further file for content it needs. A skill with several domains keeps each in its own reference. Principles and
   short patterns stay in `SKILL.md`.
 - **Why:** Agents read a file only when told when to. A chain of references is read halfway or not at all.
-- **Check:** Is every reference linked from `SKILL.md` with a "read when", and does none depend on another?
+- **Check:** Is every reference linked from `SKILL.md` with a "read when", and does none depend on another? Does each
+  domain have its own reference, while principles and short patterns stay in `SKILL.md`?
 - **Good:** "Read `references/aws.md` when the target is AWS."
 - **Bad:** A `references/` file that no step mentions, or `a.md` that says "see `b.md` for the steps".
 - **Eval:** a skill with an unlinked reference file, which the skill judge must flag.
@@ -279,10 +280,9 @@ with the older rule or checklist item it carries over.
 - **Status:** active
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
-- **Rule:** Match the form of guidance to the failure seen in testing: a skipped step gets a check that fails without
-  it; a wrong shape gets a format or contract; a missing part gets a required slot; behaviour that depends on a case
-  gets a condition on an observable fact. Prefer, in this order: a script check, a judge check, a required slot or
-  format, a condition. Add warning prose only when none of these fits.
+- **Rule:** Fix a failure seen in testing with the strongest form that fits, in this order: a script check that fails
+  without the step; a judge check; a required slot, format or contract for a wrong or missing part; a condition on an
+  observable fact for behaviour that depends on a case. Add warning prose only when none of these fits.
 - **Why:** More prose does not stop a skipped step. A check does.
 - **Check:** For each warning in capitals or "never", could a check, format or condition do the job instead?
 - **Good:** A required `Evidence:` field that the check script fails when empty.
@@ -320,7 +320,8 @@ with the older rule or checklist item it carries over.
   instruction is explicit and relies on no habit of one model.
 - **Why:** The same skill must behave the same on every host. A host tool name fails on the others.
 - **Check:** Allow list: every action in the body is a plain verb or a named capability, and every model is `deep`,
-  `standard` or `fast`. Anything else is a finding.
+  `standard` or `fast`. Anything else is a finding. Does any step leave a format, order or choice for the model to
+  guess?
 - **Good:** "Start an independent reviewer on a `deep` model."
 - **Bad:** "Use the `<host sub-agent tool>` with `model: <concrete model id>`."
 - **Eval:** a skill that names a host tool and a model, which the skill judge must flag.
@@ -358,7 +359,9 @@ with the older rule or checklist item it carries over.
   every tool it needs and never installs one itself; a missing tool is reported as a blocker.
 - **Why:** Prose checks differ from model to model. A package installed by an agent differs from machine to machine
   and changes the person's environment without asking.
-- **Check:** Read each bundled script's imports and calls, and each step that mentions it.
+- **Check:** Is each check that must agree everywhere a script? Do the script's imports and calls use only the
+  standard library, with no network? Does each step that mentions it say run or read, and run it as `python3 <path>`?
+  Is every needed tool named, and is nothing installed?
 - **Good:** "Run `python3 scripts/check.py claims.md`."
 - **Bad:** "Run `pip install pyyaml`, then `./check`."
 - **Eval:** a skill whose script imports a third-party package, which the skill judge must flag.
@@ -423,15 +426,16 @@ with the older rule or checklist item it carries over.
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
 - **Rule:** Before the skill is drafted, write its trigger evals (queries that should and should not use it,
-  including near misses) and its task evals (the result is right), and run them without the skill to see the
-  failure the skill must fix. Each case runs at least 3 times with the skill and 3 times without it. A skill ships
-  only when its evals show it does better than no skill.
+  including near misses) and its task evals (the result is right). Run the task evals without the skill first, to
+  see the failure the skill must fix. Each trigger query runs at least 3 times with the skill; each task case runs
+  at least 3 times with it and 3 times without it. A skill ships only when its task evals show it does better than
+  no skill.
 - **Why:** A skill that was never measured may cost tokens and fix nothing. Writing evals first stops a draft from
   shaping its own test.
-- **Check:** Do the eval files exist, and does their history show a run without the skill before the skill's first
-  draft? Do the results show at least 3 runs per case with and without it?
-- **Good:** `evals/skills/claims-writer/` with trigger and task cases, a baseline run dated before the first draft,
-  and 3 runs per case.
+- **Check:** Do the eval files exist, and does their history show a task run without the skill before the skill's
+  first draft? Do the results show at least 3 runs per trigger query, and 3 per task case with and without it?
+- **Good:** `evals/skills/<name>/` with trigger and task cases, a task run without the skill dated before the first
+  draft, and 3 runs per case.
 - **Bad:** A skill merged with two task prompts written after the draft and one run each.
 - **Eval:** a skill with no baseline run and one run per case, which the skill judge must flag.
 - **Source:**
