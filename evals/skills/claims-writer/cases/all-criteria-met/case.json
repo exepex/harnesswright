@@ -51,7 +51,7 @@
             "The code, tests and docs are as they were; only the claims file is new."
           ],
           "fail": [
-            "src/discount.py was edited while writing the claims."
+            "A source file under src/ was edited while writing the claims."
           ]
         }
       }
@@ -100,7 +100,7 @@
             "Request holds the story's request and criteria, each line starting with >."
           ],
           "fail": [
-            "Request says: add a discount for big orders."
+            "Request gives a one-line summary of the story in other words."
           ]
         }
       }
@@ -157,10 +157,10 @@
         "fail": "No when any claim leans on a hedge in place of evidence.",
         "examples": {
           "pass": [
-            "AC-1 met: the 100.00 case gives 90.00, shown by the passing test."
+            "AC-1 met: its test passed, as the quoted output shows."
           ],
           "fail": [
-            "AC-3 met: rounding should work."
+            "AC-1 met: it should work."
           ]
         }
       }
@@ -213,20 +213,20 @@
       }
     },
     {
-      "text": "The tests are run, and pass, while writing the claims",
+      "text": "The project's tests are run, and pass",
       "source": "format",
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(^|\\s)-m\\s+(unittest|pytest)\\b|(^|(&&|;)\\s*|\\|\\|?\\s+|\\s-\\w*c\\s+['\"])(\\w+=\\S*\\s+)*(\\S*/)?pytest\\b",
+          "pattern": "(^|\\s)-m\\s+unittest\\b",
           "ran": true,
           "exit_code": 0
         }
       },
       "judged": {
-        "question": "Did the run itself run the test command that the project's README and profile give?",
+        "question": "Did the run itself run the test command that the project's files name?",
         "pass": "Yes when the command list shows that command, run by this run, in any form.",
-        "fail": "No when no test command ran, or the only ones use a runner the project does not name, so a passing result in the claims was not seen.",
+        "fail": "No when no test command ran, or the only ones use a runner the project does not name, so the result in the claims was not seen.",
         "examples": {
           "pass": [
             "The command list holds the unittest command the project names, piped through tail."
