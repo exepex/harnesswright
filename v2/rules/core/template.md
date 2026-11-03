@@ -40,15 +40,14 @@ with the older rule it carries over.
 - **Applies to:** skill designer, skill judge
 - **Rule:** `SKILL.tmpl.md` is under 500 lines. Detail that only some runs need moves to reference files. The release
   `SKILL.md` has no line limit, but its copied floors and the rest of its text each stay at or under 30,000
-  characters (Unicode code points), counted by the build. A skill is never made to fit by dropping an area its work
-  touches. Over the second ceiling, the skill is split where its job runs in steps; otherwise, and over the floors
-  ceiling, the owner decides on eval evidence. A raised ceiling is a new rule with a new ID.
+  characters (Unicode code points), counted by the build. Areas are never dropped to fit (CORE-TEMPLATE-01). Over the
+  second ceiling, the skill is split where its job runs in steps; otherwise, and over the floors ceiling, the owner
+  decides on eval evidence. A raised ceiling is a new rule with a new ID.
 - **Why:** The whole file loads every time the skill runs. Text past what the agent can follow is paid for and then
-  skipped, and a dropped area silently removes rules from the run.
-- **Check:** Count the template's lines. Read the sizes the build reports for the release skill. Does the template
-  list every area its work touches?
+  skipped.
+- **Check:** Count the template's lines. Read the sizes the build reports for the release skill.
 - **Good:** A 180-line template whose release skill reports 6,000 characters of floors and 21,000 of other text.
-- **Bad:** A 700-line template, or a release skill whose other text is 38,000 characters, or an area removed to fit.
+- **Bad:** A 700-line template, or a release skill whose other text is 38,000 characters.
 - **Eval:** a 520-line template, and a template whose release text is over a ceiling, which the skill judge must
   flag.
 - **Tool:** `wc -l SKILL.tmpl.md`
@@ -84,15 +83,20 @@ with the older rule it carries over.
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
 - **Rule:** The first step of every template reads the run's rules text, `rules-text-<skill>.md` beside `rules.md`,
-  and tells the agent to apply every rule in it and in the skill's copied rules. If the file is missing, the step
-  runs the standards reader's command to make it; if that cannot run, it writes the file by reading and marks it
-  `not verified`. The claims or verdict quote the file's read-back block.
+  and tells the agent to apply every rule in it and in the skill's copied rules. Where the rules text marks a copied
+  rule as replaced or waived, or binds a decision point, the rules text wins. If the file is missing, the step runs
+  the standards reader's command to make it; if that cannot run, it writes `rules.md` and the rules text by reading
+  and marks both `not verified`. The claims or verdict quote the file's read-back block.
 - **Why:** Rules of the language, company, department, team and application layers, overrides and decision point
   bindings reach the agent only through this file. A skill that never reads it applies only the core rules.
-- **Check:** Is the first step of the template the read of the rules text, with the missing-file path? Does the
-  output step quote the read-back block?
-- **Good:** "1. Read `rules-text-claims-writer.md` beside `rules.md` and apply every rule in it and in Rules above."
-- **Bad:** A template whose first step is "Read the story", with no read of the rules text.
-- **Eval:** a template with no rules-text step, which the skill judge must flag.
+- **Check:** Is the first step of the template the read of the rules text, with the missing-file path, and does it
+  say the rules text wins over a copied rule? Does the output step quote the read-back block?
+- **Good:** "1. Read `rules-text-claims-writer.md` beside `rules.md`, making it with the standards reader's command if
+  it is missing. Apply every rule in it and in Rules above; where it replaces or waives a rule above, it wins." and a
+  last step: "Quote the read-back block of the rules text in the claims."
+- **Bad:** A template whose first step is "Read the story", with no read of the rules text, or one that applies a
+  copied rule the rules text replaced.
+- **Eval:** a template with no rules-text step, and a run that applies a copied rule its rules text replaced, which
+  the skill judge must flag.
 - **Source:**
   - own (CORE-SKILL-06)
