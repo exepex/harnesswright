@@ -1,0 +1,138 @@
+{
+ "changes": {
+  ".harness/runs/2026-10-30-bulk-discount/claims/S01.md": "# Claims · S01\n\n## Request\n\n> ---\n> id: S01\n> plan: none\n> depends-on: []\n> covers: []\n> ---\n>\n> ## What\n>\n> Give large orders a bulk discount and reject impossible quantities when pricing an order.\n>\n> ## Request\n>\n> > Orders of 100.00 or more should get 10% off. A negative quantity is a bug upstream, so pricing must refuse it.\n> > Totals are money, so round them to cents.\n>\n> ## Acceptance criteria\n>\n> - AC-1: An order whose subtotal is 100.00 or more is discounted by 10%; below 100.00 there is no discount.\n> - AC-2: Pricing a line with a negative quantity raises ValueError.\n> - AC-3: The total is rounded to two decimal places.\n>\n> ## Tests expected\n>\n> Unit tests for each criterion, including the boundary at exactly 100.00.\n>\n> ## Out of scope\n>\n> Discount codes and per-customer discounts.\n\n## Requirements\n\n### AC-1 · Bulk discount at 100.00 or more\n- **Status:** met\n- **Done:** `order_total` takes 10% off when the subtotal reaches `BULK_THRESHOLD`, `src/discount.py:17-18`; the threshold and rate are `src/discount.py:3-4`.\n- **Evidence:** `test_subtotal_of_exactly_100_gets_ten_percent_off` and `test_subtotal_below_100_gets_no_discount`, `tests/test_discount.py:7-11`. `python3 -m unittest discover -s tests -t .` → exit code 0, `Ran 4 tests in 0.001s`, `OK`.\n\n### AC-2 · A negative quantity raises ValueError\n- **Status:** met\n- **Done:** `line_total` raises `ValueError` for a quantity below zero, `src/discount.py:9-10`.\n- **Evidence:** `test_negative_quantity_is_rejected`, `tests/test_discount.py:16-18`, in the same run: `Ran 4 tests in 0.001s`, `OK`.\n\n### AC-3 · The total is rounded to two decimal places\n- **Status:** met\n- **Done:** `order_total` returns `round(subtotal, 2)`, `src/discount.py:19`.\n- **Evidence:** `test_total_is_rounded_to_cents`, `tests/test_discount.py:13-14`, in the same run: `Ran 4 tests in 0.001s`, `OK`.\n\n## Standards\n\nNone resolved for this repository.\n\n## Out of scope\n\n- Discount codes and per-customer discounts: the story lists them as out of scope.\n\n## Files changed\n\n- `src/discount.py` (19 lines)\n- `tests/test_discount.py` (22 lines)\n\n## Not verified\n\nNone.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-10-30-bulk-discount/stories/S01.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/profile.yaml"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "src/discount.py"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "tests/test_discount.py"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m unittest discover -s tests -t .",
+   "exit_code": 0,
+   "output": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.001s\n\nOK\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l src/discount.py tests/test_discount.py",
+   "exit_code": 0,
+   "output": "  19 src/discount.py\n  22 tests/test_discount.py\n  41 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-10-30-bulk-discount/claims/S01.md",
+   "sha256": "e200569badbae81095efa859b9a46f1098c2f160792ba96fa80d3ee736afc4c0"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Claims written to .harness/runs/2026-10-30-bulk-discount/claims/S01.md.\n\n- AC-1: met\n- AC-2: met\n- AC-3: met\n\nThe test run (4 tests, OK, exit code 0) is quoted under each criterion. Nothing is left unverified."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S01.md in the story's run folder",
+   "sha256": "9b05e139ef7c628c09cf6baadda0f2a046e66a69913a1a7d06eb3947b1bf0d4f",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "62d0b17810efeb7b0b6636a3e0e4b22a64b3ba94ef6ca651ab14f1573ae81d7d",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q3": {
+   "expectation": "The claims file has the six claims headings in their order",
+   "sha256": "d4d65158c2b1ffef8e1a7f96808f5747785f11bc898fcaee3d89e537f045f21a",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q4": {
+   "expectation": "The Request section quotes the story line by line",
+   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q5": {
+   "expectation": "The claims carry the story's own words, not a rewording",
+   "sha256": "30b6326d57abce2e312d27bb63746e8d666cf9b6b12aab6a8beee643a9f2c76d",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q6": {
+   "expectation": "No claims section is left empty",
+   "sha256": "3dea50d4b1daaed8c654bf76d7df65147be4355ca8f289cd406f18735c2bc79a",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q7": {
+   "expectation": "The claims state results without hedging words",
+   "sha256": "3990023ad36dc24b7fd02559b1b8fbc3b490d9b4a1ac8695ad3a5e90f8209405",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q8": {
+   "expectation": "Every file listed under Files changed has its true line count",
+   "sha256": "2c2f3d42622f6d88f6965b8dacd0236690907bc548ac91864354e1830709b24e",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q9": {
+   "expectation": "Every file and line the claims cite exists",
+   "sha256": "bde751e9ccbfadf132276f80351ae45c6b5cae30bdd8ddccdfc8780e3be7dec4",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q10": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "fa836ff0658b3e0b5160c0879acbd1ea55164f8b48140e07d78c488c1bceb7e1",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q11": {
+   "expectation": "AC-1, AC-2 and AC-3 are each claimed as met",
+   "sha256": "478bee5ac17d2d6a7f629373d0fbb6d450b740038be89a2cb915d3dca56d59f0",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q12": {
+   "expectation": "Each criterion has its own entry, with one status, the code line that does it and the test that proves it",
+   "sha256": "e6c02498f2bfb81a8acce1e5bb8f43f244cc0033f5d9200e283fb1d7c5d9d45e",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q13": {
+   "expectation": "The claims quote the result of the run of the tests: four tests, all passing",
+   "sha256": "0c8445164fe76ddbaac0afafacfbbac75b524af25e11d1ba71f328a17ac22c9c",
+   "answer": "yes",
+   "by": "fable"
+  },
+  "q14": {
+   "expectation": "Files changed lists src/discount.py and tests/test_discount.py",
+   "sha256": "1a8923483c5b2be50dd6ab071c2b52fa50a43e51739232002374529e908c29b2",
+   "answer": "yes",
+   "by": "fable"
+  }
+ }
+}

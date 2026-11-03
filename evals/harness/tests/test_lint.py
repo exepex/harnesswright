@@ -1,5 +1,6 @@
 """World lint: every rule reads one list of what the run can see, and a case that fails it cannot run."""
 
+import json
 import subprocess
 import unittest
 
@@ -276,6 +277,19 @@ class Lint(TempCase):
                          ["faults f md", "goldens g md", "results r json", "skills x answers world key md",
                           "poem one poem"])
         self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
+
+    def test_a_golden_says_only_what_it_adds_to_its_case(self):
+        evals = self.tmp / "repo" / "evals"
+        world = "The shop gives ten percent off every order of one hundred pounds or more, before any tax."
+        added = "Every criterion of the story is met and proved by its own named test in the suite today."
+        (evals / "skills/x/cases/a/world").mkdir(parents=True)
+        (evals / "skills/x/cases/a/world/README.md").write_text(world)
+        (evals / "skills/x/cases/a/case.json").write_text('{"prompt": "Write the claims."}')
+        (evals / "goldens/x/a").mkdir(parents=True)
+        (evals / "goldens/x/a/g.json").write_text(json.dumps({"log": [{"text": world}], "changes": {"c.md": added}}))
+        measuring, _ = lint.eval_texts(self.tmp / "repo")
+        found = lint.all_runs(measuring, {lint.RUN})
+        self.assertEqual(found, lint.runs(added, {lint.RUN}))  # the quote of its world is the case's own text
 
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):
         prompt = "Write a short poem about the quiet harbour at dawn for the notes app."
