@@ -1,5 +1,5 @@
 {
-  "args": {"pattern": "-m unittest\\b", "ran": true, "exit_code": 0},
+  "args": {"pattern": "python3 -m unittest\\b", "ran": true, "exit_code": 0},
   "outcome": "undecidable",
   "log": [
     {

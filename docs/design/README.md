@@ -23,7 +23,7 @@ order; each one builds on the ones before.
 |---|---|
 | Layers apply to | Standards and process configuration. Role instructions are written once, in the core. |
 | Order of work | Structure first, then a walking skeleton, then the harvest |
-| Organisation and team layers | Designed now, left empty until a real need appears |
+| Company, department and team layers | Optional; designed now |
 | Repository flow | Work on a branch, reviewed through a pull request |
 | Licence | Apache-2.0 |
 | Where work happens | Everything is built and tested inside harnesswright, on sample projects under `evals/fixtures/` |
@@ -33,15 +33,33 @@ order; each one builds on the ones before.
 
 ## Words used throughout
 
+Every document uses these words with these meanings. Do not use other words for them.
+
 | Word | Meaning |
 |---|---|
-| Standard | A file of rules for one area, such as naming or tests |
-| Rule | One checkable statement with an ID, a kind, a reason and a check |
-| Floor | A rule no lower layer may loosen |
-| Decision point | A place where teams choose differently; the core gives a default |
-| Role | One job in the agent team, such as planner or judge |
-| Skill | The steps a role follows for one task, in Agent Skills format |
-| Contract | The fixed shape of a file one role hands to another |
-| Panel | Several independent agents that vote on one judgment |
-| Capability | Access to an outside system, provided by an MCP server, a CLI or nothing |
-| Profile | The file a repository uses to adopt the harness |
+| Skill | The steps for one job, such as "review code", in Agent Skills format. harnesswright writes every skill. |
+| Role | One job in the agent team, such as story judge. Each role uses one or more skills. |
+| Rule | What good work looks like, such as "money is always in cents". Each rule has a unique ID, a title and a body, and lives in one place only. |
+| Floor | A minimum that is never traded away, such as "no secret in code". A more specific layer may only make it stricter. |
+| Decision point | A place where good teams choose differently, with a default. |
+| Layer | A group of rules from one source. Six layers, from most general to most specific: principles, language, company, department, team, application. |
+| More general, more specific | The direction between layers. The more specific layer wins, but it may never loosen a floor. Never say "higher" or "lower". |
+| Principles layer | Layer 1: rules true for all code. Written by harnesswright. IDs start with `CORE`. |
+| Language layer | Layer 2: rules for one language, with a sub-layer per framework. Written by harnesswright. IDs start with the language, such as `JAVA` or `JAVA-SPRING`. |
+| Company, department, team layers | Layers 3 to 5: optional rules a large company adds for its teams. The company picks each name, which only prefixes the IDs so they never clash, such as `COMP-ACME`. |
+| Application layer | Layer 6: the rules of one application, mostly learned from its code. IDs start with `APP`. |
+| Application | One codebase with one `.harness/` folder at its root. |
+| `.harness/` folder | The folder in an application's repository that tells the skills about that application, like `.github/`. |
+| `harnesswright init` | The command that sets up an application: it detects the language and tools, learns how existing code is written, and writes the `.harness/` folder for a person to confirm. |
+| Profile | `.harness/profile.yaml`: the application's language, test tools and the layers it uses. |
+| Stacks | Parts of one application in different languages, such as Java and Angular, under one owner. Each stack has its own language and framework layers; layers 3 to 6 are shared. |
+| Area | One topic of rules, such as naming (`NAME`), design (`DSGN`) or tests (`TEST`). |
+| Standard | The file of rules for one area in one layer. |
+| Rulebook | All standards of all layers. |
+| Resolved standards | The one list of rules that applies to a run, after the layers are combined. |
+| Planned item | An epic or a feature: work that gets a functional plan and a technical design. |
+| Known breach | Existing code that already breaks a floor, recorded and confirmed by the application owner. It is reported, not blocked. |
+| Waiver | A dated, approved permission for one application or one story not to follow one rule that is not a floor. |
+| Contract | The fixed shape of a file one role hands to another. |
+| Panel | Several independent agents that vote on one judgment. |
+| Capability | Access to an outside system, provided by an MCP server, a CLI or nothing. |

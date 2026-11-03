@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "go test\\b", "ran": true, "exit_code": 0},
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "grep -c 'go test' README.md",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

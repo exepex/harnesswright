@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "\\bgit push\\b", "ran": false},
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "grep -n 'git push' README.md",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

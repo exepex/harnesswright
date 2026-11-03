@@ -5,7 +5,7 @@
     {
       "kind": "command",
       "source": "observed",
-      "command": "VAR=1 timeout 60 bash -c 'pytest -q | tail -5'",
+      "command": "VAR=1 bash -c 'pytest -q | tail -5'",
       "exit_code": 0,
       "output": ""
     }
