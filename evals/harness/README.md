@@ -331,8 +331,8 @@ of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
 Each page is graded by a panel (`grader.panel`), by one rule: a question's answer is the one two graders gave. Two
 graders grade the page, on two different hosts when both are available. A question they answered two ways goes to
 one fresh grader on the reference host, Claude Code. A question with no two answers the same, as when a grader was
-ungraded, stays unanswered, so the run is `ungraded` on it and no host grades a run alone. How many questions the
-two graders answered the same is reported, never used as a gate.
+ungraded, stays unanswered, so the run is `ungraded` on it: one grader never decides a question alone. How many
+questions the two graders answered the same is reported, never used as a gate.
 
 ## Script checks
 
