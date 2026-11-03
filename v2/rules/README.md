@@ -21,3 +21,4 @@ the owner approved on 2026-11-03: **Review by**, the date by which the rule's ow
 | `SKILL` | What a good skill is | [core/skill.md](core/skill.md) |
 | `CATALOG` | The whole set of skills a repository lists | [core/catalog.md](core/catalog.md) |
 | `WORK` | Duties every role has on every task | [core/work.md](core/work.md) |
+| `BUILD` | Skill templates and the release files built from them | [core/build.md](core/build.md) |

@@ -74,6 +74,8 @@ and never restate them. Like `HW-AG` and `HW-PORT`, they are harness rules: no l
 
 **HW-RULE-01 · One rule lives in one place.** A rule's text exists only in its standard. Skills, roles,
 contracts, tests, adapters and agent instruction files cite its ID, and hold only steps, ID citations or pointers.
+A skill is its template. The release files a build script generates from templates, and the rules text written for
+a run, are copies a script proves exact. They are never edited by hand and are not a second source.
 A sentence in them that says what code, tests, documentation or configuration must be like in general, without an
 ID, is a restatement and a defect. The requirements of one piece of work, such as a story's acceptance criteria or
 a quoted request, are not standards and are not restatements.
