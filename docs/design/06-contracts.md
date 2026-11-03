@@ -40,7 +40,8 @@ pipeline: feature-t2
 
 `rules.md`, written once by the standards reader at the start of the run. Its inputs, steps and fields are defined
 in [03 · Standards](03-standards.md), "Resolving the rules for an application". It holds rule IDs and fingerprints,
-never rule text. Every role in the run reads it.
+never rule text. Every role in the run reads it. Claims and verdicts record one value: the hash of `rules.md`
+itself.
 
 ## Functional plan
 
@@ -63,11 +64,12 @@ be approved for a T3 change.
 
 ## Technical design
 
-Written by the architect for the same planned item, after the functional plan is approved.
+Written by the technical designer for the same planned item, after the functional plan is written. The plan
+reviewer reviews both together.
 
 ```yaml
 ---
-id: TD-order-retry
+id: D-order-retry
 plan: P-order-retry
 status: draft               # draft | approved | rejected
 ---
@@ -76,8 +78,8 @@ status: draft               # draft | approved | rejected
 Sections: **Approach** (one paragraph) · **Design elements**, numbered `TD-1`, `TD-2`, …, each naming the
 criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Decisions** (links to decision records) · **Risks**.
 
-A design element that serves no criterion or target is out of scope. The plan reviewer checks that the functional
-plan and the technical design match.
+The plan reviewer checks that the two match: every element serves at least one criterion or target, and every
+target is served by at least one element.
 
 ## Story
 
@@ -86,26 +88,30 @@ plan and the technical design match.
 id: S02
 plan: P-order-retry         # or "none" for a change with no plan
 depends-on: [S01]
-covers: [AC-1, AC-3, TD-2]  # the criteria and design elements this story delivers; empty when plan is "none"
-tests: {AC-1: [unit], AC-3: [unit, integration]}   # required test types for each criterion
+covers: [AC-1, AC-3, NFR-1, TD-2]   # the criteria, targets and design elements this story delivers
+tests: {AC-1: [unit], AC-3: [unit, integration], NFR-1: [performance]}   # required test types for each
 waivers: []                 # story-scoped waivers: rule ID, reason, end date, approver
 ---
 ```
 
 Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: the request, quoted) ·
-**Acceptance criteria** (testable, each linked to the plan when there is one, each with its required test types)
-· **Out of scope** · **Tasks** (optional, only when the team tracks tasks).
+**Acceptance criteria** (testable, each with its required test types) · **Out of scope** · **Tasks** (optional,
+only when the team tracks tasks).
+
+A story with a plan uses the plan's IDs. A story with `plan: none` numbers its own criteria `AC-1`, `AC-2`, …,
+lists them in `covers`, and keys `tests` by them.
 
 A story may be tests only, such as "add contract tests for API X". A story-scoped waiver is recorded in `waivers`
-before work starts, approved as [03 · Standards](03-standards.md) says, and cited in the claims.
+before work starts, approved as [03 · Standards](03-standards.md) says, and cited in the claims. It lives only in
+the story, never in `rules.md`, so the story judge checks each waiver the claims cite against the story.
 
 Where a story comes from depends on the tier. For T2 and T3 the story writer splits the plan. For T0 and T1 there
 is no plan: triage writes a single story, with `plan: none`, straight from the request, and the story judge checks
 the change against that story's own acceptance criteria.
 
-A story is small enough to review in one sitting. The alignment judge checks that every plan criterion is covered
-by at least one story, that every design element is covered, and that no story does anything the plan or the
-design does not ask for.
+A story is small enough to review in one sitting. The alignment judge checks that every criterion, target and
+design element is covered by at least one story, that each story's `tests` include every test type the plan
+requires for what it covers, and that no story does anything the plan or the design does not ask for.
 
 ## Claims
 
@@ -113,8 +119,9 @@ Written by the implementer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each acceptance criterion, what was done and the
 evidence (`file:line`, test name, command and output), and for each required test type the test that proves it ·
-**Standards**: the fingerprint of `rules.md`, and each waiver used, by rule ID · **Out of scope**, with reasons ·
-**Files changed**, each with its line count · **Not verified**: anything the implementer could not prove.
+**Standards**: the hash of `rules.md`, the rules applied, by ID, and each waiver used · **Out of scope**, with
+reasons · **Files changed**, each with its line count · **Not verified**: anything the implementer could not
+prove.
 
 ## Finding
 
@@ -152,7 +159,7 @@ Body: one paragraph of reasoning, written before the voter sees any other vote.
 ---
 subject: S02                # a story ID, or "feature"
 commit: 3f9c2e1             # the exact commit judged
-rules: 9b1e…                # fingerprint of the rules.md the judge read
+rules: 9b1e…                # hash of the rules.md the judge read
 result: pass                # pass | fail
 votes: {approve: 2, reject: 1}
 blockers: []                # confirmed blockers; any entry forces fail
@@ -170,5 +177,5 @@ changed, and the change needs a new verdict.
 
 ## Decision record
 
-For tier 3 changes, the architect writes one record per decision: **Context** · **Options considered** ·
+For tier 3 changes, the technical designer writes one record per decision: **Context** · **Options considered** ·
 **Decision** · **Consequences**. Records are kept with the technical design.
