@@ -23,7 +23,7 @@ order; each one builds on the ones before.
 |---|---|
 | Layers apply to | Standards and process configuration. Role instructions are written once, in the core. |
 | Order of work | Structure first, then a walking skeleton, then the harvest |
-| Company, department and team layers | Optional; designed now, built when the plan reaches them |
+| Company, department and team layers | Optional; designed now |
 | Repository flow | Work on a branch, reviewed through a pull request |
 | Licence | Apache-2.0 |
 | Where work happens | Everything is built and tested inside harnesswright, on sample projects under `evals/fixtures/` |
@@ -52,7 +52,7 @@ Every document uses these words with these meanings. Do not use other words for 
 | `.harness/` folder | The folder in an application's repository that tells the skills about that application, like `.github/`. |
 | `harnesswright init` | The command that sets up an application: it detects the language and tools, learns how existing code is written, and writes the `.harness/` folder for a person to confirm. |
 | Profile | `.harness/profile.yaml`: the application's language, test tools and the layers it uses. |
-| Stacks | Parts of one application in different languages, such as Java and Angular, under one owner and one rule set. |
+| Stacks | Parts of one application in different languages, such as Java and Angular, under one owner. Each stack has its own language and framework layers; layers 3 to 6 are shared. |
 | Area | One topic of rules, such as naming (`NAME`), design (`DSGN`) or tests (`TEST`). |
 | Standard | The file of rules for one area in one layer. |
 | Rulebook | All standards of all layers. |
