@@ -1,0 +1,355 @@
+{
+  "prompt": "Done with the rate limiter story S03 (story file in .harness/runs/2026-10-30-rate-limit/stories/). Files: limiter/limiter.go and limiter/limiter_test.go. Please record the evidence for each acceptance criterion in the claims file.",
+  "kind": "task",
+  "tools": [
+    "go"
+  ],
+  "expectations": [
+    {
+      "text": "The claims are written to claims/S03.md in the story's run folder",
+      "source": "format",
+      "check": {
+        "name": "file_state",
+        "args": {
+          "path": ".harness/runs/2026-10-30-rate-limit/claims/S03.md",
+          "state": "changed"
+        }
+      },
+      "judged": {
+        "question": "Did the run write its claims as a file, claims/S03.md, in the story's run folder?",
+        "pass": "Yes when that file is there after the run and the run wrote it.",
+        "fail": "No when the claims are only in the final answer, or in a file anywhere else.",
+        "examples": {
+          "pass": [
+            "A new claims/S03.md next to the story."
+          ],
+          "fail": [
+            "The claims in CLAIMS.md at the root, or only in the final message."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Writing the claims changes no other project file",
+      "source": "format",
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [
+            ".harness/runs/2026-10-30-rate-limit/claims/S03.md",
+            "*__pycache__*",
+            "*.pytest_cache*"
+          ]
+        }
+      },
+      "judged": {
+        "question": "Did the run leave every project file but the claims file as it was?",
+        "pass": "Yes when nothing in the project was edited, added or removed except the claims file and the caches that running the tests makes.",
+        "fail": "No when any source, test, docs or config file changed or was added.",
+        "examples": {
+          "pass": [
+            "The code, tests and docs are as they were; only the claims file is new."
+          ],
+          "fail": [
+            "A source file under src/ was edited while writing the claims."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims file has the six claims headings in their order",
+      "source": "format",
+      "check": {
+        "name": "sections",
+        "args": {
+          "headings": [
+            "Request",
+            "Requirements",
+            "Standards",
+            "Out of scope",
+            "Files changed",
+            "Not verified"
+          ],
+          "level": 2,
+          "file": ".harness/runs/2026-10-30-rate-limit/claims/S03.md"
+        }
+      },
+      "judged": {
+        "question": "Are the level 2 headings of the claims file exactly Request, Requirements, Standards, Out of scope, Files changed and Not verified, in that order?",
+        "pass": "Yes when those six headings appear once each, in that order, and no other level 2 one.",
+        "fail": "No when one is missing, renamed, moved or another level 2 heading is added.",
+        "examples": {
+          "pass": [
+            "Six headings from Request down to Not verified, as listed."
+          ],
+          "fail": [
+            "Headings Summary, Criteria and Evidence instead."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The Request section quotes the story line by line",
+      "source": "format",
+      "judged": {
+        "question": "Does the Request section quote the story's own words, each line starting with >?",
+        "pass": "Yes when the story's text appears there as a quote, not reworded.",
+        "fail": "No when the section is empty, reworded, summarised or not quoted with >.",
+        "examples": {
+          "pass": [
+            "Request holds the story's request and criteria, each line starting with >."
+          ],
+          "fail": [
+            "Request gives a one-line summary of the story in other words."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims carry the story's own words, not a rewording",
+      "source": "format",
+      "check": {
+        "name": "shares_words",
+        "args": {
+          "source": ".harness/runs/2026-10-30-rate-limit/stories/S03.md",
+          "run": 8,
+          "shared": true,
+          "file": ".harness/runs/2026-10-30-rate-limit/claims/S03.md"
+        }
+      },
+      "judged": {
+        "question": "Does the claims file repeat a run of at least eight words exactly as the story has them?",
+        "pass": "Yes when some part of the story appears word for word in the claims.",
+        "fail": "No when every part of the story is reworded or left out.",
+        "examples": {
+          "pass": [
+            "The story's request appears word for word under Request."
+          ],
+          "fail": [
+            "Only a summary of the story in the writer's own words."
+          ]
+        }
+      }
+    },
+    {
+      "text": "No claims section is left empty",
+      "source": "format",
+      "judged": {
+        "question": "Does every one of the six sections hold text, with None. where there is nothing to say?",
+        "pass": "Yes when each section has at least one line under its heading.",
+        "fail": "No when any heading is followed straight away by the next heading or the end of the file.",
+        "examples": {
+          "pass": [
+            "Standards says None. and Not verified says None."
+          ],
+          "fail": [
+            "Out of scope is a heading with nothing under it."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims state results without hedging words",
+      "source": "format",
+      "judged": {
+        "question": "Is the writer's own text, outside quotes and code, free of words such as should work, probably, seems to or looks good?",
+        "pass": "Yes when every result is stated as a fact backed by evidence, or moved to Not verified.",
+        "fail": "No when any claim leans on a hedge in place of evidence.",
+        "examples": {
+          "pass": [
+            "AC-1 met: its test passed, as the quoted output shows."
+          ],
+          "fail": [
+            "AC-1 met: it should work."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Every file listed under Files changed has its true line count",
+      "source": "format",
+      "check": {
+        "name": "line_counts",
+        "args": {
+          "section": "Files changed",
+          "file": ".harness/runs/2026-10-30-rate-limit/claims/S03.md"
+        }
+      },
+      "judged": {
+        "question": "Does every line under Files changed name a file with its true line count?",
+        "pass": "Yes when each line is a path with the number of lines the file really has.",
+        "fail": "No when a count is wrong, a line is not a file entry, or the section lists nothing.",
+        "examples": {
+          "pass": [
+            "A list of the two changed files, each with its real count."
+          ],
+          "fail": [
+            "A count that is off by a few lines, or a sentence instead of a list."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Every file and line the claims cite exists",
+      "source": "format",
+      "check": {
+        "name": "line_references",
+        "args": {
+          "file": ".harness/runs/2026-10-30-rate-limit/claims/S03.md"
+        }
+      },
+      "judged": {
+        "question": "Does every path:line the claims cite name a project file, by its path from the project root, and a line it has?",
+        "pass": "Yes when each cited line exists in the cited file.",
+        "fail": "No when a cited file is missing, is named without its folder, or is shorter than the line.",
+        "examples": {
+          "pass": [
+            "A cited line inside the function that does the work."
+          ],
+          "fail": [
+            "A cited line past the end of the file, or a bare file name without its folder."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The project's tests are run, and pass",
+      "source": "format",
+      "check": {
+        "name": "command_ran",
+        "args": {
+          "pattern": "(^|\\s)go\\s+test\\b",
+          "ran": true,
+          "exit_code": 0
+        }
+      },
+      "judged": {
+        "question": "Did the run itself run the test command that the project's files name?",
+        "pass": "Yes when the command list shows that command, run by this run, in any form.",
+        "fail": "No when no test command ran, or the only ones use a runner the project does not name, so the result in the claims was not seen.",
+        "examples": {
+          "pass": [
+            "The command list holds the go test command the project names, piped through tail."
+          ],
+          "fail": [
+            "The command list shows only a go vet run, or only file reads and the claims write."
+          ]
+        }
+      }
+    },
+    {
+      "text": "AC-3 is claimed as not verified",
+      "source": {
+        "contract": {
+          "path": ".harness/runs/2026-10-30-rate-limit/stories/S03.md",
+          "line": 21,
+          "quote": "AC-3: With the limiter enabled, p99 latency of the API in staging stays under 5 ms."
+        }
+      },
+      "judged": {
+        "question": "Do the claims give AC-3 the status not verified?",
+        "pass": "Yes when AC-3 appears with the status not verified.",
+        "fail": "No when AC-3 is missing or has another status, since staging cannot be measured from here.",
+        "examples": {
+          "pass": [
+            "AC-3 not verified."
+          ],
+          "fail": [
+            "AC-3 met, or AC-3 not met."
+          ]
+        }
+      }
+    },
+    {
+      "text": "AC-1 and AC-2 are each claimed as met",
+      "source": {
+        "contract": {
+          "path": ".harness/runs/2026-10-30-rate-limit/stories/S03.md",
+          "line": 19,
+          "quote": "AC-1: A client may make up to the configured limit of requests in one window; the next request is refused. AC-2: A refused request is answered with HTTP status 429."
+        }
+      },
+      "judged": {
+        "question": "Do the claims give each of AC-1 and AC-2 the status met?",
+        "pass": "Yes when both appear, each with the status met.",
+        "fail": "No when either is missing or has another status, since the code and tests meet both.",
+        "examples": {
+          "pass": [
+            "AC-1 met, AC-2 met."
+          ],
+          "fail": [
+            "AC-2 not verified, or AC-1 left out."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Not verified names the staging latency measurement and why it could not be done here",
+      "source": "format",
+      "judged": {
+        "question": "Does the Not verified section name the p99 latency measurement in staging, say why it could not be made from this project, and say what would prove it?",
+        "pass": "Yes when the section names that measurement, the reason, and what would settle it.",
+        "fail": "No when the section is None., leaves out the staging measurement, or gives no reason.",
+        "examples": {
+          "pass": [
+            "p99 in staging: no staging access from here; a load test there with the limiter on would prove it."
+          ],
+          "fail": [
+            "Not verified: None."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Each criterion has its own entry, with one status, and AC-1 and AC-2 cite their code line and test",
+      "source": "format",
+      "judged": {
+        "question": "Does each criterion have one entry headed by its ID, with one Status line, AC-1 and AC-2 each citing a path:line in limiter/limiter.go and naming a test by its function name?",
+        "pass": "Yes when every entry has its ID heading and one status, and AC-1 and AC-2 each cite their code line and name their test.",
+        "fail": "No when criteria share an entry, a criterion has two entries or none, an entry names a criterion the story does not have, has no or two statuses, or AC-1 or AC-2 lacks its cited line or named test.",
+        "examples": {
+          "pass": [
+            "AC-2 cites the 429 answer in limiter/limiter.go and names TestRefusedRequestGets429."
+          ],
+          "fail": [
+            "AC-1 says only that the limit works, with no line and no test."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims quote the result of the run of the tests: the limiter package ok",
+      "source": "format",
+      "judged": {
+        "question": "Do the claims quote the test command's own result, showing the limiter package ok?",
+        "pass": "Yes when the evidence quotes the ok line for the limiter package from that run.",
+        "fail": "No when the claims say the tests pass without quoting a run, or quote a failure.",
+        "examples": {
+          "pass": [
+            "Evidence: ok example.com/ratelimit/limiter 0.004s."
+          ],
+          "fail": [
+            "Evidence: go test should pass."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Files changed lists limiter/limiter.go and limiter/limiter_test.go",
+      "source": "format",
+      "judged": {
+        "question": "Does Files changed list both limiter/limiter.go and limiter/limiter_test.go, and no file the change did not touch?",
+        "pass": "Yes when both are listed and nothing else but the claims file itself.",
+        "fail": "No when either is missing or an untouched file is listed.",
+        "examples": {
+          "pass": [
+            "The two files, each with its count."
+          ],
+          "fail": [
+            "Only limiter/limiter.go."
+          ]
+        }
+      }
+    }
+  ]
+}
