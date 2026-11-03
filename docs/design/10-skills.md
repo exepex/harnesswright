@@ -46,7 +46,8 @@ A skill is production grade only when it has all of these:
 9. **Examples:** at least one good and one bad example.
 10. **Evals:** trigger evals (should and should not trigger) and task evals (the result is right).
 11. **Portability:** passes the portability rules and the portability evals below.
-12. **Size:** `SKILL.md` under 500 lines; detail moves to `references/`.
+12. **Size:** the template `SKILL.tmpl.md` under 500 lines, detail in `references/`; the generated release skill
+    within its ceilings (CORE-TEMPLATE-02).
 
 ## Portability
 

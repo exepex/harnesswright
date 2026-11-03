@@ -7,6 +7,8 @@ stated reason and may tighten a floor, never loosen it ([03 · Standards](../../
 That every skill has evals is CORE-SKILL-24. How evals are built, run and scored is area `EVAL`, and how rules are
 made and kept is area `RULE`. Both come in later changes.
 
+Retired rules of this area are in [retired.md](retired.md).
+
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule or checklist item it carries over.
 
@@ -25,26 +27,6 @@ with the older rule or checklist item it carries over.
 - **Eval:** a proposed skill for a single bug fix, which the skill judge must reject.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/SKILL.md` (MIT)
-
-### CORE-SKILL-02 · The frontmatter uses only standard fields, within their limits
-
-- **Kind:** floor
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** The frontmatter holds only `name`, `description` and optionally `license`, `compatibility` and `metadata`
-  (string values only). `name` matches the folder name and has at most 64 lowercase letters, digits and single
-  hyphens. `description` has at most 1024 characters and no `<` or `>`. `compatibility` has at most 500 characters.
-  Host-specific fields, including `allowed-tools`, live in adapters.
-- **Why:** Hosts reject or treat differently anything outside the Agent Skills specification.
-- **Check:** Run the frontmatter check script, or read the frontmatter against this list.
-- **Good:** `name: claims-writer` in folder `skills/claims-writer/`.
-- **Bad:** `name: Claims Writer` with an `allowed-tools` field in folder `skills/claims/`.
-- **Eval:** a skill whose `name` has capitals and does not match its folder, which the skill judge must flag.
-- **Source:**
-  - `anthropics/skills@ca45fc4 skills/skill-creator/scripts/quick_validate.py` (Apache-2.0)
-  - `obra/superpowers@2ce8aa1 skills/writing-skills/SKILL.md` (MIT)
-  - own (HW-PORT-01)
 
 ### CORE-SKILL-03 · The description says what the skill does and when to use it
 
@@ -100,23 +82,6 @@ with the older rule or checklist item it carries over.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/anthropic-best-practices.md` (MIT)
   - own (doc 10 checklist item 4)
-
-### CORE-SKILL-06 · A skill cites the rules it applies by ID
-
-- **Kind:** floor
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** A skill tells the agent to apply the resolved rules whose Applies to names its role. It cites a rule ID
-  only where one step depends on that rule. It never writes a rule's text (HW-RULE-01).
-- **Why:** A copied rule goes stale when the rule changes, and the agent then sees two versions.
-- **Check:** Is every sentence that says how work must be done in general either a cited ID or a step?
-- **Good:** "4. Name each test as CORE-TEST-03 asks."
-- **Bad:** "4. Test names must state the scenario and the expected outcome."
-- **Eval:** a skill that restates a rule without its ID, which the skill judge must flag.
-- **Source:**
-  - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-18 (Apache-2.0)
-  - own (doc 10 checklist item 5)
 
 ### CORE-SKILL-07 · A skill proves its own result before it reports
 
@@ -188,23 +153,6 @@ with the older rule or checklist item it carries over.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/SKILL.md` (MIT)
   - own (doc 10 checklist item 9)
-
-### CORE-SKILL-11 · SKILL.md stays under 500 lines
-
-- **Kind:** floor
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** `SKILL.md` is under 500 lines. Detail that only some runs need moves to reference files.
-- **Why:** The whole file loads every time the skill runs. Rarely needed text is paid for on every run.
-- **Check:** Count the lines.
-- **Good:** A 180-line `SKILL.md` with the format details in `references/formats.md`.
-- **Bad:** A 700-line `SKILL.md` with three domains inline.
-- **Eval:** a 520-line `SKILL.md`, which the skill judge must flag.
-- **Tool:** `wc -l SKILL.md`
-- **Source:**
-  - `anthropics/skills@ca45fc4 skills/skill-creator/SKILL.md` (Apache-2.0)
-  - own (doc 10 checklist item 12)
 
 ### CORE-SKILL-12 · Each reference is linked from SKILL.md, with when to read it
 

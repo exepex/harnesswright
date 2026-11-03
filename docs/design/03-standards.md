@@ -119,9 +119,10 @@ contradiction is a defect.
 waive it. The only way to change a floor is a new rule with a new ID in the layer that owns it, approved by that
 layer's owner.
 
-**HW-RULE-07 · A rule is retired, never deleted.** A retired rule keeps its ID, gets status `retired` and a
-Replaced by. Citations in the same repository are updated in the same change. Retiring a rule fails while any
-file still cites the old ID, other than the index, the retired rule itself and `CHANGELOG.md`
+**HW-RULE-07 · A rule is retired, never deleted.** A retired rule keeps its ID and all its parts, gets status
+`retired` and a Replaced by, and moves to the `retired.md` file of its layer folder, so area files hold only live
+rules. Citations in the same repository are updated in the same change. Retiring a rule fails while any file still
+cites the old ID, other than the index, `retired.md`, the Source of the rule that replaced it and `CHANGELOG.md`
 ([08 · Governance](08-governance.md)).
 
 **HW-RULE-08 · The index is generated.** Each layer folder has an index (ID, title, kind, status, file), built by

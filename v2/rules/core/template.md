@@ -6,8 +6,8 @@ rules text with the rules of the more specific layers. These rules govern the te
 good skill says is area `SKILL` ([skill.md](skill.md)); the whole set of skills is area `CATALOG`
 ([catalog.md](catalog.md)).
 
-CORE-TEMPLATE-01 to 03 replace CORE-SKILL-06, CORE-SKILL-11 and CORE-SKILL-02, which a later change retires.
-CORE-TEMPLATE-04 carries the other half of CORE-SKILL-06: applying the run's resolved rules.
+CORE-TEMPLATE-01 to 04 replace three retired rules ([retired.md](retired.md)); each Source names the one it carries
+over.
 
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule it carries over.
