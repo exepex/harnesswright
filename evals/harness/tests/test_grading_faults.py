@@ -25,7 +25,7 @@ def alone(page, asked, graders, tiebreak):
 
 
 CHECK, GATE, PANEL, NAMES, TEXT = grading.check, goldens.gate, grader.panel, world.names, view.text
-FIXED = view.host.FIXED
+FIXED, SHOWS = view.host.FIXED, "the view a grader gets"
 COVERS, DIFF, ON_OVERLAY = evidence.covers, evidence.diff, view.on_overlay
 
 
@@ -134,8 +134,7 @@ class Missed(Fake):
                 *(("view", place, mock.patch.object(view, "text", lambda value, words, folders: TEXT(value, words, {
                     f"{folder}/": f"{word}/" for folder, word in folders.items()})), "the view a grader gets")
                   for place in ("message", "log", "file")),
-                ("view", "log", mock.patch.object(view.host, "FIXED", {**FIXED, "command": str, "action": str}),
-                 "the view a grader gets"),
+                ("view", "log", mock.patch.object(view.host, "FIXED", {**FIXED, "command": str, "action": str}), SHOWS),
                 *(("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + (field,)), "the view a grader gets")
                   for field in ("exposure", "requests", "failure", "folders", "host", "model", "transcript")),
                 ("sheet", "no quote", mock.patch.object(grading, "check", lambda *a: [
@@ -143,22 +142,16 @@ class Missed(Fake):
                 ("sheet", "extra field", mock.patch.object(grading, "check", lambda sheet, *a: CHECK(
                     {"answers": sheet["answers"]}, *a)), "did not refuse"),
                 ("tie", "one split", mock.patch.object(grader, "panel", first_on_first), "not the split"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
-                    places[:1], *a)), "the view a grader gets"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
-                    places[1:], *a)), "the view a grader gets"),
+                *(("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a, part=part: COVERS(
+                    places[part], *a)), SHOWS) for part in (slice(None, 1), slice(1, None))),
                 ("view", "file", mock.patch.object(view.evidence, "diff", lambda old, new, places, own: DIFF(
                     old, new, [], own)), "the view a grader gets"),
                 ("view", "log", mock.patch.object(view, "on_overlay", lambda item, words: ON_OVERLAY(
                     {**item, "kind": "read"}, words)), "the view a grader gets"),
-                ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")),
-                 "the view a grader gets"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("place")),
-                 "the view a grader gets"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("above")),
-                 "the view a grader gets"),
-                ("view", "log", mock.patch.object(view.host, "part_of_command", lambda item: False),
-                 "the view a grader gets"),
+                ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")), SHOWS),
+                *(("view", "file", mock.patch.object(view.evidence, "covers", covers_without(clause)), SHOWS)
+                  for clause in ("place", "above")),
+                ("view", "log", mock.patch.object(view.host, "part_of_command", lambda item: False), SHOWS),
                 ("golden", "one wrong", mock.patch.object(goldens, "gate", blind_to_last), "the plant made wrong"),
                 ("golden", "unanswered", mock.patch.object(goldens, "gate", unanswered_ok), "the plant made wrong"),
                 ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "the plant made wrong"),
@@ -170,8 +163,6 @@ class Missed(Fake):
                 ("golden", "one-sided", mock.patch.object(goldens, "gate", one_way), "the plant made wrong"),
                 ("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + ("arm",)), "names"),
                 ("view", "message", mock.patch.object(view.world, "names", lambda n: NAMES(n[1:])), "names"),
-                ("view", "log", mock.patch.multiple(view, on_overlay=lambda *a: False, text=lambda v, *a: v),
-                 "names"),
                 ("view", "log", mock.patch.object(view, "text", lambda value, *args: value), "names"),
                 ("view", "file", mock.patch.object(view, "text", lambda value, *args: value), "names"),
                 ("view", "message", mock.patch.object(view, "text", lambda value, *args: value), "names")):
