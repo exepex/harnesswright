@@ -18,8 +18,8 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   answer is the one two graders gave. Two graders grade the page, on two different hosts when both are available
   (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
   (`tiebreak`). A question that has no two answers the same, as when a grader was ungraded, is unanswered, so the
-  run stays ungraded on it: one grader never decides a question alone. Agreement of the two graders is reported, never used as a
-  gate.
+  run stays ungraded on it: one grader never decides a question alone. Agreement of the two graders is reported,
+  never used as a gate.
 - `blind(pages, seed)`: the order graders get the pages of a round, the runs of both arms and the goldens together,
   mixed by a seed the round records. Each page gets an opaque id, the hash of its text, so no name of a run, an
   arm or a golden reaches a grader.
