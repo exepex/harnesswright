@@ -217,7 +217,7 @@ cannot run, it does the same by reading, and marks the result "not verified".
 
 1. The **active** rules of each layer the profile lists. Rules with status `inferred` or `retired` are never read.
 2. The **decision point bindings** in the profile. They count as bindings of the application layer.
-3. The application's **approved waivers** whose end date has not passed.
+3. The application's **approved waivers** whose end date has not passed. Story-scoped waivers are not read.
 
 **Steps.**
 
@@ -226,12 +226,12 @@ cannot run, it does the same by reading, and marks the result "not verified".
 2. Apply the profile's bindings. A decision point bound more than once in the application layer, by rules or by
    the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
-4. Mark each waived rule with its waiver: scope (the application, or one story ID), reason, end date and approver.
-   A story-scoped waiver applies only to that story.
+4. Mark each waived rule with its waiver: reason, end date and approver. A story-scoped waiver is not an input: it
+   lives in its story, and the story judge checks it there ([06 · Contracts](06-contracts.md)).
 5. If two inputs contradict each other without saying so, stop and ask the layer owners. If a layer loosens a
    floor, or a waiver names a floor, stop.
 
 The result is the **resolved standards** file, written once at the start of each run to
 `.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind, the ID it changed and any waiver,
 plus a fingerprint (hash) of every file it read. It holds no rule text, so it is not a copy. Every role in the run
-reads this file, and each verdict records its fingerprint.
+reads this file, and each claim and verdict records the hash of this file.
