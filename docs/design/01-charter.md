@@ -57,7 +57,7 @@ harnesswright writes those instructions once, in layers, and makes every role ap
 - **One voice.** Every standard, role and contract uses the same words and the same formats, even when an idea was
   borrowed from elsewhere.
 - **Small files.** A text file stays under 500 lines and a configuration file under 400, so a reviewer can read
-  each one in a sitting.
+  each one in a sitting. A generated release skill is bounded by size ceilings instead (CORE-TEMPLATE-02).
 - **Separate what, who and when.** Standards say what good work is; roles say who does the work; process says when
   each role runs. See [02 · Architecture](02-architecture.md).
 - **Least privilege.** Each role gets only the tools and access its job needs.

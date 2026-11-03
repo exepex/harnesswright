@@ -66,6 +66,10 @@ used everywhere. State in your report that you have read them.
 
 - At most 500 lines for text files (Markdown, plain text) and 400 lines for code and configuration (YAML, JSON,
   Python, shell). `LICENSE` is exempt. Every file ends with a newline.
+- A generated release skill, `release/<name>/SKILL.md`, and the generated `release/manifest.json` are exempt from
+  these limits; CORE-TEMPLATE-02 bounds the release skill instead. Every other file under `release/` keeps these
+  limits. Once CI proves each file under `release/` equals a rebuild of its source, those files no longer count
+  toward the HW-AG-10 limit; until then they count. Source templates, references and scripts always count.
 - Check the line count of every file you create or change, and list each one in the pull request.
 - When a file would exceed its limit, split it by purpose. Never squeeze it by joining lines.
 

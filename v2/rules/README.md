@@ -5,7 +5,8 @@ replace.
 
 ## Layout
 
-One folder per layer, one file per area, and one index per layer folder.
+One folder per layer, one file per area, one index per layer folder, and one `retired.md` per layer folder for
+retired rules, split by area past 500 lines (HW-RULE-07).
 
 | Folder | Layer | ID prefix |
 |---|---|---|
