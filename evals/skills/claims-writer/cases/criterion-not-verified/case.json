@@ -218,7 +218,7 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(^|\\s)go\\s+test\\b",
+          "pattern": "(^|\\s|\\s-[a-z]*c\\s+['\\\"])go\\s+test\\b",
           "ran": true,
           "exit_code": 0
         }
@@ -289,7 +289,7 @@
       "judged": {
         "question": "Does the Not verified section name the p99 latency measurement in staging, say why it could not be made from this project, and say what would prove it?",
         "pass": "Yes when the section names that measurement, the reason, and what would settle it.",
-        "fail": "No when the section is None., leaves out the staging measurement, or gives no reason.",
+        "fail": "No when the section is None., leaves out the staging measurement, gives no reason, or says nothing of what would prove it.",
         "examples": {
           "pass": [
             "p99 in staging: no staging access from here; a load test there with the limiter on would prove it."
