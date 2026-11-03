@@ -39,7 +39,9 @@ Standard library only.
 import copy
 import hashlib
 import json
+import re
 import shutil
+import string
 from pathlib import PurePosixPath
 
 import cases
@@ -57,6 +59,7 @@ SHEET = {"left out": "not answered", "twice": "is answered twice", "stranger": "
 GOLDEN = ("all yes", "all no", "one wrong", "one-sided", "unanswered")
 WORDS = ("maybe", "unknown", "Yes", "YES", " yes", "no.", "", "yes or no")  # answers that are text but not yes or no
 VIEW = ("arm", "message", "log", "file")
+SHOWN = view.FIELDS  # what the view is meant to show; every other field of a record a plant fills
 
 
 def _flip(answer):
@@ -259,11 +262,15 @@ def view_(setup, fault, rng, place):
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
     names = [skill, *layer["paths"], "with_skill", "without_skill"]
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
+    edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
-                                             *(f"cat {world}/{file}" for file in files), f"see `{skill}`"))
+                                             *(f"cat {world}/{file}" for file in files),
+                                             *(f"x{c}{name}{c}x" for name in (skill, *files) for c in edges)))
     kept = f"hw-kept-{rng.getrandbits(32):08x}\n"  # a neutral line next to the plant, which the view must keep
-    ran = "".join(f"{folder}/notes.md\n" for folder in sorted(record["folders"]))  # the run's own folders
-    neutral = "".join(f"{record['folders'][folder]}/notes.md\n" for folder in sorted(record["folders"]))  # as words
+    folders = sorted(record["folders"])  # the run's own folders, bare and at every edge, and as the view words them
+    ran = "".join(f"{f}\n" + "".join(f"x{c}{f}{c}x\n" for c in edges) for f in folders)
+    neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
+    word = record["folders"].get(world, world)
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
 
     def stored(data):
@@ -271,9 +278,9 @@ def view_(setup, fault, rng, place):
         return hashlib.sha256(data).hexdigest()
 
     if place == "arm":
-        planted.update(arm="with_skill", exposure={"skills": [skill], "tools": []}, requests=[{"request": lines}],
-                       failure=f"stopped at {files[0]}")  # the arm, and what the host reported of the skill
-        control.update(arm="without_skill", exposure=goldens.NOTHING_EXPOSED, requests=[], failure=None)
+        for field in sorted(set(record) - set(SHOWN) - {"overlay", "folders", "own_files"}):  # all kept back
+            planted[field], control[field] = f"with_skill\n{lines}", None
+        planted["folders"][f"/tmp/{skill}-with_skill"] = control["folders"]["/tmp/hw-plain"] = "/run/other"
     elif place == "message":
         planted["final_message"] = lines + kept + ran + (record["final_message"] or "")
         control["final_message"] = kept + neutral + (record["final_message"] or "")
@@ -289,9 +296,12 @@ def view_(setup, fault, rng, place):
         texts = [("agent", "task", {}), ("message", "text", {}), ("blocked", "reason", {"action": "ls"})]
         made = lambda text: [{"kind": kind, field: text, **other} for kind, field, other in texts]
         shown = lambda output, code: {"kind": "command", "command": "ls", "output": output, "exit_code": code}
-        planted["log"][:0] = [{"source": "observed", **entry}
-                              for entry in acts + made(lines + kept + ran) + [shown(lines + ran, 1)]]
-        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)]]
+        acted = lambda f: [{"kind": "command", "command": f"ls {f}", "output": "", "exit_code": 0},
+                           {"kind": "blocked", "action": f"write {f}/notes.md", "reason": "refused"}]
+        planted["log"][:0] = [{"source": "observed", **entry} for entry in acts + made(lines + kept + ran) + [
+            shown(lines + ran, 1)] + [e for f in folders for e in acted(f)]]
+        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)] + [
+            e for f in folders for e in acted(record["folders"][f])]]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file "))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
@@ -306,6 +316,8 @@ def view_(setup, fault, rng, place):
         for one, to, was in ((planted, files[0], files[-1]), (control, "", "")):
             one["files_after"][link] = f"link {to}"
             one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
+        for one, root in ((planted, world), (control, word)):  # a link to a world file by the world's own folder
+            one["files_after"][f"{link}-world"] = f"link {root}/{target}"
         for path in layer["paths"]:  # the overlay as a run holds it: its folders, the folders above, its files
             above = [str(folder) for folder in PurePosixPath(path).parents if str(folder) != "."]
             own = stored(f"# {skill}\n{lines}".encode())  # the skill's own bytes, which the view must not hold

@@ -25,6 +25,7 @@ def alone(page, asked, graders, tiebreak):
 
 
 CHECK, GATE, PANEL, NAMES, TEXT = grading.check, goldens.gate, grader.panel, world.names, view.text
+FIXED = view.host.FIXED
 COVERS, DIFF, ON_OVERLAY = evidence.covers, evidence.diff, view.on_overlay
 
 
@@ -56,6 +57,11 @@ def caseless(sheet, ids, page):
 def after_slash(words):
     """A names pattern that misses a name right after a slash, as in an absolute path."""
     return re.compile(NAMES(words).pattern.replace("(?<![\\w-])", "(?<![\\w/-])"), re.ASCII)
+
+
+def quote_is_name(words):
+    """A names pattern that counts quotes as part of a name."""
+    return re.compile(NAMES(words).pattern.replace("[\\w-]", "[\\w\"'-]"), re.ASCII)
 
 
 def blind_to_last(case, found, graded):
@@ -123,8 +129,15 @@ class Missed(Fake):
                     "output", "exit_code")), "the view a grader gets"),
                 *(("view", place, mock.patch.object(view.world, "names", after_slash), "the view a grader gets")
                   for place in ("message", "log", "file")),
+                *(("view", place, mock.patch.object(view.world, "names", quote_is_name), "the view a grader gets")
+                  for place in ("message", "log", "file")),
+                *(("view", place, mock.patch.object(view, "text", lambda value, words, folders: TEXT(value, words, {
+                    f"{folder}/": f"{word}/" for folder, word in folders.items()})), "the view a grader gets")
+                  for place in ("message", "log", "file")),
+                ("view", "log", mock.patch.object(view.host, "FIXED", {**FIXED, "command": str, "action": str}),
+                 "the view a grader gets"),
                 *(("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + (field,)), "the view a grader gets")
-                  for field in ("exposure", "requests", "failure")),
+                  for field in ("exposure", "requests", "failure", "folders", "host", "model", "transcript")),
                 ("sheet", "no quote", mock.patch.object(grading, "check", lambda *a: [
                     p for p in CHECK(*a) if "quotes nothing" not in p]), "did not refuse"),
                 ("sheet", "extra field", mock.patch.object(grading, "check", lambda sheet, *a: CHECK(
