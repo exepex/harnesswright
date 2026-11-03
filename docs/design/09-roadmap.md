@@ -14,7 +14,7 @@ previous one has been reviewed. Everything is built and tested inside harnesswri
 | **4 · Harvest** | A deep read of open-source and vendor skill and agent repositories, each idea scored and recorded with its source and licence | A harvest catalogue the owner has reviewed, mapped onto the rule areas and roles |
 | **5 · Standards** | The remaining core areas (`FUNC`, `CONF`, `ERR`, `DOC`, `ITEST`, `PERF`, `SEC`, `OPS`, `PLAN`), written from the harvest in one voice, each with evals | Every core area has rules, checks and evals |
 | **6 · Panels** | Reviewer roles, panels, voting, verifier, adjudicator, escalation, metrics; tier T2 | A T2 change to a sample project passes through panels with recorded votes |
-| **7 · Planning** | Architect, planner, plan reviewers, story writer, alignment and feature judges, scenario tester, release reviewer; tier T3 | A T3 feature on a sample project goes from request to merge with only the human gates |
+| **7 · Planning** | Functional planner, technical designer, plan reviewers, story writer, alignment and feature judges, QA tester, release reviewer; tier T3 | A T3 feature on a sample project goes from request to merge with only the human gates |
 | **8 · Second language** | The Python profile, a sample Python project, the onboarding skill, the capability bindings | The Python sample adopts the harness with no change to any core file |
 | **9 · Learning** | The curator role and the learning loop; release tooling | A repeated correction becomes an approved rule with an eval |
 

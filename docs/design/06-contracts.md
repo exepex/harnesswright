@@ -118,13 +118,13 @@ requires for each requirement it covers, and that no story does anything the pla
 
 ## Claims
 
-Written by the implementer when a story is finished.
+Written by the claims writer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
 done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
 proves it · **Standards**: the hash of `rules.md`, the rules applied, by ID, and each waiver used · **Out of
-scope**, with reasons · **Files changed**, each with its line count · **Not verified**: anything the implementer
-could not prove.
+scope**, with reasons · **Files changed**, each with its line count · **Not verified**: anything that
+could not be proven.
 
 ## Finding
 

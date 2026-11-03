@@ -8,7 +8,7 @@ order; each one builds on the ones before.
 | 01 | [Charter](01-charter.md) | Purpose, goals, non-goals, success measures, human gates |
 | 02 | [Architecture](02-architecture.md) | The six parts, the planned repository layout, formats, how a change flows |
 | 03 | [Standards and rules](03-standards.md) | Layers, precedence, kinds of rule, decision points, rule format and IDs |
-| 04 | [Roles](04-roles.md) | Every role, its inputs and outputs, model class, independence and access |
+| 04 | [Roles](04-roles.md) | Jobs, model classes, independence and access; the roles themselves are listed in [v2/roles.md](../../v2/roles.md) |
 | 05 | [Process](05-process.md) | Change types, risk tiers, findings, voting, limits, escalation |
 | 06 | [Contracts](06-contracts.md) | The files roles hand to each other |
 | 07 | [Repository profile](07-repo-profile.md) | How a repository adopts the harness, capabilities and MCP |
