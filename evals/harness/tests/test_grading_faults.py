@@ -12,6 +12,7 @@ import goldens
 import grader
 import grading
 import view
+import world
 
 
 def alone(page, asked, graders, tiebreak):
@@ -20,12 +21,24 @@ def alone(page, asked, graders, tiebreak):
     return grader.Panel(dict(first.answers or {}), [], 0, len(asked), [first])
 
 
-CHECK = grading.check
+CHECK, GATE, PANEL, NAMES = grading.check, goldens.gate, grader.panel, world.names
 
 
 def unquoted(sheet, ids, page):
-    """A sheet check that never looks at what an answer quotes."""
-    return [problem for problem in CHECK(sheet, ids, page) if "word for word" not in problem]
+    """A sheet check that never looks at what a `no` answer quotes."""
+    nos = {n for n, a in enumerate(sheet["answers"], start=1) if isinstance(a, dict) and a.get("answer") == "no"}
+    return [p for p in CHECK(sheet, ids, page) if not any(p.startswith(f"answer {n}: the evidence") for n in nos)]
+
+
+def one_way(case, found, graded):
+    """A golden gate that trusts a question asked only one way."""
+    return {id_: None if why and "settled yes" in why else why for id_, why in GATE(case, found, graded).items()}
+
+
+def first_wins(page, asked, graders, tiebreak):
+    """A panel that asks the tie-breaker, then keeps the first grader's answers."""
+    found = PANEL(page, asked, graders, tiebreak)
+    return grader.Panel(dict(found.graded[0].answers), [], found.agreed, found.asked, found.graded)
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
@@ -37,9 +50,13 @@ class Missed(Fake):
         for fault, place, patch, reason in (
                 ("sheet", "twice", mock.patch.object(grading, "check", return_value=[]), "did not refuse"),
                 ("sheet", "misquoted", mock.patch.object(grading, "check", unquoted), "did not refuse"),
-                ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "not the missed"),
+                ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "the plant made wrong"),
                 ("tie", "one split", mock.patch.object(grader, "panel", alone), "not the split"),
                 ("tie", "one ungraded", mock.patch.object(grader, "panel", alone), "decided alone"),
+                ("tie", "all split", mock.patch.object(grader, "panel", first_wins), "not the split"),
+                ("golden", "one-sided", mock.patch.object(goldens, "gate", one_way), "the plant made wrong"),
+                ("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + ("arm",)), "names"),
+                ("view", "message", mock.patch.object(view.world, "names", lambda n: NAMES(n[1:])), "names"),
                 ("view", "command", mock.patch.multiple(view, on_overlay=lambda *a: False, text=lambda v, *a: v),
                  "names"),
                 ("view", "message", mock.patch.object(view, "text", lambda value, *args: value), "names")):
