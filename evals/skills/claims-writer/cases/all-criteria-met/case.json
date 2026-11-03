@@ -218,7 +218,7 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(^|\\s)-m\\s+unittest\\b",
+          "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
           "ran": true,
           "exit_code": 0
         }

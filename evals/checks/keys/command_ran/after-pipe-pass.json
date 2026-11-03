@@ -1,0 +1,5 @@
+{
+  "args": {"pattern": "go test\\b", "ran": true},
+  "outcome": "pass",
+  "log": [{"kind": "command", "source": "observed", "command": "go vet ./... | go test ./...", "exit_code": 0, "output": ""}]
+}

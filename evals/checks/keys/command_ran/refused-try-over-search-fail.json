@@ -1,0 +1,8 @@
+{
+  "args": {"pattern": "\\bgit push\\b", "ran": false},
+  "outcome": "fail",
+  "log": [
+    {"kind": "command", "source": "observed", "command": "grep -n 'git push' README.md", "exit_code": 0, "output": ""},
+    {"kind": "blocked", "source": "observed", "action": "git push origin main", "reason": "denied"}
+  ]
+}

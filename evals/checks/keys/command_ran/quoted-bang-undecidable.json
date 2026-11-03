@@ -1,11 +1,11 @@
 {
-  "args": {"pattern": "-m unittest\\b", "ran": true, "exit_code": 1},
+  "args": {"pattern": "python3 -m unittest\\b", "ran": true, "exit_code": 1},
   "outcome": "undecidable",
   "log": [
     {
       "kind": "command",
       "source": "observed",
-      "command": "bash -c '! python3 -m unittest discover -s tests -t .'",
+      "command": "bash -c 'python3 -m unittest discover -s tests -t . !'",
       "exit_code": 1,
       "output": ""
     }
