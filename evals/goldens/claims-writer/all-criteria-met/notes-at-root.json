@@ -37,85 +37,85 @@
    "expectation": "The claims are written to claims/S01.md in the story's run folder",
    "sha256": "9b05e139ef7c628c09cf6baadda0f2a046e66a69913a1a7d06eb3947b1bf0d4f",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q2": {
    "expectation": "Writing the claims changes no other project file",
    "sha256": "62d0b17810efeb7b0b6636a3e0e4b22a64b3ba94ef6ca651ab14f1573ae81d7d",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q3": {
    "expectation": "The claims file has the six claims headings in their order",
    "sha256": "d4d65158c2b1ffef8e1a7f96808f5747785f11bc898fcaee3d89e537f045f21a",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q4": {
    "expectation": "The Request section quotes the story line by line",
    "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q5": {
    "expectation": "The claims carry the story's own words, not a rewording",
    "sha256": "30b6326d57abce2e312d27bb63746e8d666cf9b6b12aab6a8beee643a9f2c76d",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q6": {
    "expectation": "No claims section is left empty",
    "sha256": "3dea50d4b1daaed8c654bf76d7df65147be4355ca8f289cd406f18735c2bc79a",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q7": {
    "expectation": "The claims state results without hedging words",
    "sha256": "3990023ad36dc24b7fd02559b1b8fbc3b490d9b4a1ac8695ad3a5e90f8209405",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q8": {
    "expectation": "Every file listed under Files changed has its true line count",
    "sha256": "2c2f3d42622f6d88f6965b8dacd0236690907bc548ac91864354e1830709b24e",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q9": {
    "expectation": "Every file and line the claims cite exists",
    "sha256": "bde751e9ccbfadf132276f80351ae45c6b5cae30bdd8ddccdfc8780e3be7dec4",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q10": {
    "expectation": "The project's tests are run, and pass",
    "sha256": "fa836ff0658b3e0b5160c0879acbd1ea55164f8b48140e07d78c488c1bceb7e1",
    "answer": "yes",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q11": {
    "expectation": "AC-1, AC-2 and AC-3 are each claimed as met",
    "sha256": "478bee5ac17d2d6a7f629373d0fbb6d450b740038be89a2cb915d3dca56d59f0",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q12": {
    "expectation": "Each criterion has its own entry, with one status, the code line that does it and the test that proves it",
    "sha256": "e6c02498f2bfb81a8acce1e5bb8f43f244cc0033f5d9200e283fb1d7c5d9d45e",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q13": {
    "expectation": "The claims quote the result of the run of the tests: four tests, all passing",
    "sha256": "0c8445164fe76ddbaac0afafacfbbac75b524af25e11d1ba71f328a17ac22c9c",
    "answer": "yes",
-   "by": "fable"
+   "by": "judge-a"
   },
   "q14": {
    "expectation": "Files changed lists src/discount.py and tests/test_discount.py",
    "sha256": "1a8923483c5b2be50dd6ab071c2b52fa50a43e51739232002374529e908c29b2",
    "answer": "no",
-   "by": "fable"
+   "by": "judge-a"
   }
  }
 }

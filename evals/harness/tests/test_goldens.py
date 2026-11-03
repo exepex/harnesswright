@@ -26,7 +26,7 @@ DRIFT = {"own files": {"task": [], "trigger": []}}
 
 def settled(answers=("yes", "no"), expectations=EXPECT):
     return {f"q{n}": {"expectation": item["text"], "sha256": goldens.fingerprint(item), "answer": answer,
-                      "by": "fable"} for n, (item, answer) in enumerate(zip(expectations, answers), start=1)}
+                      "by": "judge-a"} for n, (item, answer) in enumerate(zip(expectations, answers), start=1)}
 
 
 GOLDEN = {"changes": {"notes.txt": "Buy milk.\n", "README.md": None}, "log": LOG, "settled": settled()}
