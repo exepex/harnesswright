@@ -6,7 +6,31 @@
   ],
   "expectations": [
     {
-      "text": "The claims are written to claims/S01.md in the story's run folder, and no other project file changes",
+      "text": "The claims are written to claims/S01.md in the story's run folder",
+      "source": "format",
+      "check": {
+        "name": "file_state",
+        "args": {
+          "path": ".harness/runs/2026-10-30-bulk-discount/claims/S01.md",
+          "state": "changed"
+        }
+      },
+      "judged": {
+        "question": "Did the run write its claims as a file, claims/S01.md, in the story's run folder?",
+        "pass": "Yes when that file is there after the run and the run wrote it.",
+        "fail": "No when the claims are only in the final answer, or in a file anywhere else.",
+        "examples": {
+          "pass": [
+            "A new claims/S01.md next to the story."
+          ],
+          "fail": [
+            "The claims in CLAIMS.md at the root, or only in the final message."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Writing the claims changes no other project file",
       "source": "format",
       "check": {
         "name": "changes_only_in",
@@ -19,15 +43,15 @@
         }
       },
       "judged": {
-        "question": "Did the run write its claims to claims/S01.md in the story's run folder, and leave every other file as it was?",
-        "pass": "Yes when that one file is new and nothing else in the project was edited or added.",
-        "fail": "No when the claims are elsewhere, missing, or any source, docs or config file changed.",
+        "question": "Did the run leave every project file but the claims file as it was?",
+        "pass": "Yes when nothing in the project was edited, added or removed except the claims file and the caches that running the tests makes.",
+        "fail": "No when any source, test, docs or config file changed or was added.",
         "examples": {
           "pass": [
-            "A new claims/S01.md next to the story, with the code and docs untouched."
+            "The code, tests and docs are as they were; only the claims file is new."
           ],
           "fail": [
-            "The claims in CLAIMS.md at the root, or an edit to the code while writing them."
+            "src/discount.py was edited while writing the claims."
           ]
         }
       }
@@ -60,6 +84,23 @@
           ],
           "fail": [
             "Headings Summary, Criteria and Evidence instead."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The Request section quotes the story line by line",
+      "source": "format",
+      "judged": {
+        "question": "Does the Request section quote the story's own words, each line starting with >?",
+        "pass": "Yes when the story's text appears there as a quote, not reworded.",
+        "fail": "No when the section is empty, reworded, summarised or not quoted with >.",
+        "examples": {
+          "pass": [
+            "Request holds the story's request and criteria, each line starting with >."
+          ],
+          "fail": [
+            "Request says: add a discount for big orders."
           ]
         }
       }
@@ -117,7 +158,7 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "unittest|pytest",
+          "pattern": "(^\\s*|(&&|;|\\|)\\s+)(python3?(\\.\\d+)?\\s+-m\\s+(unittest|pytest)|pytest)\\b",
           "ran": true
         }
       },
@@ -136,21 +177,38 @@
       }
     },
     {
-      "text": "AC-1, AC-2 and AC-3 are each met, with the code line and the test that prove it",
+      "text": "AC-1, AC-2 and AC-3 are each claimed as met",
       "source": {
         "contract": {
           "path": ".harness/runs/2026-10-30-bulk-discount/stories/S01.md",
           "line": 19,
-          "quote": "AC-1: An order whose subtotal is 100.00 or more is discounted by 10%"
+          "quote": "AC-1: An order whose subtotal is 100.00 or more is discounted by 10%; below 100.00 there is no discount. AC-2: Pricing a line with a negative quantity raises ValueError. AC-3: The total is rounded to two decimal places."
         }
       },
       "judged": {
-        "question": "Does each of AC-1, AC-2 and AC-3 have status met, a path:line in src/discount.py and a test named by its function name?",
-        "pass": "Yes when all three have the status met, a cited code line and a named passing test.",
-        "fail": "No when one is missing, has another status, or cites no code line or no test.",
+        "question": "Do the claims give each of AC-1, AC-2 and AC-3 the status met?",
+        "pass": "Yes when all three criteria appear, each with the status met.",
+        "fail": "No when one is missing or has another status, since the code and tests meet all three.",
         "examples": {
           "pass": [
-            "AC-2 is met, cites the quantity check in src/discount.py and names test_negative_quantity_is_rejected."
+            "AC-1 met, AC-2 met, AC-3 met."
+          ],
+          "fail": [
+            "AC-3 not verified, or AC-2 left out."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Each criterion cites the code line that does it and names the test that proves it",
+      "source": "format",
+      "judged": {
+        "question": "Does each criterion's entry cite a path:line in src/discount.py and name a test by its function name?",
+        "pass": "Yes when every entry has both a cited code line and a named test.",
+        "fail": "No when any entry lacks a cited code line or a named test.",
+        "examples": {
+          "pass": [
+            "AC-2 cites the quantity check in src/discount.py and names test_negative_quantity_is_rejected."
           ],
           "fail": [
             "AC-3 says only that rounding is done, with no line and no test."
