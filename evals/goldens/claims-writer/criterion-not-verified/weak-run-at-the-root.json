@@ -15,6 +15,11 @@
    "path": "limiter/limiter.go"
   },
   {
+   "kind": "read",
+   "source": "observed",
+   "path": "limiter/limiter_test.go"
+  },
+  {
    "kind": "command",
    "source": "observed",
    "command": "grep -n \"go test\" README.md",
