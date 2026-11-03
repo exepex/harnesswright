@@ -6,7 +6,7 @@ read its folder and write nothing the harness reads, so a grader sees one page a
 message, which is its answer sheet. The sheet is accepted only when `grading.check` finds no problem with it.
 
 - `grade(adapter, page, asked)`: one page graded, with one more try when the host fails or the sheet is refused
-  (`TRIES`). It returns the accepted sheet, or None with why, so the run is `ungraded`. `grade` alone chooses where
+  (`TRIES`). It returns the accepted sheet, or None with why, so that grader is ungraded. `grade` alone chooses where
   a grader's folder is, since a grader starts in it and sees its whole path: a new folder of random name in the
   operator's temp folder (`place`), the same for every page of a round, so the path tells no run, arm or golden
   from another. The folder is removed after the try, once everything the run made outside it has passed
@@ -14,6 +14,12 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   credential and a canary stops the round.
 - `sheet(message)`: the grading file in a final message: the message is one JSON object, alone or as the one
   fenced block it holds, and nothing else. A line break inside a string is read as it stands.
+- `panel(page, asked, graders, tiebreak)`: one page's answers from a panel of graders, by one rule: a question's
+  answer is the one two graders gave. Two graders grade the page, on two different hosts when both are available
+  (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
+  (`tiebreak`). A question that has no two answers the same, as when a grader was ungraded, is unanswered, so the
+  run stays ungraded on it: one grader never decides a question alone. Agreement of the two graders is reported,
+  never used as a gate.
 - `blind(pages, seed)`: the order graders get the pages of a round, the runs of both arms and the goldens together,
   mixed by a seed the round records. Each page gets an opaque id, the hash of its text, so no name of a run, an
   arm or a golden reaches a grader.
@@ -111,6 +117,37 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, **containm
             return Graded(found, tries, logs)
         tries.append(clean.text("; ".join(problems), "grader/problems"))
     return Graded(None, tries, logs)
+
+
+class Panel:
+    """One page's grading by a panel: `answers` ({id: "yes" or "no"}) for the questions two graders answered the
+    same; `unanswered`, the ids of the rest, in order; `agreed`, how many questions the two graders answered the same,
+    of `asked`; and `graded`, each grader's `Graded`, the tie-breaker last when it ran."""
+
+    def __init__(self, answers, unanswered, agreed, asked, graded):
+        self.answers, self.unanswered, self.agreed, self.asked, self.graded = answers, unanswered, agreed, asked, graded
+
+
+def panel(page, asked, graders, tiebreak):
+    """Grade `page` on the questions `asked` with the two `graders` and, for the questions they answered two ways,
+    the `tiebreak` grader. Each grader is a function of (page, questions) that gives a `Graded`, such as `grade`
+    bound to one host; each call is a fresh grader."""
+    if len(graders) != 2:
+        raise ValueError("a panel has two graders, and a tie-breaker")
+    graded = [grade_one(page, asked) for grade_one in graders]
+    votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
+    same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
+    disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways
+    if disputed:
+        graded.append(tiebreak(page, disputed))
+        for question in disputed:
+            if graded[-1].answers:
+                votes[question["id"]].append(graded[-1].answers[question["id"]])
+    answers = {}
+    for id_, given in votes.items():
+        answers.update({id_: answer for answer in grading.ANSWERS if given.count(answer) >= 2})
+    unanswered = [question["id"] for question in asked if question["id"] not in answers]
+    return Panel(answers, unanswered, len(same), len(asked), graded)
 
 
 def blind(pages, seed):

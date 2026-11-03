@@ -56,6 +56,52 @@ class Blind(unittest.TestCase):
             self.assertNotIn(id_, name)
 
 
+def sheet_of(**answers):
+    """A grader that gives these answers, or no sheet when none are given, and records the questions it was asked."""
+    def grade_one(page, asked):
+        grade_one.asked.append([question["id"] for question in asked])
+        if not answers:
+            return grader.Graded(None, ["the host failed: x"], [[]])
+        return grader.Graded({"answers": [{"id": q["id"], "answer": answers[q["id"]], "evidence": "Done."}
+                                          for q in asked]}, [], [[]])
+    grade_one.asked = []
+    return grade_one
+
+
+class Panel(unittest.TestCase):
+    THREE = [{"id": f"q{n}", **JUDGED} for n in (1, 2, 3)]
+
+    def test_a_question_two_graders_answer_the_same_needs_no_tie_breaker(self):
+        tiebreak = sheet_of(q1="no", q2="no", q3="no")
+        found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="no", q3="yes")] * 2, tiebreak)
+        self.assertEqual((found.answers, found.unanswered, found.agreed, found.asked),
+                         ({"q1": "yes", "q2": "no", "q3": "yes"}, [], 3, 3))
+        self.assertEqual((tiebreak.asked, len(found.graded)), ([], 2))
+
+    def test_a_split_question_alone_goes_to_the_tie_breaker_and_the_majority_answers_it(self):
+        tiebreak = sheet_of(q2="no", q3="yes")
+        found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="yes", q3="no"),
+                                                sheet_of(q1="yes", q2="no", q3="yes")], tiebreak)
+        self.assertEqual(tiebreak.asked, [["q2", "q3"]])
+        self.assertEqual((found.answers, found.unanswered, found.agreed), ({"q1": "yes", "q2": "no", "q3": "yes"},
+                                                                           [], 1))
+        self.assertEqual([g.answers for g in found.graded][2], {"q2": "no", "q3": "yes"})  # the tie-breaker is last
+
+    def test_an_ungraded_grader_leaves_the_run_ungraded_so_no_host_grades_it_alone(self):
+        for graders in ([sheet_of(), sheet_of(q1="yes", q2="yes", q3="no")], [sheet_of(), sheet_of()]):
+            tiebreak = sheet_of(q1="yes", q2="yes", q3="no")
+            found = grader.panel(PAGE, self.THREE, graders, tiebreak)
+            self.assertEqual((found.answers, found.unanswered, found.agreed), ({}, ["q1", "q2", "q3"], 0))
+            self.assertEqual((tiebreak.asked, len(found.graded)), ([], 2))
+
+    def test_a_tie_breaker_that_is_ungraded_leaves_its_questions_unanswered(self):
+        found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="no", q3="no"), sheet_of(q1="no", q2="yes",
+                                                q3="yes")], sheet_of())  # the tie-breaker is ungraded
+        self.assertEqual((found.answers, found.unanswered), ({}, ["q1", "q2", "q3"]))
+        with self.assertRaisesRegex(ValueError, "two graders"):
+            grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="yes", q3="yes")], sheet_of())
+
+
 class Folder(TempCase):
     def test_a_grader_folder_holds_only_the_page_and_the_questions_and_names_no_run(self):
         made, world = grader.folder(PAGE, ASKED)
