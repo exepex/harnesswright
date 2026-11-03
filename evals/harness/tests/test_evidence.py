@@ -147,7 +147,7 @@ class Bundles(TempCase):
             with self.subTest(folder=folder.name), mock.patch.object(Path, "read_bytes", side_effect=patch) \
                     if patch else contextlib.nullcontext():
                 with self.assertRaisesRegex(evidence.EvidenceError, "cannot scan home/") as caught:
-                    evidence._scan(folder, "home", clean)
+                    evidence.scan(folder, "home", clean)
                 self.assertNotIn(SECRET, str(caught.exception))
                 self.assertTrue(caught.exception.__suppress_context__)
 

@@ -34,6 +34,8 @@ allowed connections.
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
 | `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
+| `grading.py` | What goes to graders, the one page a grader reads, and the check of an answer sheet |
+| `grader.py` | One sealed grader run of one page, and the blind order of a round's pages |
 
 ## Commands
 
@@ -308,6 +310,23 @@ a command is shown as the command the agent ran, without output or exit code, si
 worlds. Text: in every text the view shows, each line that names the skill or its paths is removed (the index row
 with it, however edited or copied), and the run's folders become neutral words. The diff is the diff of the view's
 own entries. A run's folders must never name its arm.
+
+## Grading
+
+A grader answers only what no check decided, from the grader view only, and every answer is checked against that
+view. `grading.questions` sends an expectation to the graders when it has no check or its check gave `undecidable`,
+so a grader never overrules a check. `grading.page` writes the one page a grader reads from `view.view`: the final
+message, the actions with each field as the agent wrote it, the changes and the files. A grader is a trigger run
+(`grader.grade`) of a folder that holds only that page and the questions, with the grader prompt
+`evals/grading/prompt.md`: it can read the folder and write nothing the harness reads. A grader starts in its folder
+and sees its whole path, so `grade` alone chooses it: a new folder of random name in the operator's temp folder, the
+same for every page, removed after the run once all it made outside the folder has passed `evidence.reported`, the
+one way every run's output is scrubbed and checked for canaries. Its final message is its answer sheet, one JSON
+object, alone or in one fenced block. `grading.check` accepts the sheet only when every question is answered once
+with `yes` or `no` and each quote is on the page word for word, with runs of white space read as one space. A host
+failure or a refused sheet gets one more try (`grader.TRIES`); then the run is `ungraded`. `grader.blind` gives the
+pages of a round, both arms and the goldens, in an order mixed by a recorded seed, each with an opaque id, the hash
+of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
 
 ## Script checks
 

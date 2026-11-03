@@ -78,8 +78,6 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     `scrub.Leak` when a canary token reached the run's output, which voids it, and `EvidenceError` when the world
     cannot be read. A command's output is kept whole."""
     scrub = scrubs.Scrub.of_run(contained, overlay)
-    for label, folder in (("home", contained.home), ("scratch", contained.scratch)):
-        _scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too
     try:
         after = manifest.manifest(contained.world, skip=SKIP, other=True)  # a pipe the agent made is part of it
     except manifest.Unreadable as error:
@@ -100,17 +98,12 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     for path, change in changes.items():
         if change["after"] is not None:
             change["after"] = stored[path]  # the before entry is the arm's own, as the proof recorded it
+    ran, texts = reported(contained, result, scrub, "bundle")
     transcript = {}
-    for name, text in (("stdout", result.stdout), ("stderr", result.stderr)):
-        data = scrub.text(text, f"the host's {name}", neutral=True).encode(errors="surrogateescape")
+    for name, text in texts.items():
+        data = text.encode(errors="surrogateescape")
         transcript[name] = hashlib.sha256(data).hexdigest()
         blobs[transcript[name]] = data
-    messages = [item["text"] for item in result.log if item["kind"] == "message"]
-    ran = scrub.value({"failure": result.failure, "exposure": result.exposure,  # what the run reported
-                       "final_message": messages[-1] if messages else None, "requests": result.requests}, "bundle")
-    ran["log"] = [{name: value if name in host.FIXED and host.FIXED[name](value)  # a value the harness chose
-                   else scrub.value(value, f"bundle/log/{number}/{name}") for name, value in item.items()}
-                  for number, item in enumerate(result.log)]
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
               "own_files": own, "folders": scrubs.folders(contained),
@@ -121,7 +114,27 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     return record, blobs
 
 
-def _scan(folder, label, scrub):
+def reported(contained, result, scrub, where="bundle"):
+    """Everything a run made outside its world, by one rule: all of it passes `scrub`, the run's scrub
+    (`scrub.Scrub.of_run`), made after the run and while its folders are there, so a credential the host refreshed is
+    known. The folders the host kept for itself (home, scratch) are scanned for canaries; the transcript, the action
+    log and every field of `result` (`host.run`) are scrubbed. Every run, task or grader, goes through here. Return
+    the run's fields as a record keeps them ({"failure", "exposure", "final_message", "requests", "log"}) and the
+    transcript texts ({"stdout", "stderr"}). Raise `scrub.Leak` when a canary reached any of it: the run is void."""
+    for label, folder in (("home", contained.home), ("scratch", contained.scratch)):
+        scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too
+    texts = {name: scrub.text(text, f"the host's {name}", neutral=True)
+             for name, text in (("stdout", result.stdout), ("stderr", result.stderr))}
+    messages = [item["text"] for item in result.log if item["kind"] == "message"]
+    ran = scrub.value({"failure": result.failure, "exposure": result.exposure,  # what the run reported
+                       "final_message": messages[-1] if messages else None, "requests": result.requests}, where)
+    ran["log"] = [{name: value if name in host.FIXED and host.FIXED[name](value)  # a value the harness chose
+                   else scrub.value(value, f"{where}/log/{number}/{name}") for name, value in item.items()}
+                  for number, item in enumerate(result.log)]
+    return ran, texts
+
+
+def scan(folder, label, scrub):
     if folder is None:
         return
     def unread(error):  # what the scan cannot read could hold anything, so the run's evidence is refused
