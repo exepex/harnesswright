@@ -12,7 +12,7 @@ from helpers import JUDGED, TempCase
 import contain
 import grader
 import manifest
-from test_host import FAKE, fake_adapter
+from test_host import FAKE, changed, fake_adapter
 
 JAIL = contain.available()
 ASKED = [{"id": "q1", **JUDGED}, {"id": "q2", **JUDGED}]
@@ -59,7 +59,7 @@ class Folder(TempCase):
     def test_a_grader_folder_holds_only_the_page_and_the_questions_and_names_no_run(self):
         made, world = grader.folder(PAGE, ASKED)
         self.addCleanup(shutil.rmtree, made, True)
-        self.assertEqual((made.parent, world), (grader.PLACE, made / "page"))
+        self.assertEqual((made.parent, world), (grader.place(), made / "page"))
         self.assertEqual(sorted(manifest.manifest(world)), [grader.PAGE, grader.QUESTIONS])
         self.assertEqual((world / grader.PAGE).read_text(), PAGE)
         self.assertEqual(json.loads((world / grader.QUESTIONS).read_text()), ASKED)
@@ -74,7 +74,7 @@ class Folder(TempCase):
 class FakeGrader(TempCase):
     """The fake host grades in a real jail: its actions stand in for what a model would do."""
 
-    def grade(self, actions, keep=False):
+    def grade(self, actions, keep=False, adapter=None, env=None):
         """The grading of the fake host's `actions`, and the grader folders it made, which are removed after each
         try unless `keep` (then the test removes them)."""
         tool = self.tmp / "tool"
@@ -88,8 +88,8 @@ class FakeGrader(TempCase):
             return made[-1], made[-1] / "page"
         kept = types.SimpleNamespace(rmtree=lambda *args, **kwargs: None) if keep else grader.shutil
         with mock.patch.object(grader, "folder", recorded), mock.patch.object(grader, "shutil", kept):
-            graded = grader.grade(fake_adapter(), PAGE, ASKED, timeout=120, prompt=json.dumps(actions),
-                                  operator_env={"PATH": f"{tool}:/usr/bin:/bin"},
+            graded = grader.grade(adapter or fake_adapter(), PAGE, ASKED, timeout=120, prompt=json.dumps(actions),
+                                  operator_env={"PATH": f"{tool}:/usr/bin:/bin", **(env or {})},
                                   operator_home=self.tmp / "operator", host_paths=[tool])
         return graded, made
 
@@ -122,3 +122,13 @@ class FakeGrader(TempCase):
         graded, _ = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])
         self.assertIsNone(graded.answers)
         self.assertEqual(graded.tries, ["the final message is not one JSON object"] * grader.TRIES)
+
+    def test_what_a_grader_prints_or_says_keeps_no_credential(self):
+        key = "fake-key-0123456789abcdef"
+        signed = changed(fake_adapter(), ENV_KEYS=("FAKE_API_KEY",))
+        bad = {"answers": [{"id": key, "answer": "yes", "evidence": "Done."}]}
+        graded, _ = self.grade([{"do": "command", "command": "echo $FAKE_API_KEY"},
+                                {"do": "say", "text": json.dumps(bad)}], adapter=signed, env={"FAKE_API_KEY": key})
+        self.assertIsNone(graded.answers)
+        self.assertEqual(graded.logs[0][0]["output"], "[redacted]\n")
+        self.assertNotIn(key, json.dumps([graded.logs, graded.tries]))

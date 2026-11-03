@@ -108,9 +108,7 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     messages = [item["text"] for item in result.log if item["kind"] == "message"]
     ran = scrub.value({"failure": result.failure, "exposure": result.exposure,  # what the run reported
                        "final_message": messages[-1] if messages else None, "requests": result.requests}, "bundle")
-    ran["log"] = [{name: value if name in host.FIXED and host.FIXED[name](value)  # a value the harness chose
-                   else scrub.value(value, f"bundle/log/{number}/{name}") for name, value in item.items()}
-                  for number, item in enumerate(result.log)]
+    ran["log"] = scrubbed_log(scrub, result.log, "bundle/log")
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
               "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
               "own_files": own, "folders": scrubs.folders(contained),
@@ -119,6 +117,13 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     for item in record["requests"]:
         item["request"] = item["request"][:REQUEST_LIMIT]
     return record, blobs
+
+
+def scrubbed_log(scrub, log, where):
+    """An action log as a record may keep it: each value through `scrub`, but a value the harness chose."""
+    return [{name: value if name in host.FIXED and host.FIXED[name](value)
+             else scrub.value(value, f"{where}/{number}/{name}") for name, value in item.items()}
+            for number, item in enumerate(log)]
 
 
 def _scan(folder, label, scrub):

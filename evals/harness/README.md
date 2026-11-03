@@ -319,10 +319,11 @@ so a grader never overrules a check. `grading.page` writes the one page a grader
 message, the actions with each field as the agent wrote it, the changes and the files. A grader is a trigger run
 (`grader.grade`) of a folder that holds only that page and the questions, with the grader prompt
 `evals/grading/prompt.md`: it can read the folder and write nothing the harness reads. A grader starts in its folder
-and sees its whole path, so `grade` alone chooses it: a new folder of random name in `/tmp`, removed after the run. Its final message is its
-answer sheet, one JSON object, alone or in one fenced block. `grading.check` accepts the sheet only when every
-question is answered once with `yes` or `no` and each quote is on the page word for word, with runs of white space
-read as one space. A host failure or a refused sheet gets one more try (`grader.TRIES`); then the run is `ungraded`.
+and sees its whole path, so `grade` alone chooses it: a new folder of random name in the operator's temp folder, the
+same for every page, removed after the run once its log has passed the run's scrub. Its final message is its answer
+sheet, one JSON object, alone or in one fenced block. `grading.check` accepts the sheet only when every question is
+answered once with `yes` or `no` and each quote is on the page word for word, with runs of white space read as one
+space. A host failure or a refused sheet gets one more try (`grader.TRIES`); then the run is `ungraded`.
 `grader.blind` gives the pages of a round, both arms and the goldens, in an order mixed by a recorded seed, each
 with an opaque id, the hash of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
 
