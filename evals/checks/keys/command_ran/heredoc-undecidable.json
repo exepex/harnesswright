@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "go test\\b", "ran": true},
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "cat > t.sh <<'END'\ngo test ./...\nEND",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

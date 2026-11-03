@@ -5,7 +5,7 @@
     {
       "kind": "command",
       "source": "observed",
-      "command": "GOFLAGS=-mod=mod go test ./...",
+      "command": "GOFLAGS=\"-mod=mod -count=1\" go test ./...",
       "exit_code": 0,
       "output": ""
     }

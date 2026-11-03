@@ -3,11 +3,12 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
 
 - `command_ran`: a program matching the regular expression `pattern` ran (`ran` true), or was never run nor tried
   (`ran` false). The pattern is matched where a program starts (`programs`): at the start of the command, after an
-  operator outside quotes (`&&`, `||`, `;`, `|`, a line break), after any `NAME=value` words, and the same way
-  inside the script of a shell's `-c` flag (`bash -lc 'go test ./...'`). So a program's quoted argument, such as the
-  words a search looks for (`grep -c 'go test' README.md`), never counts. A command that holds a match anywhere
-  else, such as after a wrapper (`timeout 60 go test`), may or may not have run it, so when only such commands
-  match, it is `undecidable`. An action the host or the jail refused that matches the pattern anywhere is a try.
+  operator outside quotes (`&&`, `||`, `;`, `|`), after any `NAME=value` words, and the same way inside the script
+  of a shell's `-c` flag (`bash -lc 'go test ./...'`). A command with a line break is read only from its start, since
+  a later line may be a heredoc's text. So a program's quoted argument, such as the words a search looks for
+  (`grep -c 'go test' README.md`), never counts. A command that holds a match anywhere else, such as after a wrapper
+  (`timeout 60 go test`), may or may not have run it, so when only such commands match, it is `undecidable`. An
+  action the host or the jail refused that matches the pattern anywhere is a try.
   With `exit_code`, a command that counts must also have ended with that code, and it must be one whose code is
   known to be its own (`ALONE`): one program with its arguments, each a plain word, a simple quoted string of a
   plain word's characters and blanks, or a redirect such as `2>&1`; or, for exit code 0 only, such programs joined
@@ -42,15 +43,15 @@ def is_pattern(value):
 
 # Where a program starts: after an operator outside quotes, then after any NAME=value words. A shell's -c script is
 # a command of its own.
-OPERATOR = re.compile(r"&&|\|\||[;|\n]")
-ASSIGNMENT = re.compile(r"(?:[A-Za-z_][A-Za-z0-9_]*=\S*[ \t]+)*")
+OPERATOR = re.compile(r"&&|\|\||[;|]")
+ASSIGNMENT = re.compile(r"""(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|[^\s'"])*[ \t]+)*""")
 SHELL_SCRIPT = re.compile(r"(?:\S*/)?(?:bash|sh|zsh|dash)[ \t]+-[A-Za-z]*c[ \t]+('[^']*'|\"[^\"]*\")")
 
 
 def programs(command):
     """The text from each place a program starts in `command` to its end."""
     starts, quote, i = [0], None, 0
-    while i < len(command):
+    while "\n" not in command and i < len(command):  # a line break may begin a heredoc, so only the start counts
         char = command[i]
         if quote:
             quote = None if char == quote else quote
