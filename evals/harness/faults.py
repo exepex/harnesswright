@@ -362,9 +362,11 @@ def tells(setup, fault, rng, place):
 
 
 def plants():
-    """Every plant, by id: this module's and the host faults' (`host_faults.py`, which uses this module)."""
+    """Every plant, by id: this module's, the host faults' (`host_faults.py`) and the grading faults'
+    (`grading_faults.py`), which use this module."""
+    import grading_faults
     import host_faults
-    return {**PLANTS, **host_faults.PLANTS}
+    return {**PLANTS, **host_faults.PLANTS, **grading_faults.PLANTS}
 
 
 SPOTS = ("file", "existing", "prompt")

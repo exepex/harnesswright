@@ -5,8 +5,8 @@ known to be risky. Each rule is applied the same way in both arms, so the same r
 
 - **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
   copies of the skill, and the folders above them while they only hold them) and outside the host's own files.
-- **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path or command
-  names the skill or one of its paths (`on_overlay`). No without-skill run can act on the skill.
+- **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path, command or
+  refused action names the skill or one of its paths (`on_overlay`). No without-skill run can act on the skill.
 - **What the agent did, not what the world showed it.** A command is shown by what the agent ran
   (`COMMAND_FIELDS`), never by its output or exit code: the arms are different worlds, so what a world prints back
   (a listing, a line count, a commit's size) tells the arm, however it is filtered. Doc 11 gives graders the command
@@ -36,7 +36,7 @@ import scrub
 import world
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
-ACTION_FIELDS = ("path", "command")  # the fields that say what an action acts on
+ACTION_FIELDS = ("path", "command", "action")  # the fields that say what an action acts on
 COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command: what the agent ran
 
 
@@ -104,8 +104,8 @@ def view(record, blob):
 
 
 def on_overlay(item, words):
-    """Whether a log entry's action is on the overlay: a skill load, or a path or command that names it
-    (`world.names`)."""
+    """Whether a log entry's action is on the overlay: a skill load, or a path, command or refused
+    action that names it (`world.names`)."""
     return item["kind"] == "skill" or any(words.search(item.get(name, "")) for name in ACTION_FIELDS)
 
 
