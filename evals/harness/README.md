@@ -35,7 +35,7 @@ allowed connections.
 | `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
 | `grading.py` | What goes to graders, the one page a grader reads, and the check of an answer sheet |
-| `grader.py` | One sealed grader run of one page, and the blind order of a round's pages |
+| `grader.py` | One sealed grader run of one page, the panel of graders for a page, and the blind order of a round's pages |
 
 ## Commands
 
@@ -327,6 +327,12 @@ with `yes` or `no` and each quote is on the page word for word, with runs of whi
 failure or a refused sheet gets one more try (`grader.TRIES`); then the run is `ungraded`. `grader.blind` gives the
 pages of a round, both arms and the goldens, in an order mixed by a recorded seed, each with an opaque id, the hash
 of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
+
+Each page is graded by a panel (`grader.panel`), by one rule: a question's answer is the one two graders gave. Two
+graders grade the page, on two different hosts when both are available. A question they did not both answer the same
+goes to one fresh grader on the reference host, Claude Code, but only when one of the two answered it, so the third
+can still make two. A question with no two answers the same stays unanswered. How many questions the two graders
+answered the same is reported, never used as a gate.
 
 ## Script checks
 
