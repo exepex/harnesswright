@@ -104,9 +104,8 @@ Sections: **Approach** (one paragraph) · **Design elements**, numbered `TD-1`, 
 criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Test data**: the data each test type needs, with its
 shape, volume and sensitive fields · **Decisions** (links to decision records) · **Risks**.
 
-The test writer builds the test data: fixtures for unit and integration tests, and generated data for performance
-tests, shaped like the traffic the person describes. Test data follows the standards area `ITEST`
-([03 · Standards](03-standards.md)).
+The test writer builds the test data. How it is built is set by the standards area `ITEST`
+([03 · Standards](03-standards.md)), not by this contract.
 
 The plan reviewer checks that the two match: every element serves at least one requirement, and every
 requirement is served by at least one element.
