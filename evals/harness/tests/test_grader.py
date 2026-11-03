@@ -12,6 +12,7 @@ from helpers import JUDGED, TempCase
 import contain
 import grader
 import manifest
+import scrub
 from test_host import FAKE, changed, fake_adapter
 
 JAIL = contain.available()
@@ -74,7 +75,7 @@ class Folder(TempCase):
 class FakeGrader(TempCase):
     """The fake host grades in a real jail: its actions stand in for what a model would do."""
 
-    def grade(self, actions, keep=False, adapter=None, env=None):
+    def grade(self, actions, keep=False, adapter=None, env=None, tokens=()):
         """The grading of the fake host's `actions`, and the grader folders it made, which are removed after each
         try unless `keep` (then the test removes them)."""
         tool = self.tmp / "tool"
@@ -90,7 +91,7 @@ class FakeGrader(TempCase):
         with mock.patch.object(grader, "folder", recorded), mock.patch.object(grader, "shutil", kept):
             graded = grader.grade(adapter or fake_adapter(), PAGE, ASKED, timeout=120, prompt=json.dumps(actions),
                                   operator_env={"PATH": f"{tool}:/usr/bin:/bin", **(env or {})},
-                                  operator_home=self.tmp / "operator", host_paths=[tool])
+                                  operator_home=self.tmp / "operator", host_paths=[tool], tokens=tokens)
         return graded, made
 
     def test_a_grader_reads_its_page_and_its_last_message_is_the_sheet(self):
@@ -132,3 +133,9 @@ class FakeGrader(TempCase):
         self.assertIsNone(graded.answers)
         self.assertEqual(graded.logs[0][0]["output"], "[redacted]\n")
         self.assertNotIn(key, json.dumps([graded.logs, graded.tries]))
+
+    def test_a_canary_a_grader_kept_in_its_home_stops_the_round(self):
+        token = "HWCANARY-0123456789abcdef"  # the command builds it, so only the home file holds it whole
+        with self.assertRaises(scrub.Leak):
+            self.grade([{"do": "command", "command": 'echo "HWCANARY-$(echo 0123456789abcdef)" > "$HOME/session"'},
+                        {"do": "say", "text": json.dumps(GOOD)}], tokens=[token])

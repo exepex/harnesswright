@@ -10,7 +10,8 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   a grader's folder is, since a grader starts in it and sees its whole path: a new folder of random name in the
   operator's temp folder (`place`), the same for every page of a round, so the path tells no run, arm or golden
   from another. The folder is removed after the try, once the run's log and reasons have passed its scrub
-  (`scrub.Scrub.of_run`), so what a grader printed keeps no credential and a canary in it stops the round.
+  (`scrub.Scrub.of_run`), so what a grader printed keeps no credential. Its home and its output are checked for
+  canaries as every run's are, and a canary stops the round.
 - `sheet(message)`: the grading file in a final message: the message is one JSON object, alone or as the one
   fenced block it holds, and nothing else. A line break inside a string is read as it stands.
 - `blind(pages, seed)`: the order graders get the pages of a round, the runs of both arms and the goldens together,
@@ -97,6 +98,9 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, **containm
                                             **containment)
             result = host.run(contained, text, skills=[], model=model, timeout=timeout)
             clean = scrubs.Scrub.of_run(contained)  # made while the home is there, so a refreshed credential counts
+            evidence.scan(contained.home, "home", clean)  # checked for canaries as every run is (evidence.collect)
+            for name, stream in (("stdout", result.stdout), ("stderr", result.stderr)):
+                clean.check(stream, f"the grader's {name}")
             log = evidence.scrubbed_log(clean, result.log, "grader/log")
         finally:
             shutil.rmtree(made, ignore_errors=True)

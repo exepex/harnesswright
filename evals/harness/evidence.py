@@ -79,7 +79,7 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
     cannot be read. A command's output is kept whole."""
     scrub = scrubs.Scrub.of_run(contained, overlay)
     for label, folder in (("home", contained.home), ("scratch", contained.scratch)):
-        _scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too
+        scan(folder, label, scrub)  # what the host kept for itself, such as a session file, is scanned too
     try:
         after = manifest.manifest(contained.world, skip=SKIP, other=True)  # a pipe the agent made is part of it
     except manifest.Unreadable as error:
@@ -126,7 +126,7 @@ def scrubbed_log(scrub, log, where):
             for number, item in enumerate(log)]
 
 
-def _scan(folder, label, scrub):
+def scan(folder, label, scrub):
     if folder is None:
         return
     def unread(error):  # what the scan cannot read could hold anything, so the run's evidence is refused
