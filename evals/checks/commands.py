@@ -8,6 +8,7 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
   quoted string or a redirect such as `2>&1`; or, for exit code 0 only, such programs joined by `&&`, which ends
   with 0 only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with the code of another
   program, so when only such commands match, or a matching command's code was not reported, it is `undecidable`.
+  A shell's `-c` script (`bash -lc '...'`) ends with the script's last code, so it must have that shape itself.
 """
 
 import re
@@ -20,6 +21,15 @@ TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
 CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
+# A shell given a script with -c ends with the script's own last code, so the script is held to the same shape.
+SHELL = re.compile(r"""(?:^|&&)[ \t]*(?:\S*/)?(?:ba|da|z)?sh[ \t]+-[A-Za-z]*c[ \t]+(?:'([^']*)'|"([^"$`\\]*)")""")
+
+
+def owned(command, chain):
+    """Whether `command` ends with its own program's code: ALONE, or CHAIN when `chain`, with each shell script too."""
+    if not (CHAIN if chain else ALONE).fullmatch(command):
+        return False
+    return all(owned(m.group(1) if m.group(1) is not None else m.group(2), chain) for m in SHELL.finditer(command))
 
 
 def is_pattern(value):
@@ -35,8 +45,7 @@ def command_ran(bundle, pattern, ran, exit_code=None):
     if exit_code is None:
         found, unsure = named, []
     else:
-        shape = CHAIN if exit_code == 0 else ALONE
-        alone = [e for e in named if shape.fullmatch(e["command"]) and e["exit_code"] is not None]
+        alone = [e for e in named if owned(e["command"], exit_code == 0) and e["exit_code"] is not None]
         found = [e for e in alone if e["exit_code"] == exit_code]
         unsure = [e for e in named if e not in alone]
     ended = "" if exit_code is None else f", ending with exit code {exit_code},"
