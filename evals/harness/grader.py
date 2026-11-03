@@ -6,7 +6,7 @@ read its folder and write nothing the harness reads, so a grader sees one page a
 message, which is its answer sheet. The sheet is accepted only when `grading.check` finds no problem with it.
 
 - `grade(adapter, page, asked)`: one page graded, with one more try when the host fails or the sheet is refused
-  (`TRIES`). It returns the accepted sheet, or None with why, so the run is `ungraded`. `grade` alone chooses where
+  (`TRIES`). It returns the accepted sheet, or None with why, so that grader is ungraded. `grade` alone chooses where
   a grader's folder is, since a grader starts in it and sees its whole path: a new folder of random name in the
   operator's temp folder (`place`), the same for every page of a round, so the path tells no run, arm or golden
   from another. The folder is removed after the try, once everything the run made outside it has passed
