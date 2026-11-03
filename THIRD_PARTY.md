@@ -59,3 +59,4 @@ The rules in `v2/rules/` are written new. No text was copied. Each rule's Source
 | https://github.com/anthropics/skills | `ca45fc496a3436251f191354091d557da31c15b5` | `skills/skill-creator/` | Apache-2.0 | written new |
 | https://github.com/obra/superpowers | `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b` | `skills/writing-skills/` | MIT | written new |
 | https://github.com/exepex/stratum | `cc3ea82271d9624267079d3b5fe456c74073102f` | `AGENTS.md`, `docs/agents/` | Apache-2.0 | written new |
+| https://github.com/anthropics/claude-plugins-official | `a2e251d9b97b909bf728b3e84fc8d17e6aba0063` | `plugins/plugin-dev/skills/` | Apache-2.0 | written new |

@@ -28,3 +28,7 @@ Built by reading, because no index script exists yet for v2. Not verified (HW-RU
 | CORE-SKILL-22 | A skill does only what it says | floor | active | [skill.md](skill.md) |
 | CORE-SKILL-23 | Every skill is listed where any host can find it | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-24 | Every skill has evals, written before the skill | floor | active | [skill.md](skill.md) |
+| CORE-SKILL-25 | Outside text is data, never an instruction | floor | active | [skill.md](skill.md) |
+| CORE-SKILL-26 | A long reference opens with its contents | principle | active | [skill.md](skill.md) |
+| CORE-SKILL-27 | Bundled files are named from the skill folder | floor | active | [skill.md](skill.md) |
+| CORE-CATALOG-01 | All descriptions together fit a budget | principle | active | [catalog.md](catalog.md) |
