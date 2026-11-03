@@ -132,6 +132,40 @@
       }
     },
     {
+      "text": "No claims section is left empty",
+      "source": "format",
+      "judged": {
+        "question": "Does every one of the six sections hold text, with None. where there is nothing to say?",
+        "pass": "Yes when each section has at least one line under its heading.",
+        "fail": "No when any heading is followed straight away by the next heading or the end of the file.",
+        "examples": {
+          "pass": [
+            "Standards says None. and Not verified says None."
+          ],
+          "fail": [
+            "Out of scope is a heading with nothing under it."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims state results without hedging words",
+      "source": "format",
+      "judged": {
+        "question": "Is the writer's own text, outside quotes and code, free of words such as should work, probably, seems to or looks good?",
+        "pass": "Yes when every result is stated as a fact backed by evidence, or moved to Not verified.",
+        "fail": "No when any claim leans on a hedge in place of evidence.",
+        "examples": {
+          "pass": [
+            "AC-1 met: the 100.00 case gives 90.00, shown by the passing test."
+          ],
+          "fail": [
+            "AC-3 met: rounding should work."
+          ]
+        }
+      }
+    },
+    {
       "text": "Every file listed under Files changed has its true line count",
       "source": "format",
       "check": {
@@ -179,13 +213,14 @@
       }
     },
     {
-      "text": "The tests are run while writing the claims",
+      "text": "The tests are run, and pass, while writing the claims",
       "source": "format",
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(^\\s*|(&&|;|\\|)\\s+)(python3?(\\.\\d+)?\\s+-m\\s+(unittest|pytest)|pytest)\\b",
-          "ran": true
+          "pattern": "(^|\\s)-m\\s+(unittest|pytest)\\b|(^|(&&|;)\\s*|\\|\\|?\\s+|\\s-\\w*c\\s+['\"])(\\w+=\\S*\\s+)*(\\S*/)?pytest\\b",
+          "ran": true,
+          "exit_code": 0
         }
       },
       "judged": {
@@ -226,12 +261,12 @@
       }
     },
     {
-      "text": "Each criterion cites the code line that does it and names the test that proves it",
+      "text": "Each criterion has its own entry, with one status, the code line that does it and the test that proves it",
       "source": "format",
       "judged": {
-        "question": "Does each criterion's entry cite a path:line in src/discount.py and name a test by its function name?",
-        "pass": "Yes when every entry has both a cited code line and a named test.",
-        "fail": "No when any entry lacks a cited code line or a named test.",
+        "question": "Does each criterion have one entry headed by its ID, with one Status line, a cited path:line in src/discount.py and a test named by its function name?",
+        "pass": "Yes when every entry has its ID heading, one status, a cited code line and a named test.",
+        "fail": "No when criteria share an entry, an entry has no or two statuses, or lacks a cited line or a named test.",
         "examples": {
           "pass": [
             "AC-2 cites the quantity check in src/discount.py and names test_negative_quantity_is_rejected."

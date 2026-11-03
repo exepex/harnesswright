@@ -14,8 +14,9 @@ for these tasks, not borrowed material:
 
 `cases/` holds the same tasks as cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)), each a
 `world/` copied from its project in `files/` and a `case.json` whose expectations name checks of `evals/checks/`:
-`all-criteria-met` (`py-discount`) so far. `files/`, `tasks.json` and `checks/` stay for the old runner until rounds
-replace it.
+`all-criteria-met` (`py-discount`) so far. Each case measures every rule that `claims_check.py check` enforces, by a
+check or a judged expectation, so a case never accepts claims the old check refused. `files/`, `tasks.json` and
+`checks/` stay for the old runner until rounds replace it.
 
 `checks/` holds the script checks. `claims_valid.py` runs the skill's own `claims_check.py check` on the claims
 file a run wrote. `code_unchanged.py` confirms that writing claims changed no project file and added none.
