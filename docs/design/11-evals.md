@@ -278,7 +278,9 @@ Every harness fault must be caught, or the round stops.
 | A host that cannot run commands, or the containment, host or key missing | The probe fails and the host is `not run` |
 | A file read through an unusual command, or a command that names a file without reading it | The entry is tagged inferred and no check decides on it |
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
-| A grading file missing an expectation | The schema check rejects it |
+| A grading file missing, repeating or misquoting an answer | The schema check rejects it |
+| Two graders that disagree, or one with no answer sheet | A fresh grader answers only the split questions; one grader never decides alone |
+| A view that names the arm or the skill | The page a grader reads names neither |
 
 Each fault is an entry of `evals/faults/harness.json`, planted where a seed chooses; its own gate runs unchanged,
 and only the one outcome the fault names counts as caught.

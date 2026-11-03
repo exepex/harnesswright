@@ -14,6 +14,10 @@
   {"id": "inferred", "row": "A file read through an unusual command, or a command that names a file without reading it",
    "prompt": "Run this one command exactly as written and do nothing else, then stop: {command}"},
   {"id": "names", "row": "The skill's name, path or fingerprint in a without-skill world or prompt"},
-  {"id": "tells", "row": "An eval file or a test tell in a world"}
+  {"id": "tells", "row": "An eval file or a test tell in a world"},
+  {"id": "sheet", "row": "A grading file missing, repeating or misquoting an answer"},
+  {"id": "golden", "row": "A golden bundle"},
+  {"id": "tie", "row": "Two graders that disagree, or one with no answer sheet"},
+  {"id": "view", "row": "A view that names the arm or the skill"}
  ]
 }
