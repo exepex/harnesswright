@@ -7,6 +7,7 @@ good skill says is area `SKILL` ([skill.md](skill.md)); the whole set of skills 
 ([catalog.md](catalog.md)).
 
 CORE-TEMPLATE-01 to 03 replace CORE-SKILL-06, CORE-SKILL-11 and CORE-SKILL-02, which a later change retires.
+CORE-TEMPLATE-04 carries the other half of CORE-SKILL-06: applying the run's resolved rules.
 
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule it carries over.
