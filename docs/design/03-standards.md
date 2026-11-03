@@ -234,4 +234,4 @@ cannot run, it does the same by reading, and marks the result "not verified".
 The result is the **resolved standards** file, written once at the start of each run to
 `.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind, the ID it changed and any waiver,
 plus a fingerprint (hash) of every file it read. It holds no rule text, so it is not a copy. Every role in the run
-reads this file, and each verdict records its fingerprint.
+reads this file, and each claim and verdict records the hash of this file.

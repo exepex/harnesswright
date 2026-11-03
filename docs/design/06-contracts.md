@@ -55,9 +55,12 @@ status: draft               # draft | approved | rejected
 ```
 
 Sections: **Goal** (one paragraph) · **In scope** · **Out of scope**, with reasons · **Acceptance criteria**,
-numbered `AC-1`, `AC-2`, …, each testable and each naming the test types it requires, from the process setting
-`test-types` · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency, throughput, memory, CPU,
-availability, each with a number or "not applicable") · **Risks**.
+numbered `AC-1`, `AC-2`, …, each testable · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency,
+throughput, memory, CPU, availability, each with a number or "not applicable") · **Risks**.
+
+**One rule for requirements.** Every acceptance criterion and every target with a number is a *requirement*. Each
+requirement names the test types it requires, from the process setting `test-types`. A target marked "not
+applicable" is not a requirement. Everything below that says "requirement" means both kinds.
 
 Performance and load tests are written against the non-functional targets. A functional plan without them cannot
 be approved for a T3 change.
@@ -78,8 +81,8 @@ status: draft               # draft | approved | rejected
 Sections: **Approach** (one paragraph) · **Design elements**, numbered `TD-1`, `TD-2`, …, each naming the
 criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Decisions** (links to decision records) · **Risks**.
 
-The plan reviewer checks that the two match: every element serves at least one criterion or target, and every
-target is served by at least one element.
+The plan reviewer checks that the two match: every element serves at least one requirement, and every
+requirement is served by at least one element.
 
 ## Story
 
@@ -89,7 +92,7 @@ id: S02
 plan: P-order-retry         # or "none" for a change with no plan
 depends-on: [S01]
 covers: [AC-1, AC-3, NFR-1, TD-2]   # the criteria, targets and design elements this story delivers
-tests: {AC-1: [unit], AC-3: [unit, integration], NFR-1: [performance]}   # required test types for each
+tests: {AC-1: [unit], AC-3: [unit, integration], NFR-1: [performance]}   # test types for each requirement
 waivers: []                 # story-scoped waivers: rule ID, reason, end date, approver
 ---
 ```
@@ -109,19 +112,19 @@ Where a story comes from depends on the tier. For T2 and T3 the story writer spl
 is no plan: triage writes a single story, with `plan: none`, straight from the request, and the story judge checks
 the change against that story's own acceptance criteria.
 
-A story is small enough to review in one sitting. The alignment judge checks that every criterion, target and
+A story is small enough to review in one sitting. The alignment judge checks that every requirement and
 design element is covered by at least one story, that each story's `tests` include every test type the plan
-requires for what it covers, and that no story does anything the plan or the design does not ask for.
+requires for each requirement it covers, and that no story does anything the plan or the design does not ask for.
 
 ## Claims
 
 Written by the implementer when a story is finished.
 
-Sections: **Request** (the story, quoted) · **Requirements**: for each acceptance criterion, what was done and the
-evidence (`file:line`, test name, command and output), and for each required test type the test that proves it ·
-**Standards**: the hash of `rules.md`, the rules applied, by ID, and each waiver used · **Out of scope**, with
-reasons · **Files changed**, each with its line count · **Not verified**: anything the implementer could not
-prove.
+Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
+done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
+proves it · **Standards**: the hash of `rules.md`, the rules applied, by ID, and each waiver used · **Out of
+scope**, with reasons · **Files changed**, each with its line count · **Not verified**: anything the implementer
+could not prove.
 
 ## Finding
 
@@ -167,7 +170,7 @@ blockers: []                # confirmed blockers; any entry forces fail
 ```
 
 Body: each claim, checked or refuted with evidence; then what must change for a pass. The story judge fails a
-criterion whose required test type has no test.
+requirement whose required test type has no test.
 
 A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
 valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
