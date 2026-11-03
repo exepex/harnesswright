@@ -40,7 +40,7 @@ A skill is production grade only when it has all of these:
 3. **Inputs:** what the skill needs, and what to do when an input is missing.
 4. **Steps:** numbered and specific, each one checkable.
 5. **Standards by ID:** the rules it applies are cited by rule ID, not repeated.
-6. **Verification:** how the agent proves it did the job: a command, a test, a check.
+6. **Verification:** how the agent proves it did the task: a command, a test, a check.
 7. **Failure handling:** what to do when a step fails, and when to stop and ask one clear question.
 8. **Output:** written in the matching contract from [06 · Contracts](06-contracts.md).
 9. **Examples:** at least one good and one bad example.

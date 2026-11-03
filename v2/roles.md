@@ -6,13 +6,14 @@ independence rules and each role's access are in [04 · Roles](../docs/design/04
 
 ## Format
 
-- Names are lowercase and match exactly as written here. Skill names equal their folder names.
-- A cell with several values separates them with a comma and a space, as Applies to does.
+- Names are lowercase and match exactly as written here. A skill's name follows CORE-TEMPLATE-03.
+- In the Jobs table, Roles and Skills in order separate values with a comma and a space, as Applies to does. Every
+  other cell holds one value or text. Only Never does may be empty. The Jobs table may have no rows.
 - `every role` in Applies to means every role in the Roles table. It is reserved and is never a row. It may stand
   beside role names in one Applies to.
 - Model class is `deep`, `standard`, `fast`, or two of them joined by ` or `.
-- Independent `yes` means the role runs as a fresh, separate agent that sees only the hand-over files, the change
-  and tool results.
+- Independent `yes`: the role runs under the independence rules of
+  [04 · Roles](../docs/design/04-roles.md#independence).
 
 ## Roles
 

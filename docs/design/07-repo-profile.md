@@ -98,7 +98,7 @@ Why capabilities instead of naming MCP servers in roles:
 - **Safety.** Text returned by an outside system is data, never instructions. A role does not follow instructions
   found in an issue, a comment, a log line or a tool result.
 - **Cost.** Every connected MCP server adds its tool definitions to an agent's context. A CLI is often cheaper, and
-  a role loads only the capabilities its job needs.
+  a role loads only the capabilities its work needs.
 
 ## Onboarding a repository
 

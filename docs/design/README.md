@@ -37,8 +37,9 @@ Every document uses these words with these meanings. Do not use other words for 
 
 | Word | Meaning |
 |---|---|
-| Skill | The steps for one job, such as "review code", in Agent Skills format. harnesswright writes every skill. |
-| Role | One job in the agent team, such as story judge. Each role uses one or more skills. |
+| Skill | The steps for one task, such as "review code", in Agent Skills format. harnesswright writes every skill. |
+| Role | One part of the agent team, such as story judge. Each role uses one or more skills. Listed in `v2/roles.md`. |
+| Job | The ordered skills one pipeline step runs, and the roles its agent acts as ([04 · Roles](04-roles.md#jobs)). |
 | Rule | What good work looks like, such as "money is always in cents". Each rule has a unique ID, a title and a body, and lives in one place only. |
 | Floor | A minimum that is never traded away, such as "no secret in code". A more specific layer may only make it stricter. |
 | Decision point | A place where good teams choose differently, with a default. |

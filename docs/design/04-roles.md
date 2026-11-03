@@ -1,8 +1,8 @@
 # 04 · Roles
 
-A role is one job in the engineering team. Each role is written once, in the core, and reads the resolved
-standards of the repository it works in. A role's instructions name the standards it applies by rule ID or area.
-They never repeat the rules.
+A role is one part of the agent team, such as story judge. Each role is written once, in the core, and reads the
+resolved standards of the repository it works in. A role's instructions name the standards it applies by rule ID or
+area. They never repeat the rules.
 
 ## Model classes
 
@@ -20,19 +20,17 @@ make the same mistake, so their agreement proves less.
 
 ## The roles
 
-[v2/roles.md](../../v2/roles.md) is the one list of roles. For each role it gives the purpose, what it produces,
-what it never does, its model class and whether it is independent. A rule's Applies to, a template's
-`metadata.roles` and a pipeline step name roles and jobs only from that file.
+[v2/roles.md](../../v2/roles.md) is the one list of roles, with each role's details. A rule's Applies to, a
+template's `metadata.roles` and a pipeline step name roles and jobs as that file requires.
 
 ## Jobs
 
-- A **job** is the ordered list of skills one pipeline step runs for one role. [v2/roles.md](../../v2/roles.md)
-  is the only list of jobs. A pipeline step names a job from it.
+- A **job** is the ordered list of skills one pipeline step runs, and the role or roles that step's agent acts
+  as. [v2/roles.md](../../v2/roles.md) is the only list of jobs. A pipeline step names a job from it.
 - Each job names exactly one skill whose areas are `rest`: every area of its roles, from any layer, that no other
   skill of the job lists. It is the skill that produces the job's main output. A one-skill job is `rest` by itself.
-- A skill belongs to one job. A skill with several roles sits in one job that names all of its roles.
-- A skill that more than one role's pipeline step would run is its own role with its own one-skill job, run as its
-  own pipeline step. Jobs never share a skill.
+- A skill belongs to one job, and its roles are that job's roles. A skill that two different pipeline steps would
+  run is its own role with its own one-skill job, run as its own pipeline step. Jobs never share a skill.
 - A job splits into several skills only where its work runs in steps.
 
 ## What every role must do
