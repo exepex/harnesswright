@@ -95,9 +95,9 @@ with the older rule it carries over.
 - **Good:** "1. Read `rules-text-claims-writer.md` beside `rules.md`, making it with the standards reader's command if
   it is missing. Apply every rule in it and in Rules above; where it replaces or waives a rule above, it wins." and a
   last step: "Quote the read-back block of the rules text in the claims."
-- **Bad:** A template whose first step is "Read the story", with no read of the rules text, or one that applies a
-  copied rule the rules text replaced.
-- **Eval:** a template with no rules-text step, and a run that applies a copied rule its rules text replaced, which
+- **Bad:** A template whose first step is "Read the story", with no read of the rules text, or one that reads the
+  rules text but never says it wins over a copied rule it replaces or waives.
+- **Eval:** a template with no rules-text step, and one whose rules-text step does not say the rules text wins, which
   the skill judge must flag.
 - **Source:**
   - own (CORE-SKILL-06)
