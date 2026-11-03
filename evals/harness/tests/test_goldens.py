@@ -2,6 +2,7 @@
 
 import json
 import os
+import types
 import unittest
 
 from helpers import JUDGED, TempCase, expect
@@ -71,14 +72,23 @@ class Goldens(TempCase):
         self.assertIn("Done.", page)
 
     def test_a_file_written_again_keeps_its_mode_and_a_change_a_run_could_not_make_is_refused(self):
-        record, _ = self.built({**GOLDEN, "changes": {"run.sh": "echo hi\n"}})
-        self.assertEqual(record["diff"], {})  # the same text written again is no change
+        record, blobs = self.built({**GOLDEN, "changes": {"run.sh": "echo hi\n", "notes.txt": "Café ☕\n"}})
+        self.assertEqual(blobs[record["files_after"]["notes.txt"].split(" ")[1]], "Café ☕\n".encode())
+        self.assertEqual(sorted(record["diff"]), ["notes.txt"])  # the same text written again is no change
         for number, changes in enumerate(({"src": None}, {"run.sh/x": "y"}, {"gone.txt": None}), start=1):
             with self.subTest(changes=changes), self.assertRaisesRegex(goldens.GoldenError, "not a file of the world"):
                 self.built({**GOLDEN, "changes": changes}, f"out{number}")
         loads = [{"kind": "skill", "source": "observed", "name": "haiku-writer"}]  # the skill under test is not there
         with self.assertRaisesRegex(goldens.GoldenError, "haiku-writer was loaded"):
             self.built({**GOLDEN, "log": loads}, "out-skill")
+
+    def test_a_trigger_golden_changes_nothing_as_a_trigger_run_cannot(self):
+        trigger = types.SimpleNamespace(kind="trigger", expectations=EXPECT, skill="haiku-writer", id="t")
+        self.write("g.json", GOLDEN)
+        with self.assertRaisesRegex(goldens.GoldenError, "read-only"):
+            goldens.load(trigger, self.folder)
+        self.write("g.json", {**GOLDEN, "changes": {}})
+        self.assertEqual([g.name for g in goldens.load(trigger, self.folder)], ["g"])
 
     def test_a_case_without_goldens_has_none(self):
         self.assertEqual(goldens.load(self.subject, self.tmp / "none"), [])

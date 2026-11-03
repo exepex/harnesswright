@@ -8,6 +8,7 @@ A golden is `evals/goldens/<skill>/<case>/<name>.json`, written by hand by a jud
 
 - `changes`: what the run did to the case's world, `{path: the file's new text, or null when the run removed the
   file}`. A path that is not a file of the world, or that runs through one, is refused when the golden is built.
+  A trigger case's golden has none, as a trigger run's world is read-only.
 - `log`: the run's actions, each an entry of `host.ENTRIES`, as a bundle's log holds them. Its last message, if it
   has one, is the final message, as in a run.
 - `settled`: one answer for each expectation of the case, by its question id (`q1` is the first expectation):
@@ -88,6 +89,8 @@ def check(path, case):
     if not isinstance(data["changes"], dict) or not all(
             cases.is_path(p) and (t is None or isinstance(t, str)) for p, t in data["changes"].items()):
         problems.append("changes: {path: text or null}, each path relative and inside the world")
+    elif case.kind == "trigger" and data["changes"]:
+        problems.append("changes: none, as a trigger run's world is read-only")
     try:
         host.check_log(data["log"])
     except host.HostError as error:
@@ -151,7 +154,7 @@ def _write(root, path, text):
     if target.exists() and not target.is_file():
         return False
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text)
+    target.write_bytes(text.encode())  # UTF-8 whatever the locale, as JSON text is
     return True
 
 
