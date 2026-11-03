@@ -405,20 +405,21 @@ as `seen`, scrubbed the same way, so the judges can check each catch.
 | `not run` | the host's program, its key and credential files, its command tools, the containment | The sign-in probe (the powers probe for the command tools, which the adapter's plant takes away) passes the host as it is and fails it with the part missing; with no containment, the probes give no host a run. Run these one after another, never beside a real run |
 | `exposed` | the host's bundled skills, which the adapter's plant turns on | The same without-skill run passes without the plant, and with it the host's exposure stops the round |
 | `inferred` | a command that reads a world file in an unusual way, one that only names it | The stored log holds that command, ended well, and every read of the file is tagged inferred, with at least one when the command read it. It needs a case of kind `task`, where every host may run commands |
-| `sheet` | each answer of a correct sheet in turn left out, given twice, not yes or no, misquoted or with another field, and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
-| `golden` | graders that answer `yes` to everything, `no` to everything, or one question of every golden wrong; goldens that settle a question one way only | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
+| `sheet` | each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every bad word), misquoted or with another field, and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
+| `golden` | graders that answer `yes` to everything or `no` to everything, one question of one golden wrong (each in turn), or no answer on one golden (each in turn); goldens that settle a question one way only (each question, each way) | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
 | `tie` | two graders that split on one question or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, none is asked and nothing is answered |
-| `view` | the arm, or the skill's name and a path of it on lines of their own, in a record's arm, final message, log, or files (a file on the skill's path, lines in a world file) | Neither the view (its record and every blob) nor the page names any of them, and the clean ones name none |
+| `view` | the arm, or the skill's name and a path of it on lines of their own, in a record's arm, final message, every kind of log entry, or files (a file on the skill's path, a link to it, lines in a world file) | Neither the view (its record and every blob) nor the page names any of them, and the clean ones name none |
 
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
 a gate made to miss is a miss. Each adapter plants the host faults in its own command (`PLANTS`, one function for
-each of `host.PLANTED`), and `host.run` refuses a plant that leaves the command as it is. The grading faults
-reach every part of their gate in every run (every answer, every golden, both graders of a split), so a gate that
-skips one part misses at any seed. They run on the goldens of a repository case the seed chooses, made bundles on the setup's host, and plant their
-graders in place of a host's; the faults of a grader's own run come next. That no check decides on an inferred
-entry comes with the checks. The
-harness itself adds an inferred read for every world file a command names by its whole name or a wildcard
-(`host.named`), so no host depends on its adapter parsing commands.
+each of `host.PLANTED`), and `host.run` refuses a plant that leaves the command as it is. A grading fault covers
+every value of every choice its gate depends on (every answer with both values, every bad word, every golden and
+question, both sides, both graders, every place a name can be carried), and the seed chooses only the case, the
+page and the order, so a gate that skips one part misses at every seed. They run on the goldens of a repository
+case the seed chooses, made bundles on the setup's host, and plant their graders in place of a host's; the faults
+of a grader's own run come next. That no check decides on an inferred entry comes with the checks. The harness
+itself adds an inferred read for every world file a command names by its whole name or a wildcard (`host.named`),
+so no host depends on its adapter parsing commands.
 
 ## The measuring kit
 

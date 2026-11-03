@@ -35,6 +35,31 @@ def one_way(case, found, graded):
     return {id_: None if why and "settled yes" in why else why for id_, why in GATE(case, found, graded).items()}
 
 
+def folded(sheet, ids, page):
+    """A sheet check that takes an answer's word in any case."""
+    fold = lambda a: {**a, "answer": a["answer"].lower()} if isinstance(a, dict) and isinstance(a.get("answer"), str) \
+        else a
+    return CHECK({**sheet, "answers": [fold(a) for a in sheet["answers"]]}, ids, page)
+
+
+def blind_to_last(case, found, graded):
+    """A golden gate that never looks at the last golden."""
+    return GATE(case, found[:-1], {name: one for name, one in graded.items() if name != found[-1].name})
+
+
+def unanswered_ok(case, found, graded):
+    """A golden gate that does not count a question left unanswered as a miss."""
+    return {id_: None if why and "no answer" in why else why for id_, why in GATE(case, found, graded).items()}
+
+
+def second_alone(page, asked, graders, tiebreak):
+    """A panel that lets the second grader decide alone when the first has no sheet."""
+    found = PANEL(page, asked, graders, tiebreak)
+    if found.graded[0].answers is None and found.graded[1].answers:
+        return grader.Panel(dict(found.graded[1].answers), [], 0, found.asked, found.graded)
+    return found
+
+
 def first_wins(page, asked, graders, tiebreak):
     """A panel that asks the tie-breaker, then keeps the first grader's answers."""
     found = PANEL(page, asked, graders, tiebreak)
@@ -50,20 +75,28 @@ class Missed(Fake):
         for fault, place, patch, reason in (
                 ("sheet", "twice", mock.patch.object(grading, "check", return_value=[]), "did not refuse"),
                 ("sheet", "misquoted", mock.patch.object(grading, "check", unquoted), "did not refuse"),
+                ("sheet", "not yes or no", mock.patch.object(grading, "check", folded), "did not refuse"),
+                ("golden", "one wrong", mock.patch.object(goldens, "gate", blind_to_last), "the plant made wrong"),
+                ("golden", "unanswered", mock.patch.object(goldens, "gate", unanswered_ok), "the plant made wrong"),
                 ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "the plant made wrong"),
                 ("tie", "one split", mock.patch.object(grader, "panel", alone), "not the split"),
                 ("tie", "one ungraded", mock.patch.object(grader, "panel", alone), "decided alone"),
                 ("tie", "all split", mock.patch.object(grader, "panel", first_wins), "not the split"),
+                ("tie", "one split", mock.patch.object(grader, "panel", first_wins), "not the split"),
+                ("tie", "one ungraded", mock.patch.object(grader, "panel", second_alone), "decided alone"),
                 ("golden", "one-sided", mock.patch.object(goldens, "gate", one_way), "the plant made wrong"),
                 ("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + ("arm",)), "names"),
                 ("view", "message", mock.patch.object(view.world, "names", lambda n: NAMES(n[1:])), "names"),
-                ("view", "command", mock.patch.multiple(view, on_overlay=lambda *a: False, text=lambda v, *a: v),
+                ("view", "log", mock.patch.multiple(view, on_overlay=lambda *a: False, text=lambda v, *a: v),
                  "names"),
+                ("view", "log", mock.patch.object(view, "text", lambda value, *args: value), "names"),
+                ("view", "file", mock.patch.object(view, "text", lambda value, *args: value), "names"),
                 ("view", "message", mock.patch.object(view, "text", lambda value, *args: value), "names")):
-            with self.subTest(fault=fault, place=place), patch:
-                outcome = faults.run(entries[fault], setup, seed=3, place=place)
-                self.assertFalse(outcome["caught"])
-                self.assertIn(reason, outcome["reason"])
+            for seed in (0, 2, 3, 5):  # at every seed, whatever golden and question it picks
+                with self.subTest(fault=fault, place=place, seed=seed), patch:
+                    outcome = faults.run(entries[fault], setup, seed=seed, place=place)
+                    self.assertFalse(outcome["caught"])
+                    self.assertIn(reason, outcome["reason"])
 
     def test_the_seed_chooses_the_golden_and_the_place(self):
         setup = self.setup_of()
