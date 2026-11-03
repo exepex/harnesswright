@@ -1,0 +1,6 @@
+{
+  "ids": ["q2", "q5"],
+  "outcome": "fail",
+  "problem": "a grading file holds",
+  "grading": {"answers": [{"id": "q2", "answer": "yes", "evidence": "AC-3: p99 latency in staging."}, {"id": "q5", "answer": "no", "evidence": "go test -run \"TestLimit\" ./..."}], "notes": "graded carefully"}
+}

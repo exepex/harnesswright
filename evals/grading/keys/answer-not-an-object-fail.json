@@ -1,0 +1,6 @@
+{
+  "ids": ["q2"],
+  "outcome": "fail",
+  "problem": "holds id, answer, evidence as texts",
+  "grading": {"answers": [["id", "answer", "evidence"]]}
+}

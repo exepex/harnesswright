@@ -1,0 +1,6 @@
+{
+  "ids": ["q2", "q5"],
+  "outcome": "fail",
+  "problem": "a grading file holds",
+  "grading": {"answers": {"q2": "yes"}}
+}
