@@ -180,8 +180,7 @@ def run(contained, prompt, skills, model=None, timeout=900, plant=None):
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
         seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
-    log = [settle(item, contained) for item in adapter.action_log(stdout, contained.home)]
-    log = named(contained.world, contained.world_entries, [item for item in log if item is not None])
+    log = kept(contained, adapter.action_log(stdout, contained.home))
     check_log(log, skills)
     exposure = adapter.exposure(stdout, contained.home)
     if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
@@ -189,6 +188,14 @@ def run(contained, prompt, skills, model=None, timeout=900, plant=None):
     if exposure is not None:
         check_exposure(adapter, exposure, skills)
     return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds)
+
+
+def kept(contained, items):
+    """The action log a run in `contained` keeps of the entries `items` its host reported, after the run: each entry
+    settled (`settle`), and the reads its commands name added (`named`). Every log, a run's or a golden's, is kept
+    this one way."""
+    log = [settle(item, contained) for item in items]
+    return named(contained.world, contained.world_entries, [item for item in log if item is not None])
 
 
 def settle(item, contained):

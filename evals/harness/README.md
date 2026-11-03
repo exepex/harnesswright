@@ -36,6 +36,7 @@ allowed connections.
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
 | `grading.py` | What goes to graders, the one page a grader reads, and the check of an answer sheet |
 | `grader.py` | One sealed grader run, the panel of graders of a page, and the blind order of a round's pages |
+| `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
 
 ## Commands
 
@@ -333,6 +334,19 @@ graders grade the page, on two different hosts when both are available. A questi
 one fresh grader on the reference host, Claude Code. A question with no two answers the same, as when a grader was
 ungraded, stays unanswered, so the run is `ungraded` on it: one grader never decides a question alone. How many
 questions the two graders answered the same is reported, never used as a gate.
+
+A golden is a hand-made run of a case with a settled answer for each expectation,
+`evals/goldens/<skill>/<case>/<name>.json`, written by a judge and never by the builder. It holds the run's
+`changes` to the case's world, its `log`, whose last message is the final message, and `settled`, one `{expectation,
+sha256, answer, by}` per question id. `sha256` is the fingerprint of the whole expectation (`goldens.fingerprint`),
+so a golden never settles an expectation that moved or changed in any way. `goldens.bundle` makes it a bundle the
+way every run is made one: the case's without-skill world built for the round's host, the golden's changes written
+into it, and `evidence.collect` reading it with the golden's log and the case's real overlay. From there it goes the
+way of every run, through the checks, the grader view, the page, the blind order and the panel, so nothing tells a
+grader it is a golden. `goldens.gate` is the golden gate, by one rule: an expectation's grading is trusted in a
+round only when every golden got its settled answer, with at least one settled `yes` and one settled `no` among the
+goldens it was asked of. One miss, or a question left unanswered, marks it unreliable, with the reason, and no
+golden can be left out of the gate.
 
 ## Script checks
 
