@@ -98,7 +98,7 @@ so a script that knows the language prefixes and the areas can split every ID.
 | ID, Title | Yes | The unique code; one line that says the rule |
 | Kind | Yes | Principle, floor, idiom or choice |
 | Status | Yes | `active`, `inferred` (waiting for a human to confirm) or `retired` |
-| Replaced by | When retired | The new ID, or "no replacement" |
+| Replaced by | When retired | The new IDs, comma-separated, or "no replacement" |
 | Applies to | Yes | The roles that apply it. This is the only map of which rules a role applies. |
 | Rule, Why, Check | Yes | The rule in plain sentences; the reason; how a reviewer proves it is met or broken |
 | Good, Bad | Yes | One example of each |
@@ -121,9 +121,10 @@ layer's owner.
 
 **HW-RULE-07 · A rule is retired, never deleted.** A retired rule keeps its ID and all its parts, gets status
 `retired` and a Replaced by, and moves to the `retired.md` file of its layer folder, so area files hold only live
-rules. Citations in the same repository are updated in the same change. Retiring a rule fails while any file still
-cites the old ID, other than the index, `retired.md`, the Source of the rule that replaced it and `CHANGELOG.md`
-([08 · Governance](08-governance.md)).
+rules. `retired.md` is not an area; past 500 lines it splits into `retired-<area>.md` files. A replacement is added
+in an earlier change than the retirement. Citations in the same repository are updated in the same change as the
+retirement. Retiring a rule fails while any file still cites the old ID, other than the index, the retired rules
+file, the Source of a rule named in its Replaced by, and `CHANGELOG.md` ([08 · Governance](08-governance.md)).
 
 **HW-RULE-08 · The index is generated.** Each layer folder has an index (ID, title, kind, status, file), built by
 a script from the rule headings. Nobody edits it by hand. Where scripts cannot run, the rule keeper builds it by

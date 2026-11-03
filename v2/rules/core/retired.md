@@ -28,7 +28,7 @@ never given to agents. Each names the rule that replaced it.
 
 - **Kind:** floor
 - **Status:** retired
-- **Replaced by:** CORE-TEMPLATE-01 (applying resolved rules: CORE-TEMPLATE-04)
+- **Replaced by:** CORE-TEMPLATE-01, CORE-TEMPLATE-04
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
 - **Rule:** A skill tells the agent to apply the resolved rules whose Applies to names its role. It cites a rule ID
