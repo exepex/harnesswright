@@ -1,6 +1,6 @@
 {
  "changes": {
-  "CLAIMS.md": "# Claims for S01: bulk discount\n\n## What was done\n\n`src/discount.py` prices order lines, refuses negative quantities and applies a 10% bulk discount; `tests/test_discount.py` adds four unit tests.\n\n## Acceptance criteria\n\n- AC-1 met: the discount is applied at or above the threshold, `discount.py:17-18`.\n- AC-2 met: a negative quantity raises ValueError, `discount.py:9-10`.\n- AC-3: the total goes through `round(subtotal, 2)` on `discount.py:19`, so it should come out in cents; not checked on its own.\n\n## Test run\n\n```\nRan 4 tests in 0.001s\n\nOK\n```\n"
+  "CLAIMS.md": "# Claims for S01: bulk discount\n\n## What was done\n\n`src/discount.py` prices order lines, refuses negative quantities and applies a 10% bulk discount; `tests/test_discount.py` adds four unit tests.\n\n## Acceptance criteria\n\n- AC-1 met: the discount is applied at or above the threshold, `discount.py:17-18`.\n- AC-2 met: a negative quantity raises ValueError, `discount.py:9-10`.\n- AC-3: the total goes through `round(subtotal, 2)` on `discount.py:19`, so it should come out in cents; not checked on its own.\n\n## Test run\n\n```\nRan 4 tests in 0.001s\n\nOK\n```\n\n## Not verified\n"
  },
  "log": [
   {
@@ -24,7 +24,7 @@
    "kind": "write",
    "source": "observed",
    "path": "CLAIMS.md",
-   "sha256": "c9d46c110677b57c736c6bebd50351f912ad156e0975e9a01846773097d02f1c"
+   "sha256": "da4631ae558f8e010bf835111844573f0bb034022312c7fd7ae906ead2b783ce"
   },
   {
    "kind": "message",

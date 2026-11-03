@@ -186,7 +186,7 @@ def golden_said(case_folder, text):
 
 
 def _strings(value):
-    items = value.values() if isinstance(value, dict) else value if isinstance(value, list) else []
+    items = [*value, *value.values()] if isinstance(value, dict) else value if isinstance(value, list) else []
     return [value] if isinstance(value, str) else [found for item in items for found in _strings(item)]
 
 

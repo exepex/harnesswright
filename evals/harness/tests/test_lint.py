@@ -286,10 +286,12 @@ class Lint(TempCase):
         (evals / "skills/x/cases/a/world/README.md").write_text(world)
         (evals / "skills/x/cases/a/case.json").write_text('{"prompt": "Write the claims."}')
         (evals / "goldens/x/a").mkdir(parents=True)
-        (evals / "goldens/x/a/g.json").write_text(json.dumps({"log": [{"text": world}], "changes": {"c.md": added}}))
+        path = "notes/the claims say every check passed and nothing at all was left out.md"  # a key says too
+        (evals / "goldens/x/a/g.json").write_text(json.dumps({"log": [{"text": world}], "changes": {"c.md": added,
+                                                                                                    path: None}}))
         measuring, _ = lint.eval_texts(self.tmp / "repo")
         found = lint.all_runs(measuring, {lint.RUN})
-        self.assertEqual(found, lint.runs(added, {lint.RUN}))  # the quote of its world is the case's own text
+        self.assertEqual(found, lint.all_runs([added, path], {lint.RUN}))  # its world's quote is the case's own text
 
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):
         prompt = "Write a short poem about the quiet harbour at dawn for the notes app."
