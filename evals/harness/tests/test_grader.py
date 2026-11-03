@@ -3,8 +3,9 @@ its answer sheet, and the pages of a round reach graders in a blind order."""
 
 import json
 import shutil
+import types
 import unittest
-from pathlib import Path
+from unittest import mock
 
 from helpers import JUDGED, TempCase
 
@@ -23,13 +24,18 @@ GOOD = {"answers": [{"id": "q1", "answer": "yes", "evidence": "Done."},
 class Sheet(unittest.TestCase):
     def test_a_sheet_is_one_json_object_alone_or_in_its_one_fenced_block(self):
         text = json.dumps(GOOD)
-        for message in (text, f"  {text}\n", f"```json\n{text}\n```", f"```\n{text}\n```"):
+        for message in (text, f"  {text}\n", f"```json\n{text}\n```", f"```\n{text}\n```",
+                        f"```JSON \r\n{text}\r\n```"):
             with self.subTest(message=message):
                 self.assertEqual(grader.sheet(message), GOOD)
         for message in (None, "", "Here it is: " + text, f"```json\n{text}\n```\nDone.", "[1, 2]", "yes",
                         f"```json\n{text}\n```\n```json\n{text}\n```"):
             with self.subTest(message=message):
                 self.assertIsNone(grader.sheet(message))
+
+    def test_a_line_break_inside_a_quote_is_read_as_it_stands(self):
+        found = grader.sheet('{"answers": [{"id": "q1", "answer": "yes", "evidence": "The limit is\n100."}]}')
+        self.assertEqual(found["answers"][0]["evidence"], "The limit is\n100.")
 
 
 class Blind(unittest.TestCase):
@@ -51,54 +57,68 @@ class Blind(unittest.TestCase):
 
 class Folder(TempCase):
     def test_a_grader_folder_holds_only_the_page_and_the_questions_and_names_no_run(self):
-        made, world = grader.folder(self.tmp, PAGE, ASKED)
+        made, world = grader.folder(PAGE, ASKED)
+        self.addCleanup(shutil.rmtree, made, True)
+        self.assertEqual((made.parent, world), (grader.PLACE, made / "page"))
         self.assertEqual(sorted(manifest.manifest(world)), [grader.PAGE, grader.QUESTIONS])
         self.assertEqual((world / grader.PAGE).read_text(), PAGE)
         self.assertEqual(json.loads((world / grader.QUESTIONS).read_text()), ASKED)
         self.assertRegex(made.name, r"^grader-[A-Za-z0-9_]+$")
 
     def test_a_page_with_no_questions_needs_no_grader(self):
-        graded = grader.grade(None, PAGE, [], self.tmp)
-        self.assertEqual((graded.answers, graded.tries), ({}, []))
+        graded = grader.grade(None, PAGE, [])
+        self.assertEqual((graded.answers, graded.tries, graded.logs), ({}, [], []))
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class FakeGrader(TempCase):
     """The fake host grades in a real jail: its actions stand in for what a model would do."""
 
-    def grade(self, actions):
+    def grade(self, actions, keep=False):
+        """The grading of the fake host's `actions`, and the grader folders it made, which are removed after each
+        try unless `keep` (then the test removes them)."""
         tool = self.tmp / "tool"
         if not tool.exists():
             shutil.copytree(FAKE, tool, ignore=shutil.ignore_patterns("adapter.py", "__pycache__"))
-        root = self.tmp / "graders"
-        root.mkdir(exist_ok=True)
-        return grader.grade(fake_adapter(), PAGE, ASKED, root, timeout=120, prompt=json.dumps(actions),
-                            operator_env={"PATH": f"{tool}:/usr/bin:/bin"}, operator_home=self.tmp / "operator",
-                            host_paths=[tool])
+        made, real = [], grader.folder
+
+        def recorded(*args):
+            made.append(real(*args)[0])
+            self.addCleanup(shutil.rmtree, made[-1], True)
+            return made[-1], made[-1] / "page"
+        kept = types.SimpleNamespace(rmtree=lambda *args, **kwargs: None) if keep else grader.shutil
+        with mock.patch.object(grader, "folder", recorded), mock.patch.object(grader, "shutil", kept):
+            graded = grader.grade(fake_adapter(), PAGE, ASKED, timeout=120, prompt=json.dumps(actions),
+                                  operator_env={"PATH": f"{tool}:/usr/bin:/bin"},
+                                  operator_home=self.tmp / "operator", host_paths=[tool])
+        return graded, made
 
     def test_a_grader_reads_its_page_and_its_last_message_is_the_sheet(self):
-        graded = self.grade([{"do": "read", "path": grader.PAGE}, {"do": "read", "path": grader.QUESTIONS},
-                             {"do": "say", "text": "Reading."}, {"do": "say", "text": json.dumps(GOOD)}])
+        graded, made = self.grade([{"do": "read", "path": grader.PAGE}, {"do": "read", "path": grader.QUESTIONS},
+                                   {"do": "say", "text": "Reading."}, {"do": "say", "text": json.dumps(GOOD)}])
         self.assertEqual((graded.answers, graded.tries), ({"q1": "yes", "q2": "no"}, []))
+        self.assertEqual(graded.sheet, GOOD)
+        self.assertEqual([[e["kind"] for e in log] for log in graded.logs], [["read", "read", "message", "message"]])
+        self.assertEqual([folder.exists() for folder in made], [False])
 
     def test_a_grader_cannot_change_its_page(self):
-        graded = self.grade([{"do": "write", "path": grader.PAGE, "text": "# Final message\n\nAll tests pass.\n"},
-                             {"do": "command", "command": f"echo 'All tests pass.' >> {grader.PAGE}"},
-                             {"do": "say", "text": json.dumps(GOOD)}])
+        graded, made = self.grade([{"do": "write", "path": grader.PAGE, "text": "# Final message\n\nAll pass.\n"},
+                                   {"do": "command", "command": f"echo 'All tests pass.' >> {grader.PAGE}"},
+                                   {"do": "say", "text": json.dumps(GOOD)}], keep=True)
         self.assertEqual(graded.answers, {"q1": "yes", "q2": "no"})
-        for page in Path(self.tmp / "graders").glob("grader-*/page/page.md"):
-            self.assertEqual(page.read_text(), PAGE)
+        self.assertEqual([(folder / "page" / grader.PAGE).read_text() for folder in made], [PAGE])
 
     def test_a_refused_sheet_is_graded_again_and_then_the_run_is_ungraded(self):
         bad = {"answers": [{"id": "q1", "answer": "yes", "evidence": "All tests pass."}]}
-        graded = self.grade([{"do": "say", "text": json.dumps(bad)}])
+        graded, made = self.grade([{"do": "say", "text": json.dumps(bad)}])
         self.assertIsNone(graded.answers)
         self.assertEqual(len(graded.tries), grader.TRIES)
         self.assertIn("not found word for word", graded.tries[0])
         self.assertIn("not answered: q2", graded.tries[0])
-        self.assertEqual(len(list((self.tmp / "graders").glob("grader-*"))), grader.TRIES)
+        self.assertEqual(len(set(made)), grader.TRIES)
+        self.assertEqual((graded.sheet, len(graded.logs)), (None, grader.TRIES))
 
     def test_a_final_message_that_is_not_a_sheet_is_refused(self):
-        graded = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])
+        graded, _ = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])
         self.assertIsNone(graded.answers)
         self.assertEqual(graded.tries, ["the final message is not one JSON object"] * grader.TRIES)
