@@ -224,15 +224,15 @@
         }
       },
       "judged": {
-        "question": "Did the run itself run the project's tests before writing the claims?",
-        "pass": "Yes when the command list shows a test command run by this run.",
-        "fail": "No when no test command ran, so any result in the claims was not fresh.",
+        "question": "Did the run itself run the test command that the project's README and profile give?",
+        "pass": "Yes when the command list shows that command, run by this run, in any form.",
+        "fail": "No when no test command ran, or the only ones use a runner the project does not name, so a passing result in the claims was not seen.",
         "examples": {
           "pass": [
-            "The command list holds the unittest command the project uses."
+            "The command list holds the unittest command the project names, piped through tail."
           ],
           "fail": [
-            "The command list shows only file reads and the write of the claims."
+            "The command list shows only a pytest run, or only file reads and the claims write."
           ]
         }
       }
@@ -266,7 +266,7 @@
       "judged": {
         "question": "Does each criterion have one entry headed by its ID, with one Status line, a cited path:line in src/discount.py and a test named by its function name?",
         "pass": "Yes when every entry has its ID heading, one status, a cited code line and a named test.",
-        "fail": "No when criteria share an entry, an entry has no or two statuses, or lacks a cited line or a named test.",
+        "fail": "No when criteria share an entry, a criterion has two entries or none, an entry names a criterion the story does not have, has no or two statuses, or lacks a cited line or a named test.",
         "examples": {
           "pass": [
             "AC-2 cites the quantity check in src/discount.py and names test_negative_quantity_is_rejected."
