@@ -49,3 +49,13 @@ eval scripts call the Claude Code command line directly (`claude -p` in `scripts
 | `skills/claims-writer/LICENSE-MIT.txt` | `LICENSE` | Unchanged. |
 
 Not taken: the rest of the repository. Its other skills were read only to choose a candidate.
+
+## Rulebook v2 · ideas only
+
+The rules in `v2/rules/` are written new. No text was copied. Each rule's Source names where its idea came from.
+
+| Repository | Commit | Paths read | Licence | Sourcing |
+|---|---|---|---|---|
+| https://github.com/anthropics/skills | `ca45fc496a3436251f191354091d557da31c15b5` | `skills/skill-creator/` | Apache-2.0 | written new |
+| https://github.com/obra/superpowers | `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b` | `skills/writing-skills/` | MIT | written new |
+| https://github.com/exepex/stratum | `cc3ea82271d9624267079d3b5fe456c74073102f` | `AGENTS.md`, `docs/agents/` | Apache-2.0 | written new |
