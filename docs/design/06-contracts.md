@@ -59,10 +59,11 @@ Sections: **Goal** (one paragraph) · **In scope** · **Out of scope**, with rea
 numbered `AC-1`, `AC-2`, …, each testable · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency,
 throughput, memory, CPU, availability), each in one of the states below · **Gaps** · **Risks**.
 
-**One rule for requirements.** Every acceptance criterion and every target not marked "not applicable" is a
-*requirement*. Each requirement names the test types it requires, from the process setting `test-types`. In a plan,
-the functional planner proposes them and they are approved with the plan. A story with no plan takes them from the
-same setting. Everything below that says "requirement" means both kinds.
+**One rule for requirements.** Every acceptance criterion and every target not marked "not applicable" or "not
+testable here" is a *requirement*. Each requirement names the test types it requires, chosen only from the process
+setting `test-types`, which lists the types the team has. No other test type is ever required. In a plan, the
+functional planner proposes them and they are approved with the plan. A story with no plan takes them from the same
+setting. Everything below that says "requirement" means both kinds.
 
 **Performance targets.** The functional planner asks the person for each target and never reads monitoring tools.
 No number is ever invented. Each target is in one of four states:
@@ -70,16 +71,19 @@ No number is ever invented. Each target is in one of four states:
 - **Exact**, for example "p95 under 200 ms". Its test must pass.
 - **Estimated**: a ballpark the planner turns into a range and marks `estimated`. Its test must exist, but a missed
   range is a warning, not a fail.
-- **Unknown**: the requirement is a baseline benchmark, test type `performance`. The test measures the target's
-  metric in the test environment, saves the figure, and fails when a later change makes that metric worse by more
-  than the process setting `baseline-tolerance`.
+- **Unknown**: the requirement is a baseline benchmark. The test measures the target's metric in the test
+  environment, saves the figure, and fails when a later change makes that metric worse by more than the process
+  setting `baseline-tolerance`.
 - **Not applicable**: not a requirement.
 
-**One rule for gaps.** An unknown target ("performance not verified") and a not-applicable target are *gaps*. The
-plan lists each gap with its reason under **Gaps**, and a person accepts them; `gaps-accepted-by` records who and
-when. This holds at every tier: a plan with gaps waits for a person even where its tier has no human plan gate. The
-plan reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan needs at least one performance
-requirement; a baseline benchmark counts.
+A target needs a performance test type in `test-types`. When the team has none, the target is marked "not testable
+here".
+
+**One rule for gaps.** A target that is unknown ("performance not verified"), not applicable or not testable here is
+a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them; `gaps-accepted-by`
+records who and when. This holds at every tier: a plan with gaps waits for a person even where its tier has no
+human plan gate. The plan reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan whose team
+has a performance test type needs at least one performance requirement; a baseline benchmark counts.
 
 A later planned item replaces an estimate or a baseline with a real number.
 
