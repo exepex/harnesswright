@@ -99,7 +99,7 @@ so a script that knows the language prefixes and the areas can split every ID.
 | Kind | Yes | Principle, floor, idiom or choice |
 | Status | Yes | `active`, `inferred` (waiting for a human to confirm) or `retired` |
 | Replaced by | When retired | The new IDs, comma-separated, or "no replacement" |
-| Applies to | Yes | The roles that apply it. This is the only map of which rules a role applies. |
+| Applies to | Yes | The roles that apply it, named as in [v2/roles.md](../../v2/roles.md), or `every role`, or both. This is the only map of which rules a role applies. |
 | Rule, Why, Check | Yes | The rule in plain sentences; the reason; how a reviewer proves it is met or broken |
 | Good, Bad | Yes | One example of each |
 | Eval | Yes | The test case that proves a reviewer catches the Bad example |

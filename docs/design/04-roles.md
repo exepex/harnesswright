@@ -1,8 +1,8 @@
 # 04 · Roles
 
-A role is one job in the engineering team. Each role is written once, in the core, and reads the resolved
-standards of the repository it works in. A role's instructions name the standards it applies by rule ID or area.
-They never repeat the rules.
+A role is one part of the agent team, such as story judge. Each role is written once, in the core, and reads the
+resolved standards of the repository it works in. A role's instructions name the standards it applies by rule ID or
+area. They never repeat the rules.
 
 ## Model classes
 
@@ -20,25 +20,18 @@ make the same mistake, so their agreement proves less.
 
 ## The roles
 
-| Role | Purpose | Reads | Produces | Model class | Writes code |
-|---|---|---|---|---|---|
-| **Coordinator** | Runs the pipeline: starts roles, counts votes, enforces limits, escalates | Process config, run folder | Run log, escalations | `standard` | No |
-| **Triage** | Chooses the change type and risk tier, and so the pipeline | Request, diff or issue, repository map | Triage record; for T0 and T1, one story written from the request | `fast`, `deep` if uncertain | No |
-| **Architect** | Makes and records design decisions for tier 3 changes | Request, codebase, standards | Decision records | `deep` | No |
-| **Planner** | Writes a plan: goal, scope, non-functional targets, risks, acceptance criteria | Request, decisions, standards (`PLAN`) | Plan | `deep` | No |
-| **Plan reviewer** | Reviews a plan and votes on it | Plan, request, standards | Findings, vote | `deep` | No |
-| **Story writer** | Splits a plan (approved by its panel at T3) into small, independent, testable stories with an order | Plan | Stories | `standard` | No |
-| **Alignment judge** | Checks that the stories cover the plan, with nothing missing and nothing extra | Plan, stories | Verdict | `deep` | No |
-| **Implementer** | Builds one story: code, tests and documentation, then writes the claims | Story, standards, codebase | Change, claims | `standard` | Yes |
-| **Tester** | Writes or reviews unit, integration and performance tests, and proves each test fails when its code breaks | Story, change, standards (`TEST`, `ITEST`, `PERF`) | Tests, findings | `standard` | Tests only |
-| **Code reviewer** | Reviews design, naming, simplicity and documentation | Change, story, standards | Findings, vote | `standard` or `deep` | No |
-| **Security reviewer** | Reviews against the `SEC` rules and runs the security tools | Change, standards, tool results | Findings, vote | `deep` | No |
-| **Story judge** | Verifies that each claim is true and the story is done | Story, claims, change, tool results | Verdict | `deep` | No |
-| **Feature judge** | Verifies that the delivered stories together meet the plan | Plan, all story verdicts, change | Verdict | `deep` | No |
-| **Scenario tester** | Invents a realistic use case, prepares its data, runs it end to end, and reports how the system behaved | Plan, running system | Scenario report | `standard` | Test data and scripts only |
-| **Release reviewer** | Checks operational readiness: observability, migrations, flags, rollback, runbooks | Change, standards (`OPS`) | Findings, vote | `deep` | No |
-| **Curator** | Turns repeated human corrections into proposed rules in the right layer | Escalations, review history | Rule proposals | `deep` | No |
-| **Skill designer** | Sources, designs, evaluates and improves every skill, borrow-first and portable (see [10 · Skills](10-skills.md)) | Skill request, existing skills, standards | Skill, its evals and results | `deep` | Skills and evals only |
+[v2/roles.md](../../v2/roles.md) is the one list of roles, with each role's details. A rule's Applies to, a
+template's `metadata.roles` and a pipeline step name roles and jobs as that file requires.
+
+## Jobs
+
+- A **job** is the ordered list of skills one pipeline step runs, and the role or roles that step's agent acts
+  as. [v2/roles.md](../../v2/roles.md) is the only list of jobs. A pipeline step names a job from it.
+- Each job names exactly one skill whose areas are `rest`: every area of its roles, from any layer, that no other
+  skill of the job lists. It is the skill that produces the job's main output. A one-skill job is `rest` by itself.
+- A skill belongs to one job, and its roles are that job's roles. A skill that two different pipeline steps would
+  run is its own role with its own one-skill job, run as its own pipeline step. Jobs never share a skill.
+- A job splits into several skills only where its work runs in steps.
 
 ## What every role must do
 
@@ -68,11 +61,13 @@ Independence is what makes a vote worth anything:
 
 | Role | Read code | Write code | Run tools and tests | Outside systems |
 |---|---|---|---|---|
-| Triage, planner, architect, story writer | Yes | No | Read-only commands | Read the issue tracker |
-| Implementer, tester | Yes | Yes, in its own worktree | Yes | None by default |
-| Reviewers, judges | Yes | No | Yes, read-only | Read the code host |
-| Scenario tester | Yes | Test data and scripts only | Yes, in a disposable environment | Test environments only |
+| Triage, functional planner, technical designer, story writer, UAT handoff | Yes | No | Read-only commands | Read the issue tracker |
+| Implementer, test writer | Yes | Yes, in its own worktree | Yes | None by default |
+| Standards reader, toolchain check, claims writer | Yes | Run folder only | Yes | None |
+| Reviewers, judges, verifier, adjudicator, rule keeper | Yes | No | Yes, read-only | Read the code host |
+| QA tester | Yes | Test data and scripts only | Yes, in a disposable environment | Test environments only |
 | Coordinator | Yes | Run folder only | No | Code host: comments and PRs, if granted |
+| Rule writer, skill designer, curator | Yes | Rules, skills, evals and rule requests in harnesswright, on a branch | Yes | None by default |
 
 No role has write access to production. See [07 · Repository profile](07-repo-profile.md) for how capabilities
 are granted.

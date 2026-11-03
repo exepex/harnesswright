@@ -8,7 +8,7 @@ order; each one builds on the ones before.
 | 01 | [Charter](01-charter.md) | Purpose, goals, non-goals, success measures, human gates |
 | 02 | [Architecture](02-architecture.md) | The six parts, the planned repository layout, formats, how a change flows |
 | 03 | [Standards and rules](03-standards.md) | Layers, precedence, kinds of rule, decision points, rule format and IDs |
-| 04 | [Roles](04-roles.md) | Every role, its inputs and outputs, model class, independence and access |
+| 04 | [Roles](04-roles.md) | Jobs, model classes, independence and access; the roles themselves are listed in [v2/roles.md](../../v2/roles.md) |
 | 05 | [Process](05-process.md) | Change types, risk tiers, findings, voting, limits, escalation |
 | 06 | [Contracts](06-contracts.md) | The files roles hand to each other |
 | 07 | [Repository profile](07-repo-profile.md) | How a repository adopts the harness, capabilities and MCP |
@@ -37,8 +37,9 @@ Every document uses these words with these meanings. Do not use other words for 
 
 | Word | Meaning |
 |---|---|
-| Skill | The steps for one job, such as "review code", in Agent Skills format. harnesswright writes every skill. |
-| Role | One job in the agent team, such as story judge. Each role uses one or more skills. |
+| Skill | The steps for one task, such as "review code", in Agent Skills format. harnesswright writes every skill. |
+| Role | One part of the agent team, such as story judge. Each role uses one or more skills. Listed in `v2/roles.md`. |
+| Job | The ordered skills one pipeline step runs, and the roles its agent acts as ([04 · Roles](04-roles.md#jobs)). |
 | Rule | What good work looks like, such as "money is always in cents". Each rule has a unique ID, a title and a body, and lives in one place only. |
 | Floor | A minimum that is never traded away, such as "no secret in code". A more specific layer may only make it stricter. |
 | Decision point | A place where good teams choose differently, with a default. |

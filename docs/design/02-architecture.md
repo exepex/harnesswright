@@ -5,7 +5,7 @@
 | Part | Answers | Varies by | Lives in |
 |---|---|---|---|
 | **Standards** | What does good work look like? | Layer: core, language, organisation, team, repository | `standards/`, and `.harness/standards/` in each repository |
-| **Roles** | Who does each job, and how? | Nothing. Roles are written once, in the core. | `roles/` |
+| **Roles** | Who does each task, and how? | Nothing. Roles are written once, in the core. | `roles/` |
 | **Skills** | What steps does a role follow for one task? | Nothing. Skills read the resolved standards. | `skills/` |
 | **Process** | Which roles run, in what order, with how many voters? | Change type, risk tier and configuration | `process/`, overridden by the repository profile |
 | **Contracts** | What do roles hand to each other? | Nothing. Formats are fixed. | `contracts/` |
@@ -19,7 +19,7 @@ pass between them, and capabilities are how they reach the outside world.**
 
 ### Why roles are not layered
 
-Teams differ in *what* they enforce, not in *how* a judge or a planner does its job. If every layer could rewrite
+Teams differ in *what* they enforce, not in *how* a judge or an implementer does its work. If every layer could rewrite
 every role, there would be dozens of role variants drifting apart, and no two repositories would be judged the same
 way. So a team changes the rules (standards) and the knobs (process configuration: panel sizes, gates, models,
 budgets), never the role instructions.
@@ -67,14 +67,15 @@ request ──► triage ──► picks change type + risk tier ──► pipel
                                     │
      ┌──────────────────────────────┴──────────────────────────────┐
      ▼                                                             ▼
- (tier 3) architect + planner panel ─► plan vote ─► human gate   (tiers 0–2) skip planning
+ (tier 3) functional planner, technical designer              (tiers 0–2) skip planning
+     ─► plan vote ─► human gate
      ▼
  story writer ─► alignment judges: do the stories cover the plan?
      ▼
- per story: implementer ─► toolchain checks ─► reviewers (code, tests, security)
+ per story: implementer ─► toolchain check ─► claims writer ─► reviewers (code, tests, security)
             ─► story judges ─► rework or pass
      ▼
- feature judges ─► scenario testers ─► release review ─► human merge gate
+ feature judges ─► QA testers ─► release review ─► human merge gate
 ```
 
 Each arrow hands over a contract file. Every step records its result in the run folder, so a run can be resumed
