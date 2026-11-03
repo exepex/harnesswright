@@ -84,7 +84,7 @@ decision point lives only in the principles, language and framework layers.
 **HW-RULE-03 · IDs are stable.** A rule's ID is `<LAYER>-<AREA>-<NN>`, such as `CORE-NAME-04`, `JAVA-TEST-02` or
 `APP-CONF-01`. A decision point's ID is `<LAYER>-DP-<NAME>`. An ID is unique, never changes and is never reused. A
 change of meaning needs a new ID. A wording fix keeps the ID. A name in layers 3 to 5 is one word with no hyphen,
-so a script can split every ID into layer, area and number.
+so a script that knows the language prefixes and the areas can split every ID.
 
 **HW-RULE-04 · Every rule has all its required parts.**
 
