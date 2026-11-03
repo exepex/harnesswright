@@ -87,9 +87,11 @@ def folder(page, asked):
     return made, world
 
 
-def grade(adapter, page, asked, model=None, timeout=900, prompt=None, **containment):
+def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None, **containment):
     """Grade `page` (`grading.page`) on the questions `asked` (`grading.questions`) with one grader of `adapter`'s
-    host, in a grader folder (`folder`). `prompt` replaces the grader prompt, as the fake host's actions do.
+    host, in a grader folder (`folder`). `prompt` replaces the grader prompt, as the fake host's actions do. `watch`,
+    when given, is called with each try's containment and folder after its run and before the folder goes, as the
+    grader faults look at them.
     `containment` passes on to `contain.Containment`. A broken jail or contract raises, as in every run: the round
     stops."""
     if not asked:
@@ -105,6 +107,8 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, **containm
             result = host.run(contained, text, skills=[], model=model, timeout=timeout)
             clean = scrubs.Scrub.of_run(contained)  # made before the folder goes, so a refreshed credential counts
             ran, _ = evidence.reported(contained, result, clean, "grader")
+            if watch is not None:
+                watch(contained, made)
         finally:
             shutil.rmtree(made, ignore_errors=True)
         logs.append(ran["log"])

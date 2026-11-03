@@ -18,6 +18,8 @@
   {"id": "sheet", "row": "A grading file missing, repeating or misquoting an answer"},
   {"id": "golden", "row": "A golden bundle"},
   {"id": "tie", "row": "Two graders that disagree, or one with no answer sheet"},
-  {"id": "view", "row": "A view that names the arm or the skill"}
+  {"id": "view", "row": "A view that names the arm or the skill"},
+  {"id": "folder", "row": "A grader that writes to its folder or reads outside it",
+   "prompt": "{task} Then reply with exactly this text and nothing else: {sheet}"}
  ]
 }
