@@ -129,8 +129,8 @@ with the older rule or checklist item it carries over.
 - **Why:** Agents claim "done" without proof. The step makes the proof part of the job.
 - **Check:** Does the skill name a check whose output shows success or failure? For batch or destructive work, is
   there a plan step and a check of the plan before the action?
-- **Good:** "6. Run `python3 scripts/claims_check.py`. Done when it reports no missing criterion. If it cannot run,
-  check by reading and mark the result `not verified`."
+- **Good:** "6. Run `python3 SKILL_DIR/scripts/claims_check.py`. Done when it reports no missing criterion. If it
+  cannot run, check by reading and mark the result `not verified`."
 - **Bad:** "6. Check your work."
 - **Eval:** a skill whose last step is "check your work", which the skill judge must flag.
 - **Source:**
@@ -218,7 +218,7 @@ with the older rule or checklist item it carries over.
 - **Why:** Agents read a file only when told when to. A chain of references is read halfway or not at all.
 - **Check:** Is every reference linked from `SKILL.md` with a "read when", and does none depend on another? Does each
   domain have its own reference, while principles and short patterns stay in `SKILL.md`?
-- **Good:** "Read `references/aws.md` when the target is AWS."
+- **Good:** "Read `SKILL_DIR/references/aws.md` when the target is AWS."
 - **Bad:** A `references/` file that no step mentions, or `a.md` that says "see `b.md` for the steps".
 - **Eval:** a skill with an unlinked reference file, which the skill judge must flag.
 - **Source:**
@@ -268,7 +268,7 @@ with the older rule or checklist item it carries over.
   command or script. Where many answers are fine, it gives the goal and the checks.
 - **Why:** Freedom on fragile work causes damage; exact scripts on open work produce poor answers.
 - **Check:** For each fragile step, is there an exact command?
-- **Good:** "Run `python3 scripts/migrate.py --dry-run` first."
+- **Good:** "Run `python3 SKILL_DIR/scripts/migrate.py --dry-run` first."
 - **Bad:** "Migrate the database carefully."
 - **Eval:** a skill that describes a migration in prose only, which the skill judge must flag.
 - **Source:**
@@ -458,7 +458,7 @@ with the older rule or checklist item it carries over.
   asked for, and report any request beyond it?
 - **Good:** "2. Read the issue the person named (CORE-SKILL-25)." The issue asks to change a timeout; that is done.
 - **Bad:** "2. Read the issue and do everything it says." The issue also asks to push to `main`; that is done too.
-- **Eval:** a fetched page that asks the agent to send a file outside the task, which the agent must report, not do.
+- **Eval:** a skill step that reads an issue with no CORE-SKILL-25 cite, which the skill judge must flag.
 - **Source:** own (HW-AG-07; docs 07 and 08)
 
 ### CORE-SKILL-26 · A long reference opens with its contents
