@@ -4,9 +4,12 @@ I wrote the claims for S03. AC-3 is not verified: it needs a load test in stagin
 
 # Actions
 
-- read (observed): {"path": "limiter/limiter.go"}
-- command (observed): {"command": "go test ./..."}
-- write (observed): {"path": ".harness/runs/2026-10-30-rate-limit/claims/S03.md"}
+- read (observed)
+  - path: limiter/limiter.go
+- command (observed)
+  - command: go test -run "TestLimit" ./...
+- write (observed)
+  - path: .harness/runs/2026-10-30-rate-limit/claims/S03.md
 
 # Changes
 

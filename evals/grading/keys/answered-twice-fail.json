@@ -4,7 +4,7 @@
   "problem": "answered twice",
   "grading": {"answers": [
     {"id": "q2", "answer": "yes", "evidence": "AC-3: p99 latency in staging."},
-    {"id": "q5", "answer": "no", "evidence": "go test ./..."},
+    {"id": "q5", "answer": "no", "evidence": "go test -run \"TestLimit\" ./..."},
     {"id": "q2", "answer": "yes", "evidence": "AC-3: p99 latency in staging."}
   ]}
 }

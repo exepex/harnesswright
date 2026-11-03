@@ -8,8 +8,9 @@ against that view.
   has no check, or its check gave `undecidable` on the run's bundle. Nothing else is sent, so a grader never
   overrules a script check. Each question keeps its expectation's place as its id (`q1` is the first expectation).
 - `page(view, blobs)`: the one text a grader reads of a run, written from the grader view (`view.view`) and
-  nothing else: the final message, the actions, the changes and the files. It is also the text every quote is
-  checked against, so a grader is held to exactly what it was shown.
+  nothing else: the final message, the actions (each field's text as the agent wrote it, never escaped), the
+  changes and the files. It is also the text every quote is checked against, so a grader is held to exactly what
+  it was shown.
 - `check(grading, ids, page)`: the problems of one grading file, none when it is accepted. A file is accepted
   only when it holds `answers` and nothing else, each answer is `{"id", "answer", "evidence"}` and nothing else,
   every id is answered exactly once and no other id is answered, each answer is `yes` or `no`, and each evidence
@@ -29,6 +30,7 @@ ANSWERS = ("yes", "no")
 ANSWER_FIELDS = ("id", "answer", "evidence")
 JUDGED_FIELDS = ("question", "pass", "fail", "examples")
 SPACE = re.compile(r"\s+")
+UNSHOWN = ("kind", "source", "sha256")
 
 
 class GradingError(RuntimeError):
@@ -37,13 +39,16 @@ class GradingError(RuntimeError):
 
 def questions(expectations, verdicts):
     """[{"id", "question", "pass", "fail", "examples"}] for the expectations no check decided. `verdicts` holds one
-    entry per expectation, in order: None for an expectation with no check, or what `checks.decide` gave."""
+    entry per expectation, in order: None for an expectation with no check, or what `checks.decide` gave for its
+    check."""
     if len(verdicts) != len(expectations):
         raise GradingError(f"{len(verdicts)} verdicts for {len(expectations)} expectations")
     found = []
     for number, (expectation, verdict) in enumerate(zip(expectations, verdicts), start=1):
         if ("check" in expectation) != (verdict is not None):
             raise GradingError(f"expectation {number}: a verdict is given exactly when it has a check")
+        if verdict is not None and verdict["check"] != expectation["check"]["name"]:
+            raise GradingError(f"expectation {number}: the verdict is of {verdict['check']}, not of its check")
         if verdict is None or verdict["outcome"] == "undecidable":
             judged = expectation["judged"]
             found.append({"id": f"q{number}", **{name: judged[name] for name in JUDGED_FIELDS}})
@@ -55,8 +60,8 @@ def page(view, blobs):
     final = view["final_message"]
     lines = ["# Final message", "", final if final is not None else "(none)", "", "# Actions", ""]
     for item in view["log"]:
-        fields = {name: value for name, value in item.items() if name not in ("kind", "source", "sha256")}
-        lines.append(f"- {item['kind']} ({item['source']}): " + json.dumps(fields, ensure_ascii=False))
+        lines.append(f"- {item['kind']} ({item['source']})")
+        lines += [f"  - {name}: {_value(value)}" for name, value in item.items() if name not in UNSHOWN]
     lines += ["", "# Changes", ""]
     for path, change in sorted(view["diff"].items()):
         state = "added" if not change["before"] else "removed" if not change["after"] else "changed"
@@ -65,6 +70,11 @@ def page(view, blobs):
     for path, entry in sorted(view["files_after"].items()):
         lines += [f"## {path}", "", _shown(entry, blobs), ""]
     return "\n".join(lines)
+
+
+def _value(value):
+    """A field's text as the agent wrote it, so a quote of a command as run is found on the page."""
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
 def _shown(entry, blobs):

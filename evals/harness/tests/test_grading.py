@@ -60,7 +60,8 @@ class Questions(TempCase):
 
     def test_a_verdict_is_given_exactly_for_each_expectation_with_a_check(self):
         for expectations, verdicts in (([expect("a")], []), ([expect("a")], [PASSED]),
-                                       ([expect("b", check=CHECK)], [None])):
+                                       ([expect("b", check=CHECK)], [None]),
+                                       ([expect("b", check=CHECK)], [{**PASSED, "check": "command_ran"}])):
             with self.subTest(verdicts=verdicts), self.assertRaises(grading.GradingError):
                 grading.questions(expectations, verdicts)
 
@@ -68,7 +69,8 @@ class Questions(TempCase):
         import cases
         for case in cases.load_cases("claims-writer"):
             expectations = case.data["expectations"]
-            verdicts = [UNDECIDABLE if "check" in item else None for item in expectations]
+            verdicts = [{**UNDECIDABLE, "check": item["check"]["name"]} if "check" in item else None
+                        for item in expectations]
             asked = grading.questions(expectations, verdicts)
             self.assertEqual([q["id"] for q in asked], [f"q{n}" for n in range(1, len(expectations) + 1)])
 
@@ -82,7 +84,7 @@ class Page(TempCase):
                           [host.entry("command", command="go test ./...", exit_code=0, output="ok  limiter 0.2s"),
                            host.entry("read", path="notes.md"), host.entry("message", text="Done.")])
         for seen in ("go test ./...", "Tests pass.", "(not text, 5 bytes)", "(a link to notes.md)", "## docs",
-                     "(a folder)", '- read (observed): {"path": "notes.md"}'):
+                     "(a folder)", "- read (observed)\n  - path: notes.md"):
             self.assertIn(seen, shown)
         for unseen in ("ok  limiter", "exit_code", "0.2s"):
             self.assertNotIn(unseen, shown)
@@ -95,10 +97,11 @@ class Page(TempCase):
         self.assertIn("Rules.", shown)
 
     def test_a_quote_of_the_page_is_accepted_and_one_of_a_command_s_output_is_not(self):
+        command = 'go test -run "TestLimit" ./... \\\n  -v'
         shown = self.page({"notes.md": b"The limit is\n100 requests.\n"},
-                          [host.entry("command", command="go test ./...", exit_code=0, output="ok  limiter")])
+                          [host.entry("command", command=command, exit_code=0, output="ok  limiter")])
         answers = [{"id": "q1", "answer": "yes", "evidence": "The limit is 100 requests."},
-                   {"id": "q2", "answer": "no", "evidence": "go test ./..."}]
+                   {"id": "q2", "answer": "no", "evidence": command}]
         self.assertEqual(grading.check({"answers": answers}, ["q1", "q2"], shown), [])
         answers[1]["evidence"] = "ok  limiter"
         self.assertEqual(len(grading.check({"answers": answers}, ["q1", "q2"], shown)), 1)
