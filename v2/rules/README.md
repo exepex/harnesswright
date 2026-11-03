@@ -19,4 +19,4 @@ the owner approved on 2026-11-03: **Review by**, the date by which the rule's ow
 | Area | Covers | File |
 |---|---|---|
 | `SKILL` | What a good skill is | [core/skill.md](core/skill.md) |
-| `CATALOG` | The whole set of skills and roles a repository lists | [core/catalog.md](core/catalog.md) |
+| `CATALOG` | The whole set of skills a repository lists | [core/catalog.md](core/catalog.md) |
