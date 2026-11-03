@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "go test\\b", "ran": true, "exit_code": 0},
+  "outcome": "pass",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "GOFLAGS=-mod=mod go test ./...",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}
