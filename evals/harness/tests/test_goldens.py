@@ -8,6 +8,7 @@ import unittest
 from helpers import JUDGED, TempCase, expect
 from test_host import fake_adapter
 
+import cases
 import checks
 import evidence
 import goldens
@@ -115,6 +116,20 @@ class Goldens(TempCase):
                     goldens.load(self.subject, self.folder)
 
 
+class Repository(TempCase):
+    def test_every_golden_of_the_repository_builds_as_a_run_and_settles_each_question_both_ways(self):
+        skills = sorted(goldens.ROOT.iterdir()) if goldens.ROOT.is_dir() else []
+        for folder in (case for skill in skills for case in sorted(skill.iterdir())):
+            with self.subTest(case=f"{folder.parent.name}/{folder.name}"):
+                [case] = [c for c in cases.load_cases(folder.parent.name) if c.id == folder.name]
+                found = goldens.load(case)
+                self.assertTrue(found)
+                self.assertEqual(goldens.uncovered(case, found), [])
+                for golden in found:
+                    goldens.bundle(golden, case, fake_adapter(), self.tmp / folder.name / golden.name, DRIFT,
+                                   "fakehost 1.0", "fast")
+
+
 class Gate(TempCase):
     def setUp(self):
         super().setUp()
@@ -137,6 +152,8 @@ class Gate(TempCase):
         self.assertIn("settled yes and one with a settled no", found["q1"])
         self.assertIn("settled yes and one with a settled no", found["q2"])
         self.assertEqual(goldens.gate(self.subject, [], {}), {"q1": found["q1"], "q2": found["q1"]})
+        self.assertEqual((goldens.uncovered(self.subject, self.goldens), goldens.uncovered(self.subject, [])),
+                         ([], ["q1", "q2"]))
 
     def test_a_golden_that_was_not_graded_cannot_drop_out(self):
         for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"})}, {"a": ([], {}), "b": ([], {}), "c": ([], {})}):

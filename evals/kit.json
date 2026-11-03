@@ -5,6 +5,7 @@
     "lint rules": ["evals/harness/lint.py", "evals/fixtures/licences"],
     "power table": ["evals/harness/powers.py"],
     "probes": ["evals/harness/probes.py"],
+    "goldens": ["evals/goldens"],
     "grader prompt": ["evals/grading/prompt.md"],
     "fault catalogue": ["evals/faults", "evals/harness/faults.py", "evals/harness/host_faults.py"]
   }

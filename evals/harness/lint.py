@@ -172,6 +172,24 @@ def said(path, text):
     return "\n".join(t.string for t in tokens if t.type in TEXT_TOKENS)
 
 
+def golden_said(case_folder, text):
+    """What a golden (`evals/goldens/<skill>/<case>/<name>.json`) adds to its case, as runs: each run of its text
+    values that its case's world and case data do not hold, since what it reads and quotes of them is the case's own
+    text. A golden that is not JSON says all of its text."""
+    try:
+        values = _strings(json.loads(text))
+    except ValueError:
+        return [text]
+    data = Path(case_folder) / "case.json"
+    case = texts(Path(case_folder) / "world") + ([data.read_text()] if data.is_file() else [])
+    return sorted(all_runs(values, {RUN}) - all_runs(case, {RUN}))
+
+
+def _strings(value):
+    items = [*value, *value.values()] if isinstance(value, dict) else value if isinstance(value, list) else []
+    return [value] if isinstance(value, str) else [found for item in items for found in _strings(item)]
+
+
 def eval_texts(repo=REPO):
     """The eval text under `repo`: (measuring, cases). `measuring` is what every file under `evals/` but machinery,
     case data and project text says. `cases` is each case data file as (path, text)."""
@@ -183,6 +201,8 @@ def eval_texts(repo=REPO):
         text = path.read_bytes().decode("utf-8", "replace")
         if parts[0] == "skills" and path.name in CASE_DATA:
             cases.append((path, text))
+        elif parts[0] == "goldens" and len(parts) == 4:
+            measuring += golden_said(Path(repo) / "evals" / "skills" / parts[1] / "cases" / parts[2], text)
         else:
             measuring.append(said(path, text))
     return measuring, sorted(cases)

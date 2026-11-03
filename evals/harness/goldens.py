@@ -23,6 +23,8 @@ A golden is `evals/goldens/<skill>/<case>/<name>.json`, written by hand by a jud
   case's real overlay (`evidence.overlay`). From there a golden goes the way of every run: the checks, the view, the
   page, the blind order and the panel, so nothing tells a grader or a check it is a golden. Its arm is `golden`,
   which no view shows.
+- `uncovered(case, goldens)`: the question ids of the case that its goldens do not settle both ways, at least one
+  `yes` and one `no` (decision 1 of the grading plan): every case with goldens must have none.
 - `gate(case, goldens, graded)`: for each question id of the case, None when its grading is trusted, or why not.
   Every golden must be in `graded`: one that was not graded cannot be left out of the gate.
 
@@ -156,6 +158,12 @@ def _write(root, path, text):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(text.encode())  # UTF-8 whatever the locale, as JSON text is
     return True
+
+
+def uncovered(case, goldens):
+    """The question ids of `case` its `goldens` do not settle as `yes` in one and `no` in another."""
+    ids = [f"q{number}" for number in range(1, len(case.expectations or []) + 1)]
+    return [id_ for id_ in ids if {golden.settled[id_] for golden in goldens} != set(grading.ANSWERS)]
 
 
 def gate(case, goldens, graded):
