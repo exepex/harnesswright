@@ -106,8 +106,9 @@ so a script can split every ID into layer, area and number.
 A decision point has: ID, Title, Question, Options (each named), Default, Why, Applies to, Source.
 
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
-exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated reason), `Binds` (picks an option
-of a decision point) or `Tightens` (makes a floor stricter). A silent contradiction is a defect.
+exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
+reason), `Binds` (picks an option of a decision point) or `Tightens` (makes a floor stricter). A silent
+contradiction is a defect.
 
 **HW-RULE-06 · A floor is never loosened or waived.** No layer and no person may loosen a floor, override it or
 waive it. The only way to change a floor is a new rule with a new ID in the layer that owns it, approved by that
@@ -115,7 +116,8 @@ layer's owner.
 
 **HW-RULE-07 · A rule is retired, never deleted.** A retired rule keeps its ID, gets status `retired` and a
 Replaced by. Citations in the same repository are updated in the same change. Retiring a rule fails while any
-file still applies the old ID. The index, the changelog and Replaced by lines may still name it.
+file still cites the old ID, other than the index, the retired rule itself and `CHANGELOG.md`
+([08 · Governance](08-governance.md)).
 
 **HW-RULE-08 · The index is generated.** Each layer folder has an index (ID, title, kind, status, file), built by
 a script from the rule headings. Nobody edits it by hand. Where scripts cannot run, the rule keeper builds it by
@@ -213,8 +215,8 @@ cannot run, it does the same by reading, and marks the result "not verified".
 
 1. Start with every active principles rule. Rules with status `inferred` or `retired` are never applied, in any
    layer.
-2. Apply the active rules of each layer the profile lists, most general first. An override replaces a rule; a tightening makes a floor
-   stricter; a binding picks a decision point's option; any other rule is added.
+2. Apply the active rules of each layer the profile lists, most general first. An override replaces a rule; a
+   tightening makes a floor stricter; a binding picks a decision point's option; any other rule is added.
 3. An unbound decision point takes the language default, then the principles default.
 4. If two layers contradict each other without saying so, stop and ask the layer owners.
 5. If a layer loosens a floor, stop.
