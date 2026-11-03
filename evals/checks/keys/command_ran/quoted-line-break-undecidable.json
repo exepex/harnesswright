@@ -1,0 +1,13 @@
+{
+  "args": {"pattern": "-m unittest\\b", "ran": true, "exit_code": 0},
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "bash -lc 'python3 -m unittest discover -s tests\necho done'",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}
