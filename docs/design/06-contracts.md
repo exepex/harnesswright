@@ -91,9 +91,10 @@ states:
 - **Not testable here**: the team has no performance test type in `test-types`. Not a requirement.
 
 **One rule for gaps.** A target that is unknown ("performance not verified"), not applicable or not testable here is
-a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them in `gaps-accepted-by`. This holds at every tier: a plan with gaps waits for a person even where its tier has no
-human plan gate. The plan reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan whose team
-has a performance test type needs at least one performance requirement; a baseline benchmark counts.
+a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them in `gaps-accepted-by`.
+This holds at every tier: a plan with gaps waits for a person even where its tier has no human plan gate. The plan
+reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan whose team has a performance test
+type needs at least one performance requirement; a baseline benchmark counts.
 
 A later planned item replaces an estimate or a baseline with a real number.
 
@@ -161,11 +162,11 @@ anything the plan or the design does not ask for.
 
 Written by the implementer when a story is finished.
 
-Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
-done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
-proves it, with the measured figure for each performance target · **Open proof items** · **Standards**: the hash of `rules.md`, the rules
-applied, by ID, and each waiver used · **Out of scope**, with reasons · **Files changed**, each with its line
-count · **Not verified**: anything the implementer could not prove.
+Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was done
+and the evidence (`file:line`, test name, command and output), and for each required test type the test that proves
+it, with the measured figure for each performance target · **Open proof items** · **Standards**: the hash of
+`rules.md`, the rules applied, by ID, and each waiver used · **Out of scope**, with reasons · **Files changed**,
+each with its line count · **Not verified**: anything the implementer could not prove.
 
 An *open proof item* is proof that cannot be made in the pull request, such as a full load run in another
 environment or tests in a repository the agent cannot reach. For each one the claims give the requirement, what is
