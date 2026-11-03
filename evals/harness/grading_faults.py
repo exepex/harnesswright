@@ -10,22 +10,25 @@ every place a name can be carried. The seed chooses only the case, the page and 
 one part misses the fault at every seed, never only at the seeds that happen to pick that part.
 
 - `sheet`: each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every
-  word of WORDS), quoting what the page does not hold, or holding another field, and a question not asked
-  answered. The sheet check (`grading.check`) must refuse every planted sheet for that reason, and accept the sheet
-  without the plant.
+  word of WORDS), quoting what the page does not hold, quoting nothing, or holding another field (as the file
+  itself may), and a question not asked answered. The sheet check (`grading.check`) must refuse every planted
+  sheet for that reason, and accept the sheet without the plant.
 - `golden`: graders that answer `yes` to everything or `no` to everything, that answer one question of one golden
   wrong (each in turn), or that leave one golden unanswered (each in turn); and right graders on goldens that settle
   a question one way only (each question, each way). The golden gate (`goldens.gate`) must stop trusting exactly
   the questions whose settled answer was missed, or that are no longer settled both ways, and trust the rest it
   trusts when graders give every settled answer on every golden.
-- `tie`: two graders that answer one question or every question two ways, or one grader with no sheet. A fresh
+- `tie`: two graders that answer one question (each in turn) or every question two ways, or one grader with no
+  sheet. A fresh
   grader must be asked exactly the split questions, and its answer, which sides with each grader on some question,
   must decide them; with one grader ungraded no question is answered and no fresh grader is asked, so one grader
   never decides alone (`grader.panel`).
-- `view`: the arm, or the skill's name and one of its paths on lines of their own, put in a record's arm, final
-  message, every kind of log entry, or files (a file on the skill's path, a link to it, and lines in a world file's
-  text). Neither the view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of
-  them, and the clean ones name none.
+- `view`: the arm, or the skill's name and each of its paths on lines of their own, put in a record's arm, final
+  message, every kind of log entry, or files and changes (a file on each path, a link to one, and lines in a world
+  file's text). Neither the view (`view.view`, its record and every blob) nor the page (`grading.page`) may name
+  any of them, and the clean ones name none. And the planted view and page must equal those of a control, the same
+  record without the plant's actions on the overlay and its lines that name the skill: a tell with its names taken
+  out, such as an empty skill-load entry, still shows.
 
 Standard library only.
 """
@@ -44,7 +47,8 @@ import view
 from faults import Missed
 
 SHEET = {"left out": "not answered", "twice": "is answered twice", "stranger": "is not a question of this run",
-         "not yes or no": "is not yes or no", "misquoted": "not found word for word", "extra field": "nothing else"}
+         "not yes or no": "is not yes or no", "misquoted": "not found word for word", "no quote": "quotes nothing",
+         "extra field": "nothing else"}
 GOLDEN = ("all yes", "all no", "one wrong", "one-sided", "unanswered")
 WORDS = ("maybe", "unknown", "Yes", "YES", " yes", "no.", "", "yes or no")  # answers that are text but not yes or no
 VIEW = ("arm", "message", "log", "file")
@@ -108,7 +112,8 @@ def _grader(answer, calls=None):
 
 def sheet(setup, fault, rng, place):
     """A correct sheet of one golden's page, then planted sheets for each of its answers in turn, given as `yes` and as
-    `no`, with every word of WORDS for `not yes or no`. Caught when the sheet check accepts the correct sheet and
+    `no`, with every word of WORDS for `not yes or no` and empty or blank evidence for `no quote`, and for `extra
+    field` the file itself holding another field too. Caught when the sheet check accepts the correct sheet and
     refuses every planted one for the reason the place names."""
     _, pages = _pages(setup, rng)
     golden, record, blob, asked = _asked(pages, rng)
@@ -120,6 +125,7 @@ def sheet(setup, fault, rng, place):
     answers, quote = clean["answers"], f"hw-{rng.getrandbits(32):08x} says so"
     edits = {"not yes or no": [lambda one, word=word: {**one, "answer": word} for word in WORDS],
              "misquoted": [lambda one: {**one, "evidence": quote}],
+             "no quote": [lambda one, empty=empty: {**one, "evidence": empty} for empty in ("", " ", "\n\t ")],
              "extra field": [lambda one: {**one, "confidence": "high"}]}
     planted = []
     for n, value in ((n, value) for n in range(len(answers)) for value in grading.ANSWERS):
@@ -130,8 +136,11 @@ def sheet(setup, fault, rng, place):
         else:
             planted.append({"left out": before + after, "twice": base + [one],
                             "stranger": base + [{**one, "id": f"q{len(ids) + 100}"}]}[place])
-    for sheet_ in planted:
-        problems = grading.check({"answers": sheet_}, ids, page)
+    files = [{"answers": answers_} for answers_ in planted]
+    if place == "extra field":  # the file itself holding another field
+        files.append({**clean, "notes": "planted"})
+    for file in files:
+        problems = grading.check(file, ids, page)
         if not any(SHEET[place] in problem for problem in problems):
             return f"the sheet check did not refuse it as {SHEET[place]!r}: {problems}"
     return None
@@ -196,16 +205,17 @@ def golden(setup, fault, rng, place):
 
 
 def tie(setup, fault, rng, place):
-    """Two graders of one page that split as `place` says, and a fresh tie-breaker, in two panels: the tie-breaker
-    sides with the first grader on a split question in one and with the second in the other, and with one grader
-    ungraded, each grader is the ungraded one once. Caught when, in both, the tie-breaker is asked exactly the split
-    questions and the panel takes its answers, or, with one grader ungraded, no question is answered and none asked."""
+    """Two graders of one page that split as `place` says (`one split`: on each question in turn), and a fresh
+    tie-breaker, in two panels for each split: the tie-breaker sides with the first grader on a split question in one
+    and with the second in the other, and with one grader ungraded, each grader is the ungraded one once. Caught
+    when, in every panel, the tie-breaker is asked exactly the split questions and the panel takes its answers, or,
+    with one grader ungraded, no question is answered and none asked."""
     _, pages = _pages(setup, rng)
     golden, record, blob, asked = _asked(pages, rng)
     page, ids, settled = _text(record, blob), [question["id"] for question in asked], golden.settled
-    split = {"one split": [rng.choice(ids)], "all split": ids, "one ungraded": []}[place]
-    order = rng.sample(split, len(split))
-    for turn in (0, 1):
+    splits = {"one split": [[id_] for id_ in ids], "all split": [ids], "one ungraded": [[]]}[place]
+    for split, turn in ((split, turn) for split in splits for turn in (0, 1)):
+        order = rng.sample(split, len(split))
         calls = []
         if place == "one ungraded":
             pair = [_grader(settled.get), _grader(None)]
@@ -213,9 +223,9 @@ def tie(setup, fault, rng, place):
             if calls or found.answers or found.unanswered != ids:
                 return f"one grader decided alone: tie-breaker asked {calls}, answers {found.answers}"
             continue
-        second = lambda id_: _flip(settled[id_]) if id_ in split else settled[id_]
+        second = lambda id_, split=split: _flip(settled[id_]) if id_ in split else settled[id_]
         sides = {id_: (n + turn) % 2 for n, id_ in enumerate(order)}  # 0: with the first grader, 1: the second
-        deciding = lambda id_: settled[id_] if sides.get(id_, 0) == 0 else _flip(settled[id_])
+        deciding = lambda id_, sides=sides: settled[id_] if sides.get(id_, 0) == 0 else _flip(settled[id_])
         found = grader.panel(page, asked, [_grader(settled.get), _grader(second)], _grader(deciding, calls))
         want = {id_: deciding(id_) for id_ in ids}
         if calls != [[id_ for id_ in ids if id_ in split]] or found.answers != want or found.unanswered:
@@ -224,52 +234,70 @@ def tie(setup, fault, rng, place):
 
 
 def view_(setup, fault, rng, place):
-    """The arm, or the skill's name and one of its paths on lines of their own, put in one golden's record at
-    `place`, everywhere that place can carry them: the final message; every kind of log entry (`host.ENTRIES`) in
-    each of its text fields; a world file's text, a file on the skill's path and a link to it. Caught when the clean
-    view and page name none of them and the planted view and page name none either."""
+    """The arm, or the skill's name and each of its paths on lines of their own, put in one golden's record at
+    `place`, everywhere that place can carry them: the final message; every kind of log entry (`host.ENTRIES`), as an
+    action on each path or as lines in its text; a world file's text, a file on each path, a link to one, and their
+    changes. Its control is the same record with the plant's actions on the overlay left out and its lines that name
+    the skill left out. Caught when the clean view and page name none of them, and the planted view and page equal
+    the control's: nothing of the plant shows, not even an entry with its names taken out."""
     _, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
-    path = rng.choice(layer["paths"])
-    names = [layer["skill"], path, "with_skill", "without_skill"]
-    lines, skill_file = f"{layer['skill']}\n{path}/SKILL.md\n", f"{path}/SKILL.md"
-    planted, added = copy.deepcopy(record), {}
+    skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
+    names = [skill, *layer["paths"], "with_skill", "without_skill"]
+    lines = "".join(f"{line}\n" for line in (skill, *files))
+    planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
     if place == "arm":
-        planted["arm"] = "with_skill"
+        planted["arm"], control["arm"] = "with_skill", "without_skill"
     elif place == "message":
-        planted["final_message"] = f"{planted['final_message'] or ''}\n{lines}"
+        planted["final_message"] = lines + (record["final_message"] or "")
+        control["final_message"] = record["final_message"] or ""
     elif place == "log":
-        planted["log"][:0] = [{"kind": kind, "source": "observed", **fields} for kind, fields in (
-            ("read", {"path": skill_file}), ("write", {"path": skill_file, "sha256": None}),
-            ("command", {"command": layer["skill"], "output": "", "exit_code": 0}),
-            ("command", {"command": f"cat {skill_file}", "output": "", "exit_code": 0}),
-            ("blocked", {"action": f"cat {skill_file}", "reason": lines}),
-            ("blocked", {"action": "ls", "reason": lines}),
-            ("skill", {"name": layer["skill"]}), ("agent", {"task": lines}), ("message", {"text": lines}))]
+        acts = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (
+            {"kind": "read", "path": file}, {"kind": "write", "path": file, "sha256": None},
+            {"kind": "command", "command": f"cat {file}", "output": "", "exit_code": 0},
+            {"kind": "blocked", "action": f"cat {file}", "reason": "refused"})]
+        texts = [("agent", "task", {}), ("message", "text", {}), ("blocked", "reason", {"action": "ls"})]
+        made = lambda text: [{"kind": kind, field: text, **other} for kind, field, other in texts]
+        planted["log"][:0] = [{**entry, "source": "observed"} for entry in acts + made(f"{lines}do the work\n")]
+        control["log"][:0] = [{**entry, "source": "observed"} for entry in made("do the work\n")]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file "))
-        data = blob(entry.split(" ")[1]) + f"\n{lines}".encode()
-        digest = hashlib.sha256(data).hexdigest()
-        added[digest] = data
-        planted["files_after"][target] = f"file {digest}{entry[len('file ') + 64:]}"
-        planted["files_after"][skill_file] = entry
-        planted["files_after"][f"{target}.hw-link"] = f"link {skill_file}"
-    seen = lambda rec, read: _shown(rec, read, names)
-    if seen(record, blob):
+        old, data = entry.split(" ")[1], lines.encode() + blob(entry.split(" ")[1])
+        new = hashlib.sha256(data).hexdigest()
+        added[new] = data
+        planted["files_after"][target] = f"file {new}{entry[len('file ') + 64:]}"
+        for item in planted["log"]:  # the agent wrote the planted bytes, so its write's hash is theirs
+            if item["kind"] == "write" and item.get("sha256") == old:
+                item["sha256"] = new
+        link = f"{target}.hw-link"
+        for one, target_ in ((planted, files[0]), (control, "")):
+            one["files_after"][link] = f"link {target_}"
+            one["diff"][link] = {"before": None, "after": f"link {target_}"}
+        for file in files:
+            planted["files_after"][file] = entry
+            planted["diff"][file] = {"before": None, "after": entry}
+    read = lambda digest: added[digest] if digest in added else blob(digest)
+    if _shown(record, blob, names):
         return "the clean view already names the arm or the skill, so the plant proves nothing"
-    shown = seen(planted, lambda digest: added[digest] if digest in added else blob(digest))
+    shown = _shown(planted, read, names)
     if shown:
         return f"the view a grader gets names {shown}"
+    if _seen(planted, read) != _seen(control, blob):
+        return "the view a grader gets differs from its control's: the plant shows"
     return None
+
+
+def _seen(record, blob):
+    seen, blobs = view.view(record, blob)
+    return seen, blobs, grading.page(seen, blobs)
 
 
 def _shown(record, blob, names):
     """The names that the view of `record` (its record and every blob) or its page holds."""
-    seen, blobs = view.view(record, blob)
+    seen, blobs, page = _seen(record, blob)
     text = json.dumps(seen, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
-    text += grading.page(seen, blobs)
-    return [name for name in names if name in text]
+    return [name for name in names if name in text + page]
 
 
 PLANTS = {

@@ -7,6 +7,7 @@ from unittest import mock
 from test_faults import Fake
 from test_host import JAIL
 
+import evidence
 import faults
 import goldens
 import grader
@@ -22,6 +23,7 @@ def alone(page, asked, graders, tiebreak):
 
 
 CHECK, GATE, PANEL, NAMES = grading.check, goldens.gate, grader.panel, world.names
+COVERS, DIFF, ON_OVERLAY = evidence.covers, evidence.diff, view.on_overlay
 
 
 def unquoted(sheet, ids, page):
@@ -52,6 +54,15 @@ def unanswered_ok(case, found, graded):
     return {id_: None if why and "no answer" in why else why for id_, why in GATE(case, found, graded).items()}
 
 
+def first_on_first(page, asked, graders, tiebreak):
+    """A panel that takes the first grader's answer on the first question it is given."""
+    found = PANEL(page, asked, graders, tiebreak)
+    answers = dict(found.answers)
+    if asked and found.graded[0].answers:
+        answers[asked[0]["id"]] = found.graded[0].answers[asked[0]["id"]]
+    return grader.Panel(answers, found.unanswered, found.agreed, found.asked, found.graded)
+
+
 def second_alone(page, asked, graders, tiebreak):
     """A panel that lets the second grader decide alone when the first has no sheet."""
     found = PANEL(page, asked, graders, tiebreak)
@@ -76,6 +87,20 @@ class Missed(Fake):
                 ("sheet", "twice", mock.patch.object(grading, "check", return_value=[]), "did not refuse"),
                 ("sheet", "misquoted", mock.patch.object(grading, "check", unquoted), "did not refuse"),
                 ("sheet", "not yes or no", mock.patch.object(grading, "check", folded), "did not refuse"),
+                ("sheet", "no quote", mock.patch.object(grading, "check", lambda *a: [
+                    p for p in CHECK(*a) if "quotes nothing" not in p]), "did not refuse"),
+                ("sheet", "extra field", mock.patch.object(grading, "check", lambda sheet, *a: CHECK(
+                    {"answers": sheet["answers"]}, *a)), "did not refuse"),
+                ("tie", "one split", mock.patch.object(grader, "panel", first_on_first), "not the split"),
+                ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
+                    places[:1], *a)), "the view a grader gets"),
+                ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
+                    places[1:], *a)), "the view a grader gets"),
+                ("view", "file", mock.patch.object(view.evidence, "diff", lambda old, new, places, own: DIFF(
+                    old, new, [], own)), "the view a grader gets"),
+                ("view", "log", mock.patch.object(view, "on_overlay", lambda item, words: ON_OVERLAY(
+                    {**item, "kind": "read"}, words)), "the view a grader gets"),
+                ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")), "the view a grader gets"),
                 ("golden", "one wrong", mock.patch.object(goldens, "gate", blind_to_last), "the plant made wrong"),
                 ("golden", "unanswered", mock.patch.object(goldens, "gate", unanswered_ok), "the plant made wrong"),
                 ("golden", "all yes", mock.patch.object(goldens, "gate", trusting), "the plant made wrong"),
