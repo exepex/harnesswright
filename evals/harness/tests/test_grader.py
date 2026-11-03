@@ -85,18 +85,16 @@ class Panel(unittest.TestCase):
         self.assertEqual(tiebreak.asked, [["q2", "q3"]])
         self.assertEqual((found.answers, found.unanswered, found.agreed), ({"q1": "yes", "q2": "no", "q3": "yes"},
                                                                            [], 1))
-        self.assertEqual(len(found.graded), 3)
+        self.assertEqual([g.answers for g in found.graded][2], {"q2": "no", "q3": "yes"})  # the tie-breaker is last
 
-    def test_an_ungraded_grader_leaves_its_questions_to_the_other_two(self):
-        tiebreak = sheet_of(q1="yes", q2="no", q3="no")
-        found = grader.panel(PAGE, self.THREE, [sheet_of(), sheet_of(q1="yes", q2="yes", q3="no")], tiebreak)
-        self.assertEqual(tiebreak.asked, [["q1", "q2", "q3"]])
-        self.assertEqual((found.answers, found.unanswered, found.agreed), ({"q1": "yes", "q3": "no"}, ["q2"], 0))
+    def test_an_ungraded_grader_leaves_the_run_ungraded_so_no_host_grades_it_alone(self):
+        for graders in ([sheet_of(), sheet_of(q1="yes", q2="yes", q3="no")], [sheet_of(), sheet_of()]):
+            tiebreak = sheet_of(q1="yes", q2="yes", q3="no")
+            found = grader.panel(PAGE, self.THREE, graders, tiebreak)
+            self.assertEqual((found.answers, found.unanswered, found.agreed), ({}, ["q1", "q2", "q3"], 0))
+            self.assertEqual((tiebreak.asked, len(found.graded)), ([], 2))
 
-    def test_no_tie_breaker_runs_when_it_cannot_make_two_answers_the_same(self):
-        for tiebreak in (sheet_of(), sheet_of(q1="yes", q2="yes", q3="yes")):
-            found = grader.panel(PAGE, self.THREE, [sheet_of(), sheet_of()], tiebreak)
-            self.assertEqual((found.answers, found.unanswered, tiebreak.asked), ({}, ["q1", "q2", "q3"], []))
+    def test_a_tie_breaker_that_is_ungraded_leaves_its_questions_unanswered(self):
         found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="no", q3="no"), sheet_of(q1="no", q2="yes",
                                                 q3="yes")], sheet_of())  # the tie-breaker is ungraded
         self.assertEqual((found.answers, found.unanswered), ({}, ["q1", "q2", "q3"]))

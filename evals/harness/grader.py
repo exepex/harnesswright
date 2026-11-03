@@ -16,10 +16,10 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   fenced block it holds, and nothing else. A line break inside a string is read as it stands.
 - `panel(page, asked, graders, tiebreak)`: one page's answers from a panel of graders, by one rule: a question's
   answer is the one two graders gave. Two graders grade the page, on two different hosts when both are available
-  (the caller chooses them). A question they did not both answer the same goes to one fresh grader on the reference
-  host (`tiebreak`), and only when that grader can still make two: when one of the two answered it. A question that
-  still has no two answers the same is unanswered, so the run stays ungraded on it. Agreement of the two graders is
-  reported, never used as a gate.
+  (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
+  (`tiebreak`). A question that has no two answers the same, as when a grader was ungraded, is unanswered, so the
+  run stays ungraded on it: no host grades a run alone. Agreement of the two graders is reported, never used as a
+  gate.
 - `blind(pages, seed)`: the order graders get the pages of a round, the runs of both arms and the goldens together,
   mixed by a seed the round records. Each page gets an opaque id, the hash of its text, so no name of a run, an
   arm or a golden reaches a grader.
@@ -129,15 +129,15 @@ class Panel:
 
 
 def panel(page, asked, graders, tiebreak):
-    """Grade `page` on the questions `asked` with the two `graders` and, for the questions they did not answer the
-    same, the `tiebreak` grader. Each grader is a function of (page, questions) that gives a `Graded`, such as `grade`
+    """Grade `page` on the questions `asked` with the two `graders` and, for the questions they answered two ways,
+    the `tiebreak` grader. Each grader is a function of (page, questions) that gives a `Graded`, such as `grade`
     bound to one host; each call is a fresh grader."""
     if len(graders) != 2:
         raise ValueError("a panel has two graders, and a tie-breaker")
     graded = [grade_one(page, asked) for grade_one in graders]
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
-    disputed = [question for question in asked if question["id"] not in same and votes[question["id"]]]
+    disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways
     if disputed:
         graded.append(tiebreak(page, disputed))
         for question in disputed:
