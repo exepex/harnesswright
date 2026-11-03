@@ -51,31 +51,37 @@ Written by the functional planner for a planned item (an epic or a feature).
 ---
 id: P-order-retry
 status: draft               # draft | approved | rejected
+gaps-accepted-by: none      # who accepted the plan's gaps, and when; "none" when it has no gaps
 ---
 ```
 
 Sections: **Goal** (one paragraph) · **In scope** · **Out of scope**, with reasons · **Acceptance criteria**,
 numbered `AC-1`, `AC-2`, …, each testable · **Non-functional targets**, numbered `NFR-1`, `NFR-2`, … (latency,
-throughput, memory, CPU, availability, each exact, estimated, unknown or "not applicable") · **Risks**.
+throughput, memory, CPU, availability), each in one of the states below · **Gaps** · **Risks**.
 
 **One rule for requirements.** Every acceptance criterion and every target not marked "not applicable" is a
-*requirement*. Each requirement names the test types it requires. The functional planner proposes them from the
-process setting `test-types`, and the plan reviewer and a person approve them with the plan. Everything below that
-says "requirement" means both kinds.
+*requirement*. Each requirement names the test types it requires, from the process setting `test-types`. In a plan,
+the functional planner proposes them and they are approved with the plan. A story with no plan takes them from the
+same setting. Everything below that says "requirement" means both kinds.
 
 **Performance targets.** The functional planner asks the person for each target and never reads monitoring tools.
-A target is in one of three states:
+No number is ever invented. Each target is in one of four states:
 
 - **Exact**, for example "p95 under 200 ms". Its test must pass.
 - **Estimated**: a ballpark the planner turns into a range and marks `estimated`. Its test must exist, but a missed
-  range is a warning to the person, not a fail.
-- **Unknown**: no number is invented. The plan lists the risk "performance not verified", and the person accepts
-  it when approving the plan. The requirement is a baseline benchmark: the test measures the feature in the test
-  environment, saves the figure, and fails when a later change makes it slower by more than the process setting
-  `baseline-tolerance`.
+  range is a warning, not a fail.
+- **Unknown**: the requirement is a baseline benchmark, test type `performance`. The test measures the target's
+  metric in the test environment, saves the figure, and fails when a later change makes that metric worse by more
+  than the process setting `baseline-tolerance`.
+- **Not applicable**: not a requirement.
 
-A later planned item replaces an estimate or a baseline with a real number. No number is ever invented, and no
-target is skipped without the person's approval.
+**One rule for gaps.** An unknown target ("performance not verified") and a not-applicable target are *gaps*. The
+plan lists each gap with its reason under **Gaps**, and a person accepts them; `gaps-accepted-by` records who and
+when. This holds at every tier: a plan with gaps waits for a person even where its tier has no human plan gate. The
+plan reviewer fails a plan with a gap that is not listed or not accepted. A T3 plan needs at least one performance
+requirement; a baseline benchmark counts.
+
+A later planned item replaces an estimate or a baseline with a real number.
 
 ## Technical design
 
@@ -95,7 +101,8 @@ criteria or targets it serves (`serves: [AC-1, NFR-2]`) · **Test data**: the da
 shape, volume and sensitive fields · **Decisions** (links to decision records) · **Risks**.
 
 The test writer builds the test data: fixtures for unit and integration tests, and generated data for performance
-tests, shaped like the traffic the person describes. Real customer data is never used.
+tests, shaped like the traffic the person describes. Test data follows the standards area `ITEST`
+([03 · Standards](03-standards.md)).
 
 The plan reviewer checks that the two match: every element serves at least one requirement, and every
 requirement is served by at least one element.
@@ -114,7 +121,8 @@ waivers: []                 # story-scoped waivers: rule ID, reason, end date, a
 ```
 
 Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: the request, quoted) ·
-**Acceptance criteria** (testable, each with its required test types) · **Out of scope** · **Tasks** (optional,
+**Acceptance criteria** (testable, each with its required test types) · **Targets** (each target it covers,
+quoted from the plan with its state and number or range) · **Out of scope** · **Tasks** (optional,
 only when the team tracks tasks).
 
 A story with a plan uses the plan's IDs. A story with `plan: none` numbers its own criteria `AC-1`, `AC-2`, …,
@@ -182,12 +190,13 @@ rules: 9b1e…                # hash of the rules.md the judge read
 result: pass                # pass | fail
 votes: {approve: 2, reject: 1}
 blockers: []                # confirmed blockers; any entry forces fail
+warnings: []                # missed estimated ranges; never forces fail
 ---
 ```
 
 Body: each claim, checked or refuted with evidence; then what must change for a pass. The story judge fails a
-requirement whose required test type has no test. A performance test that misses an `estimated` range is listed as
-a warning, not a blocker.
+requirement whose required test type has no test. It reads each target's state from the story: a missed exact
+target or a failed baseline benchmark is a blocker, and a missed `estimated` range goes under `warnings`.
 
 A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
 valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
