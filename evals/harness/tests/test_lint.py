@@ -321,6 +321,15 @@ class Lint(TempCase):
                                    candidate)
         self.assertTrue(any(p.startswith("clean: README.md: holds") for p in problems), problems)
 
+    def test_every_case_in_the_repository_may_run_on_each_host(self):
+        from test_adapters import CLAUDE, CODEX
+        skills = sorted(p.parent.name for p in (cases.REPO / "evals" / "skills").glob("*/cases"))
+        self.assertIn("claims-writer", skills)
+        for skill in skills:
+            for adapter in (CLAUDE, CODEX):
+                with self.subTest(skill=skill, host=adapter.NAME):
+                    self.assertEqual(lint.lint_skill(skill, adapter), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,9 @@
+harness: "1.0"
+standards:
+  layers: [core]
+toolchain:
+  test: python3 -m unittest discover -s tests -t .
+models:
+  deep: host-default
+  standard: host-default
+  fast: host-default

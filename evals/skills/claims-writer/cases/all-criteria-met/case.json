@@ -1,0 +1,196 @@
+{
+  "prompt": "I've finished story S01 (bulk discount): I changed src/discount.py and added tests/test_discount.py. The story is in .harness/runs/2026-10-30-bulk-discount/stories/S01.md. Write up the claims for the story judge.",
+  "kind": "task",
+  "tools": [
+    "python3"
+  ],
+  "expectations": [
+    {
+      "text": "The claims are written to claims/S01.md in the story's run folder, and no other project file changes",
+      "source": "format",
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [
+            ".harness/runs/2026-10-30-bulk-discount/claims/S01.md",
+            "*__pycache__*",
+            "*.pytest_cache*"
+          ]
+        }
+      },
+      "judged": {
+        "question": "Did the run write its claims to claims/S01.md in the story's run folder, and leave every other file as it was?",
+        "pass": "Yes when that one file is new and nothing else in the project was edited or added.",
+        "fail": "No when the claims are elsewhere, missing, or any source, docs or config file changed.",
+        "examples": {
+          "pass": [
+            "A new claims/S01.md next to the story, with the code and docs untouched."
+          ],
+          "fail": [
+            "The claims in CLAIMS.md at the root, or an edit to the code while writing them."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims file has the six claims headings in their order",
+      "source": "format",
+      "check": {
+        "name": "sections",
+        "args": {
+          "headings": [
+            "Request",
+            "Requirements",
+            "Standards",
+            "Out of scope",
+            "Files changed",
+            "Not verified"
+          ],
+          "level": 2,
+          "file": ".harness/runs/2026-10-30-bulk-discount/claims/S01.md"
+        }
+      },
+      "judged": {
+        "question": "Are the level 2 headings of the claims file exactly Request, Requirements, Standards, Out of scope, Files changed and Not verified, in that order?",
+        "pass": "Yes when those six headings appear once each, in that order, and no other level 2 one.",
+        "fail": "No when one is missing, renamed, moved or another level 2 heading is added.",
+        "examples": {
+          "pass": [
+            "Six headings from Request down to Not verified, as listed."
+          ],
+          "fail": [
+            "Headings Summary, Criteria and Evidence instead."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Every file listed under Files changed has its true line count",
+      "source": "format",
+      "check": {
+        "name": "line_counts",
+        "args": {
+          "section": "Files changed",
+          "file": ".harness/runs/2026-10-30-bulk-discount/claims/S01.md"
+        }
+      },
+      "judged": {
+        "question": "Does every line under Files changed name a file with its true line count?",
+        "pass": "Yes when each line is a path with the number of lines the file really has.",
+        "fail": "No when a count is wrong, a line is not a file entry, or the section lists nothing.",
+        "examples": {
+          "pass": [
+            "A list of the two changed files, each with its real count."
+          ],
+          "fail": [
+            "A count that is off by a few lines, or a sentence instead of a list."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Every file and line the claims cite exists",
+      "source": "format",
+      "check": {
+        "name": "line_references",
+        "args": {
+          "file": ".harness/runs/2026-10-30-bulk-discount/claims/S01.md"
+        }
+      },
+      "judged": {
+        "question": "Does every path:line the claims cite name a project file, by its path from the project root, and a line it has?",
+        "pass": "Yes when each cited line exists in the cited file.",
+        "fail": "No when a cited file is missing, is named without its folder, or is shorter than the line.",
+        "examples": {
+          "pass": [
+            "A cited line inside the function that does the work."
+          ],
+          "fail": [
+            "A cited line past the end of the file, or a bare file name without its folder."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The tests are run while writing the claims",
+      "source": "format",
+      "check": {
+        "name": "command_ran",
+        "args": {
+          "pattern": "unittest|pytest",
+          "ran": true
+        }
+      },
+      "judged": {
+        "question": "Did the run itself run the project's tests before writing the claims?",
+        "pass": "Yes when the command list shows a test command run by this run.",
+        "fail": "No when no test command ran, so any result in the claims was not fresh.",
+        "examples": {
+          "pass": [
+            "The command list holds the unittest command the project uses."
+          ],
+          "fail": [
+            "The command list shows only file reads and the write of the claims."
+          ]
+        }
+      }
+    },
+    {
+      "text": "AC-1, AC-2 and AC-3 are each met, with the code line and the test that prove it",
+      "source": {
+        "contract": {
+          "path": ".harness/runs/2026-10-30-bulk-discount/stories/S01.md",
+          "line": 19,
+          "quote": "AC-1: An order whose subtotal is 100.00 or more is discounted by 10%"
+        }
+      },
+      "judged": {
+        "question": "Does each of AC-1, AC-2 and AC-3 have status met, a path:line in src/discount.py and a test named by its function name?",
+        "pass": "Yes when all three have the status met, a cited code line and a named passing test.",
+        "fail": "No when one is missing, has another status, or cites no code line or no test.",
+        "examples": {
+          "pass": [
+            "AC-2 is met, cites the quantity check in src/discount.py and names test_negative_quantity_is_rejected."
+          ],
+          "fail": [
+            "AC-3 says only that rounding is done, with no line and no test."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The claims quote the result of the run of the tests: four tests, all passing",
+      "source": "format",
+      "judged": {
+        "question": "Do the claims quote the test command's own result, showing four tests run and none failed?",
+        "pass": "Yes when the evidence quotes the count of four and the OK line of that run.",
+        "fail": "No when the claims say the tests pass without quoting a run, or quote another count.",
+        "examples": {
+          "pass": [
+            "Evidence: Ran 4 tests in 0.001s, OK."
+          ],
+          "fail": [
+            "Evidence: all tests should pass."
+          ]
+        }
+      }
+    },
+    {
+      "text": "Files changed lists src/discount.py and tests/test_discount.py",
+      "source": "format",
+      "judged": {
+        "question": "Does Files changed list both src/discount.py and tests/test_discount.py, and no file the change did not touch?",
+        "pass": "Yes when both are listed and nothing else but the claims file itself.",
+        "fail": "No when either is missing or an untouched file is listed.",
+        "examples": {
+          "pass": [
+            "The two files, each with its count."
+          ],
+          "fail": [
+            "Only src/discount.py."
+          ]
+        }
+      }
+    }
+  ]
+}
