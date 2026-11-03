@@ -10,12 +10,12 @@ Built by reading, because no index script exists yet for v2. Not verified (HW-RU
 | CORE-SKILL-04 | A skill states its purpose, limits and inputs | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-05 | Steps are numbered, imperative and checkable | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-06 | A skill cites the rules it applies by ID | floor | active | [skill.md](skill.md) |
-| CORE-SKILL-07 | A skill proves its own result before it reports | principle | active | [skill.md](skill.md) |
+| CORE-SKILL-07 | A skill proves its own result before it reports | floor | active | [skill.md](skill.md) |
 | CORE-SKILL-08 | A skill says what to do when a step fails | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-09 | Output follows its contract | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-10 | One good and one bad example | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-11 | SKILL.md stays under 500 lines | floor | active | [skill.md](skill.md) |
-| CORE-SKILL-12 | Each reference is linked once, with when to read it | principle | active | [skill.md](skill.md) |
+| CORE-SKILL-12 | Each reference is linked from SKILL.md, with when to read it | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-13 | Every sentence earns its place | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-14 | One default, not a menu | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-15 | Exact work gets an exact command | principle | active | [skill.md](skill.md) |
@@ -27,3 +27,4 @@ Built by reading, because no index script exists yet for v2. Not verified (HW-RU
 | CORE-SKILL-21 | Every script step has a no-script fallback | floor | active | [skill.md](skill.md) |
 | CORE-SKILL-22 | A skill does only what it says | floor | active | [skill.md](skill.md) |
 | CORE-SKILL-23 | Every skill is listed where any host can find it | principle | active | [skill.md](skill.md) |
+| CORE-SKILL-24 | Every skill has evals, written before the skill | floor | active | [skill.md](skill.md) |
