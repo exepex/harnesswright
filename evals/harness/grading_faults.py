@@ -23,13 +23,15 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   grader must be asked exactly the split questions, and its answer, which sides with each grader on some question,
   must decide them; with one grader ungraded no question is answered and no fresh grader is asked, so one grader
   never decides alone (`grader.panel`).
-- `view`: the arm, or the skill's name and each of its paths, on lines of their own and inside a sentence, put in a
-  record's arm, final message, every kind of log entry (with the inferred entries of a command), or files and changes
-  (each overlay path as a run holds it, with its folders, the folders above it, its files and their writes; a link to
-  one; lines in a world file's text, and its write). Neither the view (`view.view`, its record and every blob) nor the
-  page (`grading.page`) may name any of them, and the clean ones name none. And the planted view and page must equal
-  those of a control, the same record without the plant's actions on the overlay and its lines that name the skill: a
-  tell with its names taken out, such as an empty skill-load entry, still shows.
+- `view`: the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, under the
+  world's absolute path and in backticks, with the run's own folders and a command's output that names them, put in a
+  record's arm and what its host reported (exposure, requests, failure), final message, every kind of log entry (with
+  the inferred entries of a command), or files and changes (each overlay path as a run holds it, with its folders, the
+  folders above it, its files and their writes; a link to one; lines in a world file's text, and its write). Neither the
+  view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
+  name none. And the planted view and page must equal those of a control, the same record without the plant's actions on
+  the overlay and its lines that name the skill: a tell with its names taken out, such as an empty skill-load entry,
+  still shows.
 
 Standard library only.
 """
@@ -45,6 +47,7 @@ import checks
 import goldens
 import grader
 import grading
+import scrub
 import view
 from faults import Missed
 
@@ -241,21 +244,26 @@ def tie(setup, fault, rng, place):
 
 
 def view_(setup, fault, rng, place):
-    """The arm, or the skill's name and each of its paths, on lines of their own and inside a sentence, put in one
-    golden's record at `place`, everywhere that place can carry them: the final message; every kind of log entry
-    (`host.ENTRIES`), as an action on each path, with an inferred entry after its command, or as lines in its text; each
-    overlay path as a run holds it (its folders, the folders above it, its files, their writes and changes), a link to
-    one, and a world file's text and its write. Its control is the same record with the plant's actions on the overlay
-    left out and its lines that name the skill left out. Caught when the clean view and page name none of them, and the
-    planted view and page equal the control's: nothing of the plant shows, not even an entry with its names taken
-    out."""
+    """The arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, under the world's
+    absolute path and in backticks, with the run's own folders and a command's output that names them, put in one
+    golden's record at `place`, everywhere that place can carry them: the arm and what the host reported; the final
+    message; every kind of log entry (`host.ENTRIES`), as an action on each path, with an inferred entry after its
+    command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
+    their writes and changes), a link to one, and a world file's text and its write. Its control is the same record with
+    the plant's actions on the overlay left out, its lines that name the skill left out, its run folders as their
+    neutral words and its command output empty. Caught when the clean view and page name none of them, and the planted
+    view and page equal the control's: nothing of the plant shows, not even an entry with its names taken out."""
     _, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
     names = [skill, *layer["paths"], "with_skill", "without_skill"]
-    lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here."))
+    world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
+    lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
+                                             *(f"cat {world}/{file}" for file in files), f"see `{skill}`"))
     kept = f"hw-kept-{rng.getrandbits(32):08x}\n"  # a neutral line next to the plant, which the view must keep
+    ran = "".join(f"{folder}/notes.md\n" for folder in sorted(record["folders"]))  # the run's own folders
+    neutral = "".join(f"{record['folders'][folder]}/notes.md\n" for folder in sorted(record["folders"]))  # as words
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
 
     def stored(data):
@@ -263,25 +271,31 @@ def view_(setup, fault, rng, place):
         return hashlib.sha256(data).hexdigest()
 
     if place == "arm":
-        planted["arm"], control["arm"] = "with_skill", "without_skill"
+        planted.update(arm="with_skill", exposure={"skills": [skill], "tools": []}, requests=[{"request": lines}],
+                       failure=f"stopped at {files[0]}")  # the arm, and what the host reported of the skill
+        control.update(arm="without_skill", exposure=goldens.NOTHING_EXPOSED, requests=[], failure=None)
     elif place == "message":
-        planted["final_message"] = lines + kept + (record["final_message"] or "")
-        control["final_message"] = kept + (record["final_message"] or "")
+        planted["final_message"] = lines + kept + ran + (record["final_message"] or "")
+        control["final_message"] = kept + neutral + (record["final_message"] or "")
     elif place == "log":
         world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file "))[0]
         acts = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (
             {"kind": "read", "path": file}, {"kind": "write", "path": file, "sha256": None},
             {"kind": "command", "command": f"cat {file} {world_file}", "output": "", "exit_code": 0},
             {"kind": "read", "path": world_file, "source": "inferred"},  # part of the command before it
+            {"kind": "command", "command": f"cat {world}/{file}", "output": "", "exit_code": 0},
+            {"kind": "blocked", "action": f"cat {world}/{file}", "reason": "refused"},
             {"kind": "blocked", "action": f"cat {file}", "reason": "refused"})]
         texts = [("agent", "task", {}), ("message", "text", {}), ("blocked", "reason", {"action": "ls"})]
         made = lambda text: [{"kind": kind, field: text, **other} for kind, field, other in texts]
-        planted["log"][:0] = [{"source": "observed", **entry} for entry in acts + made(lines + kept)]
-        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept)]
+        shown = lambda output, code: {"kind": "command", "command": "ls", "output": output, "exit_code": code}
+        planted["log"][:0] = [{"source": "observed", **entry}
+                              for entry in acts + made(lines + kept + ran) + [shown(lines + ran, 1)]]
+        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)]]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file "))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-        for one, data in ((planted, lines + kept), (control, kept)):  # the agent wrote it, so its writes are its
+        for one, data in ((planted, lines + kept + ran), (control, kept + neutral)):  # the agent wrote it
             digest = stored(data.encode() + blob(old))
             one["files_after"][target] = f"file {digest}{rest}"
             for item in one["log"]:
