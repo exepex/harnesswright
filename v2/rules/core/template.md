@@ -71,7 +71,8 @@ with the older rule it carries over.
 - **Check:** Read both frontmatters against this list, or run the frontmatter check script.
 - **Good:** `name: claims-writer` in `v2/skills/claims-writer/SKILL.tmpl.md` and `release/claims-writer/SKILL.md`.
 - **Bad:** `name: Claims Writer` with an `allowed-tools` field, or a template folder named `claims`.
-- **Eval:** a template whose `name` has capitals and an `allowed-tools` field, which the skill judge must flag.
+- **Eval:** a template whose `name` has capitals and does not match its folder, and one with an `allowed-tools`
+  field, which the skill judge must flag.
 - **Source:**
   - own (CORE-SKILL-02; HW-PORT-01)
   - `anthropics/skills@ca45fc4 skills/skill-creator/scripts/quick_validate.py` (Apache-2.0)
