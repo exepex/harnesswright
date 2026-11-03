@@ -139,3 +139,11 @@ class FakeGrader(TempCase):
         with self.assertRaises(scrub.Leak):
             self.grade([{"do": "command", "command": 'echo "HWCANARY-$(echo 0123456789abcdef)" > "$HOME/session"'},
                         {"do": "say", "text": json.dumps(GOOD)}], tokens=[token])
+
+    def test_a_canary_a_grader_sends_to_the_gate_stops_the_round(self):
+        token = "HWCANARY-0123456789abcdef"  # the command builds it, so only the gate's request log holds it whole
+        send = ("import socket; s = socket.socket(socket.AF_UNIX); s.connect('/run/gate'); "
+                "s.sendall(b'CONNECT HWCANARY-' + b'0123456789abcdef' + b':443 HTTP/1.1\\r\\n\\r\\n'); s.recv(64)")
+        with self.assertRaises(scrub.Leak):
+            self.grade([{"do": "command", "command": f'python3 -c "{send}"'},
+                        {"do": "say", "text": json.dumps(GOOD)}], tokens=[token])
