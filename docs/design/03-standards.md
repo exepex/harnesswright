@@ -213,15 +213,25 @@ claims.
 The standards reader combines the layers with a Python script that uses only the standard library. Where scripts
 cannot run, it does the same by reading, and marks the result "not verified".
 
-1. Start with every active principles rule. Rules with status `inferred` or `retired` are never applied, in any
-   layer.
-2. Apply the active rules of each layer the profile lists, most general first. An override replaces a rule; a
-   tightening makes a floor stricter; a binding picks a decision point's option; any other rule is added.
+**Inputs.** The resolver reads these three inputs and nothing else:
+
+1. The **active** rules of each layer the profile lists. Rules with status `inferred` or `retired` are never read.
+2. The **decision point bindings** in the profile. They count as bindings of the application layer.
+3. The application's **approved waivers** whose end date has not passed.
+
+**Steps.**
+
+1. Start with the principles layer. Apply each listed layer, most general first: an override replaces a rule, a
+   tightening makes a floor stricter, a binding picks a decision point's option, and any other rule is added.
+2. Apply the profile's bindings. A decision point bound twice in the application layer, once by a rule and once by
+   the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
-4. If two layers contradict each other without saying so, stop and ask the layer owners.
-5. If a layer loosens a floor, stop.
+4. Mark each waived rule with its waiver: scope (the application, or one story ID), reason, end date and approver.
+   A story-scoped waiver applies only to that story.
+5. If two inputs contradict each other without saying so, stop and ask the layer owners. If a layer loosens a
+   floor, or a waiver names a floor, stop.
 
 The result is the **resolved standards** file, written once at the start of each run to
-`.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind and the ID it changed, plus a
-fingerprint (hash) of every layer file it read. It holds no rule text, so it is not a copy. Every role in the run
+`.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind, the ID it changed and any waiver,
+plus a fingerprint (hash) of every file it read. It holds no rule text, so it is not a copy. Every role in the run
 reads this file, and each verdict records its fingerprint.
