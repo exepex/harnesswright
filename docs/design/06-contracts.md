@@ -66,7 +66,7 @@ functional planner proposes them and they are approved with the plan. A story wi
 setting. Everything below that says "requirement" means both kinds.
 
 **Performance targets.** The functional planner asks the person for each target and never reads monitoring tools.
-No number is ever invented. Each target is in one of four states:
+No number is ever invented. Each target is in one of five states:
 
 - **Exact**, for example "p95 under 200 ms". Its test must pass.
 - **Estimated**: a ballpark the planner turns into a range and marks `estimated`. Its test must exist, but a missed
@@ -75,9 +75,7 @@ No number is ever invented. Each target is in one of four states:
   environment, saves the figure, and fails when a later change makes that metric worse by more than the process
   setting `baseline-tolerance`.
 - **Not applicable**: not a requirement.
-
-A target needs a performance test type in `test-types`. When the team has none, the target is marked "not testable
-here".
+- **Not testable here**: the team has no performance test type in `test-types`. Not a requirement.
 
 **One rule for gaps.** A target that is unknown ("performance not verified"), not applicable or not testable here is
 a *gap*. The plan lists each gap with its reason under **Gaps**, and a person accepts them; `gaps-accepted-by`
