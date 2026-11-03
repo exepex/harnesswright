@@ -223,7 +223,7 @@ cannot run, it does the same by reading, and marks the result "not verified".
 
 1. Start with the principles layer. Apply each listed layer, most general first: an override replaces a rule, a
    tightening makes a floor stricter, a binding picks a decision point's option, and any other rule is added.
-2. Apply the profile's bindings. A decision point bound twice in the application layer, once by a rule and once by
+2. Apply the profile's bindings. A decision point bound more than once in the application layer, by rules or by
    the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
 4. Mark each waived rule with its waiver: scope (the application, or one story ID), reason, end date and approver.
