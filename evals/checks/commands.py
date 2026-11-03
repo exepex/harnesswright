@@ -5,10 +5,11 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
   ran (`ran` true), or was never run nor tried (`ran` false): an action the host or the jail refused that matches
   the pattern is a try. With `exit_code`, a command that counts must also have ended with that code, and it must be
   one whose code is known to be its own (`ALONE`): one program with its arguments, each a plain word, a simple
-  quoted string with no shell operator in it, or a redirect such as `2>&1`; or, for exit code 0 only, such programs
-  joined by `&&`, which ends with 0 only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with the code of another
-  program, so when only such commands match, or a matching command's code was not reported, it is `undecidable`.
-  A quoted string with an operator may be a script that a program runs (`bash -c '... | tail'`), so it is not plain.
+  quoted string of a plain word's characters and blanks, or a redirect such as `2>&1`; or, for exit code 0 only,
+  such programs joined by `&&`, which ends with 0 only when each did. Any other shape, such as a pipe, `||`, `;` or
+  `$(`, may end with the code of another program, so when only such commands match, or a matching command's code was
+  not reported, it is `undecidable`. A quoted string with any other character may be a script that a program runs
+  (`bash -c '... | tail'`), so it is not plain.
 """
 
 import re
@@ -16,8 +17,11 @@ import re
 from checks import Check, Undecidable
 
 # The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
-# A quoted string holds no shell operator, since a program such as bash -c may run it as a script of its own.
-WORD = r"""(?:[A-Za-z0-9_./=:@%+,*?~\[\]-]|'[^'|;&()<>]*'|"[^"$`\\|;&()<>]*")+"""
+# A quoted string holds only a plain word's characters and blanks, since a program such as bash -c may run it as a
+# script, and any other character (an operator, a line break, !) could make that script end with another code.
+PLAIN = r"[A-Za-z0-9_./=:@%+,*?~\[\]-]"
+QUOTED = r"[A-Za-z0-9_./=:@%+,*?~\[\] \t-]"  # a plain word's characters and blanks
+WORD = rf"""(?:{PLAIN}|'{QUOTED}*'|"{QUOTED}*")+"""
 TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
