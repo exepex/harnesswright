@@ -218,7 +218,7 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(^|\\s|\\s-[a-z]*c\\s+['\\\"])go\\s+test\\b",
+          "pattern": "(\\S*/)?\\bgo\\s+test\\b",
           "ran": true,
           "exit_code": 0
         }
