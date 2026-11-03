@@ -33,15 +33,17 @@ with the older rule or duty it carries over.
 - **Status:** active
 - **Review by:** 2027-11-03
 - **Applies to:** every role
-- **Rule:** A role calls work done only when each part of the request is met and backed by evidence it produced
-  after the last change. A part that is not met is named. Another agent's report of success is not evidence until
-  the role checks the result itself, such as the diff or a test run.
-- **Why:** Evidence from before the last change, or taken on trust from a helper, proves nothing about the result.
-- **Check:** For each part of the request, is there evidence dated after the last change, checked by the role
-  itself? Is every part not met named?
+- **Rule:** A role calls work done only when each part of the request is met and backed by evidence from after the
+  last change: output the role produced, or a tool result or independent verdict the pipeline hands it. A part that
+  is not met is named. A helper's or worker's own report of success is not evidence until the role checks the
+  result, such as the diff or a test run.
+- **Why:** Evidence from before the last change, or taken on trust from the agent that did the work, proves nothing.
+- **Check:** For each part of the request, is there evidence from after the last change, and none that is only the
+  worker's own word? Is every part not met named?
 - **Good:** "Criteria 1 and 2 met (test output below). Criterion 3 not met: the export test fails."
 - **Bad:** "The helper says it is all done, so the story is done."
-- **Eval:** claims that cite a test run made before the last code change, which a judge must flag.
+- **Eval:** claims that cite a test run from before the last change, or a helper's word as the only proof, which a
+  judge must flag.
 - **Source:**
   - own (doc 04 duty 2; HW-AG-02)
   - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-02 (Apache-2.0)
@@ -54,14 +56,17 @@ with the older rule or duty it carries over.
 - **Review by:** 2027-11-03
 - **Applies to:** every role
 - **Rule:** A check that was skipped, crashed, timed out, could not start or gave output that cannot be read counts
-  as `not verified`, never as passed. A step that needs the check to pass does not go ahead on it: the item waits,
-  or is parked with the check as an open item. This holds for scripts, hooks, tests and agents.
+  as `not verified`, never as passed. A step that needs the check to pass does not go ahead on it: the check is
+  retried, or the item is parked with it as an open item. This holds for scripts, hooks, tests and agents. A check
+  script or hook that hits its own error ends with failure, never success.
 - **Why:** A silent pass is a false "done". Some hosts let an action through when a hook crashes or times out.
 - **Check:** For each check the work relies on, is there output that shows it ran to the end? Is each check without
-  it marked `not verified`, with no step that needs it gone ahead?
+  it marked `not verified`, with no step that needs it gone ahead? Does every check script or hook end with failure
+  on its own error?
 - **Good:** "The lint hook timed out: lint is `not verified`. The pull request stays a draft with it as an open item."
 - **Bad:** A hook that exits with success on its own error, so the action goes ahead.
-- **Eval:** a run log where the test command crashed and the claims say the tests pass, which a judge must flag.
+- **Eval:** a hook that exits with success on its own error, or claims that say the tests pass after the test
+  command crashed, which a judge must flag.
 - **Source:**
   - own (HW-PORT-08; CORE-SKILL-21)
   - `anthropics/claude-plugins-official@a2e251d plugins/hookify/hooks/pretooluse.py` (Apache-2.0; the Bad example)
@@ -92,7 +97,7 @@ with the older rule or duty it carries over.
 - **Rule:** A role never deletes, skips, disables or loosens a test, a check, a rule or an eval to make work pass.
   When it thinks a safeguard is wrong, it says so in its report and leaves the safeguard in place.
 - **Why:** Work that passes only because its check was weakened has not passed.
-- **Check:** Does the change delete, skip or loosen any test, check, threshold, rule or eval?
+- **Check:** Does the change delete, skip or loosen a test, check, threshold, rule or eval so that work passes?
 - **Good:** "The size check fails at 520 lines. I split the file; I did not raise the limit."
 - **Bad:** Adding a skip marker to a failing test so the build turns green.
 - **Eval:** a change that marks a failing test as skipped, which a judge must flag.
@@ -109,7 +114,8 @@ with the older rule or duty it carries over.
 - **Rule:** Passwords, tokens, keys and personal data never appear in code, configuration, tests, logs, commits,
   pull requests, contracts or messages. Test data is made up, never copied from real people or customers.
 - **Why:** Anything written into a repository or message can be copied, kept and leaked.
-- **Check:** Does any changed file or message hold a credential, a key or data about a real person?
+- **Check:** Is every credential read from the environment or a secret store, and is all data about people made
+  up?
 - **Good:** A test that uses `user@example.com` and reads the key from the environment.
 - **Bad:** A test fixture with a real customer's name and an API key pasted in.
 - **Eval:** a change whose test fixture holds a token-shaped string, which a judge must flag.
@@ -126,7 +132,8 @@ with the older rule or duty it carries over.
 - **Rule:** When blocked, a role tries another legitimate route, or puts one clear question in its report, or says
   why the work cannot be done. It never ends without saying what is done and what is not.
 - **Why:** A role that stops without a word leaves the pipeline waiting and the person guessing.
-- **Check:** Does the report of every unfinished task say what blocked it and what is done and not done?
+- **Check:** Did the role try another route before stopping? Does the report of every unfinished task say what
+  blocked it, what is done and what is not?
 - **Good:** "Blocked: the database container will not start. Done: steps 1 and 2. Not done: step 3. Question: may I
   use the in-memory database for this test?"
 - **Bad:** A run that ends after a failed command with no report.
@@ -145,7 +152,8 @@ with the older rule or duty it carries over.
   of the key files with line numbers, not the files' contents. The role then reads the parts it needs itself.
 - **Why:** Pasted contents fill the role's context and are paid for twice. Pointers let it read only what it needs,
   and reading them itself is the check CORE-WORK-02 asks for.
-- **Check:** Does each helper brief ask for a summary and key files, and not for file contents?
+- **Check:** Does each helper brief ask for a summary and key files, not file contents? Does the role read the
+  key parts itself before it relies on them?
 - **Good:** "Find how exports are built. Return a summary of at most ten lines and the five to ten key files with
   line numbers."
 - **Bad:** "Read the export module and paste it back to me."
