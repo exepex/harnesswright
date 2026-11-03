@@ -32,3 +32,11 @@ Built by reading, because no index script exists yet for v2. Not verified (HW-RU
 | CORE-SKILL-26 | A long reference opens with its contents | principle | active | [skill.md](skill.md) |
 | CORE-SKILL-27 | Bundled files are named from the skill folder | floor | active | [skill.md](skill.md) |
 | CORE-CATALOG-01 | All descriptions together fit a budget | principle | active | [catalog.md](catalog.md) |
+| CORE-WORK-01 | Report only what you verified | floor | active | [work.md](work.md) |
+| CORE-WORK-02 | Done means proven, with fresh evidence | floor | active | [work.md](work.md) |
+| CORE-WORK-03 | A check that did not run never passes | floor | active | [work.md](work.md) |
+| CORE-WORK-04 | Do only what was asked | floor | active | [work.md](work.md) |
+| CORE-WORK-05 | Never weaken a safeguard | floor | active | [work.md](work.md) |
+| CORE-WORK-06 | Keep secrets and personal data out | floor | active | [work.md](work.md) |
+| CORE-WORK-07 | Do not stop silently | floor | active | [work.md](work.md) |
+| CORE-WORK-08 | A helper returns a summary and key files, not contents | principle | active | [work.md](work.md) |
