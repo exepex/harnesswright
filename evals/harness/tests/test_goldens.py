@@ -1,69 +1,100 @@
-"""Goldens: hand-made runs of a case with settled answers, graded as runs are, and the golden gate."""
+"""Goldens: hand-made runs of a case with settled answers, made into bundles as runs are, and the golden gate."""
 
 import json
+import os
 import unittest
 
-from helpers import TempCase, expect
+from helpers import JUDGED, TempCase, expect
 from test_host import fake_adapter
 
 import checks
+import evidence
 import goldens
 import grading
 import view
 
 CHANGED = {"name": "file_state", "args": {"path": "notes.txt", "state": "changed"}}
 EXPECT = [expect("The notes are written", check=CHANGED), expect("The answer is short")]
-SETTLED = {"q1": {"expectation": "The notes are written", "answer": "yes", "by": "fable"},
-           "q2": {"expectation": "The answer is short", "answer": "no", "by": "fable"}}
 LOG = [{"kind": "write", "source": "observed", "path": "notes.txt", "sha256": None},
-       {"kind": "command", "source": "observed", "command": "cat README.md", "output": "", "exit_code": 0},
+       {"kind": "command", "source": "observed", "command": "cat README.md", "output": "A notes app.\n",
+        "exit_code": 0},
        {"kind": "message", "source": "observed", "text": "Wrote the notes."}]
-GOLDEN = {"changes": {"notes.txt": "Buy milk.\n", "README.md": None}, "log": LOG, "settled": SETTLED}
+DRIFT = {"own files": {"task": [], "trigger": []}}
+
+
+def settled(answers=("yes", "no"), expectations=EXPECT):
+    return {f"q{n}": {"expectation": item["text"], "sha256": goldens.fingerprint(item), "answer": answer,
+                      "by": "fable"} for n, (item, answer) in enumerate(zip(expectations, answers), start=1)}
+
+
+GOLDEN = {"changes": {"notes.txt": "Buy milk.\n", "README.md": None}, "log": LOG, "settled": settled()}
 
 
 class Goldens(TempCase):
     def setUp(self):
         super().setUp()
         self.skill()
-        self.subject = self.case({"README.md": "A notes app.\n", "src/app.py": "print('hi')\n"},
-                                 {"expectations": EXPECT})
+        self.subject = self.case({"README.md": "A notes app.\n", "run.sh": "echo hi\n"}, {"expectations": EXPECT,
+                                 "skill_path": ".harness/active"})
+        os.chmod(self.subject.world / "run.sh", 0o755)
         self.folder = self.tmp / "goldens"
         self.folder.mkdir()
 
     def write(self, name, data):
         (self.folder / name).write_text(json.dumps(data) if isinstance(data, dict) else data)
 
-    def test_a_golden_is_a_run_on_the_case_s_world_and_is_graded_as_one(self):
-        self.write("writes-notes.json", GOLDEN)
+    def built(self, data, out="out"):
+        self.write("g.json", data)
         [golden] = goldens.load(self.subject, self.folder)
-        self.assertEqual((golden.name, golden.settled), ("writes-notes", {"q1": "yes", "q2": "no"}))
-        record, blobs = goldens.bundle(golden, self.subject, fake_adapter(), self.tmp / "arm",
-                                       self.tmp / "skills")
-        self.assertEqual(sorted(record["diff"]), ["README.md", "notes.txt"])
-        self.assertEqual((record["diff"]["notes.txt"]["before"], record["diff"]["README.md"]["after"]), (None, None))
-        self.assertEqual(blobs[record["files_after"]["notes.txt"].split(" ")[1]], b"Buy milk.\n")
-        self.assertIn("src/app.py", record["files_after"])  # the rest of the case's world is there as built
-        verdict = checks.decide(CHANGED["name"], checks.Bundle(record, blobs.__getitem__), CHANGED["args"])
-        self.assertEqual(verdict["outcome"], "pass")
+        return goldens.bundle(golden, self.subject, fake_adapter(), self.tmp / out, DRIFT, "fakehost 1.0", "fast",
+                              self.tmp / "skills")
+
+    def test_a_golden_becomes_a_bundle_as_a_run_does_and_is_graded_as_one(self):
+        record, blobs = self.built(GOLDEN)
+        self.assertEqual(record["overlay"], evidence.overlay(self.subject, fake_adapter(), self.tmp / "skills"))
+        self.assertEqual((record["arm"], sorted(record["diff"])), ("golden", ["README.md", "notes.txt"]))
+        self.assertEqual(record["log"][2], {"kind": "read", "source": "inferred", "path": "README.md"})  # as a host's
+        out = evidence.store(record, blobs, self.tmp / "stored")  # a bundle like any other, stored and read back
+        loaded, blob = evidence.load(out)
+        self.assertEqual(checks.decide(CHANGED["name"], checks.Bundle(loaded, blob), CHANGED["args"])["outcome"],
+                         "pass")
+        page = grading.page(*view.view(loaded, blob))
+        for shown in ("Wrote the notes.", "Buy milk.", "  - command: cat README.md"):
+            self.assertIn(shown, page)
+        self.assertNotIn("A notes app.", page)  # a command's output never reaches a grader, as in every run
+
+    def test_a_golden_s_text_is_seen_through_the_same_view_as_a_run_s(self):
+        log = [*LOG[:2], {"kind": "message", "source": "observed", "text": "Read .harness/active/SKILL.md.\nDone."}]
+        record, blobs = self.built({**GOLDEN, "log": log})
         page = grading.page(*view.view(record, blobs.__getitem__))
-        self.assertIn("Wrote the notes.", page)
-        self.assertIn("Buy milk.", page)
-        self.assertIn("  - command: cat README.md", page)
-        self.assertNotIn("output", page)  # a command is shown as run, as in every run's view
+        self.assertNotIn(".harness/active", page)  # the skill's path is the overlay's, whatever its name
+        self.assertIn("Done.", page)
+
+    def test_a_file_written_again_keeps_its_mode_and_a_change_a_run_could_not_make_is_refused(self):
+        record, _ = self.built({**GOLDEN, "changes": {"run.sh": "echo hi\n"}})
+        self.assertEqual(record["diff"], {})  # the same text written again is no change
+        for number, changes in enumerate(({"src": None}, {"run.sh/x": "y"}, {"gone.txt": None}), start=1):
+            with self.subTest(changes=changes), self.assertRaisesRegex(goldens.GoldenError, "not a file of the world"):
+                self.built({**GOLDEN, "changes": changes}, f"out{number}")
+        loads = [{"kind": "skill", "source": "observed", "name": "haiku-writer"}]  # the skill under test is not there
+        with self.assertRaisesRegex(goldens.GoldenError, "haiku-writer was loaded"):
+            self.built({**GOLDEN, "log": loads}, "out-skill")
 
     def test_a_case_without_goldens_has_none(self):
         self.assertEqual(goldens.load(self.subject, self.tmp / "none"), [])
 
     def test_a_golden_that_is_not_one_of_the_case_is_refused_with_why(self):
-        moved = {**SETTLED, "q2": {**SETTLED["q2"], "expectation": "The answer is long"}}
+        changed = [EXPECT[0], {**EXPECT[1], "judged": {**JUDGED, "pass": "It holds, mostly."}}]
         for name, data, why in (
                 ("extra.json", {**GOLDEN, "final_message": "x"}, "nothing else"),
                 ("path.json", {**GOLDEN, "changes": {"../out.txt": "x"}}, "inside the world"),
                 ("log.json", {**GOLDEN, "log": [{"kind": "message", "text": "x"}]}, "action log"),
-                ("missing.json", {**GOLDEN, "settled": {"q1": SETTLED["q1"]}}, "one answer for each expectation"),
-                ("moved.json", {**GOLDEN, "settled": moved}, "not the case's own"),
-                ("maybe.json", {**GOLDEN, "settled": {**SETTLED, "q1": {**SETTLED["q1"], "answer": "maybe"}}},
-                 "yes or no"),
+                ("missing.json", {**GOLDEN, "settled": {"q1": GOLDEN["settled"]["q1"]}}, "one answer for each"),
+                ("changed.json", {**GOLDEN, "settled": settled(expectations=changed)}, "as it is now"),
+                ("maybe.json", {**GOLDEN, "settled": settled(("yes", "maybe"))}, "yes or no"),
+                ("by.json", {**GOLDEN, "settled": {**GOLDEN["settled"], "q1": {**GOLDEN["settled"]["q1"], "by": ""}}},
+                 "by names the judge"),
+                ("surrogate.json", json.dumps({**GOLDEN, "changes": {"a.txt": "\ud800"}}), "not UTF-8 JSON"),
                 ("notes.txt", "{}", "a golden is a file"),
                 ("broken.json", "{", "not UTF-8 JSON")):
             with self.subTest(name=name):
@@ -78,8 +109,7 @@ class Gate(TempCase):
     def setUp(self):
         super().setUp()
         self.subject = self.case({"README.md": "A notes app.\n"}, {"expectations": EXPECT})
-        flip = {id_: {**given, "answer": "no" if given["answer"] == "yes" else "yes"} for id_, given in SETTLED.items()}
-        self.goldens = [goldens.Golden("a", GOLDEN), goldens.Golden("b", {**GOLDEN, "settled": flip})]
+        self.goldens = [goldens.Golden("a", GOLDEN), goldens.Golden("b", {**GOLDEN, "settled": settled(("no", "yes"))})]
 
     def test_a_question_is_trusted_when_every_golden_asked_it_got_its_settled_answer_both_ways(self):
         graded = {"a": (["q1", "q2"], {"q1": "yes", "q2": "no"}), "b": (["q1", "q2"], {"q1": "no", "q2": "yes"})}
@@ -94,10 +124,14 @@ class Gate(TempCase):
     def test_a_question_no_golden_was_asked_both_ways_is_not_trusted(self):
         graded = {"a": (["q2"], {"q2": "no"}), "b": ([], {})}  # a check decided q1 on both, and q2 on b
         found = goldens.gate(self.subject, self.goldens, graded)
-        self.assertEqual(set(found), {"q1", "q2"})
         self.assertIn("settled yes and one with a settled no", found["q1"])
         self.assertIn("settled yes and one with a settled no", found["q2"])
         self.assertEqual(goldens.gate(self.subject, [], {}), {"q1": found["q1"], "q2": found["q1"]})
+
+    def test_a_golden_that_was_not_graded_cannot_drop_out(self):
+        for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"})}, {"a": ([], {}), "b": ([], {}), "c": ([], {})}):
+            with self.subTest(graded=sorted(graded)), self.assertRaisesRegex(goldens.GoldenError, "every golden"):
+                goldens.gate(self.subject, self.goldens, graded)
 
 
 if __name__ == "__main__":
