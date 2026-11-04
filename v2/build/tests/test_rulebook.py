@@ -128,19 +128,19 @@ class RuleFileTest(TempTest):
 
     def test_parts_keep_line_breaks_and_nested_lists(self):
         (rule,) = self.read("a.md", TITLE + RULE)
-        self.assertEqual((rule.id, rule.kind), ("CORE-TEST-03", "principle"))
+        self.assertEqual((rule.id, rule.text("Kind")), ("CORE-TEST-03", "principle"))
         self.assertEqual(rule.text("Rule"), "Name each test after the situation it sets up\nand the result it expects.")
         self.assertEqual(rule.parts["Source"], ["", "- own (doc 03 example)", "- `a/b@1234567 c.md` (MIT)"])
         self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
 
-    def test_code_block_may_hold_blank_lines(self):
-        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}\n\n  ```")
+    def test_code_block_may_hold_blank_lines_and_shorter_fences(self):
+        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ````md\n  ```py\n\n  ```\n\n  ````")
         (rule,) = self.read("a.md", TITLE + text)
-        self.assertEqual(rule.parts["Bad"], ["", "```java", "void t() {}", "", "```"])
+        self.assertEqual(rule.parts["Bad"], ["", "````md", "```py", "", "```", "", "````"])
 
     def test_decision_point_retired_rule_and_binding(self):
-        (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT)
-        self.assertEqual((point.is_decision_point, point.kind), (True, "decision point"))
+        (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT.replace("TEST-STACK", "HTTP-02"))
+        self.assertTrue(point.is_decision_point)
         (rule,) = self.read("retired-test.md", RETIRED_TITLE + RETIRED)
         self.assertEqual(rule.text("Replaced by"), "CORE-TEST-04, CORE-TEST-05")
         self.read("retired.md", RETIRED_TITLE + RETIRED.replace("CORE-TEST-04, CORE-TEST-05", "no replacement"))

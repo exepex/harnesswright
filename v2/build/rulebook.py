@@ -28,6 +28,7 @@ ROLE = re.compile(r"[a-z]+(?: [a-z]+)*")
 SKILL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 PROSE = re.compile(r"[A-Za-z0-9(\[`].*")
+FENCE = re.compile(r"`{3,}")
 OPTION = re.compile(r"- `[a-z0-9-]+`: \S.*")
 HEADING = re.compile(r"### (\S+) · (\S.*)")
 PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")
@@ -52,10 +53,6 @@ class Rule:
     @property
     def is_decision_point(self):
         return DP_ID.fullmatch(self.id) is not None
-
-    @property
-    def kind(self):
-        return "decision point" if self.is_decision_point else self.text("Kind")
 
     @property
     def status(self):
@@ -123,30 +120,34 @@ def read_rule_file(path):
     if title is None:
         fail(path, 1, "first line is not the file title")
     prefix = None if retired_file else title.group(1)
-    rules, rule, part, fenced = [], None, None, False
+    rules, rule, part, fence = [], None, None, ""
     for number, line in enumerate(lines[1:], start=2):
-        heading = None if fenced else HEADING.fullmatch(line)
+        heading = None if fence else HEADING.fullmatch(line)
         if heading:
             rule, part = start_rule(path, number, heading, prefix), None
             rules.append(rule)
         elif rule is None:
             if line and not PROSE.fullmatch(line):
                 fail(path, number, f"line outside a rule is not prose: {line!r}")
-        elif not fenced and HEADING.fullmatch(line.lstrip()):
+        elif not fence and HEADING.fullmatch(line.lstrip()):
             fail(path, number, f"rule heading must not be indented: {line!r}")
         elif line.startswith("  ") and part is not None:
-            fenced ^= line[2:].lstrip().startswith("```")
+            text, run = line[2:].strip(), FENCE.match(line[2:].lstrip())
+            if run and not fence:
+                fence = run.group()  # a code block closes only on a line of at least as many backticks
+            elif fence and text.startswith(fence) and text.strip("`") == "":
+                fence = ""
             rule.parts[part].append(line[2:])
         elif line == "":
-            if fenced:
+            if fence:
                 rule.parts[part].append("")
             else:
                 part = None
-        elif fenced:
+        elif fence:
             fail(path, number, "code block is not closed before the next part")
         else:
             part = add_part(path, number, rule, line)
-    if fenced:
+    if fence:
         fail(path, len(lines), "code block is never closed")
     for index, rule in enumerate(rules):
         if rule.id in (other.id for other in rules[:index]):
@@ -157,7 +158,8 @@ def read_rule_file(path):
 
 def start_rule(path, number, heading, prefix):
     rule_id, title = heading.groups()
-    is_rule, is_point = RULE_ID.fullmatch(rule_id), DP_ID.fullmatch(rule_id)
+    is_point = DP_ID.fullmatch(rule_id)
+    is_rule = not is_point and RULE_ID.fullmatch(rule_id)
     if not (is_rule or is_point):
         fail(path, number, f"{rule_id!r} is not a rule or decision point ID")
     if prefix is not None:
