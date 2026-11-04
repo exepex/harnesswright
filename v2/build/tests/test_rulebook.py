@@ -1,4 +1,7 @@
-"""Tests for rulebook.py. Run from the repository root: python3 -m unittest discover -s v2/build/tests"""
+"""Tests for rulebook.py. Run from the repository root: python3 -m unittest discover -s v2/build/tests
+
+Each failing case names the message its check gives, so a test fails when that one check breaks.
+"""
 
 import sys
 import tempfile
@@ -10,6 +13,8 @@ sys.path.insert(0, str(ROOT / "v2" / "build"))
 
 import rulebook  # noqa: E402
 
+TITLE = "# CORE-TEST · Tests\n\nOpening prose.\n\n"
+RETIRED_TITLE = "# Retired rules · Principles layer\n\n"
 RULE = """### CORE-TEST-03 · A test name states the scenario and the expected outcome
 
 - **Kind:** principle
@@ -23,12 +28,13 @@ RULE = """### CORE-TEST-03 · A test name states the scenario and the expected o
 - **Good:** `rejectsOrderWhenStockIsInsufficient`
 - **Bad:** `testOrder2`
 - **Eval:** a test named `testOrder2`, which the reviewer must flag
+- **Tool:** `grep -n test`
+- **Exceptions:** generated tests
 - **Source:**
   - own (doc 03 example)
   - `a/b@1234567 c.md` (MIT)
 """
-
-DECISION_POINT = """### CORE-DP-TEST-STACK · Which test tools a language uses
+POINT = """### CORE-DP-TEST-STACK · Which test tools a language uses
 
 - **Status:** active
 - **Review by:** 2027-11-03
@@ -41,13 +47,50 @@ DECISION_POINT = """### CORE-DP-TEST-STACK · Which test tools a language uses
 - **Applies to:** implementer, test writer
 - **Source:** own
 """
+RETIRED = RULE.replace("- **Status:** active", "- **Status:** retired\n- **Replaced by:** CORE-TEST-04, CORE-TEST-05")
+APP = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace("- **Kind:**", "- **Binds:** CORE-DP-TEST-STACK\n- **Kind:**")
+
+# (file name, file text, the message its check must give)
+BAD_FILES = [
+    ("a.md", "# no title\n\n" + RULE, "first line is not the file title"),
+    ("a.md", TITLE + "### Not a rule\n\n" + RULE, "outside a rule"),
+    ("a.md", TITLE + "- **Kind:** floor\n\n" + RULE, "outside a rule"),
+    ("a.md", TITLE + RULE + "\nA closing remark.\n", "no known shape"),
+    ("a.md", TITLE + RULE.replace("- **Why:**", "- **Reason:**"), "not allowed in CORE-TEST-03"),
+    ("a.md", TITLE + RULE.replace("- **Why:**", "- **Default:**"), "not allowed in CORE-TEST-03"),
+    ("a.md", TITLE + RULE + "- **Why:** again\n", "appears twice"),
+    ("a.md", TITLE + RULE + "\n" + RULE, "already defined in this file"),
+    ("a.md", TITLE + RULE.replace("- **Review by:** 2027-11-03\n", ""), "missing Review by"),
+    ("a.md", TITLE + RULE.replace("principle", "guideline"), "Kind has no allowed value"),
+    ("a.md", TITLE + RULE.replace("- **Status:** active", "- **Status:** draft"), "Status has no allowed value"),
+    ("a.md", TITLE + RULE.replace("2027-11-03", "next year"), "Review by has no allowed value"),
+    ("a.md", TITLE + RULE.replace(":** implementer, test writer", ":**"), "Applies to has no allowed value"),
+    ("a.md", TITLE + RULE.replace("implementer, test writer", "Implementer"), "Applies to has no allowed value"),
+    ("a.md", TITLE + RULE.replace(":** A failing test should say what broke.", ":**"), "Why has no allowed value"),
+    ("a.md", TITLE + RULE.replace("  - own (doc 03 example)\n", "  text\n"), "Source has no allowed value"),
+    ("a.md", TITLE + RULE.replace("CORE-TEST-03", "CORE-03"), "not a rule or decision point ID"),
+    ("a.md", "# CORE-NAME · Names\n\n" + RULE, "does not belong in a file titled CORE-NAME"),
+    ("a.md", "# CORE · Mixed\n\n" + RULE, "does not belong in a file titled CORE"),
+    ("a.md", TITLE + POINT, "does not belong in a file titled CORE-TEST"),
+    ("a.md", TITLE + RULE.replace("- **Status:** active", "- **Status:** active\n- **Replaced by:** CORE-TEST-04"),
+     "exactly when the status is retired"),
+    ("a.md", TITLE + RETIRED, "retired rules live in retired files"),
+    ("retired.md", RETIRED_TITLE + RULE, "retired rules live in retired files"),
+    ("retired.md", RETIRED_TITLE + RETIRED.replace("CORE-TEST-04, CORE-TEST-05", "the new one"),
+     "Replaced by has no allowed value"),
+    ("a.md", "# APP-TEST · T\n\n" + APP.replace("- **Kind:**", "- **Tightens:** CORE-TEST-03\n- **Kind:**"),
+     "more than one"),
+    ("a.md", "# APP-TEST · T\n\n" + APP.replace("CORE-DP-TEST-STACK", "the point"), "Binds has no allowed value"),
+    ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("- **Status:**", "- **Kind:** choice\n- **Status:**"),
+     "not allowed in CORE-DP-TEST-STACK"),
+    ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("  - `junit`", "  - junit"), "Options has no allowed value"),
+    ("a.md", TITLE + RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}"), "never closed"),
+    ("a.md", (TITLE + RULE).rstrip("\n"), "does not end with a newline"),
+    ("a.md", (TITLE + RULE).replace("\n", "\r\n"), "carriage return"),
+]
 
 
-def area_file(*rules, title="# CORE-TEST · Tests"):
-    return title + "\n\nOpening prose.\n\n" + "\n".join(rules)
-
-
-class RulebookTest(unittest.TestCase):
+class RuleFileTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
@@ -55,109 +98,61 @@ class RulebookTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def write(self, name, text):
+    def read(self, name, text):
         path = self.dir / name
-        path.write_text(text, encoding="utf-8")
-        return path
+        path.write_text(text, encoding="utf-8", newline="")
+        return rulebook.read_rule_file(path)
 
-    def assertFails(self, name, text, message):
-        path = self.write(name, text)
-        with self.assertRaises(rulebook.RulebookError) as caught:
-            rulebook.read_rule_file(path)
-        self.assertIn(message, str(caught.exception))
+    def test_each_bad_file_fails_with_its_message(self):
+        for name, text, message in BAD_FILES:
+            with self.subTest(message=message):
+                with self.assertRaises(rulebook.RulebookError) as caught:
+                    self.read(name, text)
+                self.assertIn(message, str(caught.exception))
 
     def test_reads_the_real_principles_layer(self):
         layer = rulebook.read_layer(ROOT / "v2" / "rules" / "core")
         self.assertGreater(len(layer.rules), 30)
         retired = [rule for rule in layer.rules.values() if rule.status == "retired"]
-        self.assertTrue(retired)
-        self.assertTrue(all(Path(rule.file).name == "retired.md" for rule in retired))
+        self.assertTrue(retired and all(Path(rule.file).name == "retired.md" for rule in retired))
 
     def test_parts_keep_line_breaks_and_nested_lists(self):
-        (rule,) = rulebook.read_rule_file(self.write("test.md", area_file(RULE)))
-        self.assertEqual(rule.id, "CORE-TEST-03")
-        self.assertEqual(rule.area, "TEST")
-        self.assertEqual(rule.kind, "principle")
+        (rule,) = self.read("a.md", TITLE + RULE)
+        self.assertEqual((rule.id, rule.area, rule.kind), ("CORE-TEST-03", "TEST", "principle"))
         self.assertEqual(rule.applies_to, ["implementer", "test writer"])
         self.assertEqual(rule.text("Rule"), "Name each test after the situation it sets up\nand the result it expects.")
         self.assertEqual(rule.parts["Source"], ["", "- own (doc 03 example)", "- `a/b@1234567 c.md` (MIT)"])
+        self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
         self.assertIsNone(rule.changes)
 
     def test_code_block_may_hold_blank_lines(self):
-        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void testOrder2() {}\n\n  ```")
-        (rule,) = rulebook.read_rule_file(self.write("test.md", area_file(text)))
-        self.assertEqual(rule.parts["Bad"], ["", "```java", "void testOrder2() {}", "", "```"])
+        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}\n\n  ```")
+        (rule,) = self.read("a.md", TITLE + text)
+        self.assertEqual(rule.parts["Bad"], ["", "```java", "void t() {}", "", "```"])
 
-    def test_unclosed_code_block_fails(self):
-        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void testOrder2() {}")
-        self.assertFails("test.md", area_file(text), "never closed")
-
-    def test_decision_point(self):
-        (point,) = rulebook.read_rule_file(self.write("test.md", area_file(DECISION_POINT, title="# CORE · DP")))
-        self.assertTrue(point.is_decision_point)
-        self.assertEqual(point.kind, "decision point")
-        self.assertEqual(point.area, "DP")
-        self.assertEqual(len(point.parts["Options"]), 3)
-
-    def test_decision_point_with_a_kind_fails(self):
-        text = DECISION_POINT.replace("- **Status:**", "- **Kind:** choice\n- **Status:**")
-        self.assertFails("test.md", area_file(text, title="# CORE · DP"), "has a Kind")
-
-    def test_missing_part_is_named(self):
-        self.assertFails("test.md", area_file(RULE.replace("- **Review by:** 2027-11-03\n", "")), "missing Review by")
-
-    def test_unknown_part_fails(self):
-        self.assertFails("test.md", area_file(RULE.replace("- **Why:**", "- **Reason:**")), "unknown part")
-
-    def test_part_twice_fails(self):
-        self.assertFails("test.md", area_file(RULE + "- **Why:** again\n"), "appears twice")
-
-    def test_unknown_line_shape_fails(self):
-        self.assertFails("test.md", area_file(RULE + "\nA closing remark.\n"), "no known shape")
-
-    def test_heading_in_opening_prose_fails(self):
-        self.assertFails("test.md", "# CORE-TEST · Tests\n\n### Not a rule\n\n" + RULE, "outside a rule")
-
-    def test_unknown_kind_and_status_fail(self):
-        self.assertFails("a.md", area_file(RULE.replace("principle", "guideline")), "unknown Kind")
-        self.assertFails("b.md", area_file(RULE.replace("active", "draft")), "unknown Status")
-
-    def test_bad_id_and_wrong_file_fail(self):
-        self.assertFails("a.md", area_file(RULE.replace("CORE-TEST-03", "CORE-TEST-3")), "not a rule")
-        self.assertFails("b.md", area_file(RULE, title="# CORE-NAME · Names"), "does not belong")
-
-    def test_retired_rules_live_only_in_retired_files(self):
-        retired = RULE.replace("- **Status:** active",
-                               "- **Status:** retired\n- **Replaced by:** CORE-TEST-04, CORE-TEST-05")
-        self.assertFails("test.md", area_file(retired), "retired rules live in retired files")
-        self.assertFails("retired.md", area_file(RULE, title="# Retired rules · Principles layer"), "only there")
-        (rule,) = rulebook.read_rule_file(self.write("retired-test.md",
-                                                     area_file(retired, title="# Retired rules · Principles layer")))
+    def test_decision_point_retired_rule_and_binding(self):
+        (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT)
+        self.assertEqual((point.is_decision_point, point.kind, point.area), (True, "decision point", "DP"))
+        (rule,) = self.read("retired-test.md", RETIRED_TITLE + RETIRED)
         self.assertEqual(rule.replaced_by, ["CORE-TEST-04", "CORE-TEST-05"])
+        (none,) = self.read("retired.md", RETIRED_TITLE + RETIRED.replace(", CORE-TEST-05", "").replace(
+            "CORE-TEST-04", "no replacement"))
+        self.assertEqual(none.replaced_by, [])
+        (app,) = self.read("b.md", "# APP-TEST · Tests\n\n" + APP)
+        self.assertEqual(app.changes, ("Binds", "CORE-DP-TEST-STACK"))
 
-    def test_retired_without_replaced_by_fails(self):
-        retired = RULE.replace("- **Status:** active", "- **Status:** retired")
-        self.assertFails("retired.md", area_file(retired, title="# Retired rules · Principles layer"), "Replaced by")
-
-    def test_one_change_relation_only(self):
-        overrides = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace(
-            "- **Kind:**", "- **Overrides:** CORE-TEST-03\n- **Kind:**")
-        (rule,) = rulebook.read_rule_file(self.write("a.md", area_file(overrides, title="# APP-TEST · Tests")))
-        self.assertEqual(rule.changes, ("Overrides", "CORE-TEST-03"))
-        both = overrides.replace("- **Kind:**", "- **Tightens:** CORE-TEST-04\n- **Kind:**")
-        self.assertFails("b.md", area_file(both, title="# APP-TEST · Tests"), "more than one")
-
-    def test_file_must_end_with_newline(self):
-        self.assertFails("test.md", area_file(RULE).rstrip("\n"), "newline")
-
-    def test_layer_skips_index_and_rejects_duplicate_ids(self):
-        self.write("index.md", "anything at all\n")
-        self.write("a.md", area_file(RULE))
+    def test_layer_reads_rule_files_only_and_rejects_duplicates(self):
+        for name in ("index.md", "README.md"):
+            (self.dir / name).write_text("anything at all\n", encoding="utf-8")
+        self.read("a.md", TITLE + RULE)
         self.assertEqual(list(rulebook.read_layer(self.dir).rules), ["CORE-TEST-03"])
-        self.write("b.md", area_file(RULE))
-        with self.assertRaises(rulebook.RulebookError) as caught:
-            rulebook.read_layer(self.dir)
-        self.assertIn("already defined", str(caught.exception))
+        self.read("b.md", TITLE + RULE)
+        for folder, message in ((self.dir, "already defined"), (self.dir / "missing", "not a layer folder"),
+                                (self.dir / "a.md", "not a layer folder")):
+            with self.subTest(message=message):
+                with self.assertRaises(rulebook.RulebookError) as caught:
+                    rulebook.read_layer(folder)
+                self.assertIn(message, str(caught.exception))
 
 
 ROLES = """# Roles
@@ -167,13 +162,32 @@ ROLES = """# Roles
 | Role | Group | Purpose | Produces | Never does | Model class | Independent |
 |---|---|---|---|---|---|---|
 | implementer | delivery | Builds one story | The change | Judge its own work | standard | no |
-| claims writer | delivery | Writes the claims | Claims | | standard | no |
+| claims writer | delivery | Writes the claims | Claims | | standard or deep | no |
 
 ## Jobs
+
+Prose before the table.
 
 | Job | Roles | Skills in order | `rest` skill |
 |---|---|---|---|
 """
+JOB = "| build | implementer | implementer, docs-writer | implementer |\n"
+BAD_ROLES = [
+    (ROLES.replace("## Jobs", "## Jobs\n\n## Jobs"), "exactly one '## Jobs'"),
+    (ROLES.replace("| Purpose |", "| Aim |"), "expected one table"),
+    (ROLES.replace("|---|---|---|---|---|---|---|", "|---|"), "not a header, a rule line and rows"),
+    (ROLES.replace("Judge its own work | standard | no |", "Judge its own work | standard | no"), "cells"),
+    (ROLES.replace("| claims writer |", "\n| claims writer |"), "only blank lines may follow"),
+    (ROLES.replace("| claims writer |", "| implementer |"), "listed twice"),
+    (ROLES.replace("| claims writer |", "| every role |"), "no allowed value"),
+    (ROLES.replace("Writes the claims", ""), "no allowed value"),
+    (ROLES.replace("standard or deep", "huge"), "no allowed value"),
+    (ROLES.replace("| standard | no |", "| standard | maybe |"), "no allowed value"),
+    (ROLES + JOB + JOB, "listed twice"),
+    (ROLES + JOB.replace("| implementer | implementer,", "| every role | implementer,"), "no allowed value"),
+    (ROLES + JOB.replace("| implementer |\n", "| other |\n"), "no allowed value"),
+    (ROLES + JOB.replace("implementer, docs-writer", ""), "no allowed value"),
+]
 
 
 class RolesTest(unittest.TestCase):
@@ -191,21 +205,18 @@ class RolesTest(unittest.TestCase):
     def test_reads_the_real_roles_file(self):
         roles = rulebook.read_roles(ROOT / "v2" / "roles.md")
         self.assertIn("skill judge", roles["roles"])
-        self.assertIn("claims writer", roles["roles"])
 
     def test_empty_jobs_table_passes_and_rows_split(self):
         self.assertEqual(self.read(ROLES)["jobs"], {})
-        jobs = self.read(ROLES + "| build | implementer | implementer, docs-writer | implementer |\n")["jobs"]
-        self.assertEqual(jobs["build"]["Skills in order"], ["implementer", "docs-writer"])
-        self.assertEqual(jobs["build"]["Roles"], ["implementer"])
+        job = self.read(ROLES + JOB)["jobs"]["build"]
+        self.assertEqual((job["Roles"], job["Skills in order"]), (["implementer"], ["implementer", "docs-writer"]))
 
-    def test_wrong_header_and_reserved_name_fail(self):
-        for text, message in ((ROLES.replace("| Purpose |", "| Aim |"), "header"),
-                              (ROLES.replace("| claims writer |", "| every role |"), "reserved"),
-                              (ROLES + "| build | implementer |\n", "cells")):
-            with self.assertRaises(rulebook.RulebookError) as caught:
-                self.read(text)
-            self.assertIn(message, str(caught.exception))
+    def test_each_bad_roles_file_fails_with_its_message(self):
+        for text, message in BAD_ROLES:
+            with self.subTest(text=text[-120:]):
+                with self.assertRaises(rulebook.RulebookError) as caught:
+                    self.read(text)
+                self.assertIn(message, str(caught.exception))
 
 
 class FrontmatterTest(unittest.TestCase):
@@ -216,22 +227,32 @@ class FrontmatterTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def read(self, front):
-        self.path.write_text("---\n" + front + "---\n\n# Body\n", encoding="utf-8")
+    def read(self, front, body="---\n\n# Body\n"):
+        self.path.write_text("---\n" + front + body, encoding="utf-8")
         return rulebook.read_frontmatter(self.path)
 
     def test_reads_strings_and_metadata(self):
-        data, body = self.read('name: claims-writer\ndescription: "Writes claims."\nmetadata:\n'
-                               "  roles: claims writer\n  areas: rest\n")
-        self.assertEqual(data["description"], "Writes claims.")
+        data, body = self.read("name: claims-writer\ndescription: \"Use when: a story is done.\"\nmetadata:\n"
+                               "  roles: claims writer\n  areas: rest\nlicense: 'Apache-2.0'\n")
+        self.assertEqual(data["description"], "Use when: a story is done.")
         self.assertEqual(data["metadata"], {"roles": "claims writer", "areas": "rest"})
-        self.assertEqual(body, 7)
+        self.assertEqual((data["license"], body), ("Apache-2.0", 8))
 
-    def test_other_shapes_fail(self):
-        for front in ("allowed-tools: Bash\n", "metadata:\n  roles:\n    - a\n", "name: a\nname: b\n", "- item\n"):
-            with self.assertRaises(rulebook.RulebookError):
-                self.read(front)
+    def test_each_bad_frontmatter_fails_with_its_message(self):
+        cases = [("name: a\n", "# Body\n", "frontmatter block"),
+                 ("allowed-tools: Bash\n", "---\n", "no allowed shape"),
+                 ("metadata: x\n", "---\n", "no allowed shape"),
+                 ("metadata:\n  a: b\nmetadata:\n", "---\n", "no allowed shape"),
+                 ("metadata:\n  roles:\n    - a\n", "---\n", "no allowed shape"),
+                 ("metadata:\n  a: b\n  a: c\n", "---\n", "appears twice"),
+                 ("name: a\nname: b\n", "---\n", "appears twice"),
+                 ("name: a # note\n", "---\n", "quote it"),
+                 ("description: Use when: x\n", "---\n", "quote it"),
+                 ("description: 'it''s'\n", "---\n", "quote it"),
+                 ('description: "say \\"hi\\""\n', "---\n", "quote it")]
+        for front, body, message in cases:
+            with self.subTest(front=front):
+                with self.assertRaises(rulebook.RulebookError) as caught:
+                    self.read(front, body)
+                self.assertIn(message, str(caught.exception))
 
-
-if __name__ == "__main__":
-    unittest.main()

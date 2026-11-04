@@ -1,34 +1,42 @@
 """Read a rulebook layer folder, the roles file and skill frontmatter into plain data.
 
-Standard library only. Every line must have a shape this module knows. Any other line raises RulebookError,
-naming the file and line, so nothing is ever skipped silently. The formats are those of docs/design/03-standards.md
-(rule parts, IDs, retired rules), v2/rules/README.md (Review by) and v2/roles.md (roles and jobs tables).
+Standard library only. One rule governs the whole module: every line, and every value inside a line, must match a
+shape listed here (HW-AG-09). Anything else raises RulebookError naming the file and line, so nothing is skipped or
+guessed. The formats are those of docs/design/03-standards.md (rule parts, IDs, retired rules), v2/rules/README.md
+(Review by) and v2/roles.md (roles and jobs tables).
 """
 
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-RULE_REQUIRED = ("Kind", "Status", "Review by", "Applies to", "Rule", "Why", "Check", "Good", "Bad", "Eval", "Source")
-DP_REQUIRED = ("Status", "Review by", "Question", "Options", "Default", "Why", "Applies to", "Source")
-OPTIONAL = ("Replaced by", "Overrides", "Binds", "Tightens", "Tool", "Exceptions")
-CHANGES = ("Overrides", "Binds", "Tightens")
+EVERY_ROLE = "every role"
 KINDS = ("principle", "floor", "idiom", "choice")
 STATUSES = ("active", "inferred", "retired")
-EVERY_ROLE = "every role"
+CLASSES = ("deep", "standard", "fast")
+CHANGES = ("Overrides", "Binds", "Tightens")
+RULE_REQUIRED = ("Kind", "Status", "Review by", "Applies to", "Rule", "Why", "Check", "Good", "Bad", "Eval", "Source")
+DP_REQUIRED = ("Status", "Review by", "Question", "Options", "Default", "Why", "Applies to", "Source")
+RULE_ALLOWED = RULE_REQUIRED + ("Replaced by", "Tool", "Exceptions") + CHANGES
+DP_ALLOWED = DP_REQUIRED + ("Replaced by",)
 
-RULE_ID = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-[0-9]{2,}")
-DP_ID = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*")
+NAME = r"[A-Z][A-Z0-9]*"
+RULE_ID = re.compile(rf"{NAME}(?:-{NAME})+-[0-9]{{2,}}")
+DP_ID = re.compile(rf"{NAME}(?:-{NAME})*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*")
+ROLE = re.compile(r"[a-z]+(?: [a-z]+)*")
+SKILL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+OPTION = re.compile(r"- `[a-z0-9-]+`: \S.*")
 HEADING = re.compile(r"### (\S+) · (\S.*)")
-PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (.*))?")
-AREA_TITLE = re.compile(r"# ([A-Z][A-Z0-9-]*) · \S.*")
+PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")
+AREA_TITLE = re.compile(rf"# ({NAME}(?:-{NAME})*) · \S.*")
 RETIRED_TITLE = re.compile(r"# Retired rules · \S.*")
 RETIRED_FILE = re.compile(r"retired(?:-[a-z0-9]+)?\.md")
 NOT_RULE_FILES = ("index.md", "README.md")
 
 
 class RulebookError(Exception):
-    """A rulebook, roles file or frontmatter line this module does not recognise, or a missing part."""
+    """A line or value with no allowed shape, or a missing part."""
 
 
 @dataclass
@@ -41,7 +49,7 @@ class Rule:
 
     @property
     def is_decision_point(self):
-        return "-DP-" in self.id
+        return DP_ID.fullmatch(self.id) is not None
 
     @property
     def kind(self):
@@ -61,7 +69,8 @@ class Rule:
 
     @property
     def replaced_by(self):
-        return split_list(self.text("Replaced by")) if "Replaced by" in self.parts else []
+        value = self.text("Replaced by") if "Replaced by" in self.parts else ""
+        return [] if value in ("", "no replacement") else split_list(value)
 
     @property
     def changes(self):
@@ -83,20 +92,32 @@ class Layer:
 
 
 def split_list(value):
-    """Split a comma-separated list such as an Applies to value. An empty value gives an empty list."""
-    return [item.strip() for item in value.split(",")] if value.strip() else []
+    """Split a comma-and-space list such as an Applies to value."""
+    return value.split(", ") if value else []
 
 
 def fail(path, number, message):
     raise RulebookError(f"{path}:{number}: {message}")
 
 
+def read_lines(path):
+    """The file's lines. LF line endings and a final newline are required."""
+    with open(path, encoding="utf-8", newline="") as handle:
+        text = handle.read()
+    if "\r" in text:
+        fail(path, 1, "file has a carriage return; use LF line endings")
+    if not text.endswith("\n"):
+        fail(path, text.count("\n") + 1, "file does not end with a newline")
+    return text[:-1].split("\n")
+
+
 def read_layer(folder):
     """Read every rule file of one layer folder. The index and README are not read (HW-RULE-08)."""
     folder = Path(folder)
+    if not folder.is_dir():
+        fail(folder, 0, "not a layer folder")
     layer = Layer(str(folder))
-    files = sorted(p for p in folder.glob("*.md") if p.name not in NOT_RULE_FILES)
-    for path in files:
+    for path in sorted(p for p in folder.glob("*.md") if p.name not in NOT_RULE_FILES):
         for rule in read_rule_file(path):
             if rule.id in layer.rules:
                 other = layer.rules[rule.id]
@@ -108,78 +129,73 @@ def read_layer(folder):
 def read_rule_file(path):
     """Read one area file or retired rules file and return its rules in file order."""
     path = Path(path)
-    lines = path.read_text(encoding="utf-8").split("\n")
-    if lines[-1] != "":
-        fail(path, len(lines), "file does not end with a newline")
-    lines = lines[:-1]
+    lines = read_lines(path)
     retired_file = RETIRED_FILE.fullmatch(path.name) is not None
-    title = RETIRED_TITLE if retired_file else AREA_TITLE
-    match = title.fullmatch(lines[0]) if lines else None
-    if match is None:
+    title = (RETIRED_TITLE if retired_file else AREA_TITLE).fullmatch(lines[0])
+    if title is None:
         fail(path, 1, "first line is not the file title")
-    prefix = None if retired_file else match.group(1)
-    rules = []
-    rule = part = None
-    fenced = False
-    for number, line in enumerate(lines, start=1):
-        heading = HEADING.fullmatch(line)
-        if heading and not fenced:
-            rule = start_rule(path, number, heading, prefix)
+    prefix = None if retired_file else title.group(1)
+    rules, rule, part, fenced = [], None, None, False
+    for number, line in enumerate(lines[1:], start=2):
+        heading = None if fenced else HEADING.fullmatch(line)
+        if heading:
+            rule, part = start_rule(path, number, heading, prefix), None
             rules.append(rule)
-            part = None
-            continue
-        if rule is None:
-            if number > 1 and (line.startswith("#") or line.startswith("- **")):
+        elif rule is None:
+            if line.startswith("#") or line.startswith("- **"):
                 fail(path, number, f"heading or part outside a rule: {line!r}")
-            continue  # the file's title and opening prose
-        if line.startswith("  ") and part is not None:
-            text = line[2:]
-            if text.lstrip().startswith("```"):
-                fenced = not fenced
-            rule.parts[part].append(text)
-            continue
-        if line == "" and fenced:
-            rule.parts[part].append("")
-            continue
-        if line == "":
-            part = None
-            continue
-        found = PART.fullmatch(line)
-        if found is None:
-            fail(path, number, f"line has no known shape inside {rule.id}: {line!r}")
-        part = found.group(1)
-        if part not in RULE_REQUIRED + DP_REQUIRED + OPTIONAL:
-            fail(path, number, f"unknown part {part!r} in {rule.id}")
-        if part in rule.parts:
-            fail(path, number, f"part {part!r} appears twice in {rule.id}")
-        rule.parts[part] = [found.group(2) or ""]
+        elif line.startswith("  ") and part is not None:
+            fenced ^= line[2:].lstrip().startswith("```")
+            rule.parts[part].append(line[2:])
+        elif line == "":
+            if fenced:
+                rule.parts[part].append("")
+            else:
+                part = None
+        else:
+            part = add_part(path, number, rule, line)
     if fenced:
         fail(path, len(lines), "code block is never closed")
-    for rule in rules:
-        check_parts(path, rule, retired_file)
+    for index, rule in enumerate(rules):
+        if rule.id in (other.id for other in rules[:index]):
+            fail(path, rule.line, f"{rule.id} already defined in this file")
+        check_rule(path, rule, retired_file)
     return rules
 
 
 def start_rule(path, number, heading, prefix):
-    rule_id, title = heading.group(1), heading.group(2)
-    if not (RULE_ID.fullmatch(rule_id) or DP_ID.fullmatch(rule_id)):
+    rule_id, title = heading.groups()
+    is_rule, is_point = RULE_ID.fullmatch(rule_id), DP_ID.fullmatch(rule_id)
+    if not (is_rule or is_point):
         fail(path, number, f"{rule_id!r} is not a rule or decision point ID")
-    if prefix is not None and not rule_id.startswith(prefix + "-"):
-        fail(path, number, f"{rule_id} does not belong in a file titled {prefix}")
+    if prefix is not None:
+        expected = re.fullmatch(rf"{prefix}-[0-9]{{2,}}", rule_id) if is_rule else (
+            prefix.endswith("-DP") and rule_id.startswith(prefix + "-"))
+        if not expected:
+            fail(path, number, f"{rule_id} does not belong in a file titled {prefix}")
     return Rule(rule_id, title, str(path), number)
 
 
-def check_parts(path, rule, retired_file):
+def add_part(path, number, rule, line):
+    found = PART.fullmatch(line)
+    if found is None:
+        fail(path, number, f"line has no known shape inside {rule.id}: {line!r}")
+    name = found.group(1)
+    if name not in (DP_ALLOWED if rule.is_decision_point else RULE_ALLOWED):
+        fail(path, number, f"part {name!r} is not allowed in {rule.id}")
+    if name in rule.parts:
+        fail(path, number, f"part {name!r} appears twice in {rule.id}")
+    rule.parts[name] = [found.group(2) or ""]
+    return name
+
+
+def check_rule(path, rule, retired_file):
     required = DP_REQUIRED if rule.is_decision_point else RULE_REQUIRED
     missing = [name for name in required if name not in rule.parts]
     if missing:
         fail(path, rule.line, f"{rule.id} is missing {', '.join(missing)}")
-    if rule.is_decision_point and "Kind" in rule.parts:
-        fail(path, rule.line, f"decision point {rule.id} has a Kind")
-    if not rule.is_decision_point and rule.kind not in KINDS:
-        fail(path, rule.line, f"{rule.id} has unknown Kind {rule.kind!r}")
-    if rule.status not in STATUSES:
-        fail(path, rule.line, f"{rule.id} has unknown Status {rule.status!r}")
+    for name in rule.parts:
+        check_value(path, rule, name)
     if (rule.status == "retired") != ("Replaced by" in rule.parts):
         fail(path, rule.line, f"{rule.id}: Replaced by is required exactly when the status is retired")
     if (rule.status == "retired") != retired_file:
@@ -188,86 +204,139 @@ def check_parts(path, rule, retired_file):
         fail(path, rule.line, f"{rule.id} names more than one of {', '.join(CHANGES)} (HW-RULE-05)")
 
 
+def check_value(path, rule, name):
+    """Each part's value must have its allowed shape. Text parts must not be empty."""
+    value, lines = rule.text(name), rule.parts[name]
+    if name in ("Options", "Source") and lines[0] == "":
+        shape = OPTION if name == "Options" else re.compile(r"- \S.*")
+        ok = len(lines) > 1 and all(shape.fullmatch(item) or item.startswith("  ") for item in lines[1:])
+        ok = ok and not lines[1].startswith("  ")
+    elif name == "Options":
+        ok = False
+    elif name == "Kind":
+        ok = value in KINDS
+    elif name == "Status":
+        ok = value in STATUSES
+    elif name == "Review by":
+        ok = DATE.fullmatch(value) is not None
+    elif name == "Applies to":
+        names = split_list(value)
+        ok = bool(names) and len(set(names)) == len(names) and all(ROLE.fullmatch(n) for n in names)
+    elif name == "Replaced by":
+        ok = value == "no replacement" or all(RULE_ID.fullmatch(i) or DP_ID.fullmatch(i) for i in split_list(value))
+    elif name in CHANGES:
+        ok = RULE_ID.fullmatch(value) is not None or DP_ID.fullmatch(value) is not None
+    else:
+        ok = value.strip() != ""
+    if not ok:
+        fail(path, rule.line, f"{rule.id}: {name} has no allowed value: {value!r}")
+
+
+ROLES_COLUMNS = ("Role", "Group", "Purpose", "Produces", "Never does", "Model class", "Independent")
+JOBS_COLUMNS = ("Job", "Roles", "Skills in order", "`rest` skill")
+
+
 def read_roles(path):
     """Read v2/roles.md: the Roles table and the Jobs table, which may have no rows."""
     path = Path(path)
-    lines = path.read_text(encoding="utf-8").split("\n")
-    roles = read_table(path, lines, "## Roles",
-                       ["Role", "Group", "Purpose", "Produces", "Never does", "Model class", "Independent"])
-    jobs = read_table(path, lines, "## Jobs", ["Job", "Roles", "Skills in order", "`rest` skill"])
-    names = [row["Role"] for row in roles]
-    if EVERY_ROLE in names:
-        fail(path, 1, f"{EVERY_ROLE!r} is reserved and is never a role")
-    if len(set(names)) != len(names):
-        fail(path, 1, "a role is listed twice")
-    for row in jobs:
-        row["Roles"] = split_list(row["Roles"])
-        row["Skills in order"] = split_list(row["Skills in order"])
-    return {"roles": {row["Role"]: row for row in roles}, "jobs": {row["Job"]: row for row in jobs}}
+    lines = read_lines(path)
+    roles = read_table(path, lines, "## Roles", ROLES_COLUMNS)
+    jobs = read_table(path, lines, "## Jobs", JOBS_COLUMNS)
+    classes = {f"{a} or {b}" for a in CLASSES for b in CLASSES if a != b} | set(CLASSES)
+    for number, row in roles:
+        ok = (ROLE.fullmatch(row["Role"]) and row["Role"] != EVERY_ROLE and ROLE.fullmatch(row["Group"])
+              and row["Purpose"] and row["Produces"] and row["Model class"] in classes
+              and row["Independent"] in ("yes", "no"))
+        if not ok:
+            fail(path, number, f"role row has a cell with no allowed value: {row}")
+    for number, row in jobs:
+        row["Roles"], row["Skills in order"] = split_list(row["Roles"]), split_list(row["Skills in order"])
+        ok = (SKILL.fullmatch(row["Job"]) and row["Roles"] and row["Skills in order"]
+              and all(ROLE.fullmatch(r) and r != EVERY_ROLE for r in row["Roles"])
+              and all(SKILL.fullmatch(s) for s in row["Skills in order"])
+              and row["`rest` skill"] in row["Skills in order"])
+        if not ok:
+            fail(path, number, f"job row has a cell with no allowed value: {row}")
+    return {"roles": unique(path, roles, "Role"), "jobs": unique(path, jobs, "Job")}
+
+
+def unique(path, rows, column):
+    table = {}
+    for number, row in rows:
+        if row[column] in table:
+            fail(path, number, f"{row[column]!r} is listed twice")
+        table[row[column]] = row
+    return table
 
 
 def read_table(path, lines, heading, columns):
-    """The rows under one heading as dicts. The header must match `columns` exactly."""
+    """(line number, row) pairs under one heading. Prose may come before the table; after it, only blank lines."""
     if lines.count(heading) != 1:
         fail(path, 1, f"expected exactly one {heading!r} heading")
-    number = lines.index(heading) + 1
-    while number < len(lines) and not lines[number].startswith("|"):
-        if lines[number].startswith("#"):
-            fail(path, number + 1, f"no table under {heading!r}")
-        number += 1
+    start = lines.index(heading) + 1
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("#")), len(lines))
     header = "| " + " | ".join(columns) + " |"
-    rule = "|" + "---|" * len(columns)
-    if lines[number:number + 2] != [header, rule]:
-        fail(path, number + 1, f"table under {heading!r} does not have the header {header}")
-    rows = []
-    for index in range(number + 2, len(lines)):
-        line = lines[index]
-        if not line.startswith("|"):
-            break
-        if not line.endswith("|"):
-            fail(path, index + 1, "table row does not end with '|'")
-        cells = [cell.strip() for cell in line[1:-1].split("|")]
-        if len(cells) != len(columns) or not cells[0]:
-            fail(path, index + 1, f"row needs {len(columns)} cells and a first cell")
-        rows.append(dict(zip(columns, cells)))
+    if lines[start:end].count(header) != 1:
+        fail(path, start, f"expected one table with the header {header} under {heading!r}")
+    first = lines.index(header, start)
+    if any(line.startswith("|") for line in lines[start:first]) or lines[first + 1] != "|" + "---|" * len(columns):
+        fail(path, first + 1, f"table under {heading!r} is not a header, a rule line and rows")
+    rows, number = [], first + 2
+    while number < end and lines[number].startswith("|"):
+        line = lines[number]
+        cells = [cell.strip() for cell in line[1:-1].split("|")] if line.endswith("|") else []
+        if len(cells) != len(columns):
+            fail(path, number + 1, f"row needs {len(columns)} cells between '|' signs")
+        rows.append((number + 1, dict(zip(columns, cells))))
+        number += 1
+    for index in range(number, end):
+        if lines[index] != "":
+            fail(path, index + 1, f"only blank lines may follow the table under {heading!r}")
     return rows
 
 
-FRONTMATTER_KEYS = ("name", "description", "license", "compatibility", "metadata")
+FRONTMATTER_KEYS = ("name", "description", "license", "compatibility")
 TOP_LINE = re.compile(r"([a-z][a-z-]*): (\S.*)")
-META_LINE = re.compile(r"  ([a-z][a-z-]*): (\S.*)")
+META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
+PLAIN = re.compile(r"[^\s'\"\[\]{}>|*&!%@#`,?:-](?:(?!: | #).)*(?<![\s:])")
+QUOTED = re.compile(r"\"([^\"\\]*)\"|'([^']*)'")
 
 
 def read_frontmatter(path):
-    """The frontmatter of a SKILL.tmpl.md or SKILL.md: top-level string fields and a `metadata` map of strings."""
+    """The frontmatter of a SKILL.tmpl.md or SKILL.md: top-level strings and a `metadata` map of strings.
+
+    Returns the data and the 0-based index of the first body line. A value is a plain YAML scalar without `: ` or
+    ` #`, or a quoted string without escapes; any other shape fails, so every host reads the same value.
+    """
     path = Path(path)
-    lines = path.read_text(encoding="utf-8").split("\n")
+    lines = read_lines(path)
     if lines[0] != "---" or "---" not in lines[1:]:
         fail(path, 1, "file does not start with a frontmatter block")
     end = lines.index("---", 1)
-    data = {}
-    in_metadata = False
+    data, target = {}, None
     for number in range(1, end):
         line = lines[number]
-        if line == "metadata:" and "metadata" not in data:
-            data["metadata"] = {}
-            in_metadata = True
-            continue
         meta = META_LINE.fullmatch(line)
-        if meta and in_metadata:
-            store(path, number + 1, data["metadata"], meta.group(1), meta.group(2))
-            continue
         top = TOP_LINE.fullmatch(line)
-        if top is None or top.group(1) not in FRONTMATTER_KEYS or top.group(1) == "metadata":
+        if line == "metadata:" and "metadata" not in data:
+            target = data["metadata"] = {}
+        elif meta and target is not None:
+            store(path, number + 1, target, meta.groups())
+        elif top and top.group(1) in FRONTMATTER_KEYS:
+            target = None
+            store(path, number + 1, data, top.groups())
+        else:
             fail(path, number + 1, f"frontmatter line has no allowed shape: {line!r}")
-        in_metadata = False
-        store(path, number + 1, data, top.group(1), top.group(2))
     return data, end + 1
 
 
-def store(path, number, target, key, value):
+def store(path, number, target, pair):
+    key, value = pair
+    quoted = QUOTED.fullmatch(value)
     if key in target:
         fail(path, number, f"{key!r} appears twice")
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        value = value[1:-1]
+    if quoted:
+        value = quoted.group(1) if quoted.group(1) is not None else quoted.group(2)
+    elif PLAIN.fullmatch(value) is None:
+        fail(path, number, f"value of {key!r} has no allowed shape: quote it, without escapes")
     target[key] = value
