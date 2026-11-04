@@ -134,9 +134,9 @@ class RuleFileTest(TempTest):
         self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
 
     def test_code_block_may_hold_blank_lines_and_shorter_fences(self):
-        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ````md\n  ```py\n\n  ```\n\n  ````")
+        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ````md\n  ```py\n  ````py\n\n  ```\n\n  ````")
         (rule,) = self.read("a.md", TITLE + text)
-        self.assertEqual(rule.parts["Bad"], ["", "````md", "```py", "", "```", "", "````"])
+        self.assertEqual(rule.parts["Bad"], ["", "````md", "```py", "````py", "", "```", "", "````"])
 
     def test_decision_point_retired_rule_and_binding(self):
         (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT.replace("TEST-STACK", "HTTP-02"))
@@ -246,11 +246,11 @@ class FrontmatterTest(TempTest):
                  ("description: Use when: x\n", "---\n", "quote it"),
                  ("description: 'it''s'\n", "---\n", "quote it"),
                  ('description: "say \\"hi\\""\n', "---\n", "quote it"),
-                 ("name: null\nlicense: 2024\n", "---\n", "quote it"),
-                 ("metadata:\n  version: 1.10\n  value: +.inf\n", "---\n", "quote it"),
-                 ("name: yes\n", "---\n", "quote it"),
                  ("name: a:\tb\n", "---\n", "quote it"),
                  ("name: a\t# c\n", "---\n", "quote it")]
+        words = "y Y yes Yes YES n N no No NO true True TRUE false False FALSE on On ON off Off OFF null Null NULL"
+        for value in words.split() + ["~", "2024", "1.10", "+.inf"]:
+            cases.append((f"metadata:\n  v: {value}\n", "---\n", "quote it"))
         for front, body, message in cases:
             with self.subTest(front=front):
                 with self.assertRaises(rulebook.RulebookError) as caught:
