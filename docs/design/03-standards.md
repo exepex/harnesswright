@@ -19,10 +19,11 @@ used here are defined in the [design README](README.md).
 - A framework is a sub-layer of its language, such as `JAVA-SPRING` under `JAVA`. It extends the language.
 - There is one department level. Each application has one owning team.
 - The company picks the names for layers 3 to 5 (HW-RULE-03).
-- Each folder of layers 3 to 5 holds a `layer.yaml`, written by hand, that names the layer's owner. The
+- Each folder of layers 3 to 5 holds a `layer.yaml`, written by hand, that names the layer's owner and version. The
   application owner is named in the profile, and the owner of layers 1 and 2 in `AGENTS.md`.
-- The profile names the layers an application uses, in order, each with its source and a pinned version. See
-  [07 · Repository profile](07-repo-profile.md).
+- The profile names the layers an application uses, in order. Layers 1 and 2 come with the installed harnesswright
+  release, pinned by its version. Each layer 3 to 5 is a folder with a pinned version. A missing folder or a
+  different version stops the run. See [07 · Repository profile](07-repo-profile.md).
 
 ## Precedence
 
@@ -98,6 +99,7 @@ so a script that knows the language prefixes and the areas can split every ID.
 | ID, Title | Yes | The unique code; one line that says the rule |
 | Kind | Yes | Principle, floor, idiom or choice |
 | Status | Yes | `active`, `inferred` (waiting for a human to confirm) or `retired` |
+| Review by | Yes | The date (`YYYY-MM-DD`) by which the rule's owner checks the rule is still right |
 | Replaced by | When retired | The new IDs, comma-separated, or "no replacement" |
 | Applies to | Yes | The roles that apply it, named as in [v2/roles.md](../../v2/roles.md), or `every role`, or both. This is the only map of which rules a role applies. |
 | Rule, Why, Check | Yes | The rule in plain sentences; the reason; how a reviewer proves it is met or broken |
@@ -108,7 +110,8 @@ so a script that knows the language prefixes and the areas can split every ID.
 | Tool | No | A command that checks it mechanically |
 | Exceptions | No | When it does not apply |
 
-A decision point has: ID, Title, Question, Options (each named), Default, Why, Applies to, Source.
+A decision point has: ID, Title, Status, Review by, Question, Options, Default, Why, Applies to, Source, and Replaced
+by when retired. Options is a list with one item per option, written `` - `name`: what it means ``.
 
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
 exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
@@ -143,6 +146,7 @@ like this:
 
 - **Kind:** principle
 - **Status:** active
+- **Review by:** 2027-11-03
 - **Applies to:** implementer, test writer, code reviewer, story judge
 - **Rule:** Name each test after the situation it sets up and the result it expects, in plain words.
 - **Why:** A failing test should tell the reader what broke without opening the test body.
@@ -190,20 +194,21 @@ HW-RULE-09 uses these neutral words.
 
 ## Existing applications
 
-1. The convention finder reads the code and proposes what it finds as `inferred` application rules. A person
-   confirms them once, in one batch. From then on they are ordinary application rules.
+1. Onboarding, done by the team or its runtime, proposes the conventions the code follows as `inferred`
+   application rules. A person confirms them once, in one batch. From then on they are ordinary application rules.
 2. A convention that differs from a principle or idiom becomes an `Overrides` rule with its reason.
 3. A convention that breaks a floor is never proposed as a rule. It is listed as a **known breach** (file, rule ID,
    date) for the application owner to confirm. A known breach is shown on every run.
 4. New or changed code meets every floor. An untouched known breach is reported as a note, never a blocker.
 5. A convention that conflicts with a company, department or team rule that is not a floor is reported to the
-   application owner with three options: change the code, write an `Overrides` rule, or ask for a waiver. The
-   convention finder writes none of them.
+   application owner with three options: change the code, write an `Overrides` rule, or ask for a waiver. Onboarding
+   writes none of them.
 
 ## Waivers
 
 A **waiver** lets one application, or one story, not follow one rule that is not a floor, for a time. It records
-the rule ID, the reason, an end date and who approved it. There is never a waiver for a floor (HW-RULE-06).
+the rule ID, the reason, an end date and who approved it. There is never a waiver for a floor (HW-RULE-06). An
+application's waivers live in its profile ([07 · Repository profile](07-repo-profile.md)).
 
 | Rule being overridden or waived | Who approves |
 |---|---|
@@ -220,7 +225,8 @@ claims.
 The standards reader combines the layers with a Python script that uses only the standard library. Where scripts
 cannot run, it does the same by reading, and marks the result "not verified".
 
-**Inputs.** The resolver reads these three inputs and nothing else:
+**Inputs.** It first checks each folder's version against the profile (step 5). Then it reads these three inputs
+and no other rules:
 
 1. The **active** rules of each layer the profile lists. Rules with status `inferred` or `retired` are never read.
 2. The **decision point bindings** in the profile. They count as bindings of the application layer.
@@ -236,7 +242,8 @@ cannot run, it does the same by reading, and marks the result "not verified".
 4. Mark each waived rule with its waiver: reason, end date and approver. A story-scoped waiver is not an input: it
    lives in its story, and the story judge checks it there ([06 · Contracts](06-contracts.md)).
 5. If two inputs contradict each other without saying so, stop and ask the layer owners. If a layer loosens a
-   floor, or a waiver names a floor, stop.
+   floor, or a waiver names a floor, stop. If the release or a layer folder is missing, cannot be read or has a
+   different version from the profile, stop and name the layer and the folder.
 
 The result is the **resolved standards** file, written once at the start of each run to
 `.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind, the ID it changed and any waiver,

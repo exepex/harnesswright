@@ -336,5 +336,5 @@ Each step is its own pull request, merged by the owner before the next starts.
 
 ## Out of scope
 
-The open-host adapter, a containment for macOS, new skills, and changes to the thresholds of
+Adapters for further hosts, a containment for macOS, new skills, and changes to the thresholds of
 [10 · Skills](10-skills.md).
