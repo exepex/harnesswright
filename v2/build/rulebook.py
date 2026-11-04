@@ -294,11 +294,12 @@ def read_table(path, lines, heading, columns):
 FRONTMATTER_KEYS = ("name", "description", "license", "compatibility")
 TOP_LINE = re.compile(r"([a-z][a-z-]*): (\S.*)")
 META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
-# A plain value starts with a letter, so it is never a number, date or special float, and is not one of YAML's
-# closed set of letter-only bool and null words (YAML 1.1 bool and null types), so every reader sees a string.
+# Every value character is YAML-printable and not a tab or line break. A plain value starts with a letter, so it is
+# never a number, date or special float, and is not a YAML 1.1 bool or null word, so every reader sees a string.
+PRINTABLE = "[\x20-\x7e\xa0-\u2027\u202a-\ud7ff\ue000-\ufefe\uff00-\ufffd\U00010000-\U0010ffff]"
 PLAIN = re.compile(r"(?!(?:[yYnN]|[yY]es|YES|[nN]o|NO|[tT]rue|TRUE|[fF]alse|FALSE|[oO]n|ON|[oO]ff|OFF|[nN]ull|NULL)$)"
-                   r"[A-Za-z](?:(?!: | #)[^\t\x85\u2028\u2029])*(?<![\s:])")
-QUOTED = re.compile(r"\"([^\"\\]*)\"|'([^']*)'")
+                   rf"[A-Za-z](?:(?!: | #){PRINTABLE})*(?<![ :])")
+QUOTED = re.compile(rf"\"((?:(?![\"\\]){PRINTABLE})*)\"|'((?:(?!'){PRINTABLE})*)'")
 
 
 def read_frontmatter(path):

@@ -87,6 +87,7 @@ BAD_FILES = [
     ("a.md", TITLE + RULE + "  ```\n", "code block is never closed"),
     ("a.md", TITLE + textwrap.indent(RULE, "  "), "outside a rule is not prose"),
     ("a.md", TITLE + RULE + "  ### CORE-TEST-04 · Next\n", "rule heading must not be indented"),
+    ("a.md", TITLE + RULE + "\n  stray\n", "no known shape"),
     ("a.md", TITLE + RULE.replace("2027-11-03", "2027-13-45"), "Review by has no allowed value"),
     ("a.md", TITLE + RULE.replace("implementer, test writer", "implementer, implementer"), "Applies to has no"),
     ("a.md", TITLE + RULE.replace("  - own (doc", "    - own (doc"), "Source has no allowed value"),
@@ -242,12 +243,10 @@ class FrontmatterTest(TempTest):
                  ("name: a\nname: b\n", "---\n", "appears twice"),
                  ("name: a # note\n", "---\n", "quote it"),
                  ("description: Use when: x\n", "---\n", "quote it"),
-                 ("description: 'it''s'\n", "---\n", "quote it"),
-                 ('description: "say \\"hi\\""\n', "---\n", "quote it"),
                  ("name: a:\tb\n", "---\n", "quote it"),
-                 ("name: a\t# c\n", "---\n", "quote it")]
+                 ("name: a \n", "---\n", "quote it")]
         words = "y Y yes Yes YES n N no No NO true True TRUE false False FALSE on On ON off Off OFF null Null NULL"
-        words += " ~ 2024 1.10 +.inf abc: a\tb a\x85b a\u2028b"
+        words += " ~ 2024 1.10 +.inf abc: a\tb a\x01b a\x85b a\u2028b a\u2029b \"a\\nb\" \"a\"b\" 'it''s' 'a\tb'"
         for value in words.split(" "):
             cases.append((f"metadata:\n  v: {value}\n", "---\n", "quote it"))
         for front, body, message in cases:
