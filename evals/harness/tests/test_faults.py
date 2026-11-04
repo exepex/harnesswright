@@ -30,6 +30,7 @@ PROMPTS = {
     "not run": lambda out: json.dumps([{"do": "write", "path": f"{out}/sign-in.txt", "text": "ready"},
                                        {"do": "say", "text": "done"}]),
     "not run/powers": SOUND["powers"],
+    "folder": lambda planted: planted["actions"],
     "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},
                                             {"do": "say", "text": "done"}]),
     "exposed": lambda planted: json.dumps([{"do": "say", "text": "ready"}]),

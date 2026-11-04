@@ -33,6 +33,7 @@ allowed connections.
 | `look.py` | Runs a harness program inside a run's jail, to see what the run can see, whatever its host did |
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
 | `grading_faults.py` | The faults of grading: a sheet, the goldens, a split panel and the view, planted on the repository's goldens by the rule of `faults.py` |
+| `grader_faults.py` | The faults of a grader's own run: a grader that writes to its folder or reads outside it, run through `grader.grade` in the jail |
 | `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
 | `grading.py` | What goes to graders, the one page a grader reads, and the check of an answer sheet |
@@ -409,6 +410,7 @@ as `seen`, scrubbed the same way, so the judges can check each catch.
 | `golden` | graders that answer `yes` to everything or `no` to everything, one question of one golden wrong (each in turn), or no answer on one golden (each in turn); goldens that settle a question one way only (each question, each way) | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
 | `tie` | two graders that split on one question (each in turn) or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, none is asked and nothing is answered |
 | `view` | the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, after a slash and in backticks, with the run's folders and a command's output, in a record's arm and host reports (exposure, requests, failure), final message, every kind of log entry (with a command's inferred entries), or files and changes (each overlay path with its folders, the folders above it, its files and writes; a link to one; lines in a world file and its write) | Neither the view (its record and every blob) nor the page names any of them, the clean ones name none, and both equal those of a control: the record without the plant's overlay actions and naming lines |
+| `folder` | a grader that writes its page, its questions, a new file and another grader's folder beside it, or reads canaries beside it, in a decoy home and in the repository, by path and by command | In every try the jail stops each one: the page, the folder and the folder beside it stay as they were, the harness can write none of them and finds no planted path from inside the grader's jail, no canary reaches what it left, and the sheet is accepted |
 
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that
 a gate made to miss is a miss. Each adapter plants the host faults in its own command (`PLANTS`, one function for
@@ -416,10 +418,11 @@ each of `host.PLANTED`), and `host.run` refuses a plant that leaves the command 
 every value of every choice its gate depends on (every answer with both values, every bad word, every golden and
 question, both sides, both graders, every place a name can be carried), and the seed chooses only the case, the
 page and the order, so a gate that skips one part misses at every seed. They run on the goldens of a repository
-case the seed chooses, made bundles on the setup's host, and plant their graders in place of a host's; the faults
-of a grader's own run come next. That no check decides on an inferred entry comes with the checks. The harness
-itself adds an inferred read for every world file a command names by its whole name or a wildcard (`host.named`),
-so no host depends on its adapter parsing commands.
+case the seed chooses, made bundles on the setup's host, and plant their graders in place of a host's, except
+`folder`, whose grader runs on the setup's host through `grader.grade`, which lets it look at each try. That no
+check decides on an inferred entry comes with the checks. The harness itself adds an inferred read for every world
+file a command names by its whole name or a wildcard (`host.named`), so no host depends on its adapter parsing
+commands.
 
 ## The measuring kit
 
