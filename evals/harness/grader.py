@@ -90,8 +90,8 @@ def folder(page, asked):
 def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None, **containment):
     """Grade `page` (`grading.page`) on the questions `asked` (`grading.questions`) with one grader of `adapter`'s
     host, in a grader folder (`folder`). `prompt` replaces the grader prompt, as the fake host's actions do. `watch`,
-    when given, is called with each try's containment and folder after its run and before the folder goes, as the
-    grader faults look at them.
+    when given, is called with each try's containment, folder and reported run (None when the run raised) before
+    the folder goes, as the grader faults look at them.
     `containment` passes on to `contain.Containment`. A broken jail or contract raises, as in every run: the round
     stops."""
     if not asked:
@@ -101,15 +101,16 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
     tries, logs = [], []
     for _ in range(TRIES):
         made, world = folder(page, asked)
+        contained = ran = None
         try:
             contained = contain.Containment(adapter, "trigger", world, manifest.manifest(world), root=made / "run",
                                             **containment)
             result = host.run(contained, text, skills=[], model=model, timeout=timeout)
             clean = scrubs.Scrub.of_run(contained)  # made before the folder goes, so a refreshed credential counts
             ran, _ = evidence.reported(contained, result, clean, "grader")
-            if watch is not None:
-                watch(contained, made)
         finally:
+            if watch is not None and contained is not None:
+                watch(contained, made, ran)
             shutil.rmtree(made, ignore_errors=True)
         logs.append(ran["log"])
         if ran["failure"]:

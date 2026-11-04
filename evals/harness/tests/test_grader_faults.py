@@ -1,6 +1,7 @@
 """Grader faults: a grader that writes to its folder or reads outside it is caught on the fake host in the jail
 (every place is run in test_faults), and a jail made to let it through is reported as a miss."""
 
+import json
 import unittest
 from unittest import mock
 
@@ -37,6 +38,16 @@ class Missed(Fake):
                 outcome = faults.run(entry, setup, seed=0, place=place)
                 self.assertFalse(outcome["caught"])
                 self.assertRegex(outcome["reason"], reason)
+
+    def test_a_grader_that_never_tries_to_write_still_shows_a_writable_jail(self):
+        setup = self.setup_of()
+        entry = next(e for e in faults.load() if e["id"] == "folder")
+        setup.prompts = {**setup.prompts, "folder": lambda planted: json.dumps(json.loads(planted["actions"])[-1:])}
+        self.assertTrue(faults.run(entry, setup, seed=0, place="writes")["caught"])  # only the sheet, jail sound
+        with mock.patch.object(contain.Containment, "mounts", world_writable):
+            outcome = faults.run(entry, setup, seed=0, place="writes")
+        self.assertFalse(outcome["caught"])
+        self.assertIn("could write", outcome["reason"])
 
 
 if __name__ == "__main__":
