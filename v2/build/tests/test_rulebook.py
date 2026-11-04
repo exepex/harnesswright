@@ -121,7 +121,7 @@ class RuleFileTest(TempTest):
     def test_reads_the_real_principles_layer(self):
         layer = rulebook.read_layer(ROOT / "v2" / "rules" / "core")
         self.assertGreater(len(layer.rules), 30)
-        retired = [rule for rule in layer.rules.values() if rule.status == "retired"]
+        retired = [rule for rule in layer.rules.values() if rule.text("Status") == "retired"]
         self.assertTrue(retired and all(Path(rule.file).name == "retired.md" for rule in retired))
 
     def test_parts_keep_line_breaks_and_nested_lists(self):
@@ -240,6 +240,7 @@ class FrontmatterTest(TempTest):
                  ("metadata:\n  a: b\nmetadata:\n", "---\n", "no allowed shape"),
                  ("metadata:\n  roles:\n    - a\n", "---\n", "no allowed shape"),
                  ("metadata:\n  a: b\n  a: c\n", "---\n", "appears twice"),
+                 ("metadata:\n  yes: b\n", "---\n", "no allowed shape"),
                  ("name: a\nname: b\n", "---\n", "appears twice"),
                  ("name: a # note\n", "---\n", "quote it"),
                  ("description: Use when: x\n", "---\n", "quote it"),

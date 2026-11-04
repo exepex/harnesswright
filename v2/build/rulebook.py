@@ -54,10 +54,6 @@ class Rule:
     def is_decision_point(self):
         return DP_ID.fullmatch(self.id) is not None
 
-    @property
-    def status(self):
-        return self.text("Status")
-
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
         return "\n".join(self.parts[part])
@@ -190,9 +186,10 @@ def check_rule(path, rule, retired_file):
         fail(path, rule.line, f"{rule.id} is missing {', '.join(missing)}")
     for name in rule.parts:
         check_value(path, rule, name)
-    if (rule.status == "retired") != ("Replaced by" in rule.parts):
+    retired = rule.text("Status") == "retired"
+    if retired != ("Replaced by" in rule.parts):
         fail(path, rule.line, f"{rule.id}: Replaced by is required exactly when the status is retired")
-    if (rule.status == "retired") != retired_file:
+    if retired != retired_file:
         fail(path, rule.line, f"{rule.id}: retired rules live in retired files and only there (HW-RULE-07)")
     if sum(name in rule.parts for name in CHANGES) > 1:
         fail(path, rule.line, f"{rule.id} names more than one of {', '.join(CHANGES)} (HW-RULE-05)")
@@ -293,12 +290,12 @@ def read_table(path, lines, heading, columns):
 
 FRONTMATTER_KEYS = ("name", "description", "license", "compatibility")
 TOP_LINE = re.compile(r"([a-z][a-z-]*): (\S.*)")
-META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
 # Every value character is YAML-printable and not a tab or line break. A plain value starts with a letter, so it is
 # never a number, date or special float, and is not a YAML 1.1 bool or null word, so every reader sees a string.
 PRINTABLE = "[\x20-\x7e\xa0-\u2027\u202a-\ud7ff\ue000-\ufefe\uff00-\ufffd\U00010000-\U0010ffff]"
-PLAIN = re.compile(r"(?!(?:[yYnN]|[yY]es|YES|[nN]o|NO|[tT]rue|TRUE|[fF]alse|FALSE|[oO]n|ON|[oO]ff|OFF|[nN]ull|NULL)$)"
-                   rf"[A-Za-z](?:(?!: | #){PRINTABLE})*(?<![ :])")
+WORDS = r"(?:[yYnN]|[yY]es|YES|[nN]o|NO|[tT]rue|TRUE|[fF]alse|FALSE|[oO]n|ON|[oO]ff|OFF|[nN]ull|NULL)"
+META_LINE = re.compile(rf"  (?!{WORDS}:)([a-z][a-z0-9-]*): (\S.*)")  # a key is a YAML string too
+PLAIN = re.compile(rf"(?!{WORDS}$)[A-Za-z](?:(?!: | #){PRINTABLE})*(?<![ :])")
 QUOTED = re.compile(rf"\"((?:(?![\"\\]){PRINTABLE})*)\"|'((?:(?!'){PRINTABLE})*)'")
 
 
