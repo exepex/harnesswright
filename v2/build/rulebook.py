@@ -7,6 +7,7 @@ guessed. The formats are those of docs/design/03-standards.md (rule parts, IDs, 
 """
 
 import re
+from datetime import date
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,6 +27,7 @@ DP_ID = re.compile(rf"{NAME}(?:-{NAME})*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*")
 ROLE = re.compile(r"[a-z]+(?: [a-z]+)*")
 SKILL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+PROSE = re.compile(r"[A-Za-z0-9(\[`].*")
 OPTION = re.compile(r"- `[a-z0-9-]+`: \S.*")
 HEADING = re.compile(r"### (\S+) · (\S.*)")
 PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")
@@ -60,25 +62,8 @@ class Rule:
         return self.text("Status")
 
     @property
-    def area(self):
-        return "DP" if self.is_decision_point else self.id.split("-")[-2]
-
-    @property
     def applies_to(self):
         return split_list(self.text("Applies to"))
-
-    @property
-    def replaced_by(self):
-        value = self.text("Replaced by") if "Replaced by" in self.parts else ""
-        return [] if value in ("", "no replacement") else split_list(value)
-
-    @property
-    def changes(self):
-        """(relation, ID) for an Overrides, Binds or Tightens part, else None."""
-        for name in CHANGES:
-            if name in self.parts:
-                return name, self.text(name)
-        return None
 
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
@@ -94,6 +79,13 @@ class Layer:
 def split_list(value):
     """Split a comma-and-space list such as an Applies to value."""
     return value.split(", ") if value else []
+
+
+def is_date(value):
+    try:
+        return date.fromisoformat(value) is not None
+    except ValueError:
+        return False
 
 
 def fail(path, number, message):
@@ -142,8 +134,8 @@ def read_rule_file(path):
             rule, part = start_rule(path, number, heading, prefix), None
             rules.append(rule)
         elif rule is None:
-            if line.startswith("#") or line.startswith("- **"):
-                fail(path, number, f"heading or part outside a rule: {line!r}")
+            if line and not PROSE.fullmatch(line):
+                fail(path, number, f"line outside a rule is not prose: {line!r}")
         elif line.startswith("  ") and part is not None:
             fenced ^= line[2:].lstrip().startswith("```")
             rule.parts[part].append(line[2:])
@@ -152,6 +144,8 @@ def read_rule_file(path):
                 rule.parts[part].append("")
             else:
                 part = None
+        elif fenced:
+            fail(path, number, "code block is not closed before the next part")
         else:
             part = add_part(path, number, rule, line)
     if fenced:
@@ -218,12 +212,13 @@ def check_value(path, rule, name):
     elif name == "Status":
         ok = value in STATUSES
     elif name == "Review by":
-        ok = DATE.fullmatch(value) is not None
+        ok = DATE.fullmatch(value) is not None and is_date(value)
     elif name == "Applies to":
         names = split_list(value)
         ok = bool(names) and len(set(names)) == len(names) and all(ROLE.fullmatch(n) for n in names)
     elif name == "Replaced by":
-        ok = value == "no replacement" or all(RULE_ID.fullmatch(i) or DP_ID.fullmatch(i) for i in split_list(value))
+        ids = split_list(value)
+        ok = value == "no replacement" or ids and all(RULE_ID.fullmatch(i) or DP_ID.fullmatch(i) for i in ids)
     elif name in CHANGES:
         ok = RULE_ID.fullmatch(value) is not None or DP_ID.fullmatch(value) is not None
     else:
@@ -279,7 +274,8 @@ def read_table(path, lines, heading, columns):
     if lines[start:end].count(header) != 1:
         fail(path, start, f"expected one table with the header {header} under {heading!r}")
     first = lines.index(header, start)
-    if any(line.startswith("|") for line in lines[start:first]) or lines[first + 1] != "|" + "---|" * len(columns):
+    rule_line = lines[first + 1] if first + 1 < end else ""
+    if any(line.startswith("|") for line in lines[start:first]) or rule_line != "|" + "---|" * len(columns):
         fail(path, first + 1, f"table under {heading!r} is not a header, a rule line and rows")
     rows, number = [], first + 2
     while number < end and lines[number].startswith("|"):
@@ -298,15 +294,16 @@ def read_table(path, lines, heading, columns):
 FRONTMATTER_KEYS = ("name", "description", "license", "compatibility")
 TOP_LINE = re.compile(r"([a-z][a-z-]*): (\S.*)")
 META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
-PLAIN = re.compile(r"[^\s'\"\[\]{}>|*&!%@#`,?:-](?:(?!: | #).)*(?<![\s:])")
+PLAIN = re.compile(r"[^\s'\"\[\]{}>|*&!%@#`,?:-](?:(?!:\s|\s#).)*(?<![\s:])")
+NOT_STRING = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n|\.inf|\.nan)|[+.]?[0-9].*")
 QUOTED = re.compile(r"\"([^\"\\]*)\"|'([^']*)'")
 
 
 def read_frontmatter(path):
     """The frontmatter of a SKILL.tmpl.md or SKILL.md: top-level strings and a `metadata` map of strings.
 
-    Returns the data and the 0-based index of the first body line. A value is a plain YAML scalar without `: ` or
-    ` #`, or a quoted string without escapes; any other shape fails, so every host reads the same value.
+    Returns the data and the 0-based index of the first body line. A value is a plain YAML string (no `: `, no ` #`,
+    not a null, bool or number) or a quoted string without escapes. Any other shape fails: hosts read it alike.
     """
     path = Path(path)
     lines = read_lines(path)
@@ -337,6 +334,6 @@ def store(path, number, target, pair):
         fail(path, number, f"{key!r} appears twice")
     if quoted:
         value = quoted.group(1) if quoted.group(1) is not None else quoted.group(2)
-    elif PLAIN.fullmatch(value) is None:
+    elif PLAIN.fullmatch(value) is None or NOT_STRING.fullmatch(value):
         fail(path, number, f"value of {key!r} has no allowed shape: quote it, without escapes")
     target[key] = value

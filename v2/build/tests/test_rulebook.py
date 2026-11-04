@@ -84,20 +84,28 @@ BAD_FILES = [
     ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("- **Status:**", "- **Kind:** choice\n- **Status:**"),
      "not allowed in CORE-DP-TEST-STACK"),
     ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("  - `junit`", "  - junit"), "Options has no allowed value"),
-    ("a.md", TITLE + RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}"), "never closed"),
+    ("a.md", TITLE + RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}"),
+     "before the next part"),
+    ("a.md", TITLE + RULE + "  ```\n", "code block is never closed"),
+    ("a.md", TITLE + "  " + RULE, "outside a rule is not prose"),
+    ("a.md", TITLE + RULE.replace("2027-11-03", "2027-13-45"), "Review by has no allowed value"),
+    ("a.md", TITLE + RULE.replace("implementer, test writer", "implementer, implementer"), "Applies to has no"),
+    ("a.md", TITLE + RULE.replace("  - own (doc", "    - own (doc"), "Source has no allowed value"),
+    ("retired.md", RETIRED_TITLE + RETIRED.replace(" CORE-TEST-04, CORE-TEST-05", ""), "Replaced by has no allowed"),
+    ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("- **Options:**", "- **Options:** junit"), "Options has no"),
     ("a.md", (TITLE + RULE).rstrip("\n"), "does not end with a newline"),
     ("a.md", (TITLE + RULE).replace("\n", "\r\n"), "carriage return"),
 ]
 
 
-class RuleFileTest(unittest.TestCase):
+class TempTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
 
-    def tearDown(self):
-        self.tmp.cleanup()
 
+class RuleFileTest(TempTest):
     def read(self, name, text):
         path = self.dir / name
         path.write_text(text, encoding="utf-8", newline="")
@@ -118,12 +126,11 @@ class RuleFileTest(unittest.TestCase):
 
     def test_parts_keep_line_breaks_and_nested_lists(self):
         (rule,) = self.read("a.md", TITLE + RULE)
-        self.assertEqual((rule.id, rule.area, rule.kind), ("CORE-TEST-03", "TEST", "principle"))
+        self.assertEqual((rule.id, rule.kind), ("CORE-TEST-03", "principle"))
         self.assertEqual(rule.applies_to, ["implementer", "test writer"])
         self.assertEqual(rule.text("Rule"), "Name each test after the situation it sets up\nand the result it expects.")
         self.assertEqual(rule.parts["Source"], ["", "- own (doc 03 example)", "- `a/b@1234567 c.md` (MIT)"])
         self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
-        self.assertIsNone(rule.changes)
 
     def test_code_block_may_hold_blank_lines(self):
         text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}\n\n  ```")
@@ -132,14 +139,12 @@ class RuleFileTest(unittest.TestCase):
 
     def test_decision_point_retired_rule_and_binding(self):
         (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT)
-        self.assertEqual((point.is_decision_point, point.kind, point.area), (True, "decision point", "DP"))
+        self.assertEqual((point.is_decision_point, point.kind), (True, "decision point"))
         (rule,) = self.read("retired-test.md", RETIRED_TITLE + RETIRED)
-        self.assertEqual(rule.replaced_by, ["CORE-TEST-04", "CORE-TEST-05"])
-        (none,) = self.read("retired.md", RETIRED_TITLE + RETIRED.replace(", CORE-TEST-05", "").replace(
-            "CORE-TEST-04", "no replacement"))
-        self.assertEqual(none.replaced_by, [])
+        self.assertEqual(rule.text("Replaced by"), "CORE-TEST-04, CORE-TEST-05")
+        self.read("retired.md", RETIRED_TITLE + RETIRED.replace("CORE-TEST-04, CORE-TEST-05", "no replacement"))
         (app,) = self.read("b.md", "# APP-TEST · Tests\n\n" + APP)
-        self.assertEqual(app.changes, ("Binds", "CORE-DP-TEST-STACK"))
+        self.assertEqual(app.text("Binds"), "CORE-DP-TEST-STACK")
 
     def test_layer_reads_rule_files_only_and_rejects_duplicates(self):
         for name in ("index.md", "README.md"):
@@ -187,20 +192,17 @@ BAD_ROLES = [
     (ROLES + JOB.replace("| implementer | implementer,", "| every role | implementer,"), "no allowed value"),
     (ROLES + JOB.replace("| implementer |\n", "| other |\n"), "no allowed value"),
     (ROLES + JOB.replace("implementer, docs-writer", ""), "no allowed value"),
+    (ROLES + JOB.replace("docs-writer", "Docs"), "no allowed value"),
+    (ROLES.replace("| delivery | Builds", "| Delivery | Builds"), "no allowed value"),
+    (ROLES.replace("Prose before the table.", "| stray |"), "not a header, a rule line and rows"),
+    (ROLES[:-len("|---|---|---|---|\n")], "not a header, a rule line and rows"),
 ]
 
 
-class RolesTest(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self.tmp.name) / "roles.md"
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
+class RolesTest(TempTest):
     def read(self, text):
-        self.path.write_text(text, encoding="utf-8")
-        return rulebook.read_roles(self.path)
+        (self.dir / "roles.md").write_text(text, encoding="utf-8")
+        return rulebook.read_roles(self.dir / "roles.md")
 
     def test_reads_the_real_roles_file(self):
         roles = rulebook.read_roles(ROOT / "v2" / "roles.md")
@@ -219,17 +221,10 @@ class RolesTest(unittest.TestCase):
                 self.assertIn(message, str(caught.exception))
 
 
-class FrontmatterTest(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self.tmp.name) / "SKILL.tmpl.md"
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
+class FrontmatterTest(TempTest):
     def read(self, front, body="---\n\n# Body\n"):
-        self.path.write_text("---\n" + front + body, encoding="utf-8")
-        return rulebook.read_frontmatter(self.path)
+        (self.dir / "SKILL.tmpl.md").write_text("---\n" + front + body, encoding="utf-8")
+        return rulebook.read_frontmatter(self.dir / "SKILL.tmpl.md")
 
     def test_reads_strings_and_metadata(self):
         data, body = self.read("name: claims-writer\ndescription: \"Use when: a story is done.\"\nmetadata:\n"
@@ -249,7 +244,10 @@ class FrontmatterTest(unittest.TestCase):
                  ("name: a # note\n", "---\n", "quote it"),
                  ("description: Use when: x\n", "---\n", "quote it"),
                  ("description: 'it''s'\n", "---\n", "quote it"),
-                 ('description: "say \\"hi\\""\n', "---\n", "quote it")]
+                 ('description: "say \\"hi\\""\n', "---\n", "quote it"),
+                 ("name: null\nlicense: 2024\n", "---\n", "quote it"),
+                 ("metadata:\n  version: 1.10\n", "---\n", "quote it"),
+                 ("name: a\t# c\n", "---\n", "quote it")]
         for front, body, message in cases:
             with self.subTest(front=front):
                 with self.assertRaises(rulebook.RulebookError) as caught:
