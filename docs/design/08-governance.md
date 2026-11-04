@@ -37,7 +37,7 @@ rules:
 
 1. When a human corrects an agent, or an escalation is settled, the coordinator records it.
 2. The curator groups similar corrections. A correction seen twice becomes a **rule proposal**, placed in the
-   lowest layer that fits: repository, team, organisation, language, then core.
+   lowest layer that fits: application, team, department, company, language, then principles.
 3. A human approves or rejects each proposal. Nothing joins the standards without approval.
 4. An approved rule comes with an eval. The release then follows the normal path.
 

@@ -1,14 +1,15 @@
 # Host adapters
 
 Everything host-specific lives here, one folder per host, never in a skill
-([10 · Skills](../docs/design/10-skills.md)). This change covers how evals run. Installation, agent definitions and
-model mapping are added per host when a later phase needs them.
+([10 · Skills](../docs/design/10-skills.md)). This change covers how evals run. Where a host loads skills from, agent
+definitions and model mapping are added per host when a later phase needs them. Putting a release in place is the
+team's or its runtime's job ([07 · Repository profile](../docs/design/07-repo-profile.md)).
 
 | Host | Folder | Status |
 |---|---|---|
 | Claude Code (reference host) | [claude-code/](claude-code/README.md) | Adapter built, unit-tested and run live |
 | OpenAI Codex | [codex/](codex/README.md) | Adapter built, unit-tested and run live in the phase-2 sample-skill work |
-| Open host | [open-host-choice.md](open-host-choice.md) | goose chosen; adapter not built yet |
+| Other hosts | — | None planned. harnesswright picks no runtime; a host is added with one adapter when the owner asks. [open-host-choice.md](open-host-choice.md) is a research note only. |
 
 ## The eval adapter interface
 

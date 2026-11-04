@@ -52,9 +52,9 @@ A skill is production grade only when it has all of these:
 ## Portability
 
 The same skills must work with every frontier model, through any agent host that reads the Agent Skills
-standard, with the same behaviour. A skill runs inside a host, such as Claude Code, OpenAI Codex, Gemini CLI or an
-open host, and the host runs the model. So harnesswright targets the standard, not a list of models or hosts, and a
-new model or host is supported by adding one adapter, never by changing a skill.
+standard, with the same behaviour. A skill runs inside a host, such as Claude Code, OpenAI Codex or Gemini CLI,
+which runs the model, or inside a system that calls a model API. So harnesswright targets the standard, not a list
+of models or hosts, and a new model or host is supported by adding one adapter, never by changing a skill.
 
 ### What can and cannot be promised
 
@@ -105,10 +105,10 @@ consuming repository can override or loosen them, and they change only through a
 
 ### Host adapters
 
-Anything host-specific lives in `adapters/<host>/`, never in a skill: how skills are installed, how roles become
+Anything host-specific lives in `adapters/<host>/`, never in a skill: where the host loads skills from, how roles become
 that host's agent definitions, how sub-agents are started, which model each model class maps to, and how evals run.
-The first adapters planned are Claude Code (the reference host), OpenAI Codex, and one open host that can run
-models from many vendors, chosen in phase 2. More hosts are added one adapter at a time, with the same evals.
+The adapters today are Claude Code (the reference host) and OpenAI Codex. harnesswright picks no runtime: any host
+or system can use the skills, and a host is added one adapter at a time, with the same evals, when the owner asks.
 
 ### Portability evals
 

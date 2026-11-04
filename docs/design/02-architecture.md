@@ -4,7 +4,7 @@
 
 | Part | Answers | Varies by | Lives in |
 |---|---|---|---|
-| **Standards** | What does good work look like? | Layer: core, language, organisation, team, repository | `standards/`, and `.harness/standards/` in each repository |
+| **Standards** | What does good work look like? | Layer: principles, language and framework, company, department, team, application | `standards/` for layers 1 and 2; each company, department or team layer in its own folder; `.harness/standards/` in each application |
 | **Roles** | Who does each task, and how? | Nothing. Roles are written once, in the core. | `roles/` |
 | **Skills** | What steps does a role follow for one task? | Nothing. Skills read the resolved standards. | `skills/` |
 | **Process** | Which roles run, in what order, with how many voters? | Change type, risk tier and configuration | `process/`, overridden by the repository profile |
@@ -34,18 +34,16 @@ harnesswright/
 ├── docs/design/                These design documents
 ├── standards/
 │   ├── core/                   Principles and floors for every language, one file per area
-│   ├── languages/<language>/   Idioms, decision-point defaults and the toolchain for one language
-│   ├── org/                    Empty until needed
-│   └── team/                   Empty until needed
+│   └── languages/<language>/   Idioms, decision-point defaults and the toolchain for one language
 ├── roles/                      One agent definition per role
 ├── skills/                     Agent Skills (SKILL.md folders) for each repeatable task
 ├── process/                    Default change types, risk tiers, pipelines and panel settings
 ├── contracts/                  Templates: plan, story, claims, finding, vote, verdict
 ├── evals/                      The harness's own test tasks, expected outcomes and sample projects
-└── adapters/<host>/            Everything host-specific: installation, agent definitions, sub-agents, models, eval runs
+└── adapters/<host>/            Everything host-specific: where skills load, agent definitions, sub-agents, models, eval runs
 ```
 
-The repository layer and the profile live in each consuming repository, under `.harness/`. See
+The application layer and the profile live in each consuming repository, under `.harness/`. See
 [07 · Repository profile](07-repo-profile.md).
 
 ## Formats

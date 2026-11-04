@@ -7,7 +7,7 @@ plan, build, test, review and verify software with little human guidance. It wor
 its language (Java, Spring Boot, Python, Go, Rust, Groovy and others) or architecture (library, microservice, web
 application, batch job, command-line tool, producer or consumer).
 
-A repository adopts it by installing the harness and adding one profile file. From then on, every agent that works
+A repository adopts it by putting a release in place and adding one profile file. From then on, every agent that works
 in that repository follows the same standards and the same process, without being told again.
 
 ## The problem it solves
@@ -21,8 +21,8 @@ harnesswright writes those instructions once, in layers, and makes every role ap
 
 ## Goals
 
-1. **Write standards once, use them everywhere.** Engineering principles live in one core. Each language, organisation,
-   team and repository adds only what is specific to it.
+1. **Write standards once, use them everywhere.** Engineering principles live in one core. Each language, company,
+   department, team and application adds only what is specific to it.
 2. **Respect local conventions.** A team's choices, such as Lombok or explicit accessors, win over generic defaults.
    Safety floors never lose.
 3. **Decide by independent agreement, not by one agent.** Plans, stories and finished work are approved by panels
@@ -44,8 +44,9 @@ harnesswright writes those instructions once, in layers, and makes every role ap
 
 ## Non-goals
 
-- harnesswright is not an agent runtime or a framework. It uses the agent hosts that already exist and read Agent
-  Skills (`SKILL.md`), such as Claude Code and OpenAI Codex.
+- harnesswright is not an agent runtime or a framework, and it picks none. Any runtime can use it: an agent host
+  that reads Agent Skills (`SKILL.md`), such as Claude Code and OpenAI Codex, or a system that calls a model API and
+  hands the skills to the model.
 - It contains no business or domain logic, and no project-specific code.
 - It does not replace build tools, linters, scanners or CI. It tells agents which ones to run and how to read the
   results.

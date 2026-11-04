@@ -1,18 +1,33 @@
 # 07 · Repository profile
 
-A repository adopts harnesswright with one file, `.harness/profile.yaml`. It names the standards layers that apply,
-binds decision points, maps model classes to models, binds capabilities, and changes process defaults. Everything
-it leaves out keeps the harness default.
+A repository adopts harnesswright with one file, `.harness/profile.yaml`. It says where the installed release and
+each standards layer are, binds decision points, lists approved waivers, maps model classes to models, binds
+capabilities, and changes process defaults. Everything it leaves out keeps the harness default. The team owns this
+file and writes it by hand or with its runtime.
 
 ## Example
 
 ```yaml
 # .harness/profile.yaml
-harness: "1.0"                     # the harnesswright version this repository is pinned to
+harnesswright:                      # the installed release: principles, language and framework layers, skills
+  version: "1.4"
+  folder: .agents/harnesswright/
 
 standards:
-  layers: [core, java, java-spring]   # in order; org and team layers are added here when they exist
-  repository: .harness/standards/     # this repository's own rules
+  languages: [java, java-spring]    # language and framework layers from the release, in order
+  layers:                           # company, department and team layers, most general first
+    - name: acme
+      folder: ../acme-rules/
+      version: "2.1"
+  repository: .harness/standards/   # this repository's own rules
+
+waivers:                            # approved application waivers; never a floor
+  - rule: COMP-ACME-ERR-03
+    reason: legacy endpoints keep the old error format until the v2 API ships
+    until: 2027-03-01
+    approved by: app-owner-account, acme-rules-owner-account
+
+rules-text-limit: 45000             # optional; at most 60000 characters
 
 decisions:                          # bindings for core decision points
   boilerplate: lombok
@@ -47,9 +62,12 @@ process:
 
 | Section | Required | Purpose |
 |---|---|---|
-| `harness` | Yes | The harness version this repository uses. Upgrading is a deliberate change. |
-| `standards.layers` | Yes | The layers that apply, from general to specific. `core` is always first. |
+| `harnesswright` | Yes | The installed release: its `version` and the `folder` it is in. Upgrading is a deliberate change. |
+| `standards.languages` | No | The language and framework layers from the release that apply, in order. The principles layer always applies. |
+| `standards.layers` | No | Company, department and team layers, from general to specific, each with `name` (the name its IDs use, such as `acme` for `COMP-ACME-…`), `folder` and `version` |
 | `standards.repository` | No | Path to this repository's own rules |
+| `waivers` | No | The application's approved waivers. See below. |
+| `rules-text-limit` | No | This application's rules-text ceiling in characters. See below. |
 | `decisions` | No | Bindings for decision points. Unbound points use the language default, then the core default. |
 | `toolchain` | Yes | The real commands for each check the language profile requires |
 | `models` | Yes | The concrete model for each model class |
@@ -100,13 +118,41 @@ Why capabilities instead of naming MCP servers in roles:
 - **Cost.** Every connected MCP server adds its tool definitions to an agent's context. A CLI is often cheaper, and
   a role loads only the capabilities its work needs.
 
-## Onboarding a repository
+## The release and the layers
 
-1. Install harnesswright with the adapter for the host in use (see `adapters/<host>/`).
-2. Run the onboarding skill. It detects the language and build tool, proposes `profile.yaml`, and infers
-   conventions from the existing code into `.harness/standards/` as `inferred` rules.
-3. A human reviews and confirms the profile and the inferred rules once.
-4. Start with tier T0 and T1 changes. Raise the tiers the harness handles as the metrics show it can be trusted.
+harnesswright puts nothing into an application. The team, or the runtime it uses, puts each folder in place:
+the release zip unpacked into `harnesswright.folder`, and each layer in its `folder`, by any means it chooses, such
+as a copy, a git submodule or a package download. Paths are relative to the repository root.
+
+- The release holds the principles layer, the language and framework layers, the skills and a manifest that states
+  the release version. Its version pins the principles, language and framework layers.
+- Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), which states the layer's
+  owner and version.
+- At the start of a run, the standards reader checks every folder against the profile: the release by the version
+  in its manifest, each layer 3 to 5 by the version in its `layer.yaml`. If a folder is missing or cannot be read,
+  or its version is not exactly the one the profile pins, the run stops and names the layer and the folder. It
+  never skips a layer.
+
+## Waivers
+
+An application's approved waivers live only in `waivers`, one entry per rule, with `rule`, `reason`, `until` (a
+date) and `approved by` (the accounts of every approver the table in [03 · Standards](03-standards.md) requires,
+comma-separated). A waiver is added in a pull request that each of them approves from that account. The rule ID
+comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver never names a floor;
+the standards reader stops if one does. Story-scoped waivers live in their story ([06 · Contracts](06-contracts.md)).
+
+## Rules text limit
+
+The rules text a skill reads at the start of each run has a ceiling of 30,000 characters
+([05 · Process](05-process.md)). An application may raise its own ceiling with `rules-text-limit`, up to 60,000
+characters, with its own eval token counts as evidence and the application owner's approval. Above 60,000, the work
+is split into smaller skills.
+
+## Onboarding
+
+Onboarding, which detects the application, drafts this profile and proposes inferred rules, belongs to the team or
+its runtime, not to harnesswright. A person reviews and confirms the profile and any inferred rules once, whoever
+wrote them. Start with tier T0 and T1 changes, and raise the tiers as the metrics show the agents can be trusted.
 
 ## Repository instructions
 
