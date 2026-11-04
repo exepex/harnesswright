@@ -109,9 +109,11 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
             clean = scrubs.Scrub.of_run(contained)  # made before the folder goes, so a refreshed credential counts
             ran, _ = evidence.reported(contained, result, clean, "grader")
         finally:
-            if watch is not None and contained is not None:
-                watch(contained, made, ran)
-            shutil.rmtree(made, ignore_errors=True)
+            try:
+                if watch is not None and contained is not None:
+                    watch(contained, made, ran)
+            finally:  # the folder goes even when the watch fails, as it holds the host's copied files
+                shutil.rmtree(made, ignore_errors=True)
         logs.append(ran["log"])
         if ran["failure"]:
             tries.append(f"the host failed: {ran['failure']}")
