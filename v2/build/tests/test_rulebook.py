@@ -1,7 +1,4 @@
-"""Tests for rulebook.py. Run from the repository root: python3 -m unittest discover -s v2/build/tests
-
-Each failing case names the message its check gives, so a test fails when that one check breaks.
-"""
+"""Tests for rulebook.py; each bad case asserts its own message. Run: python3 -m unittest discover -s v2/build/tests"""
 
 import sys
 import textwrap
@@ -64,7 +61,7 @@ BAD_FILES = [
     ("a.md", TITLE + RULE.replace("- **Review by:** 2027-11-03\n", ""), "missing Review by"),
     ("a.md", TITLE + RULE.replace("principle", "guideline"), "Kind has no allowed value"),
     ("a.md", TITLE + RULE.replace("- **Status:** active", "- **Status:** draft"), "Status has no allowed value"),
-    ("a.md", TITLE + RULE.replace("2027-11-03", "next year"), "Review by has no allowed value"),
+    ("a.md", TITLE + RULE.replace("2027-11-03", "20271103"), "Review by has no allowed value"),
     ("a.md", TITLE + RULE.replace(":** implementer, test writer", ":**"), "Applies to has no allowed value"),
     ("a.md", TITLE + RULE.replace("implementer, test writer", "Implementer"), "Applies to has no allowed value"),
     ("a.md", TITLE + RULE.replace(":** A failing test should say what broke.", ":**"), "Why has no allowed value"),
@@ -134,9 +131,10 @@ class RuleFileTest(TempTest):
         self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
 
     def test_code_block_may_hold_blank_lines_and_shorter_fences(self):
-        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ````md\n  ```py\n  ````py\n\n  ```\n\n  ````")
+        block = "\n  ````md\n  ```py\n  ````py\n\n  ### X · Y\n  ```\n\n  ````"
+        text = RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**" + block)
         (rule,) = self.read("a.md", TITLE + text)
-        self.assertEqual(rule.parts["Bad"], ["", "````md", "```py", "````py", "", "```", "", "````"])
+        self.assertEqual(rule.parts["Bad"], ["", "````md", "```py", "````py", "", "### X · Y", "```", "", "````"])
 
     def test_decision_point_retired_rule_and_binding(self):
         (point,) = self.read("a.md", "# CORE-DP · Points\n\n" + POINT.replace("TEST-STACK", "HTTP-02"))
@@ -249,7 +247,8 @@ class FrontmatterTest(TempTest):
                  ("name: a:\tb\n", "---\n", "quote it"),
                  ("name: a\t# c\n", "---\n", "quote it")]
         words = "y Y yes Yes YES n N no No NO true True TRUE false False FALSE on On ON off Off OFF null Null NULL"
-        for value in words.split() + ["~", "2024", "1.10", "+.inf"]:
+        words += " ~ 2024 1.10 +.inf abc: a\tb a\x85b a\u2028b"
+        for value in words.split(" "):
             cases.append((f"metadata:\n  v: {value}\n", "---\n", "quote it"))
         for front, body, message in cases:
             with self.subTest(front=front):

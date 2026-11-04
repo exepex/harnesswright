@@ -297,7 +297,7 @@ META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
 # A plain value starts with a letter, so it is never a number, date or special float, and is not one of YAML's
 # closed set of letter-only bool and null words (YAML 1.1 bool and null types), so every reader sees a string.
 PLAIN = re.compile(r"(?!(?:[yYnN]|[yY]es|YES|[nN]o|NO|[tT]rue|TRUE|[fF]alse|FALSE|[oO]n|ON|[oO]ff|OFF|[nN]ull|NULL)$)"
-                   r"[A-Za-z](?:(?!:\s|\s#).)*(?<![\s:])")
+                   r"[A-Za-z](?:(?!: | #)[^\t\x85\u2028\u2029])*(?<![\s:])")
 QUOTED = re.compile(r"\"([^\"\\]*)\"|'([^']*)'")
 
 
