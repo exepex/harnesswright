@@ -61,10 +61,6 @@ class Rule:
     def status(self):
         return self.text("Status")
 
-    @property
-    def applies_to(self):
-        return split_list(self.text("Applies to"))
-
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
         return "\n".join(self.parts[part])
@@ -136,6 +132,8 @@ def read_rule_file(path):
         elif rule is None:
             if line and not PROSE.fullmatch(line):
                 fail(path, number, f"line outside a rule is not prose: {line!r}")
+        elif not fenced and HEADING.fullmatch(line.lstrip()):
+            fail(path, number, f"rule heading must not be indented: {line!r}")
         elif line.startswith("  ") and part is not None:
             fenced ^= line[2:].lstrip().startswith("```")
             rule.parts[part].append(line[2:])
@@ -294,16 +292,18 @@ def read_table(path, lines, heading, columns):
 FRONTMATTER_KEYS = ("name", "description", "license", "compatibility")
 TOP_LINE = re.compile(r"([a-z][a-z-]*): (\S.*)")
 META_LINE = re.compile(r"  ([a-z][a-z0-9-]*): (\S.*)")
-PLAIN = re.compile(r"[^\s'\"\[\]{}>|*&!%@#`,?:-](?:(?!:\s|\s#).)*(?<![\s:])")
-NOT_STRING = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n|\.inf|\.nan)|[+.]?[0-9].*")
+# A plain value starts with a letter, so it is never a number, date or special float, and is not one of YAML's
+# closed set of letter-only bool and null words (YAML 1.1 bool and null types), so every reader sees a string.
+PLAIN = re.compile(r"(?!(?:[yYnN]|[yY]es|YES|[nN]o|NO|[tT]rue|TRUE|[fF]alse|FALSE|[oO]n|ON|[oO]ff|OFF|[nN]ull|NULL)$)"
+                   r"[A-Za-z](?:(?!:\s|\s#).)*(?<![\s:])")
 QUOTED = re.compile(r"\"([^\"\\]*)\"|'([^']*)'")
 
 
 def read_frontmatter(path):
     """The frontmatter of a SKILL.tmpl.md or SKILL.md: top-level strings and a `metadata` map of strings.
 
-    Returns the data and the 0-based index of the first body line. A value is a plain YAML string (no `: `, no ` #`,
-    not a null, bool or number) or a quoted string without escapes. Any other shape fails: hosts read it alike.
+    Returns the data and the 0-based index of the first body line. A value is a plain string that starts with a
+    letter (PLAIN) or a quoted string without escapes. Any other shape fails, so every host reads the same string.
     """
     path = Path(path)
     lines = read_lines(path)
@@ -334,6 +334,6 @@ def store(path, number, target, pair):
         fail(path, number, f"{key!r} appears twice")
     if quoted:
         value = quoted.group(1) if quoted.group(1) is not None else quoted.group(2)
-    elif PLAIN.fullmatch(value) is None or NOT_STRING.fullmatch(value):
+    elif PLAIN.fullmatch(value) is None:
         fail(path, number, f"value of {key!r} has no allowed shape: quote it, without escapes")
     target[key] = value

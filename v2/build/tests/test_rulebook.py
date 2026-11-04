@@ -4,6 +4,7 @@ Each failing case names the message its check gives, so a test fails when that o
 """
 
 import sys
+import textwrap
 import tempfile
 import unittest
 from pathlib import Path
@@ -87,7 +88,8 @@ BAD_FILES = [
     ("a.md", TITLE + RULE.replace("- **Bad:** `testOrder2`", "- **Bad:**\n  ```java\n  void t() {}"),
      "before the next part"),
     ("a.md", TITLE + RULE + "  ```\n", "code block is never closed"),
-    ("a.md", TITLE + "  " + RULE, "outside a rule is not prose"),
+    ("a.md", TITLE + textwrap.indent(RULE, "  "), "outside a rule is not prose"),
+    ("a.md", TITLE + RULE + "  ### CORE-TEST-04 · Next\n", "rule heading must not be indented"),
     ("a.md", TITLE + RULE.replace("2027-11-03", "2027-13-45"), "Review by has no allowed value"),
     ("a.md", TITLE + RULE.replace("implementer, test writer", "implementer, implementer"), "Applies to has no"),
     ("a.md", TITLE + RULE.replace("  - own (doc", "    - own (doc"), "Source has no allowed value"),
@@ -127,7 +129,6 @@ class RuleFileTest(TempTest):
     def test_parts_keep_line_breaks_and_nested_lists(self):
         (rule,) = self.read("a.md", TITLE + RULE)
         self.assertEqual((rule.id, rule.kind), ("CORE-TEST-03", "principle"))
-        self.assertEqual(rule.applies_to, ["implementer", "test writer"])
         self.assertEqual(rule.text("Rule"), "Name each test after the situation it sets up\nand the result it expects.")
         self.assertEqual(rule.parts["Source"], ["", "- own (doc 03 example)", "- `a/b@1234567 c.md` (MIT)"])
         self.assertEqual((rule.text("Tool"), rule.text("Exceptions")), ("`grep -n test`", "generated tests"))
@@ -246,7 +247,9 @@ class FrontmatterTest(TempTest):
                  ("description: 'it''s'\n", "---\n", "quote it"),
                  ('description: "say \\"hi\\""\n', "---\n", "quote it"),
                  ("name: null\nlicense: 2024\n", "---\n", "quote it"),
-                 ("metadata:\n  version: 1.10\n", "---\n", "quote it"),
+                 ("metadata:\n  version: 1.10\n  value: +.inf\n", "---\n", "quote it"),
+                 ("name: yes\n", "---\n", "quote it"),
+                 ("name: a:\tb\n", "---\n", "quote it"),
                  ("name: a\t# c\n", "---\n", "quote it")]
         for front, body, message in cases:
             with self.subTest(front=front):
