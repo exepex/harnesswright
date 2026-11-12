@@ -75,6 +75,22 @@ process:
 | `capabilities` | No | How roles reach outside systems. Missing means not available. |
 | `process` | No | Changes to process defaults, within the limits in [05 · Process](05-process.md) |
 
+## Format
+
+The profile and each `layer.yaml` use a small part of YAML, and the standards reader stops on anything else, naming
+the file and line. The sections it skips (`toolchain`, `scripts`, `models`, `capabilities`, `process`) are not
+checked past their first line; any section not in the table above stops the run.
+
+- A line is `key: value`, `key:` with a more indented block under it, or a list item `- ` under its key. The lines
+  of one block share one indent. Tabs are not indents. Keys are lower case.
+- A list is `- ` items, indented under their key, or `[a, b]` on one line. `[]` and `{}` are empty.
+- ` #` starts a comment. A value in quotes, `"…"` or `'…'`, may hold ` #`. One leading `---` line is allowed.
+- Values have these shapes: versions are three numbers; folders are relative paths of letters, digits, `.`, `_` and
+  `-`; a layer `name` is lower-case letters and digits; `until` is a real date, `YYYY-MM-DD`; `approved by` is
+  accounts of letters, digits, `.`, `_` and `-`, separated by commas; `rules-text-limit` is a whole number from 1;
+  a decision key and its option are lower-case words joined by `-`.
+- `waivers` holds one entry per rule.
+
 ## Scripts
 
 Some skills bundle a small script for a check that must give the same answer on every host, such as the line counts

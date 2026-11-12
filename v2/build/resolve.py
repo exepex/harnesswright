@@ -12,6 +12,7 @@ Run: python3 resolve.py --repo REPO --run RUN-ID --date YYYY-MM-DD
 import argparse
 import re
 import sys
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -21,8 +22,10 @@ from rulebook import DP_ID, RULE_ID, RulebookError, fail
 PROFILE = ".harness/profile.yaml"
 MAX_LIMIT = 60000
 DEFAULT_LIMIT = 30000
-READ = ("harnesswright", "standards", "waivers", "rules-text-limit", "decisions")  # every other section is skipped
-VALUE = re.compile(r"[\x20-\x7e\xa0-\ufffd]+")
+READ = ("harnesswright", "standards", "waivers", "rules-text-limit", "decisions")
+SKIP = ("toolchain", "scripts", "models", "capabilities", "process")  # doc 07's sections that resolve does not read
+VALUE = re.compile(r"[\x20-\x7e\xa0-�]+")
+ACCOUNT = r"[A-Za-z0-9._-]+"
 SHAPES = {
     "version": re.compile(r"[0-9]+\.[0-9]+\.[0-9]+"),
     "folder": re.compile(r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*/?"),
@@ -31,162 +34,198 @@ SHAPES = {
     "rule": re.compile(rf"{RULE_ID.pattern}|{DP_ID.pattern}"),
     "until": rulebook.DATE,
     "reason": VALUE,
-    "approved by": re.compile(r"[A-Za-z0-9._-]+(?:, [A-Za-z0-9._-]+)*"),
+    "approved by": re.compile(rf"{ACCOUNT}(?:, ?{ACCOUNT})*"),
     "owner": VALUE,
     "limit": re.compile(r"[1-9][0-9]*"),
     "key": re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*"),
     "option": re.compile(r"[a-z0-9-]+"),
 }
-LINE = re.compile(r"( *)(- )?([a-z][a-z -]*[a-z]|[a-z]):(?: (\S.*))?")
-COMMENT = re.compile(r"\s+#\s.*$")
+LINE = re.compile(r"( *)(- )?(?:([a-z][a-z0-9 -]*[a-z0-9]|[a-z]):(?: +(.*))?|(.+))")  # key: value, or - item
+COMMENT = re.compile(r"(?:^|\s)#")
+QUOTED_END = re.compile(r"(?:\s+#.*)?")
 
 
 class ResolveError(RulebookError):
     """An input that stops the run, named with its file and line or its layer."""
 
 
-def unquote(value):
-    if len(value) > 1 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1]
-    return value
+@dataclass
+class Node:
+    """One parsed value and the line it starts on: text, a list of Nodes, or a dict of key to Node."""
+    line: int
+    value: object
 
 
-def depth(line):
-    return len(line) - len(line.lstrip(" "))
+def read_file(path, label=""):
+    """The file's lines; a file that is missing or cannot be read stops the run naming it."""
+    try:
+        return rulebook.read_lines(path)
+    except (OSError, UnicodeDecodeError) as error:
+        raise ResolveError(f"{label}{path}: is missing or cannot be read ({type(error).__name__})") from None
 
 
-def parse(path, lines, indent):
-    """A block of (number, line) pairs at one indent into a dict of (number, value) leaves, or a list of such dicts.
-    A line is `key: value`, `key:` with a deeper block under it, or `- key: value` starting a list item."""
-    if lines[0][1][indent:].startswith("- "):
-        starts = [i for i, (_, line) in enumerate(lines) if depth(line) == indent] + [len(lines)]
-        items = []
-        for here, after in zip(starts, starts[1:]):
-            number, line = lines[here]
-            if not line[indent:].startswith("- "):
-                fail(path, number, "a block mixes list items and keys")
-            items.append(parse(path, [(number, " " * (indent + 2) + line[indent + 2:])] + lines[here + 1:after],
-                               indent + 2))
-        return items
-    data, index = {}, 0
-    while index < len(lines):
-        number, line = lines[index]
-        found = LINE.fullmatch(line)
-        if not found or found.group(2) or len(found.group(1)) != indent:
-            fail(path, number, f"line has no allowed shape here: {line!r}")
-        key, value = found.group(3), found.group(4)
-        if key in data:
+def scalar(path, number, raw):
+    """A value's text: quoted text in full, or the text before a ` #` comment. `[]`, `{}` and `[a, b]` give a list
+    or dict. None when the line has no value."""
+    if raw and raw[0] in "\"'":
+        end = raw.find(raw[0], 1)
+        if end < 0 or not QUOTED_END.fullmatch(raw[end + 1:]):
+            fail(path, number, "a quoted value must end with its quote, then nothing or a comment")
+        return raw[1:end]
+    text = COMMENT.split(raw or "", maxsplit=1)[0].rstrip()
+    if text in ("", "[]", "{}"):
+        return {"": None, "[]": [], "{}": {}}[text]
+    if text[0] == "[" and text[-1] == "]":
+        parts = [part.strip() for part in text[1:-1].split(",")]
+        if not all(parts):
+            fail(path, number, f"a list written as [a, b] has an empty item: {text!r}")
+        return [Node(number, part) for part in parts]
+    return text
+
+
+def token(path, number, line):
+    """[number, indent, dash, key, value] of one line, or a stop naming it."""
+    found = LINE.fullmatch(line)
+    if not found or (found.group(5) is not None and not found.group(2)):
+        fail(path, number, f"line has no allowed shape here: {line!r}")
+    indent, dash, key, raw, item = found.groups()
+    value = scalar(path, number, raw if key else item)
+    if key is None and value is None:
+        fail(path, number, "a list item has no value")
+    return [number, len(indent), bool(dash), key, value]
+
+
+def parse(path, tokens, start, indent):
+    """The block that starts at tokens[start], every line at this indent: a dict of key to Node, or a list of
+    Nodes for `- ` items. Returns it with the index after it. Every line is used, or the run stops naming it."""
+    as_list = tokens[start][2]
+    block, index = ([] if as_list else {}), start
+    while index < len(tokens) and tokens[index][1] >= indent:
+        number, here, dash, key, value = tokens[index]
+        if here != indent:
+            fail(path, number, "line is not indented like the other lines of its block")
+        if dash != as_list:
+            fail(path, number, "a block mixes list items and keys")
+        if as_list and key is not None:  # a `- key: value` item: a block of keys that starts after the dash
+            tokens[index] = [number, indent + 2, False, key, value]
+            item, index = parse(path, tokens, index, indent + 2)
+            block.append(Node(number, item))
+            continue
+        index += 1
+        if as_list:
+            block.append(Node(number, value))
+            continue
+        if key in block:
             fail(path, number, f"{key!r} appears twice")
-        after = next((i for i in range(index + 1, len(lines)) if depth(lines[i][1]) <= indent), len(lines))
-        if value is not None and after > index + 1:
-            fail(path, lines[index + 1][0], f"line has no allowed shape here: {lines[index + 1][1]!r}")
-        if value is None and after == index + 1:
-            fail(path, number, f"{key!r} has no value")
-        data[key] = (number, value) if value is not None else parse(path, lines[index + 1:after], indent + 2)
-        index = after
-    return data
+        if value is None:
+            if index == len(tokens) or tokens[index][1] <= indent:
+                fail(path, number, f"{key!r} has no value")
+            value, index = parse(path, tokens, index, tokens[index][1])
+        block[key] = Node(number, value)
+    return block, index
 
 
-def read_yaml(path, read):
-    """The top-level sections named in read (all of them when read is None), parsed; every other section is
-    skipped as an unread block."""
-    lines = [(i + 1, COMMENT.sub("", line)) for i, line in enumerate(rulebook.read_lines(path))]
-    lines = [(n, line) for n, line in lines if line.strip() and not line.lstrip().startswith("#")]
+def read_yaml(path, read, skip=(), label=""):
+    """The file's top-level sections as a Node of key to Node. A section in read is parsed in full; a section in
+    skip is passed over unread; any other section stops the run."""
+    lines = [(n, line) for n, line in enumerate(read_file(path, label), 1)
+             if line.strip() and not line.lstrip(" ").startswith("#")]
+    if lines and lines[0][1] == "---":
+        lines = lines[1:]
     tops = [i for i, (_, line) in enumerate(lines) if not line.startswith(" ")] + [len(lines)]
+    if lines and tops[0] != 0:
+        fail(path, lines[0][0], "an indented line comes before the first section")
     data = {}
     for here, after in zip(tops, tops[1:]):
         number, line = lines[here]
-        found = LINE.fullmatch(line)
-        if not found or found.group(2):
-            fail(path, number, f"top-level line has no allowed shape: {line!r}")
-        key, value = found.group(3), found.group(4)
-        if key in data:
-            fail(path, number, f"{key!r} appears twice")
-        if read is None or key in read:
-            if value is None and after == here + 1:
-                fail(path, number, f"{key!r} has no value")
-            data[key] = (number, value) if value is not None else parse(path, lines[here + 1:after], 2)
-    return data
+        head = token(path, number, line)
+        if head[2] or head[3] is None:
+            fail(path, number, f"a top-level line must be `section:`: {line!r}")
+        if head[3] in data:
+            fail(path, number, f"{head[3]!r} appears twice")
+        if head[3] in skip:
+            data[head[3]] = None
+            continue
+        if head[3] not in read:
+            fail(path, number, f"{head[3]!r} is not a section; allowed: {', '.join(read + skip)}")
+        tokens = [head] + [token(path, n, text) for n, text in lines[here + 1:after]]
+        data.update(parse(path, tokens, 0, 0)[0])
+    return Node(1, {k: v for k, v in data.items() if v is not None})
 
 
-def leaf(path, node, shape, where):
-    """One value: a (number, text) leaf whose unquoted text has the named shape."""
-    if not isinstance(node, tuple):
-        fail(path, where, f"expected one {shape} value")
-    number, text = node
-    value = unquote(text)
-    if not SHAPES[shape].fullmatch(value):
-        fail(path, number, f"{value!r} is not an allowed {shape}")
-    return value
+def leaf(path, node, shape):
+    """One value: text with the named shape, for `until` also a real date."""
+    if not isinstance(node.value, str):
+        fail(path, node.line, f"expected one {shape} value")
+    if not SHAPES[shape].fullmatch(node.value) or (shape == "until" and not rulebook.is_date(node.value)):
+        fail(path, node.line, f"{node.value!r} is not an allowed {shape}")
+    return node.value
 
 
-def keys(path, node, required, optional, where):
+def keys(path, node, required, optional=()):
     """A dict holding every required key and no key outside required and optional."""
-    if not isinstance(node, dict):
-        fail(path, where, f"expected keys {', '.join(required + optional)}")
-    missing = [k for k in required if k not in node]
-    extra = [k for k in node if k not in required + optional]
-    if missing or extra:
-        fail(path, where, f"missing {missing} or not allowed {extra}; allowed: {', '.join(required + optional)}")
-    return node
+    allowed = ", ".join([*required, *optional]) or "none"
+    if not isinstance(node.value, dict):
+        fail(path, node.line, f"expected keys: {allowed}")
+    for key, child in node.value.items():
+        if key not in (*required, *optional):
+            fail(path, child.line, f"{key!r} is not allowed here; allowed: {allowed}")
+    missing = [k for k in required if k not in node.value]
+    if missing:
+        fail(path, node.line, f"missing {', '.join(missing)}")
+    return node.value
 
 
-def items(path, node, where):
-    if not isinstance(node, list):
-        fail(path, where, "expected a list of `- key: value` items")
-    return node
-
-
-def line_of(node):
-    return node[0] if isinstance(node, tuple) else 0
+def items(path, node, what):
+    if not isinstance(node.value, list):
+        fail(path, node.line, f"expected a list of {what}")
+    return node.value
 
 
 def read_profile(path):
     """The sections of .harness/profile.yaml that resolve reads, checked against their allowed shapes."""
-    data = keys(path, read_yaml(path, READ), ["harnesswright"], [k for k in READ if k != "harnesswright"], 1)
-    install = keys(path, data["harnesswright"], ["version", "folder"], [], 1)
-    profile = {"version": leaf(path, install["version"], "version", 1),
-               "folder": leaf(path, install["folder"], "folder", 1), "languages": [], "layers": [],
-               "repository": None, "waivers": [], "limit": DEFAULT_LIMIT, "decisions": {}}
-    standards = keys(path, data.get("standards", {}), [], ["languages", "layers", "repository"], 1)
-    if "languages" in standards:
-        number, text = standards["languages"] if isinstance(standards["languages"], tuple) else (1, "")
-        if not (text.startswith("[") and text.endswith("]")):
-            fail(path, number, "languages is a list written as [a, b]")
-        names = [n.strip() for n in text[1:-1].split(",")] if text[1:-1].strip() else []
-        profile["languages"] = [leaf(path, (number, n), "language", number) for n in names]
-    for item in items(path, standards.get("layers", []), 1):
-        layer = keys(path, item, ["name", "folder", "version"], [], line_of(next(iter(item.values()))))
-        profile["layers"].append({k: leaf(path, layer[k], k, 1) for k in ("name", "folder", "version")})
+    data = keys(path, read_yaml(path, READ, SKIP), ["harnesswright"], READ[1:])
+    install = keys(path, data["harnesswright"], ["version", "folder"])
+    profile = {"version": leaf(path, install["version"], "version"), "folder": leaf(path, install["folder"], "folder"),
+               "languages": [], "layers": [], "repository": None, "waivers": [], "limit": DEFAULT_LIMIT,
+               "decisions": {}}
+    standards = keys(path, data.get("standards", Node(1, {})), [], ["languages", "layers", "repository"])
+    for node in items(path, standards.get("languages", Node(1, [])), "language names"):
+        profile["languages"].append(leaf(path, node, "language"))
+    for node in items(path, standards.get("layers", Node(1, [])), "layers"):
+        layer = keys(path, node, ["name", "folder", "version"])
+        profile["layers"].append({k: leaf(path, layer[k], k) for k in ("name", "folder", "version")})
     if "repository" in standards:
-        profile["repository"] = leaf(path, standards["repository"], "folder", 1)
-    for item in items(path, data.get("waivers", []), 1):
-        number = line_of(next(iter(item.values())))
-        waiver = keys(path, item, ["rule", "reason", "until", "approved by"], [], number)
-        profile["waivers"].append({**{k: leaf(path, waiver[k], k, number) for k in waiver}, "line": number})
+        profile["repository"] = leaf(path, standards["repository"], "folder")
+    seen = {}
+    for node in items(path, data.get("waivers", Node(1, [])), "waivers"):
+        waiver = {k: leaf(path, v, k) for k, v in keys(path, node, ["rule", "reason", "until", "approved by"]).items()}
+        if waiver["rule"] in seen:
+            fail(path, node.line, f"{waiver['rule']} already has a waiver on line {seen[waiver['rule']]}")
+        seen[waiver["rule"]] = node.line
+        profile["waivers"].append({**waiver, "line": node.line})
     if "rules-text-limit" in data:
-        number = line_of(data["rules-text-limit"])
-        profile["limit"] = int(leaf(path, data["rules-text-limit"], "limit", number))
+        node = data["rules-text-limit"]
+        profile["limit"] = int(leaf(path, node, "limit"))
         if profile["limit"] > MAX_LIMIT:
-            fail(path, number, f"rules-text-limit {profile['limit']} is over the maximum of {MAX_LIMIT}")
-    decisions = keys(path, data.get("decisions", {}), [], list(data.get("decisions", {})), 1)
-    for key, node in decisions.items():
-        profile["decisions"][leaf(path, (line_of(node), key), "key", 1)] = (leaf(path, node, "option", 1),
-                                                                             line_of(node))
+            fail(path, node.line, f"rules-text-limit {profile['limit']} is over the maximum of {MAX_LIMIT}")
+    decisions = data.get("decisions", Node(1, {}))
+    if not isinstance(decisions.value, dict):
+        fail(path, decisions.line, "expected one `point: option` line for each decision point")
+    for key, node in decisions.value.items():
+        profile["decisions"][leaf(path, Node(node.line, key), "key")] = (leaf(path, node, "option"), node.line)
     return profile
 
 
 def read_layer_yaml(name, folder, version, files):
     """The owner of a layer 3 to 5 folder, after checking its layer.yaml and its version against the profile."""
     path = folder / "layer.yaml"
-    if not path.is_file():
-        raise ResolveError(f"layer {name}: {path} is missing or cannot be read")
     files.append(path)
-    data = keys(path, read_yaml(path, None), ["owner", "version"], [], 1)
-    found = leaf(path, data["version"], "version", 1)
+    data = keys(path, read_yaml(path, ("owner", "version"), label=f"layer {name}: "), ["owner", "version"])
+    found = leaf(path, data["version"], "version")
     if found != version:
         raise ResolveError(f"layer {name} ({folder}): version {found} is not the profile's {version}")
-    return leaf(path, data["owner"], "owner", 1)
+    return leaf(path, data["owner"], "owner")
 
 
 def main(argv=None):
