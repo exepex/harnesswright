@@ -30,6 +30,7 @@ DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 PROSE = re.compile(r"[A-Za-z0-9(\[`].*")
 FENCE = re.compile(r"`{3,}")
 OPTION = re.compile(r"- `[a-z0-9-]+`: \S.*")
+BINDING = re.compile(rf"({DP_ID.pattern}): ([a-z0-9-]+)")  # Binds: the point's ID and the option it picks
 HEADING = re.compile(r"### (\S+) · (\S.*)")
 PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")
 AREA_TITLE = re.compile(rf"# ({NAME}(?:-{NAME})*) · \S.*")
@@ -73,8 +74,14 @@ class Rule:
 
     @property
     def changes(self):
-        """The ID this rule overrides, binds or tightens, or None."""
-        return next((self.text(name) for name in CHANGES if name in self.parts), None)
+        """The ID this rule overrides, binds or tightens, or None. For Binds, the decision point's ID."""
+        value = next((self.text(name) for name in CHANGES if name in self.parts), None)
+        return value.split(": ")[0] if value and "Binds" in self.parts else value
+
+    @property
+    def option(self):
+        """The option a Binds rule picks, or None."""
+        return self.text("Binds").split(": ")[1] if "Binds" in self.parts else None
 
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
@@ -238,6 +245,8 @@ def check_value(path, rule, name):
     elif name == "Replaced by":
         ids = split_list(value)
         ok = value == "no replacement" or ids and all(RULE_ID.fullmatch(i) or DP_ID.fullmatch(i) for i in ids)
+    elif name == "Binds":
+        ok = BINDING.fullmatch(value) is not None
     elif name in CHANGES:
         ok = RULE_ID.fullmatch(value) is not None or DP_ID.fullmatch(value) is not None
     else:

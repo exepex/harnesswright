@@ -46,7 +46,7 @@ POINT = """### CORE-DP-TEST-STACK · Which test tools a language uses
 - **Source:** own
 """
 RETIRED = RULE.replace("- **Status:** active", "- **Status:** retired\n- **Replaced by:** CORE-TEST-04, CORE-TEST-05")
-APP = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace("- **Kind:**", "- **Binds:** CORE-DP-TEST-STACK\n- **Kind:**")
+APP = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace("- **Kind:**", "- **Binds:** CORE-DP-TEST-STACK: junit\n- **Kind:**")
 
 # (file name, file text, the message its check must give)
 BAD_FILES = [
@@ -79,6 +79,9 @@ BAD_FILES = [
     ("a.md", "# APP-TEST · T\n\n" + APP.replace("- **Kind:**", "- **Tightens:** CORE-TEST-03\n- **Kind:**"),
      "more than one"),
     ("a.md", "# APP-TEST · T\n\n" + APP.replace("CORE-DP-TEST-STACK", "the point"), "Binds has no allowed value"),
+    ("a.md", "# APP-TEST · T\n\n" + APP.replace(": junit", ""), "Binds has no allowed value"),
+    ("a.md", "# APP-TEST · T\n\n" + APP.replace(": junit", ": JUnit 5"), "Binds has no allowed value"),
+    ("a.md", "# APP-TEST · T\n\n" + APP.replace("CORE-DP-TEST-STACK", "CORE-TEST-03"), "Binds has no allowed value"),
     ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("- **Status:**", "- **Kind:** choice\n- **Status:**"),
      "not allowed in CORE-DP-TEST-STACK"),
     ("a.md", "# CORE-DP · Points\n\n" + POINT.replace("  - `junit`", "  - junit"), "Options has no allowed value"),
@@ -144,7 +147,12 @@ class RuleFileTest(TempTest):
         self.assertEqual(rule.text("Replaced by"), "CORE-TEST-04, CORE-TEST-05")
         self.read("retired.md", RETIRED_TITLE + RETIRED.replace("CORE-TEST-04, CORE-TEST-05", "no replacement"))
         (app,) = self.read("b.md", "# APP-TEST · Tests\n\n" + APP)
-        self.assertEqual(app.text("Binds"), "CORE-DP-TEST-STACK")
+        self.assertEqual(app.text("Binds"), "CORE-DP-TEST-STACK: junit")
+        self.assertEqual((app.changes, app.option), ("CORE-DP-TEST-STACK", "junit"))
+        self.assertEqual((point.changes, point.option), (None, None))
+        (tightens,) = self.read("c.md", "# APP-TEST · Tests\n\n" + APP.replace("Binds:** CORE-DP-TEST-STACK: junit",
+                                                                               "Tightens:** CORE-TEST-03"))
+        self.assertEqual((tightens.changes, tightens.option), ("CORE-TEST-03", None))
 
     def test_layer_reads_rule_files_only_and_rejects_duplicates(self):
         for name in ("index.md", "README.md"):

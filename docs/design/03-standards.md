@@ -106,7 +106,7 @@ so a script that knows the language prefixes and the areas can split every ID.
 | Good, Bad | Yes | One example of each |
 | Eval | Yes | The test case that proves a reviewer catches the Bad example |
 | Source | Yes | `own`, or `<repository>@<commit> <path> (<licence>)` |
-| Overrides, Binds or Tightens | Layers 2 to 6, when it changes another rule | The ID of the rule it changes |
+| Overrides, Binds or Tightens | Layers 2 to 6, when it changes another rule | The ID of the rule it changes; for Binds, the decision point's ID, a colon and the option it picks |
 | Tool | No | A command that checks it mechanically |
 | Exceptions | No | When it does not apply |
 
@@ -115,7 +115,7 @@ by when retired. Options is a list with one item per option, written `` - `name`
 
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
 exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
-reason), `Binds` (picks an option of a decision point) or `Tightens` (makes a floor stricter). A silent
+reason), `Binds` (picks one of a decision point's Options, named on the same line) or `Tightens` (makes a floor stricter). A silent
 contradiction is a defect.
 
 **HW-RULE-06 · A floor is never loosened or waived.** No layer and no person may loosen a floor, override it or
@@ -157,8 +157,9 @@ like this:
 - **Source:** own
 ```
 
-A rule in layers 2 to 6 that changes another rule adds one line: `**Overrides:** CORE-…`, `**Binds:** CORE-DP-…`
-or `**Tightens:** CORE-…`.
+A rule in layers 2 to 6 that changes another rule adds one line: `**Overrides:** CORE-…`,
+`**Binds:** CORE-DP-…: <option>` (such as `**Binds:** CORE-DP-BOILERPLATE: lombok`, where `lombok` is one of the
+point's Options) or `**Tightens:** CORE-…`. A language layer's binding is that language's default.
 
 ## Areas
 
