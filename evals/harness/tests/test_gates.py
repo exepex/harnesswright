@@ -134,6 +134,18 @@ class Gates(Gated):
             self.assertNotIn(secret, text)
             self.assertNotIn(token, text)
         self.assertIn("sign-in probe: the host said", kept)
+
+        def broken(module, root, made, **options):
+            probe_host(module, root, made)
+            raise RuntimeError(f"the host broke its contract: {secret}")
+
+        shutil.rmtree(self.store / "r1" / "attempts")
+        with mock.patch("probes.probe_host", broken), mock.patch("scrub.credentials", credentials), \
+                self.assertRaises(rounds.RoundError) as stopped:
+            self.go(gates.GATES[2:3])
+        for text in (str(stopped.exception), json.dumps(self.attempt())):
+            self.assertNotIn(secret, text)
+            self.assertIn("the host broke its contract", text)
         with mock.patch("probes.probe_host", passed), \
                 mock.patch("scrub.credentials", credentials):
             kept = json.dumps(self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION))

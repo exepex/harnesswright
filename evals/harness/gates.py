@@ -124,9 +124,11 @@ def probe_gate(r):
     for host, module in r.modules.items():
         made = []
         with tempfile.TemporaryDirectory(prefix="hw-p-") as scratch:  # the probes' homes, kept until scrubbed
-            found = probes.probe_host(module, scratch, tools=tools, model=r.model(host), timeout=r.timeout,
-                                      made=made, **r.containment)
-            r.keep(made)
+            try:
+                found = probes.probe_host(module, scratch, tools=tools, model=r.model(host), timeout=r.timeout,
+                                          made=made, **r.containment)
+            finally:  # a probe that raised made containments too, whose words its error may carry
+                r.keep(made)
         found = json.loads(r.quiet(json.dumps(found)))  # its reasons and drift record, as they may be kept
         if found["not run"]:
             not_run[host] = found["not run"]
