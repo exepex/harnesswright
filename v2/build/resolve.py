@@ -141,7 +141,7 @@ def language_of(source):
 def builds_on(source, prefix):
     """A language or framework layer builds on CORE and its own language only; any other layer builds on every more
     general layer. No two languages are ranked, so neither may change the other's rules."""
-    return language_of(source) is None or prefix in ("CORE", language_of(source))
+    return language_of(source) is None or prefix == "CORE" or language_of(prefix) == language_of(source)
 
 
 def stacks(sources):

@@ -172,6 +172,12 @@ class RulesTest(Application):
         self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule(
             "KOTLIN-STACK-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
         self.assertStops("KOTLIN-STACK-01: Overrides JAVA-TEST-01, a rule of another language")
+        self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule("KOTLIN-STACK-01")))
+        self.edit(".harness/profile.yaml", "[java, kotlin]", "[java, java-spring, java-web, kotlin]")
+        self.write(".agents/harnesswright/rules/java-spring/a.md", area("JAVA-SPRING-A", rule("JAVA-SPRING-A-01")))
+        self.write(".agents/harnesswright/rules/java-web/a.md", area("JAVA-WEB-A", rule(
+            "JAVA-WEB-A-01", extra="- **Overrides:** JAVA-SPRING-A-01\n")))
+        self.assertIn("| JAVA-SPRING-A-01 | JAVA-WEB-A-01 |\n", self.text())  # two frameworks of one language
 
     def test_an_application_with_no_language_has_one_stack(self):
         self.edit(".harness/profile.yaml", "[java]", "[]")
