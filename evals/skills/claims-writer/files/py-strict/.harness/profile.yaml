@@ -1,6 +1,6 @@
-harness: "1.0"
-standards:
-  layers: [core]
+harnesswright:
+  version: "1.0"
+  folder: .agents/harnesswright/
 scripts: forbidden
 toolchain:
   test: python3 -m unittest discover -s tests -t .
