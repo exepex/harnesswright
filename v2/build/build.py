@@ -200,11 +200,10 @@ def main(argv=None):
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
     try:
-        files = build(args.root)
+        write(args.out or Path(args.root) / "release", build(args.root))
     except rulebook.RulebookError as error:
         print(f"build failed: {error}", file=sys.stderr)
         return 1
-    write(args.out or Path(args.root) / "release", files)
     return 0
 
 

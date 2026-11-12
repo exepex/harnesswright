@@ -243,6 +243,10 @@ class BuildTest(unittest.TestCase):
                 link.symlink_to(outside if link_name.endswith(".md") else self.root / "v2")
                 with self.assertRaisesRegex(build.BuildError, "must hold no symbolic link"):
                     build.write(self.root / "release", {"a.md": "x\n", "a/b.md": "y\n"})
+                stderr = io.StringIO()
+                with redirect_stderr(stderr):
+                    self.assertEqual(build.main(["--root", str(self.root)]), 1)
+                self.assertIn("build failed:", stderr.getvalue())
                 self.assertEqual(outside.read_text(), "keep\n")
 
     def test_write_removes_stale_files_only_under_out(self):
