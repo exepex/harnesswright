@@ -39,6 +39,7 @@ allowed connections.
 | `grading.py` | What goes to graders, the one page a grader reads, and the check of an answer sheet |
 | `grader.py` | One sealed grader run, the panel of graders of a page, and the blind order of a round's pages |
 | `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
+| `rounds.py` | A round's plan file and its manifest: the hash of every input and each host's version, written once to the store |
 
 ## Commands
 
@@ -443,3 +444,14 @@ replaced, never written through, and it is read back. The kit check (`kit.py che
 refuses a record that is not a regular file, and refuses unless the record holds the hash of the kit as it is now,
 naming each file added, removed or changed since the approval. The builder's session never writes the store; that
 is how the round is run, not something the harness can prove.
+
+## Rounds
+
+A round starts from a plan file: the round's name, the skills with the cases to run, the hosts (each adapter once,
+with a model when the host does not report one) and the runs per case, arm and host. `rounds.read_plan` checks it
+against one schema, `rounds.PLAN`, and refuses any other field or shape. `python3 evals/harness/rounds.py plan
+PLAN.json --store DIR` writes the round's manifest to `DIR/<round>/manifest.json`, outside the working tree: the
+plan and its hash, the commit, the kit's hash, each skill's hash and upstream source, each case's hash (its
+`case.json` and world), each adapter's tracked files, and each host's program, hash and version as the host's own
+jail finds it. A round's manifest is written once: the same manifest again is kept, and any other is refused, so a
+changed input is a new round.
