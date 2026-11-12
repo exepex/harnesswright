@@ -256,9 +256,9 @@ def combine_stack(inputs, name, sources):
             if relation and rule.changes not in done.rules and rule.changes not in done.replaced:
                 continue  # it changes another language's rule, so it belongs to that language's stack only
             target = rule.changes
-            if relation and target in done.replaced and language_of(done.replaced[target]) and \
-                    prefix_of(target) == "CORE" and not language_of(source) and source.prefix != "CORE":
-                target = last(done, target)  # a language's replacement stands in the principles rule's place
+            if relation and prefix_of(target) == "CORE" and not language_of(source) and source.prefix != "CORE":
+                while target in done.replaced and language_of(prefix_of(done.replaced[target])):
+                    target = done.replaced[target]  # a language's replacement stands in the principles rule's place
             if relation and target in done.replaced:
                 by = done.replaced[target]
                 advice = ("its layer's owner keeps one of the two" if prefix_of(by) == source.prefix else

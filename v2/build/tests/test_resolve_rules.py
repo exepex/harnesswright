@@ -148,6 +148,18 @@ class RulesTest(Application):
         self.assertIn("| CORE-SKILL-01 | JAVA-S-01 |\n", java)  # the company rule replaces what stands in its place
         self.assertIn("| JAVA-S-01 | COMP-ACME-S-01 |\n", java)
         self.assertIn("| CORE-SKILL-01 | COMP-ACME-S-01 |\n", kotlin)
+        self.write("../acme/company/t.md", area("COMP-ACME-T", rule(
+            "COMP-ACME-T-01", extra="- **Overrides:** CORE-SKILL-01\n")))
+        self.assertStops("COMP-ACME-T-01 Overrides JAVA-S-01, which COMP-ACME-S-01 already replaces; its layer's")
+        (self.repo / "../acme/company/t.md").unlink()
+        self.write("../acme/team/t.md", area("TEAM-ACME-T", rule(
+            "TEAM-ACME-T-01", extra="- **Overrides:** CORE-SKILL-01\n")))
+        self.assertStops("TEAM-ACME-T-01 Overrides JAVA-S-01, which COMP-ACME-S-01 already replaces; name that rule")
+        (self.repo / "../acme/team/t.md").unlink()
+        self.write(".harness/standards/s.md", area("APP-S", rule("APP-S-01", extra="- **Overrides:** CORE-SKILL-03\n"),
+                                                   rule("APP-S-02", extra="- **Overrides:** CORE-SKILL-03\n")))
+        self.assertStops("APP-S-02 Overrides CORE-SKILL-03, which APP-S-01 already replaces; its layer's owner keeps")
+        (self.repo / ".harness/standards/s.md").unlink()
         self.assertIn("| APP-TEST-01 | old logger | 2027-01-01 | app-owner | applied |\n", java)
         kotlin = kotlin.split("## Files read")[0]
         self.assertIn("| CORE-DP-STACK | testng | JAVA-STACK-01 |\n", java)
