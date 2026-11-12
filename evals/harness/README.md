@@ -484,6 +484,8 @@ every later attempt, so run keys stay the same from one attempt to the next. Too
 round. Every fault of the catalogue is planted on each host that passed, at a place the round's seed chooses, and
 every one must be caught. The runs follow `gates.order`: for each number, each case in turn, its two arms one after
 the other, the arm that goes first alternating. The host's version is measured just before each run, so a host that
-changed during the round voids its runs. Each gate's outcome is written, as it ends, to the attempt record
-`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Every gate runs again when the round runs again;
-only runs are kept. The check, grade and label gates follow in later steps.
+changed during the round voids its runs. Each gate's outcome, that of the gate that stopped the round too, is
+written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
+Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
+every containment its gates made. Every gate runs again when the round runs again; only runs are kept. The check,
+grade and label gates follow in later steps.

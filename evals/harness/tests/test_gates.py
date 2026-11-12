@@ -108,7 +108,7 @@ class Gates(Gated):
         with self.assertRaisesRegex(rounds.RoundError, r"stopped at the lint gate: fakehost, haiku-writer/c1: "):
             self.go(gates.GATES[1:2])
 
-    def test_a_probe_reason_is_kept_only_scrubbed(self):
+    def test_what_a_probe_gives_is_kept_only_scrubbed(self):
         self.planned()
         secret, token = "sk-" + "s" * 30, "hw-canary-" + "t" * 20
         run = SimpleNamespace(tokens=[token])
@@ -116,6 +116,10 @@ class Gates(Gated):
         def probe_host(module, made, **options):
             made.append(run)
             return {"not run": [f"sign-in probe: the host said {secret} and {token}"], "drift": None}
+
+        def passed(module, made, **options):
+            made.append(run)
+            return {"not run": [], "drift": {"tools": {"go": f"go 1.0 {secret}"}, "own files": {"task": [token]}}}
 
         with mock.patch("probes.probe_host", probe_host), \
                 mock.patch("scrub.credentials", lambda contained: [secret] if contained is run else []), \
@@ -125,7 +129,15 @@ class Gates(Gated):
         for text in (str(stopped.exception), kept):
             self.assertNotIn(secret, text)
             self.assertNotIn(token, text)
-            self.assertIn("sign-in probe: the host said", text)
+        self.assertIn("sign-in probe: the host said", kept)
+        with mock.patch("probes.probe_host", passed), \
+                mock.patch("scrub.credentials", lambda contained: [secret] if contained is run else []):
+            kept = json.dumps(self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION))
+        pinned = (self.store / "r1" / "drift" / "fakehost.json").read_text()
+        for text in (kept, pinned):
+            self.assertNotIn(secret, text)
+            self.assertNotIn(token, text)
+        self.assertIn("go 1.0", pinned)
 
     def test_a_host_whose_tools_changed_since_the_round_s_drift_record_stops_it(self):
         self.planned()
@@ -179,7 +191,7 @@ class Hosts(Gated):
         self.planned()  # the fake host reads no plain prompt, so it fails every probe
         with self.assertRaisesRegex(rounds.RoundError, "stopped at the probe gate: no host passed its probes"):
             self.go(gates.GATES[2:3], **self.options)
-        self.assertIn("fakehost", self.attempt()["gates"][0]["reason"])
+        self.assertIn("fakehost", self.attempt()["gates"][0]["outcome"]["not run"])
 
     def test_the_runs_are_made_interleaved_and_kept_when_the_round_runs_again(self):
         self.planned()
@@ -221,9 +233,12 @@ class Hosts(Gated):
 
         with self.assertRaisesRegex(rounds.RoundError, "stopped at the faults gate: faults missed: fakehost, "):
             self.go((("probe", probed), ("faults", gates.faults_gate)), **self.options)
-        reason = self.attempt()["gates"][1]["reason"]
-        self.assertIn("the host failed", reason)
-        self.assertNotIn("too long", reason)
+        stopped = self.attempt()["gates"][1]
+        self.assertIn("the host failed", stopped["reason"])
+        self.assertNotIn("too long", stopped["reason"])
+        found = stopped["outcome"]["fakehost"]  # every fault's outcome is kept, the missed ones too
+        self.assertEqual(sorted(f["id"] for f in found), sorted(e["id"] for e in faults.load()))
+        self.assertTrue(any(f["caught"] for f in found) and not all(f["caught"] for f in found))
 
 
 if __name__ == "__main__":

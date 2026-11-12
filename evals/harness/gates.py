@@ -2,8 +2,9 @@
 
 One rule: a round goes through `GATES` in order, each gate reads only the round's manifest and what the gates before
 it found, and the first gate that fails stops the round with its reason. Each gate's outcome is written to the
-round's attempt record as the gate ends, so every gate a round passed, and the one that stopped it, can be read
-back from the store.
+round's attempt record as the gate ends, that of the gate that stopped the round too (`Stop`), so every gate a round
+ran can be read back from the store. Everything the round writes or reports passes one scrub (`Round.quiet`): the
+canaries and credentials of every containment its gates made.
 
 - `kit check`: the measuring kit matches the judges' approval (`kit.check`), and it is the kit the manifest hashed.
 - `lint`: every planned case passes world lint (`lint.lint_case`) on every host.
@@ -48,6 +49,14 @@ from cases import REPO, Case, CaseError
 from runs import ARMS
 
 
+class Stop(rounds.RoundError):
+    """A gate that failed, with its reason and what it found, which the attempt record keeps."""
+
+    def __init__(self, reason, outcome):
+        super().__init__(reason)
+        self.outcome = outcome
+
+
 class Round:
     """A planned round as its gates see it: the manifest `record`, its adapters and cases, the hosts that passed
     their probes (`hosts`: name: {"drift", "version"}), and the options of every host run."""
@@ -57,7 +66,7 @@ class Round:
         self.record, self.store, self.repo, self.timeout = record, store, Path(repo), timeout
         self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
-        self.containment, self.hosts = containment, {}
+        self.containment, self.hosts, self.made = containment, {}, []  # `made`: every containment the gates made
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
         root = self.repo / "evals" / "skills"
         self.cases = {(skill, i): Case(root / skill / "cases" / i, skill)
@@ -67,6 +76,12 @@ class Round:
 
     def model(self, host):
         return self.record["hosts"][host]["model"]
+
+    def quiet(self, text):
+        """`text` with every canary and credential of the containments the round's gates made replaced."""
+        found = scrub.Scrub([t for c in self.made for t in c.tokens],
+                            [v for c in self.made for v in scrub.credentials(c)])
+        return found.quiet(text)
 
     def version(self, host):
         return self.measure(self.modules[host], **self.containment)
@@ -93,7 +108,7 @@ def lint_gate(r):
                     found = [str(error)]
             problems += [f"{host}, {skill}/{case_id}: {problem}" for problem in found]
     if problems:
-        raise rounds.RoundError("; ".join(problems))
+        raise Stop("; ".join(problems), {"problems": problems})
     return {"cases": len(r.cases), "hosts": len(r.modules)}
 
 
@@ -101,20 +116,18 @@ def probe_gate(r):
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
     not_run, drift = {}, {}
     for host, module in r.modules.items():
-        made = []  # every containment of its probes, whose scrub each reason passes through before it is kept
-        found = probes.probe_host(module, tools=tools, model=r.model(host), timeout=r.timeout, made=made,
+        found = probes.probe_host(module, tools=tools, model=r.model(host), timeout=r.timeout, made=r.made,
                                   **r.containment)
-        quiet = scrub.Scrub([t for c in made for t in c.tokens], [v for c in made for v in scrub.credentials(c)])
+        found = json.loads(r.quiet(json.dumps(found)))  # its reasons and drift record, as they may be kept
         if found["not run"]:
-            not_run[host] = [quiet.quiet(reason) for reason in found["not run"]]
+            not_run[host] = found["not run"]
         else:
             r.hosts[host] = {"drift": _pin(r.folder / "drift" / f"{host}.json", found["drift"])}
-            if r.hosts[host]["drift"]["tools"] != found["drift"]["tools"]:  # only own files may differ by name
-                raise rounds.RoundError(f"{host}: its tools are not the round's: {found['drift']['tools']} now, "
-                                        f"{r.hosts[host]['drift']['tools']} in the round's drift record")
             drift[host] = "the round's" if r.hosts[host]["drift"] == found["drift"] else found["drift"]
+            if r.hosts[host]["drift"]["tools"] != found["drift"]["tools"]:  # only own files may differ by name
+                raise Stop(f"{host}: its tools are not the round's", {"not run": not_run, "drift": drift})
     if not r.hosts:
-        raise rounds.RoundError(f"no host passed its probes: {json.dumps(not_run, sort_keys=True)}")
+        raise Stop("no host passed its probes", {"not run": not_run})
     return {"passed": sorted(r.hosts), "not run": not_run, "drift": drift}
 
 
@@ -142,7 +155,7 @@ def faults_gate(r):
                 if not result["caught"]:
                     missed.append(f"{host}, {entry['id']} at {result['place']}: {result['reason']}")
     if missed:
-        raise rounds.RoundError("faults missed: " + "; ".join(missed))
+        raise Stop("faults missed: " + "; ".join(missed), found)
     return found
 
 
@@ -202,12 +215,15 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
         try:
             outcome = step(r)
         except Exception as error:  # any error stops the round at this gate, with its reason
-            attempt["gates"].append({"gate": gate, "passed": False, "reason": f"{type(error).__name__}: {error}"})
-            _write(path, attempt)
-            raise rounds.RoundError(f"round {name} stopped at the {gate} gate: {error}") from error
+            reason = r.quiet(str(error) if isinstance(error, Stop) else f"{type(error).__name__}: {error}")
+            stopped = {"gate": gate, "passed": False, "reason": reason}
+            reason = r.quiet(str(error))
+            attempt["gates"].append({**stopped, **({"outcome": error.outcome} if isinstance(error, Stop) else {})})
+            _write(path, attempt, r.quiet)
+            raise rounds.RoundError(f"round {name} stopped at the {gate} gate: {reason}") from error
         attempt["gates"].append({"gate": gate, "passed": True, "outcome": outcome})
-        _write(path, attempt)
-    return attempt
+        _write(path, attempt, r.quiet)
+    return json.loads(r.quiet(json.dumps(attempt)))
 
 
 def _pin(path, record):
@@ -226,7 +242,7 @@ def _pin(path, record):
     return json.loads(path.read_text())
 
 
-def _write(path, attempt):
+def _write(path, attempt, quiet):
     fresh = path.with_name(f".{path.name}")
-    fresh.write_text(json.dumps(attempt, indent=1, sort_keys=True) + "\n")
+    fresh.write_text(quiet(json.dumps(attempt, indent=1, sort_keys=True)) + "\n")
     os.replace(fresh, path)
