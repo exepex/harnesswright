@@ -41,6 +41,7 @@ allowed connections.
 | `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
 | `rounds.py` | A round's plan file and its manifest: the hash of every input and each host's version, written once to the store |
 | `gates.py` | `round run`: a planned round through its gates in order, the first that fails stopping it, each outcome in the attempt record |
+| `grades.py` | The grade gate: what no check decided, answered by blind panels with the goldens mixed in, trusted only where the goldens were |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 
 ## Commands
@@ -476,10 +477,10 @@ stays empty. `void.json` stays beside a remade bundle, so the void rate per arm 
 its audit, or a canary in any output, raises, and the round stops.
 
 `python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
-(`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs and the
-checks. Each gate reads only the manifest and what the gates before it found, and the first that fails stops the
-round with its reason. A host that fails a probe is `not run` for the round; the round stops only when no host
-passed. The drift record of the first attempt a host passed is kept as the round's
+(`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs, the
+checks and the grades. Each gate reads only the manifest and what the gates before it found, and the first that
+fails stops the round with its reason. A host that fails a probe is `not run` for the round; the round stops only
+when no host passed. The drift record of the first attempt a host passed is kept as the round's
 (`<store>/<round>/drift/<host>.json`) and used by every later attempt, so run keys stay the same from one attempt to
 the next. Tools that are not the round's stop the round. Every fault of the catalogue is planted on each host that
 passed, at a place the round's seed chooses, and every one must be caught. The runs follow `gates.order`: for each
@@ -487,8 +488,11 @@ number, each case in turn, its two arms one after the other, the arm that goes f
 is measured just before each run, so a host that changed during the round voids its runs. The check gate decides
 every expectation that has a check on the bundle of each kept or made run, with the check library of the round's
 commit, and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided
-goes on to the graders. A check that breaks stops the round. Each gate's outcome, that of the gate that stopped the
-round too, is written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the
-seed. Everything a round writes or reports, its drift records included, passes one scrub: the canaries and
-credentials of every containment its gates made, taken while its home is still there. Every gate runs again when the
-round runs again; only runs are kept. The grade and label gates follow in later steps.
+goes on to the graders. The grade gate grades every run's and golden's page in one blind order (`grades.py`). A
+run's answer counts only where the goldens got their settled answers; its answers go beside the bundle
+(`grades.json`). A check that breaks, a grader that breaks its jail or a golden that cannot be built stops the
+round. Each gate's outcome, that of the gate that stopped the round too, is written, as it ends, to the attempt
+record `<store>/<round>/attempts/<time>-<random>.json`, with the seed. Everything a round writes or reports, its
+drift records included, passes one scrub: the canaries and credentials of every containment its gates made, taken
+while its home is still there. Every gate runs again when the round runs again; only runs are kept. The label gate
+follows in a later step. Grading runs again on every attempt, as goldens calibrate only their own attempt's graders.
