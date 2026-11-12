@@ -241,7 +241,9 @@ class LayersTest(Application):
             ("  boilerplate: lombok", "  boilerplate: getters", "option 'getters' is not one of JAVA-DP-BOILERPLATE"),
             ("  boilerplate: lombok", "  mapping: mapstruct", "decisions key 'mapping' names 0 active decision"),
             ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-ERR-09", "waiver of COMP-ACME-ERR-09, which no layer"),
-            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-WORK-01", "a floor; a floor is never waived"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-WORK-01", "COMP-ACME-WORK-01, a floor; only a"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-CODE-01", "COMP-ACME-CODE-01, a binding; only a"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: JAVA-DP-BOILERPLATE", "a decision point; only a principle"),
             ("  boilerplate: lombok", "  boilerplate: lombok\n  stack: x", "decisions key 'stack' names 0 active"),
             ("    until: 2027-03-01", "    until: 2027-02-30", "'2027-02-30' is not an allowed until"),
         ]

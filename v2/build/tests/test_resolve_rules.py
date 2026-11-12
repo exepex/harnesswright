@@ -11,7 +11,7 @@ import io
 import unittest
 from contextlib import redirect_stderr
 
-from test_resolve_layers import TODAY, Application, area, rule  # puts v2/build on sys.path
+from test_resolve_layers import POINT, TODAY, Application, area, rule  # puts v2/build on sys.path
 
 import resolve  # noqa: E402
 
@@ -38,7 +38,6 @@ class RulesTest(Application):
         rows = [
             "| CORE-WORK-01 | CORE | floor |  |  |",
             "| JAVA-DP-BOILERPLATE | JAVA | decision point |  |  |",
-            "| COMP-ACME-CODE-01 | COMP-ACME | choice | Binds JAVA-DP-BOILERPLATE: records |  |",
             "| COMP-ACME-ERR-01 | COMP-ACME | choice |  | waived until 2027-03-01 |",
             "| COMP-ACME-WORK-01 | COMP-ACME | floor | Tightens CORE-WORK-01 |  |",
             "| TEAM-ACME-LOG-01 | TEAM-ACME | choice |  |  |",
@@ -47,7 +46,9 @@ class RulesTest(Application):
         for line in rows:
             self.assertIn(line + "\n", text)
         self.assertEqual([text.index(line) for line in rows], sorted(text.index(line) for line in rows))
-        self.assertNotIn("| JAVA-TEST-01 |", text)
+        self.assertNotIn("| JAVA-TEST-01 | JAVA |", text)
+        self.assertNotIn("| COMP-ACME-CODE-01 | COMP-ACME |", text)  # its binding lost to the profile's
+        self.assertIn("| JAVA-TEST-01 | APP-TEST-01 |\n| COMP-ACME-CODE-01 | profile decisions |\n", text)
         self.assertIn("| JAVA-DP-BOILERPLATE | lombok | profile decisions |\n", text)
         self.assertIn("| COMP-ACME-ERR-01 | legacy endpoints keep the old error format | 2027-03-01 | "
                       "app-owner, acme-owner | applied |\n", text)
@@ -60,7 +61,9 @@ class RulesTest(Application):
 
     def test_a_point_takes_the_most_specific_binding_then_its_default(self):
         self.edit(".harness/profile.yaml", DECISION, "")
-        self.assertIn("| JAVA-DP-BOILERPLATE | records | COMP-ACME-CODE-01 |\n", self.text())
+        text = self.text()
+        self.assertIn("| JAVA-DP-BOILERPLATE | records | COMP-ACME-CODE-01 |\n", text)
+        self.assertIn("| COMP-ACME-CODE-01 | COMP-ACME | choice | Binds JAVA-DP-BOILERPLATE: records |  |\n", text)
         self.edit("../acme/company/code.md", BINDING, "")
         self.assertIn("| JAVA-DP-BOILERPLATE | records | default |\n", self.text())
         self.setUp()
@@ -69,9 +72,14 @@ class RulesTest(Application):
             "APP-CODE-01", extra="- **Overrides:** COMP-ACME-CODE-01\n")))
         text = self.text()
         self.assertIn("| JAVA-DP-BOILERPLATE | records | default |\n", text)
-        self.assertNotIn("| COMP-ACME-CODE-01 |", text)
-        self.edit(".agents/harnesswright/rules/java/dp.md", "- **Default:** `records`", "- **Default:** none")
-        self.assertStops("JAVA-DP-BOILERPLATE is unbound and its Default names none of its Options")
+        self.assertIn("| COMP-ACME-CODE-01 | APP-CODE-01 |\n", text)
+        self.assertNotIn("| COMP-ACME-CODE-01 | COMP-ACME |", text)
+        point = ".agents/harnesswright/rules/java/dp.md"
+        for default in ("none", "`records` or `lombok`", "`getters`", "`records`, not `lombok`"):
+            with self.subTest(default=default):
+                self.edit(point, "- **Default:** `records`", f"- **Default:** {default}")
+                self.assertStops("JAVA-DP-BOILERPLATE: Default must name exactly one of its Options in backticks")
+                self.edit(point, f"- **Default:** {default}", "- **Default:** `records`")
 
     def test_a_point_bound_twice_in_one_layer_stops(self):
         self.write("../acme/company/more.md", area("COMP-ACME-MORE", rule(
@@ -84,6 +92,45 @@ class RulesTest(Application):
                          "by APP-CODE-01")
         self.edit(".harness/profile.yaml", DECISION, "")
         self.assertIn("| JAVA-DP-BOILERPLATE | records | APP-CODE-01 |\n", self.text())
+
+    def test_a_change_names_a_rule_that_still_applies(self):
+        self.write("../acme/company/test.md", area("COMP-ACME-TEST", rule(
+            "COMP-ACME-TEST-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
+        self.assertStops("test.md:3: APP-TEST-01 Overrides JAVA-TEST-01, which COMP-ACME-TEST-01 already replaces; "
+                         "name that rule instead")
+        self.edit(".harness/standards/test.md", "Overrides:** JAVA-TEST-01", "Overrides:** COMP-ACME-TEST-01")
+        self.edit(".harness/profile.yaml", "TEAM-ACME-LOG-01\n    reason: old logger\n    until: 2026-01-01",
+                  "JAVA-TEST-01\n    reason: old logger\n    until: 2027-01-01")
+        text = self.text()
+        self.assertIn("| JAVA-TEST-01 | COMP-ACME-TEST-01 |\n| COMP-ACME-TEST-01 | APP-TEST-01 |\n", text)
+        self.assertIn("| JAVA-TEST-01 | old logger | 2027-01-01 | app-owner | replaced by APP-TEST-01 |\n", text)
+        self.assertNotIn("| COMP-ACME-TEST-01 | COMP-ACME |", text)
+
+    def test_a_language_default_is_bound_again(self):
+        stack = POINT.replace("JAVA-DP-BOILERPLATE", "CORE-DP-STACK").replace("`records`", "`junit`").replace(
+            "`lombok`", "`testng`")
+        self.write(".agents/harnesswright/rules/core/dp.md", area("CORE-DP", stack))
+        self.write(".agents/harnesswright/rules/java/stack.md", area("JAVA-STACK", rule(
+            "JAVA-STACK-01", extra="- **Binds:** CORE-DP-STACK: testng\n")))
+        self.assertIn("| CORE-DP-STACK | testng | JAVA-STACK-01 |\n", self.text())
+        self.write("../acme/company/stack.md", area("COMP-ACME-STACK", rule(
+            "COMP-ACME-STACK-01", extra="- **Binds:** CORE-DP-STACK: junit\n")))
+        text = self.text()
+        self.assertIn("| CORE-DP-STACK | junit | COMP-ACME-STACK-01 |\n", text)
+        self.assertIn("| JAVA-STACK-01 | COMP-ACME-STACK-01 |\n", text)
+        self.edit(".harness/profile.yaml", DECISION, DECISION + "  stack: testng\n")
+        text = self.text()
+        self.assertIn("| CORE-DP-STACK | testng | profile decisions |\n", text)
+        self.assertIn("| JAVA-STACK-01 | COMP-ACME-STACK-01 |\n", text)
+        self.assertIn("| COMP-ACME-STACK-01 | profile decisions |\n", text)
+        self.assertNotIn("| JAVA-STACK-01 | JAVA |", text)
+
+    def test_only_the_application_layer_counts_with_the_profile(self):
+        self.edit(".harness/profile.yaml", "  repository: .harness/standards/\n", "")
+        self.write("../acme/team/bind.md", area("TEAM-ACME-BIND", rule("TEAM-ACME-BIND-01", extra=BINDING)))
+        text = self.text()
+        self.assertIn("| JAVA-DP-BOILERPLATE | lombok | profile decisions |\n", text)
+        self.assertIn("| COMP-ACME-CODE-01 | TEAM-ACME-BIND-01 |\n| TEAM-ACME-BIND-01 | profile decisions |\n", text)
 
     def test_waivers_show_their_status(self):
         self.edit(".harness/profile.yaml", "TEAM-ACME-LOG-01\n    reason: old logger\n    until: 2026-01-01",

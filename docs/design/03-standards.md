@@ -112,8 +112,8 @@ so a script that knows the language prefixes and the areas can split every ID.
 
 A decision point has: ID, Title, Status, Review by, Question, Options, Default, Why, Applies to, Source, and Replaced
 by when retired. Options is a list with one item per option, written `` - `name`: what it means ``. Default
-names one of the Options in backticks, such as `` `records` ``; an unbound point whose Default names none stops the
-run.
+names exactly one of the Options in backticks, such as `` `records` ``; the standards reader stops on any other
+Default.
 
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
 exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
@@ -241,11 +241,14 @@ and no other rules:
 **Steps.**
 
 1. Start with the principles layer. Apply each listed layer, most general first: an override replaces a rule, a
-   tightening makes a floor stricter, a binding picks a decision point's option, and any other rule is added.
-2. Apply the profile's bindings. A decision point bound more than once in the application layer, by rules or by
-   the profile, is a contradiction.
+   tightening makes a floor stricter, a binding picks a decision point's option and replaces any earlier binding of
+   that point, and any other rule is added. A rule that changes a rule a more specific layer already replaced is a
+   contradiction: it must change the rule that replaced it.
+2. Apply the profile's bindings; each replaces any layer's binding of its point. A decision point bound more than
+   once in the application layer, by rules or by the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
-4. Mark each waived rule with its waiver: reason, end date and approver. A story-scoped waiver is not an input: it
+4. Mark each waived rule with its waiver: reason, end date and approver. A waiver names a principle, idiom or
+   choice that binds no decision point; a binding changes only by binding its point again. A story-scoped waiver is not an input: it
    lives in its story, and the story judge checks it there ([06 · Contracts](06-contracts.md)).
 5. If two inputs contradict each other without saying so, stop and ask the layer owners. If a layer loosens a
    floor, or a waiver names a floor, stop. If the release or a layer folder is missing, cannot be read or has a
@@ -254,8 +257,9 @@ and no other rules:
 The result is the **resolved standards** file, written once at the start of each run to
 `.harness/runs/<run-id>/rules.md`. For each rule that applies, in layer order, it lists the ID, layer, kind, the
 ID it changed and any waiver, plus a fingerprint (hash) of every file it read. It also lists each decision point
-with its option and where the option came from (a binding rule's ID, "profile decisions" or "default"), and each
-waiver with its status: applied, expired, or replaced by the rule that replaced the waived one. It holds no rule
-text, so it is not a copy. Every role in the run reads this file, and each claim and verdict records the hash of
-this file. A run writes it once: if the run's `rules.md` already exists and a new resolve gives different bytes, an
+with its option and where the option came from (a binding rule's ID, "profile decisions" or "default"), each
+waiver with its status (applied, expired, or replaced by the rule that applies in its place), and each rule that
+no longer applies with what replaced it (a rule ID or "profile decisions"). It holds no rule text, so it is not a
+copy. Every role in the run reads this file, and each claim and verdict records the hash of this file. A run
+writes it once: if the run's `rules.md` already exists and a new resolve gives different bytes, an
 input changed during the run, and the run stops.

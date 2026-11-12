@@ -29,7 +29,8 @@ SKILL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 PROSE = re.compile(r"[A-Za-z0-9(\[`].*")
 FENCE = re.compile(r"`{3,}")
-OPTION = re.compile(r"- `[a-z0-9-]+`: \S.*")
+OPTION = re.compile(r"- `([a-z0-9-]+)`: \S.*")
+CODE = re.compile(r"`([^`]*)`")  # a span in backticks: a decision point's Default names exactly one of its Options
 BINDING = re.compile(rf"({DP_ID.pattern}): ([a-z0-9-]+)")  # Binds: the point's ID and the option it picks
 HEADING = re.compile(r"### (\S+) · (\S.*)")
 PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")
@@ -82,6 +83,16 @@ class Rule:
     def option(self):
         """The option a Binds rule picks, or None."""
         return self.text("Binds").split(": ")[1] if "Binds" in self.parts else None
+
+    @property
+    def options(self):
+        """A decision point's option names, in order."""
+        return [OPTION.fullmatch(line).group(1) for line in self.parts["Options"][1:] if OPTION.fullmatch(line)]
+
+    @property
+    def default(self):
+        """A decision point's default option (check_rule proves it is one span in backticks naming an Option)."""
+        return CODE.findall(self.text("Default"))[0]
 
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
@@ -220,6 +231,9 @@ def check_rule(path, rule, retired_file):
         fail(path, rule.line, f"{rule.id}: Replaced by is required exactly when the status is retired")
     if retired != retired_file:
         fail(path, rule.line, f"{rule.id}: retired rules live in retired files and only there (HW-RULE-07)")
+    names = CODE.findall(rule.text("Default")) if rule.is_decision_point else [None]
+    if len(names) != 1 or rule.is_decision_point and names[0] not in rule.options:
+        fail(path, rule.line, f"{rule.id}: Default must name exactly one of its Options in backticks")
     if sum(name in rule.parts for name in CHANGES) > 1:
         fail(path, rule.line, f"{rule.id} names more than one of {', '.join(CHANGES)} (HW-RULE-05)")
 
