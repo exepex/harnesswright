@@ -106,7 +106,7 @@ def run_failure(stdout, returncode, timed_out):
     return None
 
 
-def tokens(stdout):
+def tokens(stdout, home):
     for event in events(stdout):
         if event.get("event") == "done" and "usage" in event:
             return dict(event["usage"])

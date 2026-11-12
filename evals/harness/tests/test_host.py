@@ -165,9 +165,10 @@ class FakeHost(TempCase):
 
     def test_a_run_keeps_the_hosts_own_token_counts_and_refuses_counts_out_of_shape(self):
         counts = {"input": 120, "cache read": 100, "cache write": 0, "output": 30}
-        result, _ = self.run_of("task", fake_adapter(), [{"do": "usage", "usage": counts}, {"do": "say", "text": "."}])
-        self.assertEqual(result.tokens, counts)
-        for wrong in ({**counts, "output": -1}, {**counts, "output": "30"}, {"input": 1}, {**counts, "other": 1}):
+        given = [{"do": "usage", "usage": {"model-a": counts}}, {"do": "say", "text": "."}]
+        self.assertEqual(self.run_of("task", fake_adapter(), given)[0].tokens, {"model-a": counts})
+        for wrong in ({"m": {**counts, "output": -1}}, {"m": {**counts, "output": "30"}}, {"m": {"input": 1}},
+                      {"m": {**counts, "other": 1}}, counts, {"": counts}):
             with self.subTest(wrong=wrong), self.assertRaisesRegex(host.HostError, "tokens are not a count"):
                 self.run_of("task", fake_adapter(), [{"do": "usage", "usage": wrong}])
 

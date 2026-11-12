@@ -214,34 +214,53 @@ class ClaudeCode(unittest.TestCase):
                 self.assertIsNone(CLAUDE.exposure(stdout, None))
 
 
-class Tokens(unittest.TestCase):
-    """Each adapter reads the host's own token counts, and reports none when the host reported none."""
+class Tokens(TempCase):
+    """Each adapter reads the host's own token counts by model, and reports none when the host reported none."""
 
-    def test_codex_counts_are_summed_over_its_turns(self):
-        turns = [{"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 60,
-                                                      "output_tokens": 7, "reasoning_output_tokens": 3}},
-                 {"type": "turn.completed", "usage": {"input_tokens": 10, "cached_input_tokens": 0,
-                                                      "cache_write_input_tokens": 4, "output_tokens": 1}}]
-        stdout = "\n".join(json.dumps(event) for event in turns)
-        self.assertEqual(CODEX.tokens(stdout), {"input": 110, "cache read": 60, "cache write": 4, "output": 8})
-        self.assertIsNone(CODEX.tokens(json.dumps({"type": "turn.completed", "usage": {}})))
-        self.assertIsNone(CODEX.tokens(""))
+    def session(self, name, records):
+        path = self.tmp / ".codex" / "sessions" / "2026" / f"rollout-{name}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(json.dumps(record) for record in records) + "\n")
 
-    def test_claude_code_counts_are_its_last_results_over_every_model(self):
+    def test_codex_counts_each_threads_last_total_under_its_model_sub_agents_included(self):
+        def count(total):
+            return {"type": "event_msg", "payload": {"type": "token_count", "info": total and {
+                "total_token_usage": total, "last_token_usage": {"input_tokens": 1}}}}
+
+        def turn(model):
+            return {"type": "turn_context", "payload": {"model": model}}
+
+        self.session("a", [turn("model-a"), count(None), count({"input_tokens": 50, "cached_input_tokens": 20,
+                                                                "output_tokens": 5}),
+                           count({"input_tokens": 100, "cached_input_tokens": 60, "output_tokens": 7,
+                                  "reasoning_output_tokens": 3})])  # a running total: the last one counts
+        self.session("b", [turn("model-b"), count({"input_tokens": 10, "cached_input_tokens": 0,
+                                                   "cache_write_input_tokens": 4, "output_tokens": 1})])
+        self.session("c", [turn("model-a"), count({"input_tokens": 1, "cached_input_tokens": 1, "output_tokens": 1})])
+        self.assertEqual(CODEX.tokens("", self.tmp), {
+            "model-a": {"input": 101, "cache read": 61, "cache write": 0, "output": 8},
+            "model-b": {"input": 10, "cache read": 0, "cache write": 4, "output": 1}})
+        self.assertIsNone(CODEX.tokens("", self.tmp / "nothing"))
+
+    def test_claude_code_counts_are_its_last_results_for_each_model(self):
         models = {"model-a": {"inputTokens": 5, "outputTokens": 9, "cacheReadInputTokens": 40,
                               "cacheCreationInputTokens": 20},
                   "model-b": {"inputTokens": 1, "outputTokens": 2, "cacheReadInputTokens": 0,
                               "cacheCreationInputTokens": 3}}
         usage = {"input_tokens": 5, "output_tokens": 9, "cache_read_input_tokens": 40,
                  "cache_creation_input_tokens": 20}
+        init = {"type": "system", "subtype": "init", "model": "model-a"}
         first = {"type": "result", "usage": {"input_tokens": 999, "output_tokens": 999}}
         last = {"type": "result", "result": "Done.", "usage": usage, "modelUsage": models}
-        stdout = "\n".join(json.dumps(event) for event in (first, last))
-        self.assertEqual(CLAUDE.tokens(stdout), {"input": 69, "cache read": 40, "cache write": 23, "output": 11})
-        no_models = json.dumps({**last, "modelUsage": {}})
-        self.assertEqual(CLAUDE.tokens(no_models), {"input": 65, "cache read": 40, "cache write": 20, "output": 9})
-        self.assertIsNone(CLAUDE.tokens(json.dumps({"type": "result", "result": "Done."})))
-        self.assertIsNone(CLAUDE.tokens(""))
+        stdout = "\n".join(json.dumps(event) for event in (init, first, last))
+        self.assertEqual(CLAUDE.tokens(stdout, self.tmp), {
+            "model-a": {"input": 65, "cache read": 40, "cache write": 20, "output": 9},
+            "model-b": {"input": 4, "cache read": 0, "cache write": 3, "output": 2}})
+        no_models = "\n".join(json.dumps(event) for event in (init, {**last, "modelUsage": {}}))
+        self.assertEqual(CLAUDE.tokens(no_models, self.tmp),
+                         {"model-a": {"input": 65, "cache read": 40, "cache write": 20, "output": 9}})
+        self.assertIsNone(CLAUDE.tokens(json.dumps({"type": "result", "result": "Done."}), self.tmp))
+        self.assertIsNone(CLAUDE.tokens("", self.tmp))
 
 
 class RunEnv(TempCase):

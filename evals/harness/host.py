@@ -46,8 +46,9 @@ CONTRACT = {
     # did not report them, which only a failed run may do
     "exposure": callable,
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
-    # (stdout): the host's own token counts of the run, {name: count} for each of TOKENS, or None when it reported
-    # none: a count the host did not report is missing, never estimated
+    # (stdout, home): the host's own token counts of the run by model, {model: {name: count for each of TOKENS}}, so
+    # each is priced at its own model's rate, or None when it reported none: a count it did not report is missing,
+    # never estimated
     "tokens": callable,
     # each host fault the harness plants (PLANTED), by name: (command) -> the jail command with that fault planted
     "PLANTS": dict,
@@ -152,16 +153,20 @@ def check_exposure(adapter, exposure, skills):
 
 
 def check_tokens(tokens):
-    """Raise HostError unless `tokens` is None or a count, a whole number from 0, for each of TOKENS and nothing
-    else."""
-    if tokens is not None and not (isinstance(tokens, dict) and sorted(tokens) == sorted(TOKENS) and all(
-            isinstance(count, int) and not isinstance(count, bool) and count >= 0 for count in tokens.values())):
-        raise HostError(f"tokens are not a count for each of {list(TOKENS)}: {tokens!r}"[:300])
+    """Raise HostError unless `tokens` is None, or maps each model, a name of at most 200 characters, to a count, a
+    whole number from 0, for each of TOKENS and nothing else."""
+    def counts(value):
+        return isinstance(value, dict) and sorted(value) == sorted(TOKENS) and all(
+            isinstance(count, int) and not isinstance(count, bool) and count >= 0 for count in value.values())
+
+    if tokens is not None and not (isinstance(tokens, dict) and tokens and all(
+            isinstance(model, str) and 0 < len(model) <= 200 and counts(value) for model, value in tokens.items())):
+        raise HostError(f"tokens are not a count for each of {list(TOKENS)} by model: {tokens!r}"[:300])
 
 
 class Result:
     """One host run: what it printed, how it ended, its checked action log and exposure, the gate's log, how many
-    seconds the host ran, and its token counts as the host reported them (None when it reported none)."""
+    seconds the host ran, and its token counts by model as the host reported them (None when it reported none)."""
 
     def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests, seconds, tokens=None):
         self.stdout, self.stderr, self.returncode, self.timed_out = stdout, stderr, returncode, timed_out
@@ -203,7 +208,7 @@ def run(contained, prompt, skills, model=None, timeout=900, plant=None):
         if exposure is not None:
             check_exposure(adapter, exposure, skills)
         try:
-            tokens = adapter.tokens(stdout)
+            tokens = adapter.tokens(stdout, contained.home)
         except Exception as error:  # an adapter that cannot read the counts breaks the contract
             raise HostError(f"tokens: {type(error).__name__}: {error}") from None
         check_tokens(tokens)

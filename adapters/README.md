@@ -52,9 +52,9 @@ off the skills the host ships where it allows, keeps only tools of a kind on the
 log of the entries the contract lists. For the harness faults, its `PLANTS` turn its bundled skills back on or take
 its command tools away, in a copy of its own command. The sandbox rule above is for the phase 2 runner only, which
 runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 runner is removed. Its `tokens`
-reads the host's own token counts from its output: Claude Code's from the last result event's `modelUsage`, summed
-over every model, else its `usage`; Codex's summed over its `turn.completed` events, whose input counts cached
-input.
+reads the host's own token counts by model: Claude Code's from the last result event's `modelUsage`, else its
+`usage`; Codex's from each thread's last running total in its session file, sub-agents included, read in
+`codex/sessions.py`, since every loader loads only `adapter.py` by path.
 
 - **Codex** runs with `--dangerously-bypass-approvals-and-sandbox`, `-c skills.bundled.enabled=false`, and image
   viewing, goals and web search off. Its `functions.exec` tool runs code that calls nested tools, so each nested

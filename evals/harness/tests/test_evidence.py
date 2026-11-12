@@ -73,7 +73,7 @@ class Bundles(TempCase):
                    {"do": "write", "path": "skills/haiku-writer/notes.md", "text": "edited"},
                    {"do": "command", "command": "mkfifo pipe && pwd"},
                    {"do": "skill", "name": "haiku-writer"}, {"do": "say", "text": "Done with haiku-writer."},
-                   {"do": "usage", "usage": {"input": 9, "cache read": 4, "cache write": 1, "output": 2}}]
+                   {"do": "usage", "usage": {"m": {"input": 9, "cache read": 4, "cache write": 1, "output": 2}}}]
         out, record, blob = self.stored(*self.run_of(actions))
         self.assertEqual(sorted(record["diff"]), ["link.md", "notes.txt", "pipe"])  # not the skill, not a self-write
         self.assertEqual(record["files_after"]["pipe"], "other")  # a pipe the agent made is evidence, not a fault
@@ -92,7 +92,7 @@ class Bundles(TempCase):
         self.assertNotIn(str(self.tmp), stdout)  # nor the run's folders, whose names may tell the arm
         self.assertIn(scrub.NEUTRAL_FOLDERS["world"], stdout)
         self.assertGreaterEqual(record["seconds"], 0)
-        self.assertEqual(record["tokens"], {"input": 9, "cache read": 4, "cache write": 1, "output": 2})  # the host's
+        self.assertEqual(record["tokens"], {"m": {"input": 9, "cache read": 4, "cache write": 1, "output": 2}})
         names = [os.path.relpath(os.path.join(r, n), out) for r, ds, fs in os.walk(out) for n in ds + fs]
         self.assertTrue(all(n in ("bundle.json", "blobs") or n.startswith("blobs/") for n in names), names)
         self.assertFalse(any(os.path.islink(out / n) for n in names))

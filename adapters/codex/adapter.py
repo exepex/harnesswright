@@ -6,12 +6,18 @@ file, or a tool call's arguments name it.
 """
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
 import shlex
 from pathlib import Path
 from urllib.parse import unquote
+
+# Its session files are read in their own module, beside this one, as every loader loads only this file by path.
+_SPEC = importlib.util.spec_from_file_location("codex_sessions", Path(__file__).with_name("sessions.py"))
+sessions = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(sessions)
 
 NAME = "codex"
 CLI = "codex"
@@ -252,22 +258,8 @@ PLANTS = {"bundled skills": _bundled,
           "no commands": lambda command: command[:-1] + ["--disable", "shell_tool", "--disable", "unified_exec", "-"]}
 
 
-def _threads(home):
-    """The records of each thread's session file, one list per thread."""
-    for path in sorted(Path(home).glob(".codex/sessions/**/rollout-*.jsonl")):
-        records = []
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(record, dict) and isinstance(record.get("payload"), dict):
-                records.append(record)
-        yield records
-
-
 def _session_lines(home):
-    for records in _threads(home):
+    for records in sessions.threads(home):
         yield from records
 
 
@@ -331,7 +323,7 @@ def exposure(stdout, home):
     in `functions.exec`. None when a thread gave no full report, a record lists one in another form, or a thread has
     `exec` without its nested tools, as no report is never 'nothing'."""
     skills, tools, threads = set(), set(), 0
-    for records in _threads(home):
+    for records in sessions.threads(home):
         named, nested, full = set(), None, False
         for record in records:
             payload = record["payload"]
@@ -392,10 +384,4 @@ def run_failure(stdout, returncode, timed_out):
     return failure(parse_events(stdout), returncode, timed_out, "task")
 
 
-def tokens(stdout):
-    """The host's own token counts, summed over its turns, or None when it reported none. Its input counts cached."""
-    used = [e.get("usage") for e in parse_events(stdout) if e.get("type") == "turn.completed"]
-    used = [usage for usage in used if isinstance(usage, dict) and "input_tokens" in usage]
-    fields = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens")
-    return {name: sum(u.get(f, 0) for u in used) for name, f in zip(("input", "cache read", "cache write", "output"),
-                                                                   fields)} if used else None
+tokens = sessions.tokens  # (stdout, home): read from every thread's session file, as the log is

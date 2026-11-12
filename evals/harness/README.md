@@ -231,8 +231,8 @@ reads, writes with content hashes, commands with exit code and whole output, act
 `inferred` (the adapter worked it out, such as a file a shell command reads). The host may expose and load only the
 skills the arm installs, and expose only the adapter's tools. A host that ran must report what it exposed: no report
 is never read as "nothing". Anything else raises `HostError`, and the round stops. The jail's audit runs first, and
-a host that crashes or times out is a `failure`: the run is void. The host's own token counts (`host.TOKENS`) are
-kept with the run, or none when it reported none.
+a host that crashes or times out is a `failure`: the run is void. The host's own token counts by model
+(`host.TOKENS`) are kept with the run, or none when it reported none.
 
 `tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
 its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,
