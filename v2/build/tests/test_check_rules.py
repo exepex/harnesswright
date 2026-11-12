@@ -162,8 +162,14 @@ class CheckRulesTest(unittest.TestCase):
                   "row needs 4 cells under '## Jobs'"),
                  ("root/v2/roles.md", "| reviewer | checking |", "| reviewer | checking | extra |",
                   "row needs 7 cells under '## Roles'"),
+                 ("root/v2/roles.md", "|---|---|---|---|\n| golden", "| bad | tester | none | none |\n| golden",
+                  "the table under '## Jobs' needs a header row and a rule line"),
                  ("root/v2/skills/golden-skill/SKILL.tmpl.md", "  areas: rest", "  areas: rest\n   roles: x",
-                  "SKILL.tmpl.md:7: frontmatter line has no allowed shape")]
+                  "SKILL.tmpl.md:7: frontmatter line has no allowed shape"),
+                 ("root/v2/skills/golden-skill/SKILL.tmpl.md", "  roles: tester", "  roles: reviewer\n  roles: tester",
+                  "SKILL.tmpl.md:6: frontmatter line has no allowed shape or repeats a key"),
+                 ("root/v2/roles.md", "| golden | tester | golden-skill | golden-skill |",
+                  "| golden | tester | golden-skill | golden-skill |\nMore jobs come later.", "under '## Jobs'")]
         for path, old, new, expected in cases:
             with self.subTest(expected=expected, new=new):
                 self.setUp()

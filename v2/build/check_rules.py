@@ -3,16 +3,9 @@
 Standard library only. It imports nothing from the build: it reads rule files, the roles file and frontmatter by
 its own, simpler method, so a fault in the build's reader cannot hide itself (reviews/release-design/final-design.md
 section 5; plan/b01-plan.md part d1). It collects every failure, prints each as "check failed: <where>: <what>" and
-returns 1; with none it returns 0. It fails:
-- a rule without a part its kind needs, and an Applies to or metadata.roles naming a role v2/roles.md does not list;
-- a copy marker in a rule file or in a skill folder's Markdown, and a skill folder holding SKILL.md;
-- a template or its Markdown citing an ID that is unknown, retired or inferred;
-- a Jobs row that does not match the skill folders: each skill in one job, with its job's roles, and exactly one
-  `rest` skill, the one the row names;
-- a release SKILL.md missing a CORE floor of its roles, an every-role rule, or a rule of its roles in one of its
-  areas; and a bare ID (one without " (title)") outside the copied blocks of a release Markdown file;
-- a job name given with --job that the Jobs table does not list;
-- with --changed, a changed rule file when v2/VERSION is not in the same list.
+returns 1; with none it returns 0. One rule governs its readers: each line has an allowed shape, or it fails. Each
+`check_*` method of Check covers one kind of failure: rule parts and roles, copy markers, templates and their
+citations, jobs, release copies and bare IDs, job names given with --job, and the version bump.
 
 Run: python3 v2/build/check_rules.py [--root ROOT] [--release DIR] [--changed FILE] [--job NAME]...
 """
@@ -87,21 +80,18 @@ def read_rules(path, root, fail):
     return rules
 
 
-def rule_files(root):
-    return sorted(p for p in (root / "v2" / "rules").glob("*/*.md") if p.name not in NOT_RULE_FILES)
-
-
 def metadata(path, fail):
     """The name and the metadata keys of a frontmatter block, quotes removed. A line of another shape fails."""
     lines = path.read_text(encoding="utf-8").split("\n")
     end = lines.index("---", 1)
-    found = {}
+    found, seen = {}, set()
     for number, line in enumerate(lines[1:end], start=2):
         key, _, value = line.strip().partition(": ")
-        if not FRONT.fullmatch(line):
-            fail(f"{path.name}:{number}", f"frontmatter line has no allowed shape: {line!r}")
+        if not FRONT.fullmatch(line) or line.split(":")[0] in seen:
+            fail(f"{path.name}:{number}", f"frontmatter line has no allowed shape or repeats a key: {line!r}")
         elif line.startswith(("name: ", "  roles: ", "  areas: ")):
             found[key] = value.strip("\"'")
+        seen.add(line.split(":")[0])
     return found, end + 1
 
 
@@ -124,7 +114,7 @@ class Check:
         for job in sorted({row[0] for row in rows if [r[0] for r in rows].count(row[0]) > 1}):
             self.fail("v2/roles.md", f"job {job} is listed twice")
         self.rules = {}
-        for path in rule_files(self.root):
+        for path in sorted(p for p in (self.root / "v2/rules").glob("*/*.md") if p.name not in NOT_RULE_FILES):
             self.check_markers(path)
             for rule in read_rules(path, self.root, self.fail):
                 self.check_rule(rule)
@@ -160,6 +150,8 @@ class Check:
                 ended = ended or bool(rows)
             else:
                 self.fail(f"v2/roles.md:{number}", f"line has no allowed shape under {heading!r}: {line!r}")
+        if len(rows) < 2 or len(rows[0][1]) != width or rows[1][1] != ["---"] * width:
+            self.fail(f"v2/roles.md:{start}", f"the table under {heading!r} needs a header row and a rule line")
         for number, row in rows[2:]:
             if len(row) != width:
                 self.fail(f"v2/roles.md:{number}", f"row needs {width} cells under {heading!r}")
