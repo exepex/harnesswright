@@ -18,8 +18,12 @@ canaries and credentials of every containment its gates made, taken while its ho
 - `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
   the host's version measured just before it, so a host that changed during the round voids its runs. A run that
   is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does.
+- `check`: every expectation that has a check is decided on the bundle of each kept or made run
+  (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
+  (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
+  graders (`grading.questions`). A check that breaks stops the round.
 
-The check, grade, label and store gates follow in later steps. Every gate runs again when a round is run again,
+The grade, label and store gates follow in later steps. Every gate runs again when a round is run again,
 as each proves the kit and the hosts as they are now; only runs are kept (`runs.run`).
 
 Run from the repository root:
@@ -38,7 +42,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import checks
 import faults
+import grading
 import kit
 import lint
 import probes
@@ -59,14 +65,15 @@ class Stop(rounds.RoundError):
 
 class Round:
     """A planned round as its gates see it: the manifest `record`, its adapters and cases, the hosts that passed
-    their probes (`hosts`: name: {"drift", "version"}), and the options of every host run."""
+    their probes (`hosts`: name: {"drift"}), the runs the run gate gave (`runs`), what no check decided of each
+    (`asked`: run key: questions), and the options of every host run."""
 
     def __init__(self, record, store, repo=REPO, adapters=rounds.ADAPTERS, seed=None, timeout=runs.TIMEOUT,
                  version=rounds.host_version, **containment):
         self.record, self.store, self.repo, self.timeout = record, store, Path(repo), timeout
         self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
-        self.containment, self.hosts = containment, {}
+        self.containment, self.hosts, self.runs, self.asked = containment, {}, [], {}
         self.tokens, self.secrets = set(), set()  # of every containment the gates made (`keep`)
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
         root = self.repo / "evals" / "skills"
@@ -188,11 +195,29 @@ def run_gate(r):
                           r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,
                      "key": result["key"], "status": result["status"]})
+        r.runs.append({**made[-1], "bundle": result.get("bundle")})
     return made
 
 
+def check_gate(r):
+    library, found = checks.library(r.repo / "evals" / "checks"), []
+    for made in r.runs:
+        if made["status"] not in ("kept", "made"):
+            continue
+        expectations = r.cases[(made["skill"], made["case"])].expectations
+        bundle = checks.Bundle.load(made["bundle"])
+        verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
+                    if "check" in e else None for e in expectations]
+        r.asked[made["key"]] = grading.questions(expectations, verdicts)
+        _write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts}, r.quiet)
+        outcomes = [v["outcome"] for v in verdicts if v]
+        found.append({"key": made["key"], **{o: outcomes.count(o) for o in checks.OUTCOMES},
+                      "asked": [question["id"] for question in r.asked[made["key"]]]})
+    return found
+
+
 GATES = (("kit check", kit_check), ("lint", lint_gate), ("probe", probe_gate), ("faults", faults_gate),
-         ("run", run_gate))
+         ("run", run_gate), ("check", check_gate))
 
 
 def read(store, name, repo=REPO):
@@ -253,7 +278,8 @@ def _pin(path, record):
     return json.loads(path.read_text())
 
 
-def _write(path, attempt, quiet):
+def _write(path, data, quiet):
+    """Write `data` to `path` as JSON, whole: written beside it, then moved over it."""
     fresh = path.with_name(f".{path.name}")
-    fresh.write_text(quiet(json.dumps(attempt, indent=1, sort_keys=True)) + "\n")
+    fresh.write_text(quiet(json.dumps(data, indent=1, sort_keys=True)) + "\n")
     os.replace(fresh, path)
