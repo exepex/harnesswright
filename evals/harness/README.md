@@ -461,14 +461,15 @@ is kept, and any other is refused, so a changed input is a new round.
 
 Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
 everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
-the manifest, the arm, the number, its time budget (a run that timed out is scored, so the budget decides it), and
-the runner code that affects a run (`runs.RUNNER`: the jail, the gate, the host contract, the world builder, the
-evidence and `runs.py` itself). `runs.run` makes a run only from the
-repository at the round's commit, clean, so it builds exactly the inputs the manifest hashed. It keeps a run whose
-folder, `<store>/<round>/runs/<key>/`, holds a bundle that loads, so a resumed round remakes only missing or voided
-runs. Otherwise it builds and proves both arms, runs the chosen arm in its jail, collects its evidence and stores
-the bundle, written beside its name and moved into place. A run is void, with `void.json` listing why, only for a
-harness fault: the host failed, or its version is not the manifest's. What the agent did, a run that timed out
-included, is scored, never voided. A voided slot gets one remake; voided twice, it stays empty. `void.json` stays
-beside a remade bundle, so the void rate per arm can be counted. A jail that fails its audit, or a canary in any
-output, raises, and the round stops.
+the manifest, the arm, the number, the run's own settings (the drift record, which decides what evidence counts as
+the agent's, and the time budget, since a run that timed out is scored), and the runner code that affects a run
+(`runs.RUNNER`: the jail, the gate, the host contract, the world builder, the evidence and `runs.py` itself). The
+jail's settings are not in the key: the jail is audited on every run, and one that fails its audit stops the round.
+`runs.run` makes a run only from the repository at the round's commit, clean, so it builds exactly the inputs the
+manifest hashed. It keeps a run whose folder, `<store>/<round>/runs/<key>/`, holds a bundle that loads, so a resumed
+round remakes only missing or voided runs. Otherwise it builds and proves both arms, runs the chosen arm in its
+jail, collects its evidence and stores the bundle, written beside its name and moved into place. A run is void, with
+`void.json` listing why, only for a harness fault: the host failed, or its version is not the manifest's. What the
+agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
+stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
+its audit, or a canary in any output, raises, and the round stops.

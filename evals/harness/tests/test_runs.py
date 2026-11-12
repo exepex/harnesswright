@@ -21,6 +21,7 @@ JAIL = contain.available()
 VERSION = {"path": "/usr/bin/fakehost", "sha256": "0" * 64, "version": "fakehost 1.0"}
 WROTE = json.dumps([{"do": "write", "path": "poem.md", "text": "An old silent pond\n"}, {"do": "say", "text": "Done."}])
 DRIFT = {"own files": {"task": [], "trigger": []}}
+OTHER_DRIFT = {"own files": {"task": ["world/poem.md"], "trigger": []}}
 
 
 class Round(TempCase):
@@ -63,27 +64,28 @@ class Round(TempCase):
 class Keys(Round):
     def test_a_key_is_the_hash_of_every_input_of_the_run(self):
         record = self.plan()
-        first = runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1)
-        self.assertEqual(first, runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1))
-        others = {runs.key(record, "haiku-writer", "c1", "without_skill", "fakehost", 1),
-                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 2),
-                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, timeout=60),
-                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, code="1" * 64)}
+        first = runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT)
+        self.assertEqual(first, runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT))
+        others = {runs.key(record, "haiku-writer", "c1", "without_skill", "fakehost", 1, DRIFT),
+                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 2, DRIFT),
+                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT, timeout=60),
+                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, OTHER_DRIFT),
+                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT, code="1" * 64)}
         changed = json.loads(json.dumps(record))
         changed["hosts"]["fakehost"]["version"]["version"] = "fakehost 1.1"
-        others.add(runs.key(changed, "haiku-writer", "c1", "with_skill", "fakehost", 1))
+        others.add(runs.key(changed, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT))
         changed = json.loads(json.dumps(record))
         changed["cases"]["haiku-writer"]["c1"] = "2" * 64
-        others.add(runs.key(changed, "haiku-writer", "c1", "with_skill", "fakehost", 1))
-        self.assertEqual(len(others), 6)
+        others.add(runs.key(changed, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT))
+        self.assertEqual(len(others), 7)
         self.assertNotIn(first, others)
 
     def test_the_skill_and_case_under_test_are_part_of_the_key(self):
         record = self.plan()
         twin = json.loads(json.dumps(record))
         twin["cases"]["limerick-writer"] = {"c2": record["cases"]["haiku-writer"]["c1"]}  # the same bytes
-        self.assertNotEqual(runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1),
-                            runs.key(twin, "limerick-writer", "c2", "with_skill", "fakehost", 1))
+        self.assertNotEqual(runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, DRIFT),
+                            runs.key(twin, "limerick-writer", "c2", "with_skill", "fakehost", 1, DRIFT))
 
     def test_a_run_the_round_does_not_plan_has_no_key(self):
         record = self.plan()
@@ -92,7 +94,7 @@ class Keys(Round):
                      ("haiku-writer", "c1", "with_skill", "fakehost", 3), ("haiku-writer", "c1", "with_skill",
                      "fakehost", 0)):
             with self.subTest(args=args), self.assertRaises(runs.RunError):
-                runs.key(record, *args)
+                runs.key(record, *args, DRIFT)
 
     def test_the_runner_code_is_hashed_from_its_files(self):
         copy = self.tmp / "harness"
@@ -181,7 +183,7 @@ class Runs(Round):
     def test_a_run_slot_linked_into_the_working_tree_is_refused(self):
         record = self.plan()
         slot = self.store / "r1" / "runs" / runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1,
-                                                       timeout=120)
+                                                      DRIFT, timeout=120)
         slot.parent.mkdir(parents=True)
         slot.symlink_to(self.repo)
         with self.assertRaisesRegex(runs.RunError, "outside the working tree"):

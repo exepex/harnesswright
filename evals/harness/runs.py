@@ -2,11 +2,13 @@
 by the hashes of its inputs, stored once, and remade only when it is missing or void.
 
 One rule: a run is named by its key, the hash of everything that decides it: the case, every skill an arm
-installs, the adapter, the host's version and model from the round's manifest, the arm, the run's number, its time
-budget, and the runner code that affects a run (`RUNNER`). A run whose key holds a bundle is kept, so a resumed
-round remakes only missing or voided runs, and a changed input gives a new key, never a changed run.
+installs, the adapter, the host's version and model from the round's manifest, the arm, the run's number, the run's
+own settings (`drift`, which decides what evidence counts as the agent's, and the time budget), and the runner code
+that affects a run (`RUNNER`). The jail's settings are not in the key: the jail is audited on every run, and one
+that fails its audit stops the round. A run whose key holds a bundle is kept, so a resumed round remakes only
+missing or voided runs, and a changed input gives a new key, never a changed run.
 
-- `key(record, skill, case_id, arm, host, number, timeout)`: the run's key, from the manifest `record`.
+- `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
@@ -54,15 +56,16 @@ def runner(folder=HARNESS):
     return manifest.digest({name: manifest.entry(Path(folder) / name) for name in RUNNER})
 
 
-def key(record, skill, case_id, arm, host_name, number, timeout=TIMEOUT, code=None):
-    """The key of one run, from the round's manifest `record`. `timeout` is its time budget in seconds: a run that
-    timed out is scored, so the budget decides the run. `code` is the runner's hash (`runner`)."""
+def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None):
+    """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
+    and drift record, and `timeout`, its time budget in seconds (a run that timed out is scored). `code` is the
+    runner's hash (`runner`)."""
     if arm not in ARMS or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
     if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
         raise RunError(f"{host_name}, run {number}: not a run of round {record['round']}")
     inputs = {"skill": skill, "case_id": case_id, "case": record["cases"][skill][case_id], "skills": record["skills"],
-              "arm": arm, "number": number, "timeout": timeout,
+              "arm": arm, "number": number, "drift": drift, "timeout": timeout,
               "adapter": record["adapters"][host_name], "host": record["hosts"][host_name],
               "runner": code or runner()}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
@@ -99,7 +102,7 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     which gets no more remakes."""
     if rounds.commit(repo) != record["commit"]:  # the inputs the run builds are the ones the manifest hashed
         raise RunError(f"{repo} is not at round {record['round']}'s commit {record['commit']}")
-    run_key = key(record, case.skill, case.id, arm, host_name, number, timeout)
+    run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout)
     path = folder(record, store, run_key, repo)
     found = stored(path)
     if found and found[0] == "kept":
