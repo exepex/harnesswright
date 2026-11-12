@@ -85,7 +85,7 @@ def digest(repo=REPO):
 def approve(store, judge, repo=REPO):
     """Write the approval record of the kit as it is now to `store`, for `judge`, read it back, and return it. The
     store must be outside the working tree."""
-    folder = _store(store, repo)
+    folder = store_folder(store, repo)
     found = files(repo)
     record = {"kit": manifest.digest(found), "files": found, "judge": judge,
               "approved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
@@ -103,7 +103,7 @@ def approve(store, judge, repo=REPO):
 def check(store, repo=REPO):
     """The kit check: return the approved hash, or raise KitError unless the store's approval record holds the hash
     of the kit as it is now, naming each file added, removed or changed since the approval."""
-    record = _read(_store(store, repo))
+    record = _read(store_folder(store, repo))
     found = files(repo)
     if record["kit"] == manifest.digest(found):
         return record["kit"]
@@ -113,7 +113,8 @@ def check(store, repo=REPO):
                    f"{', '.join(changed) or 'the same files, under another hash'}")
 
 
-def _store(store, repo):
+def store_folder(store, repo=REPO):
+    """The round store's folder, refused unless it is outside the working tree."""
     folder = Path(os.path.realpath(store))
     root = Path(os.path.realpath(repo))
     if folder == root or root in folder.parents:
