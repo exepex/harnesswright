@@ -48,6 +48,8 @@ import probes  # noqa: E402
 import skills  # noqa: E402
 from cases import REPO, CaseError, is_name  # noqa: E402
 
+sys.modules.setdefault("rounds", sys.modules[__name__])  # run as a script, `gates` imports this copy, not another
+
 ADAPTERS = REPO / "adapters"
 MANIFEST = "manifest.json"
 RUNS = range(1, 21)

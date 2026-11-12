@@ -2,9 +2,14 @@
 and every gate's outcome is written to the round's attempt record in the store."""
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 from test_gate import Upstream
 from test_host import FAKE
@@ -103,6 +108,44 @@ class Gates(Gated):
         with self.assertRaisesRegex(rounds.RoundError, r"stopped at the lint gate: fakehost, haiku-writer/c1: "):
             self.go(gates.GATES[1:2])
 
+    def test_a_probe_reason_is_kept_only_scrubbed(self):
+        self.planned()
+        secret, token = "sk-" + "s" * 30, "hw-canary-" + "t" * 20
+        run = SimpleNamespace(tokens=[token])
+
+        def probe_host(module, made, **options):
+            made.append(run)
+            return {"not run": [f"sign-in probe: the host said {secret} and {token}"], "drift": None}
+
+        with mock.patch("probes.probe_host", probe_host), \
+                mock.patch("scrub.credentials", lambda contained: [secret] if contained is run else []), \
+                self.assertRaises(rounds.RoundError) as stopped:
+            self.go(gates.GATES[2:3])
+        kept = json.dumps(self.attempt())
+        for text in (str(stopped.exception), kept):
+            self.assertNotIn(secret, text)
+            self.assertNotIn(token, text)
+            self.assertIn("sign-in probe: the host said", text)
+
+    def test_each_attempt_has_its_own_record(self):
+        self.planned()
+        steps = (("a", lambda r: None),)
+        self.go(steps)
+        self.go(steps)  # within the same second, by the same process
+        self.assertEqual(len(list((self.store / "r1" / "attempts").glob("*.json"))), 2)
+
+    def test_the_command_reports_a_stopped_round_in_one_line(self):
+        done = subprocess.run([sys.executable, str(Path(rounds.__file__)), "run", "r9", "--store", str(self.store)],
+                              capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+        self.assertEqual(done.returncode, 1)
+        self.assertRegex(done.stderr, r"^round: .*round r9 has no manifest; plan it first\n$")
+
+    def test_a_hosts_drift_record_is_the_round_s_once_written(self):
+        path = self.tmp / "round" / "drift" / "fakehost.json"
+        self.assertEqual(gates._pin(path, DRIFT), DRIFT)
+        self.assertEqual(gates._pin(path, {"own files": {"task": ["home/other"], "trigger": []}}), DRIFT)
+        self.assertEqual(sorted(p.name for p in path.parent.iterdir()), ["fakehost.json"])
+
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Hosts(Gated):
@@ -113,7 +156,8 @@ class Hosts(Gated):
         self.tool = self.tmp / "tool"
         shutil.copytree(FAKE, self.tool, ignore=shutil.ignore_patterns("adapter.py", "__pycache__"))
         self.options = {"timeout": 120, "operator_home": self.tmp / "operator", "host_paths": [self.tool],
-                        "operator_env": {"PATH": f"{self.tool}:/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url}}
+                        "operator_env": {"PATH": f"{self.tool}:/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url},
+                        "version": lambda module, **containment: VERSION}
 
     def test_a_round_whose_hosts_all_fail_their_probes_stops(self):
         self.planned()  # the fake host reads no plain prompt, so it fails every probe
@@ -125,7 +169,7 @@ class Hosts(Gated):
         self.planned()
 
         def probed(r):
-            r.hosts["fakehost"] = {"drift": DRIFT, "version": VERSION}
+            r.hosts["fakehost"] = {"drift": DRIFT}
 
         steps = (("probe", probed), ("run", gates.run_gate))
         made = self.go(steps, **self.options)["gates"][1]["outcome"]
@@ -137,16 +181,33 @@ class Hosts(Gated):
         self.assertEqual([m["key"] for m in again], [m["key"] for m in made])
         self.assertEqual({m["status"] for m in again}, {"kept"})
 
+    def test_the_host_version_is_measured_before_each_run(self):
+        self.planned()
+        found = iter([VERSION, VERSION, {**VERSION, "version": "fakehost 2.0"}, {**VERSION, "version": "fakehost 2.0"}])
+
+        def probed(r):
+            r.hosts["fakehost"] = {"drift": DRIFT}
+
+        def measured(module, **containment):
+            return next(found)
+
+        steps = (("probe", probed), ("run", gates.run_gate))
+        made = self.go(steps, **{**self.options, "version": measured})["gates"][1]["outcome"]
+        self.assertEqual([m["status"] for m in made], ["made", "made", "void", "void"])  # the host changed mid-round
+
     def test_a_fault_the_harness_misses_stops_the_round(self):
         shutil.copy2(faults.CATALOGUE, self.repo / "evals" / "faults" / "harness.json")
+        self.store = self.tmp / ("a-long-store-path-" * 5)  # a jail's socket path must not grow with it
         self.planned()  # the fake host reads none of the catalogue's plain prompts, so a fault that runs it is missed
 
         def probed(r):
-            r.hosts["fakehost"] = {"drift": DRIFT, "version": VERSION}
+            r.hosts["fakehost"] = {"drift": DRIFT}
 
         with self.assertRaisesRegex(rounds.RoundError, "stopped at the faults gate: faults missed: fakehost, "):
             self.go((("probe", probed), ("faults", gates.faults_gate)), **self.options)
-        self.assertFalse(self.attempt()["gates"][1]["passed"])
+        reason = self.attempt()["gates"][1]["reason"]
+        self.assertIn("the host failed", reason)
+        self.assertNotIn("too long", reason)
 
 
 if __name__ == "__main__":

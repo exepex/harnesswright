@@ -8,10 +8,14 @@ back from the store.
 - `kit check`: the measuring kit matches the judges' approval (`kit.check`), and it is the kit the manifest hashed.
 - `lint`: every planned case passes world lint (`lint.lint_case`) on every host.
 - `probe`: each host passes every probe and the tools and drift probe (`probes.probe_host`). A host that fails is
-  `not run` for the round, with its reasons; the round stops only when no host passed.
+  `not run` for the round, with its reasons; the round stops only when no host passed. The drift record of the
+  first attempt a host passed is the round's, kept in the store (`drift/<host>.json`) and used by every later
+  attempt, as a host's own files can differ by name from one empty run to the next and the record is in each run's
+  key.
 - `faults`: every fault of the catalogue (`faults.load`) is planted on each host that passed its probes, at a place
-  the round's seed chooses, and every one must be caught.
-- `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`). A run that
+  the round's seed chooses, and every one must be caught. The bundles of its runs are copied to the store.
+- `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
+  the host's version measured just before it, so a host that changed during the round voids its runs. A run that
   is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does.
 
 The check, grade, label and store gates follow in later steps. Every gate runs again when a round is run again,
@@ -29,6 +33,7 @@ import json
 import os
 import random
 import secrets
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -38,6 +43,7 @@ import lint
 import probes
 import rounds
 import runs
+import scrub
 from cases import REPO, Case, CaseError
 from runs import ARMS
 
@@ -47,8 +53,9 @@ class Round:
     their probes (`hosts`: name: {"drift", "version"}), and the options of every host run."""
 
     def __init__(self, record, store, repo=REPO, adapters=rounds.ADAPTERS, seed=None, timeout=runs.TIMEOUT,
-                 **containment):
+                 version=rounds.host_version, **containment):
         self.record, self.store, self.repo, self.timeout = record, store, Path(repo), timeout
+        self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
         self.containment, self.hosts = containment, {}
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
@@ -56,8 +63,13 @@ class Round:
         self.cases = {(skill, i): Case(root / skill / "cases" / i, skill)
                       for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])}
 
+        self.measure = version  # a host's version as its jail finds it now (`rounds.host_version`)
+
     def model(self, host):
         return self.record["hosts"][host]["model"]
+
+    def version(self, host):
+        return self.measure(self.modules[host], **self.containment)
 
 
 def kit_check(r):
@@ -87,16 +99,20 @@ def lint_gate(r):
 
 def probe_gate(r):
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
-    not_run = {}
+    not_run, drift = {}, {}
     for host, module in r.modules.items():
-        found = probes.probe_host(module, tools=tools, model=r.model(host), timeout=r.timeout, **r.containment)
+        made = []  # every containment of its probes, whose scrub each reason passes through before it is kept
+        found = probes.probe_host(module, tools=tools, model=r.model(host), timeout=r.timeout, made=made,
+                                  **r.containment)
+        quiet = scrub.Scrub([t for c in made for t in c.tokens], [v for c in made for v in scrub.credentials(c)])
         if found["not run"]:
-            not_run[host] = found["not run"]
+            not_run[host] = [quiet.quiet(reason) for reason in found["not run"]]
         else:
-            r.hosts[host] = {"drift": found["drift"], "version": rounds.host_version(module, **r.containment)}
+            r.hosts[host] = {"drift": _pin(r.folder / "drift" / f"{host}.json", found["drift"])}
+            drift[host] = "the round's" if r.hosts[host]["drift"] == found["drift"] else found["drift"]
     if not r.hosts:
         raise rounds.RoundError(f"no host passed its probes: {json.dumps(not_run, sort_keys=True)}")
-    return {"passed": sorted(r.hosts), "not run": not_run}
+    return {"passed": sorted(r.hosts), "not run": not_run, "drift": drift}
 
 
 def faults_gate(r):
@@ -104,16 +120,24 @@ def faults_gate(r):
     found, missed = {}, []
     for host, passed in r.hosts.items():
         case = r.cases[rng.choice(sorted(r.cases))]
-        folder = kit.store_folder(r.store, r.repo) / r.record["round"] / "faults" / f"{r.seed}" / host
-        setup = faults.Setup(r.modules[host], case, r.repo / "skills", folder, passed["drift"],
-                             model=r.model(host), host_version=passed["version"]["version"], timeout=r.timeout,
-                             repo=r.repo, **r.containment)
-        found[host] = []
-        for entry in entries:
-            result = faults.run(entry, setup, f"{r.seed}:{host}:{entry['id']}")
-            found[host].append({k: result[k] for k in ("id", "place", "caught", "reason", "seen")})
-            if not result["caught"]:
-                missed.append(f"{host}, {entry['id']} at {result['place']}: {result['reason']}")
+        kept = r.folder / "faults" / f"{r.seed}-{secrets.token_hex(4)}" / host
+        # Plants and runs under a short temporary folder, as every jail's socket path must stay short; each fault's
+        # bundles are copied to the store for the judges.
+        with tempfile.TemporaryDirectory(prefix="hw-f-") as scratch:
+            setup = faults.Setup(r.modules[host], case, r.repo / "skills", scratch, passed["drift"],
+                                 model=r.model(host), host_version=r.version(host)["version"], timeout=r.timeout,
+                                 repo=r.repo, **r.containment)
+            found[host] = []
+            for entry in entries:
+                result = faults.run(entry, setup, f"{r.seed}:{host}:{entry['id']}")
+                bundles = []
+                for number, bundle in enumerate(result["bundles"]):
+                    bundles.append(kept / entry["id"] / str(number))
+                    shutil.copytree(bundle, bundles[-1], symlinks=True)
+                outcome = {k: result[k] for k in ("id", "place", "caught", "reason", "seen")}  # scrubbed by `run`
+                found[host].append({**outcome, "bundles": [str(b) for b in bundles]})
+                if not result["caught"]:
+                    missed.append(f"{host}, {entry['id']} at {result['place']}: {result['reason']}")
     if missed:
         raise rounds.RoundError("faults missed: " + "; ".join(missed))
     return found
@@ -133,9 +157,8 @@ def order(record, hosts):
 def run_gate(r):
     made = []
     for host, skill, case_id, arm, number in order(r.record, r.hosts):
-        passed = r.hosts[host]
         result = runs.run(r.record, r.store, r.cases[(skill, case_id)], arm, host, number, r.modules[host],
-                          passed["drift"], passed["version"], timeout=r.timeout, repo=r.repo, **r.containment)
+                          r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,
                      "key": result["key"], "status": result["status"]})
     return made
@@ -167,9 +190,11 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
     r = Round(record, store, repo, adapters, **options)
     started = datetime.datetime.now(datetime.timezone.utc)
     attempt = {"round": name, "seed": r.seed, "started": started.isoformat(timespec="seconds"), "gates": []}
-    folder = kit.store_folder(store, repo) / name / "attempts"
+    folder = r.folder / "attempts"
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{started.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}.json"
+    handle, path = tempfile.mkstemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", suffix=".json", dir=folder)
+    os.close(handle)  # a new name for every attempt, never another attempt's
+    path = Path(path)
     for gate, step in gates:
         try:
             outcome = step(r)
@@ -180,6 +205,22 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
         attempt["gates"].append({"gate": gate, "passed": True, "outcome": outcome})
         _write(path, attempt)
     return attempt
+
+
+def _pin(path, record):
+    """The record at `path`, written there first when there is none: written once, never replaced."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fresh = path.with_name(f".{path.name}.{os.getpid()}")
+    fresh.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
+    try:
+        os.link(fresh, path)  # makes the record only where no entry has its name
+    except FileExistsError:
+        pass
+    finally:
+        fresh.unlink()
+    if path.is_symlink() or not path.is_file():
+        raise rounds.RoundError(f"{path}: not a regular file")
+    return json.loads(path.read_text())
 
 
 def _write(path, attempt):
