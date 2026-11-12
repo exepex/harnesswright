@@ -67,6 +67,7 @@ class Keys(Round):
         self.assertEqual(first, runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1))
         others = {runs.key(record, "haiku-writer", "c1", "without_skill", "fakehost", 1),
                   runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 2),
+                  runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, timeout=60),
                   runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1, code="1" * 64)}
         changed = json.loads(json.dumps(record))
         changed["hosts"]["fakehost"]["version"]["version"] = "fakehost 1.1"
@@ -74,7 +75,7 @@ class Keys(Round):
         changed = json.loads(json.dumps(record))
         changed["cases"]["haiku-writer"]["c1"] = "2" * 64
         others.add(runs.key(changed, "haiku-writer", "c1", "with_skill", "fakehost", 1))
-        self.assertEqual(len(others), 5)
+        self.assertEqual(len(others), 6)
         self.assertNotIn(first, others)
 
     def test_the_skill_and_case_under_test_are_part_of_the_key(self):
@@ -179,7 +180,8 @@ class Runs(Round):
 
     def test_a_run_slot_linked_into_the_working_tree_is_refused(self):
         record = self.plan()
-        slot = self.store / "r1" / "runs" / runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1)
+        slot = self.store / "r1" / "runs" / runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1,
+                                                       timeout=120)
         slot.parent.mkdir(parents=True)
         slot.symlink_to(self.repo)
         with self.assertRaisesRegex(runs.RunError, "outside the working tree"):

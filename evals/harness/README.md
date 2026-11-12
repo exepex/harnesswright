@@ -461,8 +461,9 @@ is kept, and any other is refused, so a changed input is a new round.
 
 Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
 everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
-the manifest, the arm, the number, and the runner code that affects a run (`runs.RUNNER`: the jail, the gate, the
-host contract, the world builder, the evidence and `runs.py` itself). `runs.run` makes a run only from the
+the manifest, the arm, the number, its time budget (a run that timed out is scored, so the budget decides it), and
+the runner code that affects a run (`runs.RUNNER`: the jail, the gate, the host contract, the world builder, the
+evidence and `runs.py` itself). `runs.run` makes a run only from the
 repository at the round's commit, clean, so it builds exactly the inputs the manifest hashed. It keeps a run whose
 folder, `<store>/<round>/runs/<key>/`, holds a bundle that loads, so a resumed round remakes only missing or voided
 runs. Otherwise it builds and proves both arms, runs the chosen arm in its jail, collects its evidence and stores
