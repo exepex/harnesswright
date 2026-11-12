@@ -54,6 +54,28 @@ class Rule:
     def is_decision_point(self):
         return DP_ID.fullmatch(self.id) is not None
 
+    @property
+    def kind(self):
+        return "decision point" if self.is_decision_point else self.text("Kind")
+
+    @property
+    def status(self):
+        return self.text("Status")
+
+    @property
+    def area(self):
+        """The area part of the ID (HW-RULE-03): TEST for CORE-TEST-03, DP for every decision point."""
+        return "DP" if self.is_decision_point else self.id.split("-")[-2]
+
+    @property
+    def applies_to(self):
+        return split_list(self.text("Applies to"))
+
+    @property
+    def changes(self):
+        """The ID this rule overrides, binds or tightens, or None."""
+        return next((self.text(name) for name in CHANGES if name in self.parts), None)
+
     def text(self, part):
         """The part's lines joined with line breaks, exactly as the rulebook writes them."""
         return "\n".join(self.parts[part])
