@@ -40,6 +40,7 @@ allowed connections.
 | `grader.py` | One sealed grader run, the panel of graders of a page, and the blind order of a round's pages |
 | `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
 | `rounds.py` | A round's plan file and its manifest: the hash of every input and each host's version, written once to the store |
+| `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 
 ## Commands
 
@@ -457,3 +458,12 @@ its stored copy (`evals/skills/NAME/upstream/`), each case's hash (its `case.jso
 tracked files, and each host's program, hash and version as the host's own jail finds it. A round is planned from a
 clean tree, so its commit holds every input it hashes. A round's manifest is written once: the same manifest again
 is kept, and any other is refused, so a changed input is a new round.
+
+Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
+everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from the
+manifest, the arm, the number, and the runner code that affects a run (`runs.RUNNER`: the jail, the gate, the host
+contract, the world builder and the evidence). `runs.run` keeps a run whose folder, `<store>/<round>/runs/<key>/`,
+holds a bundle that loads, so a resumed round remakes only missing or voided runs. Otherwise it builds and proves both
+arms, runs the chosen arm in its jail, collects its evidence and stores the bundle, written beside its name and moved
+into place. A run is void, with `void.json` holding why, only for a harness fault: the host failed, or its version is
+not the manifest's. A jail that fails its audit, or a canary in any output, raises, and the round stops.
