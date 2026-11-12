@@ -19,6 +19,9 @@ import check_rules  # noqa: E402
 
 GOLDEN = HERE / "golden"
 REPO = HERE.parents[2]
+# The required parts, written out from docs/design/03-standards.md, not read from the check.
+RULE_PARTS = ("Kind", "Status", "Review by", "Applies to", "Rule", "Why", "Check", "Good", "Bad", "Eval", "Source")
+POINT_PARTS = ("Status", "Review by", "Question", "Options", "Default", "Why", "Applies to", "Source")
 
 
 class CheckRulesTest(unittest.TestCase):
@@ -46,13 +49,39 @@ class CheckRulesTest(unittest.TestCase):
         self.assertEqual(self.check(jobs=["golden"]), [])
         self.assertEqual(check_rules.Check(REPO, REPO / "release").run(), [])
 
-    def test_a_rule_missing_a_part_fails(self):
-        self.edit("root/v2/rules/core/test.md", "- **Why:** A failing test should say what broke.\n", "")
-        self.assertFails("CORE-TEST-01 has no Why")
+    def drop_part(self, path, heading, part):
+        """Remove one part, with its continuation lines, from the rule under heading."""
+        path = self.root / path
+        lines = path.read_text(encoding="utf-8").split("\n")
+        start = next(i for i in range(lines.index(heading), len(lines)) if lines[i].startswith(f"- **{part}:**"))
+        end = next(i for i in range(start + 1, len(lines)) if not lines[i].startswith("  "))
+        path.write_text("\n".join(lines[:start] + lines[end:]), encoding="utf-8")
 
-    def test_a_decision_point_missing_a_part_fails(self):
-        self.edit("root/v2/rules/core/dp.md", "- **Default:** `sentence`\n", "")
-        self.assertFails("CORE-DP-NAMES has no Default")
+    def test_a_rule_or_decision_point_missing_any_part_fails(self):
+        cases = [("v2/rules/core/test.md", "### CORE-TEST-01 · A test names its scenario", "CORE-TEST-01", RULE_PARTS),
+                 ("v2/rules/core/dp.md", "### CORE-DP-NAMES · How tests are named", "CORE-DP-NAMES", POINT_PARTS)]
+        for path, heading, rule_id, parts in cases:
+            for part in parts:
+                with self.subTest(rule=rule_id, part=part):
+                    self.setUp()
+                    self.drop_part(path, heading, part)
+                    self.assertFails(f"{rule_id} has no {part}")
+
+    def test_a_part_twice_a_bad_status_or_kind_or_a_rule_defined_twice_fails(self):
+        cases = [("- **Why:** Slow tests are skipped.", "- **Why:** Slow tests are skipped.\n- **Why:** Again.",
+                  "CORE-TEST-02 has Why twice"),
+                 ("- **Status:** inferred", "- **Status:** Active", "CORE-TEST-02 has Status 'Active'"),
+                 ("- **Status:** inferred\n", "- **Status:** inferred\n- **Kind:** rule\n", "CORE-TEST-02 has Kind twice"),
+                 ("### CORE-TEST-02 · A test runs", "### CORE-TEST-01 · A test runs", "CORE-TEST-01 is already defined")]
+        for old, new, expected in cases:
+            with self.subTest(expected=expected):
+                self.setUp()
+                self.edit("root/v2/rules/core/test.md", old, new)
+                self.assertFails(expected)
+        self.setUp()
+        self.edit("root/v2/rules/core/test.md", "- **Kind:** principle\n- **Status:** inferred",
+                  "- **Kind:** rule\n- **Status:** inferred")
+        self.assertFails("CORE-TEST-02 has Kind 'rule'")
 
     def test_a_retired_rule_without_its_replacement_fails(self):
         self.edit("root/v2/rules/core/retired.md", "- **Replaced by:** CORE-TEST-01\n", "")
@@ -77,12 +106,19 @@ class CheckRulesTest(unittest.TestCase):
                     handle.write(f"\n{marker}\n")
                 self.assertFails("holds a copy marker")
 
+    def test_the_index_and_readme_of_a_layer_are_not_rule_files(self):
+        for name in ("index.md", "README.md"):
+            (self.root / "v2/rules/core" / name).write_text("# Notes\n\n### CORE-TEST-99 · Not a rule\n",
+                                                             encoding="utf-8")
+        self.assertEqual(self.check(), [])
+
     def test_a_template_named_skill_md_fails(self):
         shutil.copy(self.root / "v2/skills/golden-skill/SKILL.tmpl.md", self.root / "v2/skills/golden-skill/SKILL.md")
         self.assertFails("never SKILL.md")
 
     def test_a_cited_id_that_is_unknown_retired_or_inferred_fails(self):
-        cases = [("CORE-TEST-09", "unknown"), ("CORE-TEST-03", "retired"), ("CORE-TEST-02", "inferred")]
+        cases = [("CORE-TEST-09", "unknown"), ("CORE-TEST-03", "retired"), ("CORE-TEST-02", "inferred"),
+                 ("JAVA-TEST-01", "unknown")]
         for rule_id, status in cases:
             for path in ("SKILL.tmpl.md", "references/guide.md"):
                 with self.subTest(rule=rule_id, path=path):
@@ -96,7 +132,9 @@ class CheckRulesTest(unittest.TestCase):
         cases = [(row, "| golden | tester | golden-skill, other | golden-skill |", "names other, which has no"),
                  (row, "| golden | reviewer | golden-skill | golden-skill |", "not the job's reviewer"),
                  (row, row + "\n| second | tester | golden-skill | golden-skill |", "which job golden also names"),
-                 (row, "| golden | tester | other | other |", "golden-skill: is in no job")]
+                 (row, "| golden | tester | other | other |", "golden-skill: is in no job"),
+                 (row, "| golden | tester, reviewer | golden-skill | golden-skill |", "not the job's tester, reviewer"),
+                 (row, row + "\n| golden | tester | golden-skill | golden-skill |", "job golden is listed twice")]
         for old, new, expected in cases:
             with self.subTest(expected=expected):
                 self.setUp()
@@ -113,6 +151,14 @@ class CheckRulesTest(unittest.TestCase):
                 self.setUp()
                 self.edit("root/v2/roles.md", old, new)
                 self.assertFails(expected)
+
+    def test_a_job_with_two_rest_skills_fails(self):
+        other = self.root / "v2/skills/other-skill"
+        other.mkdir()
+        (other / "SKILL.tmpl.md").write_text("---\nname: other-skill\ndescription: Another.\nmetadata:\n"
+                                             "  roles: tester\n  areas: rest\n---\n\n# Other\n", encoding="utf-8")
+        self.edit("root/v2/roles.md", "| tester | golden-skill |", "| tester | other-skill, golden-skill |")
+        self.assertFails("its `rest` skill is golden-skill, but the templates mark ['other-skill', 'golden-skill']")
 
     def test_a_job_without_its_rest_skill_fails(self):
         self.edit("root/v2/skills/golden-skill/SKILL.tmpl.md", "areas: rest", "areas: TEST")
@@ -164,8 +210,9 @@ class CheckRulesTest(unittest.TestCase):
         self.assertFails("references/guide.md:3: CORE-TEST-01 is bare")
         self.setUp()
         with open(self.release / "golden-skill/SKILL.md", "a", encoding="utf-8") as handle:
-            handle.write("See CORE-TEST-09 (Nothing).\n")
-        self.assertFails("CORE-TEST-09 is not in the rulebook")
+            handle.write("See CORE-TEST-09 (Nothing) and JAVA-TEST-01 (Use AssertJ).\n")
+        self.assertFails("CORE-TEST-09 is not in the CORE rulebook")
+        self.assertFails("JAVA-TEST-01 is not in the CORE rulebook")
 
     def test_an_id_inside_a_checked_title_is_not_a_citation(self):
         self.edit("root/v2/rules/core/test.md", "### CORE-TEST-01 · A test names its scenario",

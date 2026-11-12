@@ -24,6 +24,8 @@ from pathlib import Path
 
 EVERY_ROLE = "every role"
 REST = "rest"
+KINDS = ("principle", "floor", "idiom", "choice")
+STATUSES = ("active", "inferred", "retired")
 RULE_PARTS = ("Kind", "Status", "Review by", "Applies to", "Rule", "Why", "Check", "Good", "Bad", "Eval", "Source")
 POINT_PARTS = ("Status", "Review by", "Question", "Options", "Default", "Why", "Applies to", "Source")
 NOT_RULE_FILES = ("index.md", "README.md")
@@ -42,7 +44,7 @@ SECTION = "## Rules for this skill"
 
 class Rule:
     def __init__(self, rule_id, title, where):
-        self.id, self.title, self.where, self.parts = rule_id, title, where, {}
+        self.id, self.title, self.where, self.parts, self.twice = rule_id, title, where, {}, []
 
     @property
     def is_point(self):
@@ -72,6 +74,8 @@ def read_rules(path, root):
             rules.append(rule)
         elif rule is not None and found:
             part = found.group(1)
+            if part in rule.parts:
+                rule.twice.append(part)
             rule.parts[part] = found.group(2) or ""
         elif rule is not None and part is not None and line.strip():
             rule.parts[part] += "\n" + line
@@ -108,13 +112,19 @@ class Check:
     def run(self, changed=None, jobs=()):
         roles_file = self.root / "v2" / "roles.md"
         self.roles = {row[0] for row in self.table(roles_file, "## Roles", 7)}
-        self.jobs = {row[0]: row for row in self.table(roles_file, "## Jobs", 4)}
+        rows = self.table(roles_file, "## Jobs", 4)
+        self.jobs = {row[0]: row for row in rows}
+        for job in sorted({row[0] for row in rows if [r[0] for r in rows].count(row[0]) > 1}):
+            self.fail("v2/roles.md", f"job {job} is listed twice")
         self.rules = {}
         for path in rule_files(self.root):
             self.check_markers(path)
             for rule in read_rules(path, self.root):
                 self.check_rule(rule)
+                if rule.id in self.rules:
+                    self.fail(rule.where, f"{rule.id} is already defined at {self.rules[rule.id].where}")
                 self.rules.setdefault(rule.id, rule)
+        self.core_rules = {i: r for i, r in self.rules.items() if r.where.startswith("v2/rules/core/")}
         folders = sorted(p for p in (self.root / "v2" / "skills").iterdir() if p.is_dir())
         self.skills = {folder.name: self.check_template(folder) for folder in folders}
         self.check_jobs()
@@ -154,6 +164,12 @@ class Check:
         for name in needed:
             if not rule.value(name):
                 self.fail(rule.where, f"{rule.id} has no {name}")
+        for name in rule.twice:
+            self.fail(rule.where, f"{rule.id} has {name} twice")
+        if rule.value("Status") not in STATUSES:
+            self.fail(rule.where, f"{rule.id} has Status {rule.value('Status')!r}, not one of {', '.join(STATUSES)}")
+        if not rule.is_point and rule.value("Kind") not in KINDS:
+            self.fail(rule.where, f"{rule.id} has Kind {rule.value('Kind')!r}, not one of {', '.join(KINDS)}")
         for role in rule.roles - self.roles - {EVERY_ROLE}:
             self.fail(rule.where, f"{rule.id} applies to unknown role {role!r}")
 
@@ -175,7 +191,7 @@ class Check:
             lines = path.read_text(encoding="utf-8").split("\n")
             text = "\n".join(lines[body:] if path == template else lines)
             for rule_id in sorted(set(CITED.findall(text))):
-                rule = self.rules.get(rule_id)
+                rule = self.core_rules.get(rule_id)  # the build copies CORE only
                 status = rule.value("Status") if rule else "unknown"
                 if status != "active":
                     self.fail(f"{where}/{path.relative_to(folder).as_posix()}", f"cites {rule_id}, which is {status}")
@@ -212,8 +228,7 @@ class Check:
         return {r.area for r in self.core() if not r.is_point and r.roles & set(names(row[1]))} - listed
 
     def core(self):
-        return [r for r in self.rules.values() if r.where.startswith("v2/rules/core/")
-                and r.value("Status") == "active"]
+        return [r for r in self.core_rules.values() if r.value("Status") == "active"]
 
     def check_release(self, name):
         path = self.release / name / "SKILL.md"
@@ -252,9 +267,9 @@ class Check:
         citation of its own."""
         found = CITED.search(line)
         while found:
-            rule, after = self.rules.get(found.group(1)), found.end()
+            rule, after = self.core_rules.get(found.group(1)), found.end()
             if rule is None:
-                self.fail(where, f"{found.group(1)} is not in the rulebook")
+                self.fail(where, f"{found.group(1)} is not in the CORE rulebook")
             elif not line[after:].startswith(f" ({rule.title})"):
                 self.fail(where, f"{rule.id} is bare; a release writes it as \"{rule.id} ({rule.title})\"")
             else:
