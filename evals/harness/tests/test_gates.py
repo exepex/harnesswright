@@ -111,18 +111,22 @@ class Gates(Gated):
     def test_what_a_probe_gives_is_kept_only_scrubbed(self):
         self.planned()
         secret, token = "sk-" + "s" * 30, "hw-canary-" + "t" * 20
-        run = SimpleNamespace(tokens=[token])
+        run, homes = SimpleNamespace(tokens=[token]), []
 
-        def probe_host(module, made, **options):
+        def probe_host(module, root, made, **options):
             made.append(run)
+            homes.append(Path(root))  # the probes' homes, which go when the gate is done with them
             return {"not run": [f"sign-in probe: the host said {secret} and {token}"], "drift": None}
 
-        def passed(module, made, **options):
-            made.append(run)
+        def passed(module, root, made, **options):
+            probe_host(module, root, made)
             return {"not run": [], "drift": {"tools": {"go": f"go 1.0 {secret}"}, "own files": {"task": [token]}}}
 
+        def credentials(contained):  # a credential the host refreshed in its home, readable only while it is there
+            return [secret] if contained is run and homes[-1].is_dir() else []
+
         with mock.patch("probes.probe_host", probe_host), \
-                mock.patch("scrub.credentials", lambda contained: [secret] if contained is run else []), \
+                mock.patch("scrub.credentials", credentials), \
                 self.assertRaises(rounds.RoundError) as stopped:
             self.go(gates.GATES[2:3])
         kept = json.dumps(self.attempt())
@@ -131,7 +135,7 @@ class Gates(Gated):
             self.assertNotIn(token, text)
         self.assertIn("sign-in probe: the host said", kept)
         with mock.patch("probes.probe_host", passed), \
-                mock.patch("scrub.credentials", lambda contained: [secret] if contained is run else []):
+                mock.patch("scrub.credentials", credentials):
             kept = json.dumps(self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION))
         pinned = (self.store / "r1" / "drift" / "fakehost.json").read_text()
         for text in (kept, pinned):
@@ -145,7 +149,7 @@ class Gates(Gated):
                          {"tools": {"go": "go 1.0"}, "own files": {"task": ["home/b"], "trigger": []}},
                          {"tools": {"go": "go 2.0"}, "own files": {"task": ["home/a"], "trigger": []}}])
 
-        def probe_host(module, made, **options):
+        def probe_host(module, root, made, **options):
             return {"not run": [], "drift": next(measured)}
 
         with mock.patch("probes.probe_host", probe_host):

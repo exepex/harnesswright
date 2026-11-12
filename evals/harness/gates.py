@@ -4,7 +4,7 @@ One rule: a round goes through `GATES` in order, each gate reads only the round'
 it found, and the first gate that fails stops the round with its reason. Each gate's outcome is written to the
 round's attempt record as the gate ends, that of the gate that stopped the round too (`Stop`), so every gate a round
 ran can be read back from the store. Everything the round writes or reports passes one scrub (`Round.quiet`): the
-canaries and credentials of every containment its gates made.
+canaries and credentials of every containment its gates made, taken while its home is still there (`Round.keep`).
 
 - `kit check`: the measuring kit matches the judges' approval (`kit.check`), and it is the kit the manifest hashed.
 - `lint`: every planned case passes world lint (`lint.lint_case`) on every host.
@@ -66,7 +66,8 @@ class Round:
         self.record, self.store, self.repo, self.timeout = record, store, Path(repo), timeout
         self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
-        self.containment, self.hosts, self.made = containment, {}, []  # `made`: every containment the gates made
+        self.containment, self.hosts = containment, {}
+        self.tokens, self.secrets = set(), set()  # of every containment the gates made (`keep`)
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
         root = self.repo / "evals" / "skills"
         self.cases = {(skill, i): Case(root / skill / "cases" / i, skill)
@@ -77,11 +78,16 @@ class Round:
     def model(self, host):
         return self.record["hosts"][host]["model"]
 
+    def keep(self, made):
+        """Remember the canaries and credentials of the containments `made`, while their homes are still there, so
+        a credential a host refreshed in its home is known after the home is gone."""
+        for contained in made:
+            self.tokens.update(contained.tokens)
+            self.secrets.update(scrub.credentials(contained))
+
     def quiet(self, text):
-        """`text` with every canary and credential of the containments the round's gates made replaced."""
-        found = scrub.Scrub([t for c in self.made for t in c.tokens],
-                            [v for c in self.made for v in scrub.credentials(c)])
-        return found.quiet(text)
+        """`text` with every canary and credential the round has kept (`keep`) replaced."""
+        return scrub.Scrub(self.tokens, self.secrets).quiet(text)
 
     def version(self, host):
         return self.measure(self.modules[host], **self.containment)
@@ -116,8 +122,11 @@ def probe_gate(r):
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
     not_run, drift = {}, {}
     for host, module in r.modules.items():
-        found = probes.probe_host(module, tools=tools, model=r.model(host), timeout=r.timeout, made=r.made,
-                                  **r.containment)
+        made = []
+        with tempfile.TemporaryDirectory(prefix="hw-p-") as scratch:  # the probes' homes, kept until scrubbed
+            found = probes.probe_host(module, scratch, tools=tools, model=r.model(host), timeout=r.timeout,
+                                      made=made, **r.containment)
+            r.keep(made)
         found = json.loads(r.quiet(json.dumps(found)))  # its reasons and drift record, as they may be kept
         if found["not run"]:
             not_run[host] = found["not run"]
