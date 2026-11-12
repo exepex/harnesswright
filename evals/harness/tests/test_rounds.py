@@ -16,7 +16,8 @@ import rounds
 from cases import REPO, Case
 
 JAIL = contain.available()
-PLAN = {"round": "r1", "skills": {"haiku-writer": ["c1"]}, "hosts": [{"adapter": "fakehost"}], "runs": 3}
+PLAN = {"round": "r1", "skills": {"haiku-writer": ["c1"]}, "hosts": [{"adapter": "fakehost", "model": "named-model"}],
+        "runs": 3}
 VERSION = {"path": "/usr/bin/fakehost", "sha256": "0" * 64, "version": "fakehost 1.0"}
 
 
@@ -46,9 +47,10 @@ class Plans(TempCase):
             "a case named twice": {**PLAN, "skills": {"haiku-writer": ["c1", "c1"]}},
             "a case that is a path": {**PLAN, "skills": {"haiku-writer": ["../c1"]}},
             "no hosts": {**PLAN, "hosts": []},
-            "a host named twice": {**PLAN, "hosts": [{"adapter": "fakehost"}, {"adapter": "fakehost"}]},
+            "a host named twice": {**PLAN, "hosts": PLAN["hosts"] * 2},
+            "a host with no model": {**PLAN, "hosts": [{"adapter": "fakehost"}]},
             "an empty model": {**PLAN, "hosts": [{"adapter": "fakehost", "model": " "}]},
-            "an unknown host field": {**PLAN, "hosts": [{"adapter": "fakehost", "sandbox": "off"}]},
+            "an unknown host field": {**PLAN, "hosts": [{**PLAN["hosts"][0], "sandbox": "off"}]},
         }
         for why, data in wrong.items():
             with self.subTest(why), self.assertRaises(rounds.RoundError):
@@ -100,10 +102,32 @@ class Manifests(TempCase):
         self.assertEqual(record["cases"], {"haiku-writer": {"c1": Case(self.world.parent, "haiku-writer").sha256}})
         self.assertEqual(record["skills"]["haiku-writer"]["source"], "owner/repo@abc skills/haiku")
         self.assertEqual(len(record["skills"]["haiku-writer"]["sha256"]), 64)
+        self.assertIsNone(record["skills"]["haiku-writer"]["upstream"])
         self.assertEqual(len(record["kit"]), 64)
         self.assertEqual(len(record["adapters"]["fakehost"]), 64)
         self.assertEqual(len(record["commit"]), 40)
-        self.assertEqual(record["hosts"], {"fakehost": {"version": VERSION, "model": None}})
+        self.assertEqual(record["hosts"], {"fakehost": {"version": VERSION, "model": "named-model"}})
+
+    def test_every_skill_an_arm_installs_and_its_upstream_copy_are_hashed(self):
+        sibling = self.repo / "skills" / "limerick-writer"
+        sibling.mkdir()
+        sibling.joinpath("SKILL.md").write_text("---\nname: limerick-writer\ndescription: Writes a limerick. Use "
+                                                "when asked for one.\n---\n\n# Limerick writer\n")
+        (self.world.parent / "case.json").write_text(json.dumps({"prompt": "Write a haiku.", "kind": "task",
+                                                                 "siblings": ["limerick-writer"]}))
+        upstream = self.repo / "evals" / "skills" / "haiku-writer" / "upstream"
+        upstream.mkdir()
+        (upstream / "SKILL.md").write_text("# The source as borrowed\n")
+        self.commit()
+        before = self.plan()
+        self.assertEqual(sorted(before["skills"]), ["haiku-writer", "limerick-writer"])
+        self.assertEqual(len(before["skills"]["haiku-writer"]["upstream"]), 64)
+        sibling.joinpath("SKILL.md").write_text(sibling.joinpath("SKILL.md").read_text() + "More.\n")
+        (upstream / "SKILL.md").write_text("# The source, changed\n")
+        self.commit()
+        after = self.plan()
+        self.assertNotEqual(before["skills"]["limerick-writer"], after["skills"]["limerick-writer"])
+        self.assertNotEqual(before["skills"]["haiku-writer"]["upstream"], after["skills"]["haiku-writer"]["upstream"])
 
     def test_a_changed_input_changes_its_hash(self):
         before = self.plan()
@@ -115,14 +139,19 @@ class Manifests(TempCase):
         self.assertNotEqual(before["skills"], after["skills"])
         self.assertNotEqual(before["commit"], after["commit"])
 
-    def test_a_model_named_in_the_plan_is_recorded(self):
-        record = self.plan({**PLAN, "hosts": [{"adapter": "fakehost", "model": "named-model"}]})
-        self.assertEqual(record["hosts"]["fakehost"]["model"], "named-model")
+    def test_a_tree_with_a_changed_or_untracked_file_is_refused(self):
+        (self.world / "README.md").write_text("# Notes app, not committed\n")
+        with self.assertRaisesRegex(rounds.RoundError, "clean tree.*README.md"):
+            self.plan()
+        self.commit()
+        (self.world / "notes.md").write_text("untracked\n")
+        with self.assertRaisesRegex(rounds.RoundError, "clean tree.*notes.md"):
+            self.plan()
 
     def test_a_case_skill_or_adapter_that_does_not_exist_is_refused(self):
         for why, data in {"case": {**PLAN, "skills": {"haiku-writer": ["c1", "c9"]}},
                           "skill": {**PLAN, "skills": {"no-such-skill": ["c1"]}},
-                          "adapter": {**PLAN, "hosts": [{"adapter": "no-such-host"}]}}.items():
+                          "adapter": {**PLAN, "hosts": [{"adapter": "no-such-host", "model": "m"}]}}.items():
             with self.subTest(why), self.assertRaises(rounds.RoundError):
                 self.plan(data)
 
@@ -161,8 +190,9 @@ class RealRepository(TempCase):
     def test_a_plan_of_the_real_cases_and_adapters_is_read(self):
         path = self.tmp / "plan.json"
         path.write_text(json.dumps({"round": "real", "skills": {"claims-writer": ["all-criteria-met"]},
-                                    "hosts": [{"adapter": "claude-code"}, {"adapter": "codex"}], "runs": 3}))
-        record = rounds.plan(path, version=stub)
+                                    "hosts": [{"adapter": "claude-code", "model": "m1"},
+                                              {"adapter": "codex", "model": "m2"}], "runs": 3}))
+        record = rounds.plan(path, version=stub, at=lambda repo: "0" * 40)  # this tree may hold work in progress
         self.assertEqual(sorted(record["adapters"]), ["claude-code", "codex"])
         self.assertTrue(record["skills"]["claims-writer"]["source"].startswith("obra/superpowers@"))
 

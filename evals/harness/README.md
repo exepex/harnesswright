@@ -448,10 +448,12 @@ is how the round is run, not something the harness can prove.
 ## Rounds
 
 A round starts from a plan file: the round's name, the skills with the cases to run, the hosts (each adapter once,
-with a model when the host does not report one) and the runs per case, arm and host. `rounds.read_plan` checks it
-against one schema, `rounds.PLAN`, and refuses any other field or shape. `python3 evals/harness/rounds.py plan
-PLAN.json --store DIR` writes the round's manifest to `DIR/<round>/manifest.json`, outside the working tree: the
-plan and its hash, the commit, the kit's hash, each skill's hash and upstream source, each case's hash (its
-`case.json` and world), each adapter's tracked files, and each host's program, hash and version as the host's own
-jail finds it. A round's manifest is written once: the same manifest again is kept, and any other is refused, so a
-changed input is a new round.
+with the model it runs, always named, as not every host reports its model and a default changes) and the runs per
+case, arm and host. `rounds.read_plan` checks it against one schema, `rounds.PLAN`, and refuses any other field or
+shape. `python3 evals/harness/rounds.py plan PLAN.json --store DIR` writes the round's manifest to
+`DIR/<round>/manifest.json`, outside the working tree: the plan and its hash, the commit, the kit's hash, the hash
+of every skill an arm installs (the skills under test and every sibling) with its upstream source and the hash of
+its stored copy (`evals/skills/NAME/upstream/`), each case's hash (its `case.json` and world), each adapter's
+tracked files, and each host's program, hash and version as the host's own jail finds it. A round is planned from a
+clean tree, so its commit holds every input it hashes. A round's manifest is written once: the same manifest again
+is kept, and any other is refused, so a changed input is a new round.
