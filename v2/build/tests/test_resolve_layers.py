@@ -1,7 +1,7 @@
 """Tests for resolve.py part e1a: reading and checking the layers. Run: python3 -m unittest discover -s v2/build/tests
 
 LayersTest starts from a valid application: the real release (CORE and roles.md), a java language layer with a
-decision point, an acme company layer, an acme team layer and application rules, with test_resolve's profile. Each
+decision point, an acme company layer, an acme team layer and application rules, with test_repoprofile's profile. Each
 test breaks one thing and asserts the message that names it.
 """
 
@@ -13,7 +13,9 @@ from contextlib import redirect_stderr
 from datetime import date
 from pathlib import Path
 
-from test_resolve import PROFILE, ROOT, resolve
+from test_repoprofile import PROFILE, ROOT  # puts v2/build on sys.path
+
+import resolve  # noqa: E402
 
 TODAY = date(2026, 11, 12)
 
@@ -119,8 +121,9 @@ class LayersTest(unittest.TestCase):
             (".harness/profile.yaml", '  version: "0.1.0"', '  version: "0.2.0"', "version 0.1.0 is not the profile's"),
             (".harness/profile.yaml", "  folder: .agents/harnesswright/", "  folder: elsewhere/",
              "manifest.json is missing"),
-            (".harness/profile.yaml", "[java]", "[java, kotlin]", "language kotlin is not in the release"),
-            (".harness/profile.yaml", "../acme/team/", "../acme/gone/", "layer acme: ../acme/gone/layer.yaml"),
+            (".harness/profile.yaml", "[java]", "[java, kotlin]", "layer kotlin: folder"),
+            (".harness/profile.yaml", "../acme/team/", "../acme/gone/",
+             "acme/gone/layer.yaml: is missing or cannot be read"),
             (".harness/profile.yaml", "  repository: .harness/standards/", "  repository: nowhere/",
              "layer application: folder"),
         ]
@@ -128,7 +131,7 @@ class LayersTest(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.setUp()
                 self.edit(rel, old, new)
-                self.assertStops(expected.replace("../acme/gone/layer.yaml", ""))
+                self.assertStops(expected)
         self.setUp()
         self.write(".agents/harnesswright/manifest.json", "not json\n")
         self.assertStops("manifest.json is missing or cannot be read")
@@ -139,7 +142,7 @@ class LayersTest(unittest.TestCase):
             ("../acme/company/err.md", "COMP-ACME-ERR", "TEAM-ACME-ERR", "carry ['COMP-ACME', 'TEAM-ACME']"),
             (".harness/standards/test.md", "APP-TEST", "TEAM-ACME-TEST", "must all carry one of APP"),
             (".agents/harnesswright/rules/java/test.md", "JAVA-TEST", "KOTLIN-TEST", "must all carry one of JAVA"),
-            ("../acme/team/log.md", "TEAM-ACME-LOG", "COMP-ACME-LOG", "one company, then department, then team"),
+            ("../acme/team/log.md", "TEAM-ACME-LOG", "COMP-ACME-LOG", "carries COMP-ACME, which"),
         ]
         for rel, old, new, expected in cases:
             with self.subTest(expected=expected):
@@ -155,7 +158,8 @@ class LayersTest(unittest.TestCase):
         self.edit(".harness/profile.yaml", '"2.1.0"', '"X"')
         self.edit(".harness/profile.yaml", '"1.0.0"', '"2.1.0"')
         self.edit(".harness/profile.yaml", '"X"', '"1.0.0"')
-        self.assertStops("one company, then department, then team")
+        self.assertStops("profile.yaml:12: layer acme")
+        self.assertStops("is a COMP layer listed after a TEAM layer")
 
     def test_rules_across_layers(self):
         cases = [
@@ -175,6 +179,8 @@ class LayersTest(unittest.TestCase):
              "Binds may not go from a idiom to a decision point"),
             (".harness/standards/test.md", "Overrides:** JAVA-TEST-01", "Overrides:** APP-TEST-02",
              "Overrides APP-TEST-02, which no more general layer holds active"),
+            (".harness/standards/test.md", "- **Kind:** idiom", "- **Kind:** floor",
+             "Overrides may not go from a floor to a idiom"),
         ]
         for rel, old, new, expected in cases:
             with self.subTest(expected=expected):
@@ -185,13 +191,41 @@ class LayersTest(unittest.TestCase):
         self.write("../acme/team/err.md", area("COMP-ACME-ERR", rule("COMP-ACME-ERR-01")))
         self.assertStops("must all carry one of")
 
+    def test_each_layer_is_read_once_and_readable(self):
+        java = ".agents/harnesswright/rules/java/test.md"
+        cases = [
+            (".harness/profile.yaml", "[java]", "[java, java]", "carries JAVA, which"),
+            (".harness/profile.yaml", "[java]", "[core, java]", "carries CORE, which"),
+            (".harness/profile.yaml", "[java]", "[java-spring, java]", "framework java-spring without its language"),
+            (java, "- **Status:** active", "- **Status:** inferred", "Overrides JAVA-TEST-01, which no more general"),
+            (java, "**Applies to:** implementer", "**Applies to:** astronaut", "roles not in the release's roles.md"),
+            ("../acme/company/err.md", "**Status:** active", "**Status:** inferred",
+             "waiver of COMP-ACME-ERR-01, which"),
+            ("../acme/company/work.md", "Tightens:** CORE-WORK-01", "Overrides:** APP-TEST-01",
+             "Overrides APP-TEST-01, which no more general layer holds active"),
+        ]
+        for rel, old, new, expected in cases:
+            with self.subTest(expected=expected):
+                self.setUp()
+                self.edit(rel, old, new)
+                self.assertStops(expected)
+        for broken, expected in ((".harness/standards/test.md", "holds no rule file"),
+                                 (".agents/harnesswright/roles.md", "roles.md is missing or cannot be read")):
+            with self.subTest(expected=expected):
+                self.setUp()
+                (self.repo / broken).unlink()
+                self.assertStops(expected)
+        self.setUp()
+        (self.repo / "../acme/team/log.md").resolve().write_bytes(b"# TEAM-ACME-LOG \xb7 Caf\xe9\n")
+        self.assertStops("log.md cannot be read (UnicodeDecodeError)")
+
     def test_an_id_cannot_be_in_two_layers(self):
         self.write(".harness/standards/dup.md", area("APP-TEST", rule("APP-TEST-01", "idiom")))
         self.assertStops("APP-TEST-01 already defined")
         self.setUp()
         self.edit(".harness/profile.yaml", "../acme/team/", "../acme/company/")
         self.edit(".harness/profile.yaml", '"1.0.0"', '"2.1.0"')
-        self.assertStops("one company, then department, then team")
+        self.assertStops("carries COMP-ACME, which")
 
     def test_a_decisions_key_that_names_two_points_stops(self):
         self.write(".agents/harnesswright/rules/kotlin/dp.md", area("KOTLIN-DP", POINT.replace("JAVA", "KOTLIN")))
@@ -204,6 +238,7 @@ class LayersTest(unittest.TestCase):
             ("  boilerplate: lombok", "  mapping: mapstruct", "decisions key 'mapping' names 0 active decision"),
             ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-ERR-09", "waiver of COMP-ACME-ERR-09, which no layer"),
             ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-WORK-01", "a floor; a floor is never waived"),
+            ("  boilerplate: lombok", "  boilerplate: lombok\n  stack: x", "decisions key 'stack' names 0 active"),
             ("    until: 2027-03-01", "    until: 2027-02-30", "'2027-02-30' is not an allowed until"),
         ]
         for old, new, expected in cases:
@@ -211,6 +246,41 @@ class LayersTest(unittest.TestCase):
                 self.setUp()
                 self.edit(".harness/profile.yaml", old, new)
                 self.assertStops(expected)
+
+    def test_a_rule_changes_only_a_more_general_layer(self):
+        self.write(".harness/standards/more.md", area("APP-MORE", rule("APP-MORE-01", "idiom",
+                                                                      "- **Overrides:** APP-TEST-01\n")))
+        self.assertStops("Overrides APP-TEST-01, which no more general layer holds active")
+        self.setUp()
+        self.edit("../acme/company/err.md", "- **Kind:** choice",
+                  "- **Kind:** choice\n- **Overrides:** TEAM-ACME-LOG-01")
+        self.assertStops("Overrides TEAM-ACME-LOG-01, which no more general layer holds active")
+
+    def test_a_department_layer_sits_between_company_and_team(self):
+        team = "    - name: acme\n      folder: ../acme/team/\n      version: \"1.0.0\"\n"
+        dept = team.replace("team", "dept")
+        for order, expected in ((dept + team, None), (team + dept, "is a DEPT layer listed after a TEAM layer"),
+                                (team + team, "carries TEAM-ACME, which")):
+            with self.subTest(expected=expected):
+                self.setUp()
+                self.write("../acme/dept/layer.yaml", "owner: Acme payments department\nversion: \"1.0.0\"\n")
+                self.write("../acme/dept/err.md", area("DEPT-ACME-ERR", rule("DEPT-ACME-ERR-01")))
+                self.edit(".harness/profile.yaml", team, order)
+                if expected:
+                    self.assertStops(expected)
+                else:
+                    self.assertEqual([s.prefix for s in self.load().sources][2:5],
+                                     ["COMP-ACME", "DEPT-ACME", "TEAM-ACME"])
+
+    def test_a_waiver_applies_through_its_until_date(self):
+        self.edit(".harness/profile.yaml", "    until: 2026-01-01", "    until: 2026-11-12")
+        inputs = self.load()
+        self.assertEqual([w["rule"] for w in inputs.waivers], ["COMP-ACME-ERR-01", "TEAM-ACME-LOG-01"])
+        self.assertEqual(inputs.expired, [])
+        self.edit(".agents/harnesswright/rules/java/dp.md", "- **Status:** active", "- **Status:** inferred")
+        self.assertStops("Binds JAVA-DP-BOILERPLATE, which no more general layer holds active")
+        self.edit("../acme/company/code.md", "- **Binds:** JAVA-DP-BOILERPLATE: records\n", "")
+        self.assertStops("decisions key 'boilerplate' names 0 active decision points")
 
     def test_the_command_line(self):
         err = io.StringIO()

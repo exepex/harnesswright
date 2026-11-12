@@ -147,16 +147,19 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
 - The release holds the principles layer, the language and framework layers, the skills and a manifest that states
   the release version. Its version pins the principles, language and framework layers. Language or framework `x`
   in `standards.languages`, such as `java-spring`, is the release folder `rules/x/`, and its IDs start with `X` in
-  capitals (`JAVA-SPRING-…`).
+  capitals (`JAVA-SPRING-…`). A framework is listed after its language, and each name is listed once.
 - Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), with exactly two keys:
   `owner` and `version`. Versions are three numbers, such as `"2.1.0"`.
 - A layer's level is the prefix its IDs carry. Every rule in one folder carries the same prefix: `COMP-X`, `DEPT-X`
   or `TEAM-X` for a layer whose `name` is `x`, and `APP` in `standards.repository`. `standards.layers` lists at most
-  one company, then department, then team layer, in that order.
+  one company, then department, then team layer, in that order. No two layers carry the same prefix.
+- A layer folder holds at least one rule file, plus `layer.yaml` for layers 3 to 5, and may hold `README.md` and
+  `index.md`. Every other `.md` file in it is read as a rule file. A layer with no rules yet is left out of the
+  profile.
 - At the start of a run, the standards reader checks every folder against the profile: the release by the version
-  in its manifest, each layer 3 to 5 by the version in its `layer.yaml`. If a folder is missing or cannot be read,
-  or its version is not exactly the one the profile pins, the run stops and names the layer and the folder. It
-  never skips a layer.
+  in its manifest, each layer 3 to 5 by the version in its `layer.yaml`. If a folder or a file in it is missing or
+  cannot be read, or its version is not exactly the one the profile pins, the run stops and names the layer and
+  the folder. It never skips a layer.
 - It also stops when a rule in layers 2 to 6 names a role that is not in the release's roles file, when a key of
   `decisions` (the decision point's name, so `boilerplate` names `…-DP-BOILERPLATE`) names no active decision
   point or more than one, or when its value is not one of that point's Options.
@@ -167,7 +170,8 @@ An application's approved waivers live only in `waivers`, one entry per rule, wi
 date) and `approved by` (the accounts of every approver the table in [03 · Standards](03-standards.md) requires,
 comma-separated). A waiver is added in a pull request that each of them approves from that account. The rule ID
 comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver never names a floor;
-the standards reader stops if one does, and if it names a rule no layer holds. It records `approved by` and does not
+the standards reader stops if one does, and if it names a rule no layer holds active, even once it has expired. A
+waiver of a retired rule is removed in the pull request that retires it. It records `approved by` and does not
 verify it: only the pull request that added the waiver proves the approval. Story-scoped waivers live in their
 story ([06 · Contracts](06-contracts.md)).
 
