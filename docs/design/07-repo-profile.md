@@ -10,7 +10,7 @@ file and writes it by hand or with its runtime.
 ```yaml
 # .harness/profile.yaml
 harnesswright:                      # the installed release: principles, language and framework layers, skills
-  version: "1.4"
+  version: "1.4.0"
   folder: .agents/harnesswright/
 
 standards:
@@ -18,7 +18,7 @@ standards:
   layers:                           # company, department and team layers, most general first
     - name: acme
       folder: ../acme-rules/
-      version: "2.1"
+      version: "2.1.0"
   repository: .harness/standards/   # this repository's own rules
 
 waivers:                            # approved application waivers; never a floor
@@ -75,6 +75,28 @@ process:
 | `capabilities` | No | How roles reach outside systems. Missing means not available. |
 | `process` | No | Changes to process defaults, within the limits in [05 · Process](05-process.md) |
 
+## Format
+
+The profile and each `layer.yaml` use a small part of YAML, and the standards reader stops on anything else, naming
+the file and line. The sections it skips (`toolchain`, `scripts`, `models`, `capabilities`, `process`) are not
+checked past their first line, but their lines must be indented with spaces; any section not in the table
+above stops the run.
+
+- A line is `key: value`, `key:` with a more indented block under it, or a list item `- ` under its key. The lines
+  of one block share one indent. Tabs are not indents. Keys are lower case.
+- A list is `- ` items, indented under their key, or `[a, b]` on one line. `[]` and `{}` are empty.
+- ` #` starts a comment. A value in quotes, `"…"` or `'…'`, may hold ` #`. One leading `---` line is allowed.
+- An unquoted value starts with a letter, digit, `.`, `_` or `/`, holds no `: `, and is not a word YAML reads as
+  true, false or null, such as `yes` or `no`. Quote any other value.
+- Values have these shapes: versions are three numbers; folders are relative paths of letters, digits, `.`, `_` and
+  `-`; a layer `name` is lower-case letters and digits; a language is lower-case words joined by `-`; `until` is a
+  real date, `YYYY-MM-DD`; `approved by` is accounts of letters, digits, `.`, `_` and `-`, separated by commas;
+  `rules-text-limit` is a whole number from 1; a decision key and its option are lower-case words joined by `-`;
+  `reason` and `owner` are printable text.
+- `waivers` holds one entry per rule.
+- The file is UTF-8 with LF line endings, no byte order mark, and a final newline. Values hold printable
+  characters only, so no tabs; quoted values have no escapes such as `\"` or `''`.
+
 ## Scripts
 
 Some skills bundle a small script for a check that must give the same answer on every host, such as the line counts
@@ -126,8 +148,8 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
 
 - The release holds the principles layer, the language and framework layers, the skills and a manifest that states
   the release version. Its version pins the principles, language and framework layers.
-- Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), which states the layer's
-  owner and version.
+- Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), with exactly two keys:
+  `owner` and `version`. Versions are three numbers, such as `"2.1.0"`.
 - At the start of a run, the standards reader checks every folder against the profile: the release by the version
   in its manifest, each layer 3 to 5 by the version in its `layer.yaml`. If a folder is missing or cannot be read,
   or its version is not exactly the one the profile pins, the run stops and names the layer and the folder. It
