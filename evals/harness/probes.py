@@ -280,15 +280,19 @@ def written(contained):
     return found
 
 
-def drift(adapter, root, tools=(), prompt=EMPTY_PROMPT, model=None, timeout=900, **containment):
+def drift(adapter, root, tools=(), prompt=EMPTY_PROMPT, model=None, timeout=900, made=None, **containment):
     """The tools and drift probe: the host's program and every tool in `tools`, as the jail finds them, and the
     files the host writes for itself on an empty run in each mode (`prompt` replaces its prompt, as the fake host's
-    tests do). Return (why it failed or None, the record)."""
+    tests do). Each containment it makes is added to `made`, when given, as `probe` does. Return (why it failed or
+    None, the record)."""
     def empty(mode):
         Path(root).mkdir(parents=True, exist_ok=True)
         folder = Path(tempfile.mkdtemp(prefix=f"drift-{mode}-", dir=root))
         (folder / "world").mkdir()
-        return contain.Containment(adapter, mode, folder / "world", {}, root=folder / "run", **containment)
+        contained = contain.Containment(adapter, mode, folder / "world", {}, root=folder / "run", **containment)
+        if made is not None:
+            made.append(contained)
+        return contained
 
     # The tools in a jail of their own, as a version command may write to its home too.
     record = {"tools": versions(empty("trigger"), dict.fromkeys([adapter.CLI, *tools])), "own files": {}}
@@ -304,7 +308,7 @@ def drift(adapter, root, tools=(), prompt=EMPTY_PROMPT, model=None, timeout=900,
 def probe_host(adapter, root=None, tools=(), **options):
     """Every probe in both modes, and the tools and drift probe for the commands in `tools`. Return {"not run": the
     reasons the host is `not run`, empty when it passed them all, "drift": the tools and drift record}. A machine
-    that cannot contain runs gives no host a run."""
+    that cannot contain runs gives no host a run. `made`, in `options`, gets every containment, as in `probe`."""
     missing = contain.available()
     if missing:
         return {"not run": [f"no containment: {missing}"], "drift": None}

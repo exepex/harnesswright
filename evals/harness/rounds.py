@@ -21,8 +21,10 @@ inputs never change under its name. A changed input is a new round.
 Run from the repository root:
 
     python3 evals/harness/rounds.py plan PLAN.json --store DIR [--host-path PATH ...]
+    python3 evals/harness/rounds.py run ROUND --store DIR [--host-path PATH ...] [--seed N]
 
 `--host-path` names a host's install under the operator's home, which its jail refuses unless it is named.
+`round run` takes a planned round through its gates (`gates.py`).
 
 Standard library only.
 """
@@ -45,6 +47,8 @@ import manifest  # noqa: E402
 import probes  # noqa: E402
 import skills  # noqa: E402
 from cases import REPO, CaseError, is_name  # noqa: E402
+
+sys.modules.setdefault("rounds", sys.modules[__name__])  # run as a script, `gates` imports this copy, not another
 
 ADAPTERS = REPO / "adapters"
 MANIFEST = "manifest.json"
@@ -227,9 +231,20 @@ def main(argv=None):
     planning.add_argument("--store", required=True, help="the round store, outside the working tree")
     planning.add_argument("--host-path", action="append", default=[], dest="host_paths",
                           help="a host's install under the operator's home, which its jail may mount (repeatable)")
+    running = commands.add_parser("run", help="take a planned round through its gates (gates.py)")
+    running.add_argument("round", help="the round's name")
+    running.add_argument("--store", required=True, help="the round store the round was planned in")
+    running.add_argument("--host-path", action="append", default=[], dest="host_paths",
+                         help="a host's install under the operator's home, which its jail may mount (repeatable)")
+    running.add_argument("--seed", type=int, help="the seed that places the faults; a new one when not given")
     args = parser.parse_args(argv)
     try:
-        print(write(plan(args.plan, host_paths=args.host_paths), args.store))
+        if args.command == "plan":
+            print(write(plan(args.plan, host_paths=args.host_paths), args.store))
+        else:
+            import gates  # it imports this module, so only when a round runs
+            attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)
+            print(json.dumps(attempt, indent=1, sort_keys=True))
     except RoundError as error:
         print(f"round: {error}", file=sys.stderr)
         return 1

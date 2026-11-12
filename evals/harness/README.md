@@ -40,6 +40,7 @@ allowed connections.
 | `grader.py` | One sealed grader run, the panel of graders of a page, and the blind order of a round's pages |
 | `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
 | `rounds.py` | A round's plan file and its manifest: the hash of every input and each host's version, written once to the store |
+| `gates.py` | `round run`: a planned round through its gates in order, the first that fails stopping it, each outcome in the attempt record |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 
 ## Commands
@@ -473,3 +474,18 @@ jail, collects its evidence and stores the bundle, written beside its name and m
 agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
 stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
 its audit, or a canary in any output, raises, and the round stops.
+
+`python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
+(`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults and the runs. Each
+gate reads only the manifest and what the gates before it found, and the first that fails stops the round with its
+reason. A host that fails a probe is `not run` for the round; the round stops only when no host passed. The drift
+record of the first attempt a host passed is kept as the round's (`<store>/<round>/drift/<host>.json`) and used by
+every later attempt, so run keys stay the same from one attempt to the next. Tools that are not the round's stop the
+round. Every fault of the catalogue is planted on each host that passed, at a place the round's seed chooses, and
+every one must be caught. The runs follow `gates.order`: for each number, each case in turn, its two arms one after
+the other, the arm that goes first alternating. The host's version is measured just before each run, so a host that
+changed during the round voids its runs. Each gate's outcome, that of the gate that stopped the round too, is
+written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
+Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
+every containment its gates made, taken while its home is still there. Every gate runs again when the round runs
+again; only runs are kept. The check, grade and label gates follow in later steps.
