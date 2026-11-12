@@ -76,13 +76,23 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(lines[start - 2:start], ["<!-- Generated from v2/skills/demo-skill/SKILL.tmpl.md at version "
                                                   "0.1.0. Do not edit. -->", ""])
         self.assertGreater(lines.index("## Steps"), start)
+        template.write_text(template.read_text(encoding="utf-8").replace("## Steps", "```sh\n# Run it\n```"))
+        lines = self.skill_md().split("\n")
+        self.assertLess(lines.index("## Rules for this skill"), lines.index("# Run it"))
 
     def test_names_that_hold_an_id_are_not_citations(self):
         guide = self.skill / "references" / "guide.md"
-        guide.write_text("See `xCORE-WORK-02` and `CORE-WORK-03-old.md`.\n", encoding="utf-8")
-        files = build.build(self.root)
-        self.assertTrue(files["demo-skill/references/guide.md"].endswith("See `xCORE-WORK-02` and "
-                                                                         "`CORE-WORK-03-old.md`.\n"))
+        names = ("See `xCORE-WORK-02`, `CORE-WORK-03-old`, [a](CORE-WORK-04.md), [b](refs/CORE-WORK-05), "
+                 "v1.CORE-WORK-06, CORE-WORK-02a and CORE-WORK-03/x; cite CORE-WORK-07.\n")
+        guide.write_text(names, encoding="utf-8")
+        text = build.build(self.root)["demo-skill/references/guide.md"]
+        self.assertTrue(text.endswith(names.replace("CORE-WORK-07.", "CORE-WORK-07 (Do not stop silently).")))
+
+    def add_spare_skill(self):
+        spare = self.root / "v2" / "skills" / "spare-skill"
+        shutil.copytree(FIXTURE, spare)
+        template = spare / "SKILL.tmpl.md"
+        template.write_text(template.read_text(encoding="utf-8").replace("demo-skill", "spare-skill"))
 
     def add_point(self, role):
         """Add the decision point of test_reach.py to the temporary CORE layer, applying to role."""
@@ -123,14 +133,16 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(len(copied), text.count("<!-- rule "))
         self.assertTrue(all(self.core[i].status == "active" for i in copied))
         self.assertEqual(entry["areas"], ["CATALOG", "SKILL", "TEMPLATE"])
-        body = "\n".join(text.split("\n")[body_start:])
-        self.assertEqual(meta["content-hash"], hashlib.sha256(body.encode("utf-8")).hexdigest())
+        counted = "\n".join(line for line in text.split("\n") if not line.startswith(tuple(
+            f"  {key}: " for key in build.GENERATED)))
+        self.assertEqual(meta["content-hash"], hashlib.sha256(counted.encode("utf-8")).hexdigest())
         self.assertEqual(entry["content-hash"], meta["content-hash"])
         floors = [i for i in copied if self.core[i].kind == "floor"]
         floor_text = "\n\n".join(build.copyform.copy_rule(self.core[i]) for i in floors)
-        self.assertEqual((entry["size-floors"], entry["size-rest"]), (len(floor_text), len(body) - len(floor_text)))
+        self.assertEqual((entry["size-floors"], entry["size-rest"]), (len(floor_text), len(counted) - len(floor_text)))
         self.assertEqual((meta["size-floors"], meta["rulebook-version"]), (str(len(floor_text)), "0.1.0"))
-        self.assertEqual(entry["roles"], ["skill designer"])
+        self.assertEqual((entry["roles"], entry["job"], entry["rest"]), (["skill designer"], "demo", True))
+        self.assertGreater(body_start, 0)
 
     def frontmatter(self, text):
         path = self.root / "probe.md"
@@ -146,6 +158,34 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(files["demo-skill/scripts/helper.py"], (FIXTURE / "scripts" / "helper.py").read_bytes())
         for module in build.SHIPPED:
             self.assertEqual(files[f"demo-skill/scripts/{module}"], (ROOT / "v2" / "build" / module).read_bytes())
+
+    def test_licence_files_and_reference_citations(self):
+        (self.skill / "LICENSE-MIT.txt").write_text("MIT text\n", encoding="utf-8")
+        self.add_point("skill designer")
+        (self.skill / "references" / "guide.md").write_text("Pick tools as CORE-DP-TEST-STACK says.\n")
+        files = build.build(self.root)
+        self.assertEqual(files["demo-skill/LICENSE-MIT.txt"], b"MIT text\n")
+        self.assertIn("CORE-DP-TEST-STACK", json.loads(files["manifest.json"])["skills"]["demo-skill"]["copied-ids"])
+
+    def test_a_job_of_two_skills(self):
+        plan = self.root / "v2" / "skills" / "plan-skill"
+        shutil.copytree(FIXTURE, plan)
+        template = plan / "SKILL.tmpl.md"
+        template.write_text(template.read_text(encoding="utf-8").replace("demo-skill", "plan-skill")
+                            .replace("areas: rest", "areas: TEMPLATE"))
+        roles = (self.root / "v2" / "roles.md").read_text(encoding="utf-8")
+        (self.root / "v2" / "roles.md").write_text(roles.replace(JOB_ROW, JOB_ROW.replace(
+            "| demo-skill |", "| plan-skill, demo-skill |", 1)))
+        files = build.build(self.root)
+        skills = json.loads(files["manifest.json"])["skills"]
+        self.assertEqual(list(skills), ["demo-skill", "plan-skill"])
+        self.assertEqual((skills["plan-skill"]["areas"], skills["plan-skill"]["rest"]), (["TEMPLATE"], False))
+        self.assertEqual(skills["demo-skill"]["areas"], ["CATALOG", "SKILL"])
+        self.assertIn("plan-skill/scripts/reach.py", files)
+
+    def test_default_output_folder(self):
+        self.assertEqual(build.main(["--root", str(self.root)]), 0)
+        self.assertTrue((self.root / "release" / "demo-skill" / "SKILL.md").is_file())
 
     def test_empty_roster(self):
         shutil.rmtree(self.skill)
@@ -167,10 +207,16 @@ class BuildTest(unittest.TestCase):
             (lambda: template().rename(self.skill / "OTHER.md"), "has no SKILL.tmpl.md"),
             (lambda: (self.skill / "SKILL.md").write_text("x\n"), "demo-skill/SKILL.md: a skill folder holds only"),
             (lambda: (self.skill / "evals.json").write_text("{}\n"), "demo-skill/evals.json: a skill folder"),
+            (lambda: (self.skill / "scripts" / "notes.md").write_text("x\n"), "scripts/notes.md: a skill folder"),
+            (lambda: (self.skill / "scripts" / "__pycache__").mkdir() or (self.skill / "scripts" / "__pycache__" /
+                                                                          "h.pyc").write_text("x"), "h.pyc: a skill"),
+            (lambda: (self.skill / "references" / "LICENSE.txt").write_text("x\n"), "references/LICENSE.txt: a"),
+            (lambda: (self.skill / "LICENSE.pdf").write_text("x\n"), "demo-skill/LICENSE.pdf: a skill folder"),
             (lambda: (self.skill / "scripts" / "reach.py").write_text("\n"), "has the name of a shipped module"),
             (lambda: (self.root / "v2" / "VERSION").write_text("v1\n"), "must hold one version line"),
             (lambda: (self.root / "v2" / "VERSION").write_text("0.1.0\n0.2.0\n"), "must hold one version line"),
             (lambda: shutil.copytree(FIXTURE, self.root / "v2" / "skills" / "spare-skill"), "not the folder name"),
+            (self.add_spare_skill, "spare-skill is in no job"),
             (lambda: template().write_text(original + "4. Use CORE-SKILL-02.\n"), "CORE-SKILL-02 is not active"),
         ]
         for change, message in cases:
@@ -184,6 +230,20 @@ class BuildTest(unittest.TestCase):
                     self.assertEqual(build.main(["--root", str(self.root), "--out", str(self.root / "o")]), 1)
                 self.assertIn("build failed:", stderr.getvalue())
                 self.assertFalse((self.root / "o").exists())
+
+    def test_write_refuses_symbolic_links(self):
+        outside = self.root / "outside.md"
+        outside.write_text("keep\n")
+        for link_name in ("release/a.md", "release/a", "release"):
+            with self.subTest(link=link_name):
+                shutil.rmtree(self.root / "release", ignore_errors=True)
+                (self.root / "release").unlink(missing_ok=True)
+                link = self.root / link_name
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(outside if link_name.endswith(".md") else self.root / "v2")
+                with self.assertRaisesRegex(build.BuildError, "must hold no symbolic link"):
+                    build.write(self.root / "release", {"a.md": "x\n", "a/b.md": "y\n"})
+                self.assertEqual(outside.read_text(), "keep\n")
 
     def test_write_removes_stale_files_only_under_out(self):
         out = self.root / "release"

@@ -8,11 +8,12 @@ sections 1, 2 and 5; plan/b01-plan.md part c).
 For each skill folder it writes release/<name>/:
 - SKILL.md: the template's frontmatter with generated metadata added, the "Generated from" header, the template's
   title line, the one copied section (copyform.rules_section), then the rest of the body. Each cited ID outside the
-  copied section becomes "ID (title)". size-floors counts the copied floors; size-rest counts the rest of the text
-  after the frontmatter.
+  copied section becomes "ID (title)". The content hash and size-rest cover the whole file except the generated
+  metadata lines; size-floors counts the copied floors.
 - every other Markdown file, expanded the same way (header and citations, no copied section);
-- scripts/: the skill's own scripts and the shipped modules, copied byte for byte.
-Then release/manifest.json. Any file the skill folder holds outside that list fails the build.
+- scripts/ and licence files: the skill's own, and the shipped modules, copied byte for byte.
+Then release/manifest.json, which also names each skill's job and whether it is the job's `rest` skill. Any
+file the skill folder holds outside that list fails the build.
 
 Run: python3 v2/build/build.py [--root ROOT] [--out OUT]
 """
@@ -31,8 +32,12 @@ import rulebook
 SHIPPED = ("rulebook.py", "reach.py", "copyform.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-CITATION = re.compile(rf"(?<![\w-])(?:{rulebook.DP_ID.pattern}|{rulebook.RULE_ID.pattern})(?![\w-])")
+# An ID inside a word, a file name or a path is not a citation: no letter, digit, "-", "/" or "." before it, and no
+# letter, digit, "-" or "/" after it, nor a "." followed by a letter or digit (a file extension).
+CITATION = re.compile(rf"(?<![\w/.-])(?:{rulebook.DP_ID.pattern}|{rulebook.RULE_ID.pattern})(?![\w/-]|\.\w)")
 TEMPLATE = "SKILL.tmpl.md"
+LICENCE = re.compile(r"LICENSE(?:-[A-Za-z0-9.]+)?\.txt")  # an adapted skill keeps its source's licence notice
+SCRIPT = re.compile(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.(?:py|sh)")  # HW-PORT-04: Python or POSIX sh
 
 
 class BuildError(rulebook.RulebookError):
@@ -47,17 +52,20 @@ def read_version(path):
 
 
 def skill_files(folder):
-    """(Markdown files, script files) of one skill folder, as sorted relative paths. Fails any other file."""
+    """(Markdown files, files copied byte for byte) of one skill folder, as sorted relative paths.
+
+    Allowed: Markdown files (not SKILL.md), `.py` and `.sh` files under scripts/, and licence files at the root.
+    Any other file fails the build."""
     markdown, scripts = [], []
     for path in sorted(p for p in folder.rglob("*") if p.is_file()):
         rel = path.relative_to(folder).as_posix()
-        if rel.startswith("scripts/"):
+        if SCRIPT.fullmatch(rel) or LICENCE.fullmatch(rel):
             scripts.append(rel)
-        elif rel.endswith(".md") and rel != "SKILL.md":
+        elif rel.endswith(".md") and not rel.startswith("scripts/") and rel != "SKILL.md":
             markdown.append(rel)
         else:
-            raise BuildError(f"{folder.name}/{rel}: a skill folder holds only {TEMPLATE}, other Markdown files and "
-                             "scripts/")
+            raise BuildError(f"{folder.name}/{rel}: a skill folder holds only {TEMPLATE}, other Markdown files, "
+                             "licence files and .py or .sh files under scripts/")
     if TEMPLATE not in markdown:
         raise BuildError(f"{folder.name}: has no {TEMPLATE}")
     shipped = [s for s in scripts if s.removeprefix("scripts/") in SHIPPED]
@@ -117,7 +125,8 @@ def build_skill(folder, rel_folder, layer, version, row, skills):
             body = cite(texts[rel], layer.rules, f"{name}/{rel}")
             files[rel] = f"{header(f'{rel_folder}/{rel}', version)}\n\n{body}"
     body = lines[body_start:]
-    title_at = next((i for i, line in enumerate(body) if line.startswith("# ")), -1)
+    first = next((i for i, line in enumerate(body) if line.strip()), 0)
+    title_at = first if first < len(body) and body[first].startswith("# ") else -1  # the title is the first line
     before, after = body[:title_at + 1], body[title_at + 1:]
     section = copyform.rules_section(reached).rstrip("\n")
     where = f"{name}/{TEMPLATE}"
@@ -127,9 +136,11 @@ def build_skill(folder, rel_folder, layer, version, row, skills):
     floors = "\n\n".join(copyform.copy_rule(r) for r in reached.floors)
     copied = [r.id for r in reached.floors] + [r.id for r in reached.others
                                                 if not r.is_decision_point or r.id in reached.cited_points]
-    entry = {"roles": list(skills[name].roles), "areas": sorted(areas), "copied-ids": copied,
-             "rulebook-version": version, "content-hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-             "size-floors": reach.size(floors), "size-rest": reach.size(text) - reach.size(floors)}
+    counted = "\n".join(lines[:body_start]) + "\n" + text  # all but the generated metadata, which cannot hold itself
+    entry = {"job": row["Job"], "rest": skills[name].is_rest, "roles": list(skills[name].roles),
+             "areas": sorted(areas), "copied-ids": copied, "rulebook-version": version,
+             "content-hash": hashlib.sha256(counted.encode("utf-8")).hexdigest(),
+             "size-floors": reach.size(floors), "size-rest": reach.size(counted) - reach.size(floors)}
     generated = [(key, ", ".join(entry[key]) if key == "copied-ids" else entry[key]) for key in GENERATED]
     head = frontmatter_with(lines, body_start - 1, generated)
     files["SKILL.md"] = "\n".join(head) + "\n" + text
@@ -163,8 +174,12 @@ def build(root):
 
 
 def write(out, files):
-    """Write the files under out and remove any other file there except .gitkeep."""
+    """Write the files under out and remove any other file there except .gitkeep. Fails on a symbolic link there,
+    so nothing outside out is written."""
     out = Path(out)
+    links = [p for p in [out, *(out.rglob("*") if out.is_dir() else [])] if p.is_symlink()]
+    if links:
+        raise BuildError(f"{links[0]}: the output folder must hold no symbolic link")
     for rel, content in files.items():
         path = out / rel
         path.parent.mkdir(parents=True, exist_ok=True)
