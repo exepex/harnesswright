@@ -56,7 +56,9 @@ def area(prefix, *rules):
     return f"# {prefix} · Area\n\n" + "\n".join(rules)
 
 
-class LayersTest(unittest.TestCase):
+class Application(unittest.TestCase):
+    """A valid application to break: the base of the layer and rules.md tests; it holds no test itself."""
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
@@ -100,6 +102,8 @@ class LayersTest(unittest.TestCase):
             self.load()
         self.assertIn(expected, str(caught.exception))
 
+
+class LayersTest(Application):
     def test_a_valid_application_reads_every_layer_in_order(self):
         inputs = self.load()
         self.assertEqual([s.prefix for s in inputs.sources], ["CORE", "JAVA", "COMP-ACME", "TEAM-ACME", "APP"])
@@ -320,7 +324,7 @@ class LayersTest(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])
-        self.assertEqual((code, "inputs checked" in err.getvalue()), (2, True))
+        self.assertEqual((code, "rules texts are not built yet" in err.getvalue()), (2, True))
         self.edit(".harness/profile.yaml", '"0.1.0"', '"9.9.9"')
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])

@@ -111,7 +111,9 @@ so a script that knows the language prefixes and the areas can split every ID.
 | Exceptions | No | When it does not apply |
 
 A decision point has: ID, Title, Status, Review by, Question, Options, Default, Why, Applies to, Source, and Replaced
-by when retired. Options is a list with one item per option, written `` - `name`: what it means ``.
+by when retired. Options is a list with one item per option, written `` - `name`: what it means ``. Default
+names one of the Options in backticks, such as `` `records` ``; an unbound point whose Default names none stops the
+run.
 
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
 exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
@@ -250,6 +252,10 @@ and no other rules:
    different version from the profile, stop and name the layer and the folder.
 
 The result is the **resolved standards** file, written once at the start of each run to
-`.harness/runs/<run-id>/rules.md`. For each rule it lists the ID, layer, kind, the ID it changed and any waiver,
-plus a fingerprint (hash) of every file it read. It holds no rule text, so it is not a copy. Every role in the run
-reads this file, and each claim and verdict records the hash of this file.
+`.harness/runs/<run-id>/rules.md`. For each rule that applies, in layer order, it lists the ID, layer, kind, the
+ID it changed and any waiver, plus a fingerprint (hash) of every file it read. It also lists each decision point
+with its option and where the option came from (a binding rule's ID, "profile decisions" or "default"), and each
+waiver with its status: applied, expired, or replaced by the rule that replaced the waived one. It holds no rule
+text, so it is not a copy. Every role in the run reads this file, and each claim and verdict records the hash of
+this file. A run writes it once: if the run's `rules.md` already exists and a new resolve gives different bytes, an
+input changed during the run, and the run stops.

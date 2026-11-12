@@ -10,6 +10,8 @@ Run: python3 resolve.py --repo REPO --run RUN-ID --date YYYY-MM-DD
 """
 
 import argparse
+import hashlib
+import os
 import json
 import re
 import sys
@@ -23,6 +25,9 @@ from rulebook import DP_ID, EVERY_ROLE, fail
 
 LEVELS = ("COMP", "DEPT", "TEAM")  # company, department, team: layers 3 to 5, most general first
 OPTION_NAME = re.compile(r"- `([a-z0-9-]+)`: .*")
+DEFAULT = re.compile(r"`([a-z0-9-]+)`")  # a decision point's Default names one of its Options in backticks
+RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+RULES_MD = ".harness/runs/{run}/rules.md"
 # A change relation is allowed only between these kinds (plan/b01-plan.md "Change relations").
 RELATIONS = {"Tightens": ({"floor"}, {"floor"}), "Binds": ({"choice"}, {"decision point"}),
              "Overrides": ({"principle", "idiom", "choice"}, {"principle", "idiom", "choice"})}
@@ -184,6 +189,94 @@ def check_waivers(path, profile, sources, today, inputs):
         (inputs.expired if expired else inputs.waivers).append(waiver)
 
 
+@dataclass
+class Resolved:
+    """Doc 03 steps 1 to 4: the rules that apply, in layer order, and what each decision point resolves to."""
+    rules: dict = field(default_factory=dict)  # ID -> (rule, layer prefix, change text), most general first
+    replaced: dict = field(default_factory=dict)  # ID of a rule that no longer applies -> the ID that replaced it
+    points: dict = field(default_factory=dict)  # decision point ID -> (option, where it comes from)
+    waivers: dict = field(default_factory=dict)  # waived rule ID -> its waiver
+
+
+def combine(inputs):
+    """Apply each layer most general first, then the profile's bindings, then the defaults, then the waivers."""
+    done, app_binds = Resolved(), {}
+    for source in inputs.sources:
+        binds = {}  # decision point ID -> the rule in this layer that binds it
+        for rule in active(source):
+            relation = next((name for name in rulebook.CHANGES if name in rule.parts), None)
+            change = f"{relation} {rule.changes}" if relation else ""
+            change += f": {rule.option}" if relation == "Binds" else ""
+            if relation == "Overrides" and rule.changes in done.rules:
+                del done.rules[rule.changes]
+                done.replaced[rule.changes] = rule.id
+            if relation == "Binds":
+                if rule.changes in binds:
+                    raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "
+                                       f"{binds[rule.changes].id} already binds in layer {source.prefix}")
+                binds[rule.changes] = rule
+            done.rules[rule.id] = (rule, source.prefix, change)
+        app_binds = binds if source.prefix == "APP" else app_binds
+    for entry in done.rules.values():  # a later binding is more specific; a replaced binding is gone already
+        if entry[0].parts.get("Binds"):
+            done.points[entry[0].changes] = (entry[0].option, entry[0].id)
+    for point, (option, number) in inputs.decisions.items():
+        if point in app_binds:
+            fail(inputs.files[0], number, f"{point} is bound twice in the application layer: here and by "
+                                          f"{app_binds[point].id}")
+        done.points[point] = (option, "profile decisions")
+    for rule, _, _ in done.rules.values():
+        if rule.is_decision_point and rule.id not in done.points:
+            default = next((n for n in DEFAULT.findall(rule.text("Default")) if n in options(rule)), None)
+            if default is None:
+                raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} is unbound and its Default names none of "
+                                   "its Options")
+            done.points[rule.id] = (default, "default")
+    done.waivers = {w["rule"]: w for w in inputs.waivers}
+    return done
+
+
+def cell(text):
+    return str(text).replace("|", "\\|")
+
+
+def rules_md(repo, run, today, inputs, done):
+    """The resolved standards file: no rule text, only IDs, layers, kinds, changes, waivers and file hashes."""
+    def row(*cells):
+        return "| " + " | ".join(cell(c) for c in cells) + " |"
+    lines = ["# Resolved standards", "", f"- **Run:** {run}", f"- **Date:** {today.isoformat()}",
+             f"- **Release:** {inputs.version}", "", "## Rules", "", "| ID | Layer | Kind | Changes | Waiver |",
+             "|---|---|---|---|---|"]
+    for rule_id, (rule, layer, change) in done.rules.items():
+        waiver = done.waivers.get(rule_id)
+        lines.append(row(rule_id, layer, rule.kind, change, f"waived until {waiver['until']}" if waiver else ""))
+    lines += ["", "## Decision points", "", "| Point | Option | From |", "|---|---|---|"]
+    lines += [row(point, option, source) for point, (option, source) in done.points.items()]
+    lines += ["", "## Waivers", "", "| Rule | Reason | Until | Approved by | Status |", "|---|---|---|---|---|"]
+    for waiver in inputs.waivers + inputs.expired:
+        status = ("expired" if waiver in inputs.expired else
+                  f"replaced by {done.replaced[waiver['rule']]}" if waiver["rule"] in done.replaced else "applied")
+        lines.append(row(waiver["rule"], waiver["reason"], waiver["until"], waiver["approved by"], status))
+    lines += ["", "## Files read", "", "| SHA-256 | File |", "|---|---|"]
+    for path in inputs.files:
+        name = Path(os.path.relpath(Path(path).resolve(), Path(repo).resolve())).as_posix()
+        lines.append(row(hashlib.sha256(Path(path).read_bytes()).hexdigest(), name))
+    return "\n".join(lines) + "\n"
+
+
+def write_rules_md(repo, run, text):
+    """Write rules.md once per run. If the run already has one, the new text must be the same bytes."""
+    path = Path(repo) / RULES_MD.format(run=run)
+    if path.exists():
+        if path.read_bytes() != text.encode("utf-8"):
+            raise ResolveError(f"{path} already exists and differs from this resolve: an input changed during "
+                               "the run; start a new run")
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))
+    return path
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True)
@@ -191,11 +284,14 @@ def main(argv=None):
     parser.add_argument("--date", required=True, type=date.fromisoformat)
     args = parser.parse_args(argv)
     try:
-        load(args.repo, args.date)
+        if not RUN_ID.fullmatch(args.run):
+            raise ResolveError(f"run id {args.run!r} must be letters, digits, '.', '_' or '-'")
+        inputs = load(args.repo, args.date)
+        path = write_rules_md(args.repo, args.run, rules_md(args.repo, args.run, args.date, inputs, combine(inputs)))
     except RulebookError as error:
         print(f"resolve stopped: {error}", file=sys.stderr)
         return 1
-    print("resolve: inputs checked; writing rules.md is not built yet (B0.1 part e1b)", file=sys.stderr)
+    print(f"resolve: wrote {path}; the rules texts are not built yet (B0.1 part e2)", file=sys.stderr)
     return 2
 
 
