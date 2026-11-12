@@ -64,6 +64,8 @@ def scalar(path, number, raw):
         end = raw.find(raw[0], 1)
         if end < 0 or not QUOTED_END.fullmatch(raw[end + 1:]):
             fail(path, number, "a quoted value must end with its quote, then nothing or a comment")
+        if raw[0] == '"' and "\\" in raw[1:end]:
+            fail(path, number, "a quoted value has no escapes such as \\u0020; write the character itself")
         return raw[1:end]
     text = COMMENT.split(raw or "", maxsplit=1)[0].rstrip()
     if text in ("", "[]", "{}"):

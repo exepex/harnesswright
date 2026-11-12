@@ -145,6 +145,8 @@ class ProfileTest(unittest.TestCase):
             ("COMP-ACME-ERR-01", "comp-acme-err-01", 18, "'comp-acme-err-01' is not an allowed rule"),
             ("    reason: old logger\n", "", 22, "missing reason"),
             ("    reason: old logger", '    reason: "old logger', 23, "must end with its quote"),
+            ("    reason: old logger", '    reason: "old\\u0020logger"', 23, "has no escapes"),
+            ("    reason: old logger", "    reason: 'it''s old'", 23, "must end with its quote"),
             ("    reason: old logger", "    reason: old\tlogger", 23, "is not an allowed reason"),
             ("    until: 2026-01-01", "    until: soon", 24, "'soon' is not an allowed until"),
             ("    until: 2026-01-01", "    until: 2027-02-30", 24, "'2027-02-30' is not an allowed until"),
