@@ -46,7 +46,8 @@ POINT = """### CORE-DP-TEST-STACK · Which test tools a language uses
 - **Source:** own
 """
 RETIRED = RULE.replace("- **Status:** active", "- **Status:** retired\n- **Replaced by:** CORE-TEST-04, CORE-TEST-05")
-APP = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace("- **Kind:**", "- **Binds:** CORE-DP-TEST-STACK: junit\n- **Kind:**")
+APP = RULE.replace("CORE-TEST-03", "APP-TEST-01").replace(
+    "- **Kind:**", "- **Binds:** CORE-DP-TEST-STACK: junit\n- **Kind:**")
 
 # (file name, file text, the message its check must give)
 BAD_FILES = [

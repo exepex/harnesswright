@@ -123,7 +123,7 @@ class ReachTest(unittest.TestCase):
         rule("CORE-DOC-01", OTHER),                                   # 5: cited only
         rule("CORE-DOC-02", OTHER, Overrides="CORE-TEST-01"),         # 6: changes a rule that reaches
         rule("CORE-DOC-03", OTHER, Overrides="CORE-DOC-02"),          # 6, applied again
-        rule("CORE-DOC-04", OTHER, Binds="CORE-DP-OTHER: x"),            # changes a rule that does not reach
+        rule("CORE-DOC-04", OTHER, Binds="CORE-DP-OTHER: x"),         # changes a rule that does not reach
         rule("CORE-OPS-01", "every role", status="inferred"),         # inferred never reaches
         rule("CORE-OPS-02", "every role", kind="floor", status="retired"),
     ]
