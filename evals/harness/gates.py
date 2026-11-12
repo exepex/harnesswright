@@ -22,8 +22,10 @@ canaries and credentials of every containment its gates made, taken while its ho
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
   graders (`grading.questions`). A check that breaks stops the round.
+- `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each page's
+  grading written to the attempt's own folder (`grades.grade_gate`).
 
-The grade, label and store gates follow in later steps. Every gate runs again when a round is run again,
+The label and store gates follow in later steps. Every gate runs again when a round is run again,
 as each proves the kit and the hosts as they are now; only runs are kept (`runs.run`).
 
 Run from the repository root:
@@ -44,6 +46,8 @@ from pathlib import Path
 
 import checks
 import faults
+import grader
+import grades
 import grading
 import kit
 import lint
@@ -69,11 +73,12 @@ class Round:
     (`asked`: run key: questions), and the options of every host run."""
 
     def __init__(self, record, store, repo=REPO, adapters=rounds.ADAPTERS, seed=None, timeout=runs.TIMEOUT,
-                 version=rounds.host_version, **containment):
+                 version=rounds.host_version, grade=grader.grade, **containment):
         self.record, self.store, self.repo, self.timeout = record, store, Path(repo), timeout
         self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
         self.containment, self.hosts, self.runs, self.asked = containment, {}, [], {}
+        self.attempt = None  # the name of the attempt (`run`)
         self.tokens, self.secrets = set(), set()  # of every containment the gates made (`keep`)
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
         root = self.repo / "evals" / "skills"
@@ -81,6 +86,7 @@ class Round:
                       for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])}
 
         self.measure = version  # a host's version as its jail finds it now (`rounds.host_version`)
+        self.grade = grade  # one grader run of one page (`grader.grade`)
 
     def model(self, host):
         return self.record["hosts"][host]["model"]
@@ -95,6 +101,10 @@ class Round:
     def quiet(self, text):
         """`text` with every canary and credential the round has kept (`keep`) replaced."""
         return scrub.Scrub(self.tokens, self.secrets).quiet(text)
+
+    def write(self, path, data):
+        """Write `data` to the round's file at `path`, scrubbed (`quiet`)."""
+        _write(path, data, self.quiet)
 
     def version(self, host):
         return self.measure(self.modules[host], **self.containment)
@@ -209,7 +219,7 @@ def check_gate(r):
         verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                     if "check" in e else None for e in expectations]
         r.asked[made["key"]] = grading.questions(expectations, verdicts)
-        _write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts}, r.quiet)
+        r.write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts})
         outcomes = [v["outcome"] for v in verdicts if v]
         found.append({"key": made["key"], **{o: outcomes.count(o) for o in checks.OUTCOMES},
                       "asked": [question["id"] for question in r.asked[made["key"]]]})
@@ -217,7 +227,7 @@ def check_gate(r):
 
 
 GATES = (("kit check", kit_check), ("lint", lint_gate), ("probe", probe_gate), ("faults", faults_gate),
-         ("run", run_gate), ("check", check_gate))
+         ("run", run_gate), ("check", check_gate), ("grade", grades.grade_gate))
 
 
 def read(store, name, repo=REPO):
@@ -247,6 +257,7 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
     handle, path = tempfile.mkstemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", suffix=".json", dir=folder)
     os.close(handle)  # a new name for every attempt, never another attempt's
     path = Path(path)
+    r.attempt = path.stem  # names what this attempt alone writes, such as its grades
     for gate, step in gates:
         try:
             outcome = step(r)
