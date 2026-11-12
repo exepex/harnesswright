@@ -104,3 +104,10 @@ def run_failure(stdout, returncode, timed_out):
     if not any(event.get("event") == "done" for event in events(stdout)):
         return "no done event"
     return None
+
+
+def tokens(stdout, home):
+    for event in events(stdout):
+        if event.get("event") == "done" and "usage" in event:
+            return dict(event["usage"])
+    return None

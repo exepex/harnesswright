@@ -214,6 +214,62 @@ class ClaudeCode(unittest.TestCase):
                 self.assertIsNone(CLAUDE.exposure(stdout, None))
 
 
+class Tokens(TempCase):
+    """Each adapter reads the host's own token counts by model, and reports none when the host reported none."""
+
+    def session(self, name, records):
+        path = self.tmp / ".codex" / "sessions" / "2026" / f"rollout-{name}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(json.dumps(record) for record in records) + "\n")
+
+    def test_codex_counts_each_response_once_under_its_turns_model_sub_agents_and_forks_included(self):
+        def turn(turn_id, model):
+            return {"type": "turn_context", "payload": {"turn_id": turn_id, "model": model}}
+
+        def used(thread, response, turn_id, usage):
+            return {"type": "token_usage_record", "payload": {
+                "thread_id": thread, "response_id": response, "turn_id": turn_id, "usage": usage,
+                "thread_token_usage": {"input_tokens": 999999}}}  # a running total is never read
+
+        def total(n):  # the running total a forked child inherits and goes on from
+            return {"type": "event_msg", "payload": {"type": "token_count", "info": {
+                "total_token_usage": {"input_tokens": n}, "last_token_usage": {"input_tokens": n}}}}
+
+        parent = [turn("t1", "model-a"), used("p", "r1", "t1", {"input_tokens": 1000, "cached_input_tokens": 600,
+                                                                 "output_tokens": 50}), total(1000)]
+        self.session("a", [*parent, used("p", "r3", "t1", {"input_tokens": 500, "cached_input_tokens": 0,
+                                                           "output_tokens": 5, "reasoning_output_tokens": 3})])
+        # A forked child: the parent's history copied, a usage record copied too, then its own turn on another model.
+        self.session("b", [*parent, total(1000), turn("t2", "model-b"),
+                           used("c", "r2", "t2", {"input_tokens": 200, "cached_input_tokens": 0,
+                                                  "cache_write_input_tokens": 4, "output_tokens": 1}), total(1200)])
+        self.session("c", [{"type": "token_usage_record", "payload": {"usage": "not usage"}}])
+        self.assertEqual(CODEX.tokens("", self.tmp), {
+            "model-a": {"input": 1500, "cache read": 600, "cache write": 0, "output": 55},
+            "model-b": {"input": 200, "cache read": 0, "cache write": 4, "output": 1}})
+        self.assertIsNone(CODEX.tokens("", self.tmp / "nothing"))
+
+    def test_claude_code_counts_are_its_last_results_for_each_model(self):
+        models = {"model-a": {"inputTokens": 5, "outputTokens": 9, "cacheReadInputTokens": 40,
+                              "cacheCreationInputTokens": 20},
+                  "model-b": {"inputTokens": 1, "outputTokens": 2, "cacheReadInputTokens": 0,
+                              "cacheCreationInputTokens": 3}}
+        usage = {"input_tokens": 5, "output_tokens": 9, "cache_read_input_tokens": 40,
+                 "cache_creation_input_tokens": 20}
+        init = {"type": "system", "subtype": "init", "model": "model-a"}
+        first = {"type": "result", "usage": {"input_tokens": 999, "output_tokens": 999}}
+        last = {"type": "result", "result": "Done.", "usage": usage, "modelUsage": models}
+        stdout = "\n".join(json.dumps(event) for event in (init, first, last))
+        self.assertEqual(CLAUDE.tokens(stdout, self.tmp), {
+            "model-a": {"input": 65, "cache read": 40, "cache write": 20, "output": 9},
+            "model-b": {"input": 4, "cache read": 0, "cache write": 3, "output": 2}})
+        no_models = "\n".join(json.dumps(event) for event in (init, {**last, "modelUsage": {}}))
+        self.assertEqual(CLAUDE.tokens(no_models, self.tmp),
+                         {"model-a": {"input": 65, "cache read": 40, "cache write": 20, "output": 9}})
+        self.assertIsNone(CLAUDE.tokens(json.dumps({"type": "result", "result": "Done."}), self.tmp))
+        self.assertIsNone(CLAUDE.tokens("", self.tmp))
+
+
 class RunEnv(TempCase):
     def test_an_adapters_fixed_variables_are_set_and_never_taken_from_the_operator(self):
         world = self.tmp / "world"

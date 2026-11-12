@@ -47,11 +47,15 @@ Rules for every adapter:
 ## The harness contract
 
 The new eval harness ([evals/harness](../evals/harness/README.md#the-host-contract)) knows a host only through
-`host.CONTRACT`. There the jail, not the host, confines commands: an adapter turns its host's own sandbox off,
-turns off the skills the host ships where it allows, keeps only tools of a kind on the power table, and reports
-an action log of the entries the contract lists. For the harness faults, its `PLANTS` turn its bundled skills
-back on or take its command tools away, in a copy of its own command. The sandbox rule above is for the phase 2 runner only, which
-runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 runner is removed.
+`host.CONTRACT`. There the jail, not the host, confines commands: an adapter turns its host's own sandbox off, turns
+off the skills the host ships where it allows, keeps only tools of a kind on the power table, and reports an action
+log of the entries the contract lists. For the harness faults, its `PLANTS` turn its bundled skills back on or take
+its command tools away, in a copy of its own command. The sandbox rule above is for the phase 2 runner only, which
+runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 runner is removed. Its `tokens`
+reads the host's own token counts by model: Claude Code's from the last result event's `modelUsage`, else its
+`usage`; Codex's from the usage record each model response leaves in its thread's session file, each response
+counted once, sub-agents and forks included, read in `codex/sessions.py`, since every loader loads only `adapter.py`
+by path.
 
 - **Codex** runs with `--dangerously-bypass-approvals-and-sandbox`, `-c skills.bundled.enabled=false`, and image
   viewing, goals and web search off. Its `functions.exec` tool runs code that calls nested tools, so each nested

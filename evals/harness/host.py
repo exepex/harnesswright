@@ -46,12 +46,18 @@ CONTRACT = {
     # did not report them, which only a failed run may do
     "exposure": callable,
     "run_failure": callable,  # (stdout, returncode, timed_out): why the host failed, such as a crash, or None
+    # (stdout, home): the host's own token counts of the run by model, {model: {name: count for each of TOKENS}}, so
+    # each is priced at its own model's rate, or None when it reported none: a count it did not report is missing,
+    # never estimated
+    "tokens": callable,
     # each host fault the harness plants (PLANTED), by name: (command) -> the jail command with that fault planted
     "PLANTS": dict,
 }
 # The host faults an adapter plants in its own command (doc 11, Harness faults): its bundled skills turned on, and its
 # command tools taken away. Only a fault run passes one to `run`.
 PLANTED = ("bundled skills", "no commands")
+# A run's tokens: all its input, the parts of that input read from and written to the host's cache, and its output.
+TOKENS = ("input", "cache read", "cache write", "output")
 SOURCES = ("observed", "inferred")  # the host reported it, or the adapter worked it out
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # The fields of an entry whose value the harness chooses, with the one test each value passes. A value that passes
@@ -146,14 +152,26 @@ def check_exposure(adapter, exposure, skills):
         raise HostError("exposure: " + "; ".join(wrong))
 
 
-class Result:
-    """One host run: what it printed, how it ended, its checked action log and exposure, the gate's log, and how many
-    seconds the host ran."""
+def check_tokens(tokens):
+    """Raise HostError unless `tokens` is None, or maps each model, a name of at most 200 characters, to a count, a
+    whole number from 0, for each of TOKENS and nothing else."""
+    def counts(value):
+        return isinstance(value, dict) and sorted(value) == sorted(TOKENS) and all(
+            isinstance(count, int) and not isinstance(count, bool) and count >= 0 for count in value.values())
 
-    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests, seconds):
+    if tokens is not None and not (isinstance(tokens, dict) and tokens and all(
+            isinstance(model, str) and 0 < len(model) <= 200 and counts(value) for model, value in tokens.items())):
+        raise HostError(f"tokens are not a count for each of {list(TOKENS)} by model: {tokens!r}"[:300])
+
+
+class Result:
+    """One host run: what it printed, how it ended, its checked action log and exposure, the gate's log, how many
+    seconds the host ran, and its token counts by model as the host reported them (None when it reported none)."""
+
+    def __init__(self, stdout, stderr, returncode, timed_out, failure, log, exposure, requests, seconds, tokens=None):
         self.stdout, self.stderr, self.returncode, self.timed_out = stdout, stderr, returncode, timed_out
         self.failure, self.log, self.exposure, self.requests = failure, log, exposure, requests
-        self.seconds = seconds
+        self.seconds, self.tokens = seconds, tokens
 
 
 def run(contained, prompt, skills, model=None, timeout=900, plant=None):
@@ -189,9 +207,14 @@ def run(contained, prompt, skills, model=None, timeout=900, plant=None):
             raise HostError("exposure: the host did not report the skills and tools it exposed")
         if exposure is not None:
             check_exposure(adapter, exposure, skills)
+        try:
+            tokens = adapter.tokens(stdout, contained.home)
+        except Exception as error:  # an adapter that cannot read the counts breaks the contract
+            raise HostError(f"tokens: {type(error).__name__}: {error}") from None
+        check_tokens(tokens)
     except HostError as error:  # its words may be the host's: they leave the run only scrubbed, while it is there
         raise HostError(scrub.Scrub.of_run(contained).quiet(str(error))) from None
-    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds)
+    return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds, tokens)
 
 
 def kept(contained, items):

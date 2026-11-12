@@ -294,3 +294,31 @@ def exposure(stdout, home):
 
 def run_failure(stdout, returncode, timed_out):
     return failure(parse_events(stdout), returncode, timed_out, "task")
+
+
+# The host's usage fields of each neutral count (host.TOKENS): in its result's modelUsage, and in its usage. Its
+# input counts neither cache read nor cache write, so the neutral input adds them. A cache write is one count, which
+# does not tell a 5-minute write (an API key sign-in) from a 1-hour one (a subscription sign-in).
+USAGE = {"input": (("inputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"),
+                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")),
+         "cache read": (("cacheReadInputTokens",), ("cache_read_input_tokens",)),
+         "cache write": (("cacheCreationInputTokens",), ("cache_creation_input_tokens",)),
+         "output": (("outputTokens",), ("output_tokens",))}
+
+
+def tokens(stdout, home):
+    """The host's own token counts by model, or None when it reported none: those of its last result event, which
+    holds the run's running totals, for each model in its modelUsage (subagents included), else its usage under the
+    model its init event names."""
+    events = parse_events(stdout)
+    results = [event for event in events if event.get("type") == "result"]
+    last = results[-1] if results else {}
+    models, usage = last.get("modelUsage"), last.get("usage")
+    if isinstance(models, dict) and models and all(isinstance(m, dict) and "inputTokens" in m
+                                                   for m in models.values()):
+        return {model: {name: sum(counts.get(f, 0) for f in fields[0]) for name, fields in USAGE.items()}
+                for model, counts in models.items()}
+    if isinstance(usage, dict) and "input_tokens" in usage:
+        return {resolved_model(events) or "unknown model": {name: sum(usage.get(f, 0) for f in fields[1])
+                                                            for name, fields in USAGE.items()}}
+    return None
