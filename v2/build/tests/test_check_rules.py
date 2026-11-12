@@ -140,16 +140,34 @@ class CheckRulesTest(unittest.TestCase):
                 self.setUp()
                 self.edit("root/v2/roles.md", old, new)
                 self.assertFails(expected)
+        self.setUp()
+        self.edit("root/v2/skills/golden-skill/SKILL.tmpl.md", "roles: tester", "roles: tester, reviewer")
+        self.assertFails("golden-skill has roles ['tester', 'reviewer'], not the job's tester")
 
-    def test_a_table_row_of_the_wrong_width_fails(self):
-        cases = [("| golden | tester | golden-skill | golden-skill |",
+    def test_a_line_with_no_allowed_shape_or_a_row_of_the_wrong_width_fails(self):
+        cases = [("root/v2/rules/core/work.md", "### CORE-WORK-01 · Report only what you verified",
+                  "### CORE-WORK-01 - Report only what you verified", "work.md:5: line has no allowed shape"),
+                 ("root/v2/rules/core/test.md", "Golden fixture for the build tests.",
+                  "- **Kind:** floor", "test.md:3: line has no allowed shape"),
+                 ("root/v2/rules/core/test.md", "- **Why:** A failing test should say what broke.",
+                  "- **Why:** A failing test should say what broke.\nSee also the guide.", "line has no allowed shape"),
+                 ("root/v2/roles.md", "| golden | tester | golden-skill | golden-skill |",
+                  "| golden | tester | golden-skill | golden-skill |\n  | broken | tester | none | none |",
+                  "line has no allowed shape under '## Jobs'"),
+                 ("root/v2/roles.md", "| golden | tester | golden-skill | golden-skill |",
+                  "| golden | tester | golden-skill | golden-skill |\n\n| broken | tester | none | none |",
+                  "line has no allowed shape under '## Jobs'"),
+                 ("root/v2/roles.md", "| golden | tester | golden-skill | golden-skill |",
                   "| golden | tester | golden-skill | golden-skill |\n| broken | tester | none | none | extra |",
                   "row needs 4 cells under '## Jobs'"),
-                 ("| reviewer | checking |", "| reviewer | checking | extra |", "row needs 7 cells under '## Roles'")]
-        for old, new, expected in cases:
-            with self.subTest(expected=expected):
+                 ("root/v2/roles.md", "| reviewer | checking |", "| reviewer | checking | extra |",
+                  "row needs 7 cells under '## Roles'"),
+                 ("root/v2/skills/golden-skill/SKILL.tmpl.md", "  areas: rest", "  areas: rest\n   roles: x",
+                  "SKILL.tmpl.md:7: frontmatter line has no allowed shape")]
+        for path, old, new, expected in cases:
+            with self.subTest(expected=expected, new=new):
                 self.setUp()
-                self.edit("root/v2/roles.md", old, new)
+                self.edit(path, old, new)
                 self.assertFails(expected)
 
     def test_a_job_with_two_rest_skills_fails(self):

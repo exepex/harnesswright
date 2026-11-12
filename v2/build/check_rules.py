@@ -38,6 +38,8 @@ HEADING = re.compile(r"### (\S+) · (.+)")
 PART = re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (.*))?")
 BEGIN = re.compile(r"<!-- rule (\S+) -->")
 END = re.compile(r"<!-- end (\S+) -->")
+PROSE = re.compile(r"[A-Za-z0-9(\[`].*")  # a line of text outside a rule or table
+FRONT = re.compile(r"(?:  )?[a-z][a-z0-9-]*: \S.*|metadata:")
 MARKERS = ("<!-- rule ", "<!-- end ", "<!-- Generated from ")
 SECTION = "## Rules for this skill"
 
@@ -62,23 +64,26 @@ class Rule:
         return None if self.is_point else self.id.split("-")[-2]
 
 
-def read_rules(path, root):
-    """Rules of one file: a rule starts at a '### ID · title' line, a part at a '- **Name:**' line; every other
-    line belongs to the part above it."""
+def read_rules(path, root, fail):
+    """Rules of one file. Each line must have one allowed shape, or it fails: the title first; prose and blank
+    lines before the first rule; a '### ID · title' heading; a '- **Name:**' part inside a rule; a line indented
+    by two spaces inside a part; a blank line."""
     rules, rule, part = [], None, None
-    lines = path.read_text(encoding="utf-8").split("\n")
-    for number, line in enumerate(lines, start=1):
+    where = path.relative_to(root).as_posix()
+    for number, line in enumerate(path.read_text(encoding="utf-8").split("\n"), start=1):
         heading, found = HEADING.fullmatch(line), PART.fullmatch(line)
         if heading:
-            rule, part = Rule(*heading.groups(), f"{path.relative_to(root).as_posix()}:{number}"), None
+            rule, part = Rule(*heading.groups(), f"{where}:{number}"), None
             rules.append(rule)
         elif rule is not None and found:
             part = found.group(1)
             if part in rule.parts:
                 rule.twice.append(part)
             rule.parts[part] = found.group(2) or ""
-        elif rule is not None and part is not None and line.strip():
+        elif part is not None and line.startswith("  "):
             rule.parts[part] += "\n" + line
+        elif not (line == "" or (number == 1 and line.startswith("# ")) or (rule is None and PROSE.fullmatch(line))):
+            fail(f"{where}:{number}", f"line has no allowed shape: {line!r}")
     return rules
 
 
@@ -86,14 +91,16 @@ def rule_files(root):
     return sorted(p for p in (root / "v2" / "rules").glob("*/*.md") if p.name not in NOT_RULE_FILES)
 
 
-def metadata(path):
-    """The name and the metadata keys of a frontmatter block, quotes removed."""
+def metadata(path, fail):
+    """The name and the metadata keys of a frontmatter block, quotes removed. A line of another shape fails."""
     lines = path.read_text(encoding="utf-8").split("\n")
     end = lines.index("---", 1)
     found = {}
-    for line in lines[1:end]:
+    for number, line in enumerate(lines[1:end], start=2):
         key, _, value = line.strip().partition(": ")
-        if line.startswith(("name: ", "  roles: ", "  areas: ")):
+        if not FRONT.fullmatch(line):
+            fail(f"{path.name}:{number}", f"frontmatter line has no allowed shape: {line!r}")
+        elif line.startswith(("name: ", "  roles: ", "  areas: ")):
             found[key] = value.strip("\"'")
     return found, end + 1
 
@@ -119,7 +126,7 @@ class Check:
         self.rules = {}
         for path in rule_files(self.root):
             self.check_markers(path)
-            for rule in read_rules(path, self.root):
+            for rule in read_rules(path, self.root, self.fail):
                 self.check_rule(rule)
                 if rule.id in self.rules:
                     self.fail(rule.where, f"{rule.id} is already defined at {self.rules[rule.id].where}")
@@ -138,15 +145,21 @@ class Check:
         return self.failures
 
     def table(self, path, heading, width):
-        """The rows of the table under a '## heading' line, as lists of cells. A row of another width fails."""
+        """The rows of the table under a '## heading' line, as lists of cells. Each line up to the next heading must
+        be blank, prose before the table, or a row of `width` cells with no other line between rows; else it fails."""
         lines = path.read_text(encoding="utf-8").split("\n")
         start = lines.index(heading) + 1
-        rows = []
+        rows, ended = [], False
         for number, line in enumerate(lines[start:], start=start + 1):
-            if line.startswith("## "):
+            if line.startswith("#"):
                 break
-            if line.startswith("|"):
-                rows.append((number, [cell.strip() for cell in line.strip("|").split("|")]))
+            row = line.startswith("|") and line.endswith("|")
+            if row and not ended:
+                rows.append((number, [cell.strip() for cell in line[1:-1].split("|")]))
+            elif line == "" or (not rows and PROSE.fullmatch(line)):
+                ended = ended or bool(rows)
+            else:
+                self.fail(f"v2/roles.md:{number}", f"line has no allowed shape under {heading!r}: {line!r}")
         for number, row in rows[2:]:
             if len(row) != width:
                 self.fail(f"v2/roles.md:{number}", f"row needs {width} cells under {heading!r}")
@@ -181,7 +194,7 @@ class Check:
         if not template.is_file():
             self.fail(where, "has no SKILL.tmpl.md")
             return {"roles": [], "areas": []}
-        found, body = metadata(template)
+        found, body = metadata(template, lambda at, message: self.fail(f"{where}/{at}", message))
         roles = names(found.get("roles", ""))
         for role in roles:
             if role not in self.roles:
