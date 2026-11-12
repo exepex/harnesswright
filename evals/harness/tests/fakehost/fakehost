@@ -7,7 +7,8 @@ sandbox (on unless `--sandbox off`), bundled skills (unless `--no-bundled`) and 
 (unless `--tools` lists the ones to keep). With `--sign-in` it runs only with `FAKE_API_KEY` or its credential file.
 
 Actions: {"do": "read", "path"}, {"do": "write", "path", "text"}, {"do": "command", "command", "block": reason
-(optional: the host refuses it)}, {"do": "skill", "name"}, {"do": "agent", "task"}, {"do": "say", "text"}.
+(optional: the host refuses it)}, {"do": "skill", "name"}, {"do": "agent", "task"}, {"do": "say", "text"}, and
+{"do": "usage", "usage"}: the token counts its done event reports.
 """
 
 import argparse
@@ -50,9 +51,12 @@ def main():
     tools = [tool for tool in options.tools.split(",") if tool in TOOLS.values()]
     exposed = skills(options.world, not options.no_bundled)
     emit(event="start", skills=sorted(exposed), tools=tools)
+    usage = {}
     for action in json.loads(sys.stdin.read()):
-        tool = TOOLS.get(action["do"]) if action["do"] != "say" else None
-        if action["do"] == "say":
+        tool = TOOLS.get(action["do"]) if action["do"] not in ("say", "usage") else None
+        if action["do"] == "usage":
+            usage = action["usage"]
+        elif action["do"] == "say":
             emit(event="message", text=action["text"])
         elif tool not in tools:
             emit(event="error", message=f"no tool {tool}")
@@ -62,7 +66,7 @@ def main():
             emit(event="refused", tool=tool, detail=action["path"], reason="the host's sandbox is read-only")
         else:
             act(tool, action, exposed)
-    emit(event="done")
+    emit(event="done", **({"usage": usage} if usage else {}))
 
 
 def act(tool, action, exposed):

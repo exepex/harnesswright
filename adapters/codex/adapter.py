@@ -390,3 +390,12 @@ def _nested_tools(declared):
 
 def run_failure(stdout, returncode, timed_out):
     return failure(parse_events(stdout), returncode, timed_out, "task")
+
+
+def tokens(stdout):
+    """The host's own token counts, summed over its turns, or None when it reported none. Its input counts cached."""
+    used = [e.get("usage") for e in parse_events(stdout) if e.get("type") == "turn.completed"]
+    used = [usage for usage in used if isinstance(usage, dict) and "input_tokens" in usage]
+    fields = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens")
+    return {name: sum(u.get(f, 0) for u in used) for name, f in zip(("input", "cache read", "cache write", "output"),
+                                                                   fields)} if used else None

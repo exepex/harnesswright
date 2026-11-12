@@ -226,12 +226,13 @@ skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`
 `powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
-reads, writes with content hashes, commands with exit code and whole output, actions refused
-by the host or the jail (`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed`
-(the host reported it) or `inferred` (the adapter worked it out, such as a file a shell command reads). The host
-may expose and load only the skills the arm installs, and expose only the adapter's tools. A host that ran must
-report what it exposed: no report is never read as "nothing". Anything else raises `HostError`, and the round
-stops. The jail's audit runs first, and a host that crashes or times out is a `failure`: the run is void.
+reads, writes with content hashes, commands with exit code and whole output, actions refused by the host or the jail
+(`blocked`, with the reason), skill loads, sub-agents and messages, each tagged `observed` (the host reported it) or
+`inferred` (the adapter worked it out, such as a file a shell command reads). The host may expose and load only the
+skills the arm installs, and expose only the adapter's tools. A host that ran must report what it exposed: no report
+is never read as "nothing". Anything else raises `HostError`, and the round stops. The jail's audit runs first, and
+a host that crashes or times out is a `failure`: the run is void. The host's own token counts (`host.TOKENS`) are
+kept with the run, or none when it reported none.
 
 `tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
 its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,

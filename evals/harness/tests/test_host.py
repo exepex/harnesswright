@@ -161,6 +161,15 @@ class FakeHost(TempCase):
         self.assertEqual(result.exposure, {"skills": ["haiku-writer"], "tools": list(fake_adapter().TOOLS)})
         self.assertEqual((world / "notes.txt").read_text(), "hi\n")
         self.assertEqual(result.requests, [])
+        self.assertIsNone(result.tokens)  # the host reported none: missing, never estimated
+
+    def test_a_run_keeps_the_hosts_own_token_counts_and_refuses_counts_out_of_shape(self):
+        counts = {"input": 120, "cache read": 100, "cache write": 0, "output": 30}
+        result, _ = self.run_of("task", fake_adapter(), [{"do": "usage", "usage": counts}, {"do": "say", "text": "."}])
+        self.assertEqual(result.tokens, counts)
+        for wrong in ({**counts, "output": -1}, {**counts, "output": "30"}, {"input": 1}, {**counts, "other": 1}):
+            with self.subTest(wrong=wrong), self.assertRaisesRegex(host.HostError, "tokens are not a count"):
+                self.run_of("task", fake_adapter(), [{"do": "usage", "usage": wrong}])
 
     def test_a_contract_error_leaves_the_run_scrubbed(self):
         token = contain.new_token()

@@ -294,3 +294,25 @@ def exposure(stdout, home):
 
 def run_failure(stdout, returncode, timed_out):
     return failure(parse_events(stdout), returncode, timed_out, "task")
+
+
+# The host's usage fields of each neutral count: in its result's modelUsage, and in its usage. Input counts cached.
+USAGE = {"input": (("inputTokens", "cacheReadInputTokens", "cacheCreationInputTokens"),
+                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")),
+         "cache read": (("cacheReadInputTokens",), ("cache_read_input_tokens",)),
+         "cache write": (("cacheCreationInputTokens",), ("cache_creation_input_tokens",)),
+         "output": (("outputTokens",), ("output_tokens",))}
+
+
+def tokens(stdout):
+    """The host's own token counts, or None when it reported none: those of its last result event, which holds the
+    run's running totals, summed over every model in its modelUsage (subagents included), else its usage."""
+    results = [event for event in parse_events(stdout) if event.get("type") == "result"]
+    last = results[-1] if results else {}
+    models, usage = last.get("modelUsage"), last.get("usage")
+    if isinstance(models, dict) and models and all(isinstance(m, dict) and "inputTokens" in m
+                                                   for m in models.values()):
+        return {name: sum(m.get(f, 0) for m in models.values() for f in fields[0]) for name, fields in USAGE.items()}
+    if isinstance(usage, dict) and "input_tokens" in usage:
+        return {name: sum(usage.get(f, 0) for f in fields[1]) for name, fields in USAGE.items()}
+    return None

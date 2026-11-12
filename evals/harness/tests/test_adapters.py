@@ -214,6 +214,36 @@ class ClaudeCode(unittest.TestCase):
                 self.assertIsNone(CLAUDE.exposure(stdout, None))
 
 
+class Tokens(unittest.TestCase):
+    """Each adapter reads the host's own token counts, and reports none when the host reported none."""
+
+    def test_codex_counts_are_summed_over_its_turns(self):
+        turns = [{"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 60,
+                                                      "output_tokens": 7, "reasoning_output_tokens": 3}},
+                 {"type": "turn.completed", "usage": {"input_tokens": 10, "cached_input_tokens": 0,
+                                                      "cache_write_input_tokens": 4, "output_tokens": 1}}]
+        stdout = "\n".join(json.dumps(event) for event in turns)
+        self.assertEqual(CODEX.tokens(stdout), {"input": 110, "cache read": 60, "cache write": 4, "output": 8})
+        self.assertIsNone(CODEX.tokens(json.dumps({"type": "turn.completed", "usage": {}})))
+        self.assertIsNone(CODEX.tokens(""))
+
+    def test_claude_code_counts_are_its_last_results_over_every_model(self):
+        models = {"model-a": {"inputTokens": 5, "outputTokens": 9, "cacheReadInputTokens": 40,
+                              "cacheCreationInputTokens": 20},
+                  "model-b": {"inputTokens": 1, "outputTokens": 2, "cacheReadInputTokens": 0,
+                              "cacheCreationInputTokens": 3}}
+        usage = {"input_tokens": 5, "output_tokens": 9, "cache_read_input_tokens": 40,
+                 "cache_creation_input_tokens": 20}
+        first = {"type": "result", "usage": {"input_tokens": 999, "output_tokens": 999}}
+        last = {"type": "result", "result": "Done.", "usage": usage, "modelUsage": models}
+        stdout = "\n".join(json.dumps(event) for event in (first, last))
+        self.assertEqual(CLAUDE.tokens(stdout), {"input": 69, "cache read": 40, "cache write": 23, "output": 11})
+        no_models = json.dumps({**last, "modelUsage": {}})
+        self.assertEqual(CLAUDE.tokens(no_models), {"input": 65, "cache read": 40, "cache write": 20, "output": 9})
+        self.assertIsNone(CLAUDE.tokens(json.dumps({"type": "result", "result": "Done."})))
+        self.assertIsNone(CLAUDE.tokens(""))
+
+
 class RunEnv(TempCase):
     def test_an_adapters_fixed_variables_are_set_and_never_taken_from_the_operator(self):
         world = self.tmp / "world"

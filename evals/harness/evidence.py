@@ -105,7 +105,8 @@ def collect(contained, result, case, arm, overlay, drift, host_version, model):
         transcript[name] = hashlib.sha256(data).hexdigest()
         blobs[transcript[name]] = data
     record = {"case": case.id, "arm": arm, "mode": contained.mode, "host": contained.adapter.NAME,  # the harness's
-              "host_version": host_version, "model": model, "seconds": result.seconds, "overlay": overlay,
+              "host_version": host_version, "model": model, "seconds": result.seconds,
+              "tokens": result.tokens, "overlay": overlay,
               "own_files": own, "folders": scrubs.folders(contained),
               "transcript": transcript, "files_after": scrub.names(stored, "bundle/files_after"),
               "diff": scrub.names(changes, "bundle/diff"), **ran}
