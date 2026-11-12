@@ -139,6 +139,19 @@ class Manifests(TempCase):
         self.assertNotEqual(before["skills"], after["skills"])
         self.assertNotEqual(before["commit"], after["commit"])
 
+    def test_an_executable_bit_is_an_input(self):
+        before = self.plan()["skills"]["haiku-writer"]["sha256"]
+        self.skill_dir.joinpath("SKILL.md").chmod(0o755)
+        self.commit()
+        self.assertNotEqual(before, self.plan()["skills"]["haiku-writer"]["sha256"])
+
+    def test_only_the_cases_the_plan_names_are_read(self):
+        draft = self.world.parent.parent / "draft"
+        (draft / "world").mkdir(parents=True)
+        (draft / "case.json").write_text("not json")
+        self.commit()
+        self.assertEqual(list(self.plan()["cases"]["haiku-writer"]), ["c1"])
+
     def test_a_tree_with_a_changed_or_untracked_file_is_refused(self):
         (self.world / "README.md").write_text("# Notes app, not committed\n")
         with self.assertRaisesRegex(rounds.RoundError, "clean tree.*README.md"):
@@ -174,6 +187,14 @@ class Manifests(TempCase):
         with self.assertRaisesRegex(rounds.RoundError, "outside the working tree"):
             rounds.write(record, self.repo / "store", repo=self.repo)
         self.assertEqual(sorted(p.name for p in (store / "r1").iterdir()), ["manifest.json"])
+
+    def test_a_round_folder_linked_into_the_working_tree_is_refused(self):
+        store = self.tmp / "store"
+        store.mkdir()
+        (store / "r1").symlink_to(self.repo)
+        with self.assertRaisesRegex(rounds.RoundError, "outside the working tree"):
+            rounds.write(self.plan(), store, repo=self.repo)
+        self.assertFalse((self.repo / "manifest.json").exists())
 
     def test_a_link_at_the_manifest_is_refused(self):
         store = self.tmp / "store"

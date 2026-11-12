@@ -108,19 +108,23 @@ def adapter(name, root=ADAPTERS):
 
 
 def tracked_digest(folder):
-    """The manifest digest of the files git tracks under `folder`, each a regular file in real folders."""
+    """The manifest digest of the files git tracks under `folder`, each a regular file in real folders, by the
+    entries the world builder copies: contents and the executable bit."""
     folder = Path(folder)
-    return manifest.digest({rel: "file " + cases.sha256_bytes(skills.tracked_file(folder, rel))
-                            for rel in skills.tracked(folder)})
+    found = {}
+    for rel in skills.tracked(folder):
+        skills.tracked_file(folder, rel)  # a regular file in real folders, never a link
+        found[rel] = manifest.entry(folder / rel)
+    return manifest.digest(found)
 
 
 def skill(repo, name):
     """{"sha256", "source", "upstream"} of the skill `name`: the hash of its tracked files, the upstream source its
     metadata names, and the hash of the copy of that source stored under `evals/skills/NAME/upstream/`, or None
     when there is none."""
-    files, meta = skills.skill_files(Path(repo) / "skills" / name, name)
+    _, meta = skills.skill_files(Path(repo) / "skills" / name, name)
     upstream = Path(repo) / "evals" / "skills" / name / "upstream"
-    return {"sha256": manifest.digest({rel: "file " + cases.sha256_bytes(body) for rel, body in files.items()}),
+    return {"sha256": tracked_digest(Path(repo) / "skills" / name),
             "source": (meta.get("metadata") or {}).get("source"),
             "upstream": tracked_digest(upstream) if upstream.is_dir() and not upstream.is_symlink() else None}
 
@@ -163,11 +167,11 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
     try:
         found, installed = {"cases": {}}, set(data["skills"])
         for name, ids in data["skills"].items():
-            known = {case.id: case for case in cases.load_cases(name, Path(repo) / "evals" / "skills" / name
-                                                                / "cases")}
-            absent = [i for i in ids if i not in known]
+            root = Path(repo) / "evals" / "skills" / name / "cases"
+            absent = [i for i in ids if not (root / i).is_dir() or (root / i).is_symlink()]
             if absent:
                 raise RoundError(f"{path}: {name} has no cases {absent}")
+            known = {i: cases.Case(root / i, name) for i in ids}  # only the cases the plan names are read
             found["cases"][name] = {i: known[i].sha256 for i in ids}
             installed.update(sibling for i in ids for sibling in known[i].siblings or ())
         found["skills"] = {name: skill(repo, name) for name in sorted(installed)}  # every skill an arm installs
@@ -190,23 +194,28 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
 def write(record, store, repo=REPO):
     """Write a round's manifest to `store`, read it back and return its path. A round's manifest is written once:
     the same manifest again is kept, and a different one is refused."""
+    text = json.dumps(record, indent=2, sort_keys=True) + "\n"
     try:
-        folder = kit.store_folder(store, repo) / record["round"]
+        (kit.store_folder(store, repo) / record["round"]).mkdir(parents=True, exist_ok=True)
+        folder = kit.store_folder(Path(store) / record["round"], repo)  # the round's folder, resolved, is outside too
     except kit.KitError as error:
         raise RoundError(str(error)) from None
     target = folder / MANIFEST
-    text = json.dumps(record, indent=2, sort_keys=True) + "\n"
-    if os.path.lexists(target):
-        if manifest.kind(manifest.entry(target)) != "file" or target.read_text() != text:
-            raise RoundError(f"{target}: round {record['round']} already has another manifest; a changed input is "
-                             f"a new round")
-        return target
-    folder.mkdir(parents=True, exist_ok=True)
     fresh = folder / f".{MANIFEST}.{os.getpid()}"
     fresh.write_text(text)
-    os.replace(fresh, target)  # replaces a link at the manifest's name, and never writes through it
-    if cases.sha256_file(target) != cases.sha256_bytes(text.encode()):
-        raise RoundError(f"{target}: the manifest read back is not the one written")
+    try:
+        os.link(fresh, target)  # makes the manifest only where no entry has its name; it never replaces one
+    except FileExistsError:
+        pass
+    finally:
+        fresh.unlink()
+    try:
+        kept = manifest.kind(manifest.entry(target)) == "file" and target.read_bytes() == text.encode()
+    except manifest.Unreadable:
+        kept = False
+    if not kept:  # read back, so another manifest, a link or a half-written file at its name is refused
+        raise RoundError(f"{target}: round {record['round']} already has another manifest; a changed input is "
+                         f"a new round")
     return target
 
 
