@@ -238,6 +238,11 @@ and no other rules:
 2. The **decision point bindings** in the profile. They count as bindings of the application layer.
 3. The application's **approved waivers** whose end date has not passed. Story-scoped waivers are not read.
 
+**Stacks.** No language outranks another, so each language the profile lists is resolved on its own, as one
+stack: the principles layer, that language and its frameworks, then layers 3 to 6. A rule of layers 3 to 6 that
+changes a rule of one language belongs to that language's stack only, and the profile's bindings apply in each
+stack that holds their point. An application with no language has one stack. The steps run once per stack.
+
 **Steps.**
 
 1. Start with the principles layer. Apply each listed layer, most general first: an override replaces a rule, a
@@ -245,7 +250,7 @@ and no other rules:
    that point, and any other rule is added. A rule that changes a rule a more specific layer already replaced is a
    contradiction: it must change the rule that replaced it. A binding changes only by binding its point again, so
    an override never names a binding rule. A language or framework layer changes only principles rules and its own
-   language's: no language outranks another, so two languages may not bind one point.
+   language's.
 2. Apply the profile's bindings; each replaces any layer's binding of its point. A decision point bound more than
    once in the application layer, by rules or by the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
@@ -258,11 +263,11 @@ and no other rules:
    different version from the profile, stop and name the layer and the folder.
 
 The result is the **resolved standards** file, written once at the start of each run to
-`.harness/runs/<run-id>/rules.md`. For each rule that applies, in layer order, it lists the ID, layer, kind, the
-ID it changed and any waiver, plus a fingerprint (hash) of every file it read. It also lists each decision point
-with its option and where the option came from (a binding rule's ID, "profile decisions" or "default"), each
-waiver with its status (applied, expired, or replaced by the rule that applies in its place), and each rule that
-no longer applies with what replaced it (a rule ID or "profile decisions"). It holds no rule text, so it is not a
-copy. Every role in the run reads this file, and each claim and verdict records the hash of this file. A run
-writes it once: if the run's `rules.md` already exists and a new resolve gives different bytes, an
+`.harness/runs/<run-id>/rules.md`, with one section per stack. For each rule that applies, in layer order, it lists
+the ID, layer, kind, the ID it changed and any waiver, plus a fingerprint (hash) of every file it read. It also
+lists each decision point with its option and where the option came from (a binding rule's ID, "profile decisions"
+or "default"), each waiver with its status (applied, expired, or replaced by the rule that applies in its place),
+and each rule that no longer applies with what replaced it (a rule ID or "profile decisions"). It holds no rule
+text, so it is not a copy. Every role in the run reads this file, and each claim and verdict records the hash of
+this file. A run writes it once: if the run's `rules.md` already exists and a new resolve gives different bytes, an
 input changed during the run, and the run stops.

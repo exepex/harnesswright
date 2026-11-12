@@ -130,11 +130,23 @@ def load(repo, today):
     return inputs
 
 
+def language_of(source):
+    """The language a language or framework layer belongs to (JAVA for JAVA-SPRING), or None for any other layer."""
+    base = source.prefix.split("-")[0]
+    return None if source.prefix == "APP" or base in ("CORE",) + LEVELS else base
+
+
 def builds_on(source, prefix):
     """A language or framework layer builds on CORE and its own language only; any other layer builds on every more
-    general layer. No two languages are ranked, so neither may change the other's rules (doc 03 step 5)."""
-    language = source.owner == "harnesswright" and source.prefix != "CORE"
-    return not language or prefix in ("CORE", source.prefix.split("-")[0])
+    general layer. No two languages are ranked, so neither may change the other's rules."""
+    return language_of(source) is None or prefix in ("CORE", language_of(source))
+
+
+def stacks(sources):
+    """One stack per language, resolved on its own: CORE, the language and its frameworks, then layers 3 to 6. An
+    application with no language has one stack, named core."""
+    languages = list(dict.fromkeys(language_of(s) for s in sources if language_of(s)))
+    return [(name.lower(), [s for s in sources if language_of(s) in (None, name)]) for name in languages or ["CORE"]]
 
 
 def active(source):
@@ -202,29 +214,38 @@ def check_waivers(path, profile, sources, today, inputs):
 
 @dataclass
 class Resolved:
-    """Doc 03 steps 1 to 4: the rules that apply, in layer order, and what each decision point resolves to."""
+    """Doc 03 steps 1 to 4 for one stack: the rules that apply, in layer order, and what each point resolves to."""
+    stack: str
     rules: dict = field(default_factory=dict)  # ID -> (rule, layer prefix, change text), most general first
     replaced: dict = field(default_factory=dict)  # ID of a rule that no longer applies -> the ID that replaced it
     points: dict = field(default_factory=dict)  # decision point ID -> (option, where it comes from)
-    waivers: dict = field(default_factory=dict)  # waived rule ID -> its waiver
+    waivers: list = field(default_factory=list)  # the waivers and expired waivers of rules in this stack
 
 
 def combine(inputs):
+    """Resolve each stack (one per language) on its own."""
+    return [combine_stack(inputs, name, sources) for name, sources in stacks(inputs.sources)]
+
+
+def combine_stack(inputs, name, sources):
     """Apply each layer most general first, then the profile's bindings, then the defaults, then the waivers.
     One rule: a rule that loses to a more specific input (an override, or a later binding of its point) leaves the
-    rules and is recorded in `replaced`, and a change relation must name a rule that still applies."""
-    done, bound, app_binds = Resolved(), {}, {}  # bound: decision point ID -> the binding rule that applies now
+    rules and is recorded in `replaced`, and a change relation must name a rule that still applies. A rule that
+    changes a rule of another stack's language belongs to that stack only."""
+    done, bound, app_binds = Resolved(name), {}, {}  # bound: decision point ID -> the binding rule that applies now
 
     def replace(old, new):
         del done.rules[old]
         done.replaced[old] = new
 
-    for source in inputs.sources:
+    for source in sources:
         binds = {}  # decision point ID -> the rule in this layer that binds it
         for rule in active(source):
             relation = next((name for name in rulebook.CHANGES if name in rule.parts), None)
             change = f"{relation} {rule.changes}" if relation else ""
             change += f": {rule.option}" if relation == "Binds" else ""
+            if relation and rule.changes not in done.rules and rule.changes not in done.replaced:
+                continue  # it changes another language's rule, so it belongs to that language's stack only
             if relation and rule.changes in done.replaced:
                 by = done.replaced[rule.changes]
                 advice = ("its layer's owner keeps one of the two" if prefix_of(by) == source.prefix else
@@ -237,27 +258,24 @@ def combine(inputs):
                 if rule.changes in binds:
                     raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "
                                        f"{binds[rule.changes].id} already binds in layer {source.prefix}")
-                if rule.changes in bound and not builds_on(source, prefix_of(bound[rule.changes].id)):
-                    raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "
-                                       f"{bound[rule.changes].id} of another language binds; no language outranks "
-                                       "another, so two languages may not bind one point")
                 if rule.changes in bound:
                     replace(bound[rule.changes].id, rule.id)
                 binds[rule.changes] = bound[rule.changes] = rule
             done.rules[rule.id] = (rule, source.prefix, change)
         app_binds = binds if source.prefix == "APP" else app_binds
-    for point, (option, number) in inputs.decisions.items():
+    decisions = {point: value for point, value in inputs.decisions.items() if point in done.rules}
+    for point, (option, number) in decisions.items():
         if point in app_binds:
             fail(inputs.files[0], number, f"{point} is bound twice in the application layer: here and by "
                                           f"{app_binds[point].id}")
         if point in bound:
             replace(bound[point].id, "profile decisions")
     done.points = {point: (rule.option, rule.id) for point, rule in bound.items()}
-    done.points.update({point: (option, "profile decisions") for point, (option, _) in inputs.decisions.items()})
+    done.points.update({point: (option, "profile decisions") for point, (option, _) in decisions.items()})
     for rule, _, _ in done.rules.values():
         if rule.is_decision_point and rule.id not in done.points:
             done.points[rule.id] = (rule.default, "default")
-    done.waivers = {w["rule"]: w for w in inputs.waivers}
+    done.waivers = [w for w in inputs.waivers + inputs.expired if w["rule"] in done.rules or w["rule"] in done.replaced]
     return done
 
 
@@ -272,25 +290,36 @@ def cell(text):
     return str(text).replace("|", "\\|")
 
 
-def rules_md(repo, run, today, inputs, done):
-    """The resolved standards file: no rule text, only IDs, layers, kinds, changes, waivers and file hashes."""
-    def row(*cells):
-        return "| " + " | ".join(cell(c) for c in cells) + " |"
-    lines = ["# Resolved standards", "", f"- **Run:** {run}", f"- **Date:** {today.isoformat()}",
-             f"- **Release:** {inputs.version}", "", "## Rules", "", "| ID | Layer | Kind | Changes | Waiver |",
+def row(*cells):
+    return "| " + " | ".join(cell(c) for c in cells) + " |"
+
+
+def stack_md(inputs, done):
+    """One stack's sections of rules.md."""
+    applied = {w["rule"]: w for w in done.waivers if w not in inputs.expired}
+    lines = ["", f"## Stack: {done.stack}", "", "### Rules", "", "| ID | Layer | Kind | Changes | Waiver |",
              "|---|---|---|---|---|"]
     for rule_id, (rule, layer, change) in done.rules.items():
-        waiver = done.waivers.get(rule_id)
+        waiver = applied.get(rule_id)
         lines.append(row(rule_id, layer, rule.kind, change, f"waived until {waiver['until']}" if waiver else ""))
-    lines += ["", "## Decision points", "", "| Point | Option | From |", "|---|---|---|"]
+    lines += ["", "### Decision points", "", "| Point | Option | From |", "|---|---|---|"]
     lines += [row(point, option, source) for point, (option, source) in done.points.items()]
-    lines += ["", "## Waivers", "", "| Rule | Reason | Until | Approved by | Status |", "|---|---|---|---|---|"]
-    for waiver in inputs.waivers + inputs.expired:
+    lines += ["", "### Waivers", "", "| Rule | Reason | Until | Approved by | Status |", "|---|---|---|---|---|"]
+    for waiver in done.waivers:
         status = ("expired" if waiver in inputs.expired else
                   f"replaced by {last(done, waiver['rule'])}" if waiver["rule"] in done.replaced else "applied")
         lines.append(row(waiver["rule"], waiver["reason"], waiver["until"], waiver["approved by"], status))
-    lines += ["", "## Replaced", "", "| Rule | Replaced by |", "|---|---|"]
-    lines += [row(rule_id, by) for rule_id, by in done.replaced.items()]
+    lines += ["", "### Replaced", "", "| Rule | Replaced by |", "|---|---|"]
+    return lines + [row(rule_id, by) for rule_id, by in done.replaced.items()]
+
+
+def rules_md(repo, run, today, inputs, stacks_done):
+    """The resolved standards file: no rule text, only IDs, layers, kinds, changes, waivers and file hashes, with
+    one section per stack."""
+    lines = ["# Resolved standards", "", f"- **Run:** {run}", f"- **Date:** {today.isoformat()}",
+             f"- **Release:** {inputs.version}"]
+    for done in stacks_done:
+        lines += stack_md(inputs, done)
     lines += ["", "## Files read", "", "| SHA-256 | File |", "|---|---|"]
     for path in inputs.files:
         name = Path(os.path.relpath(Path(path).resolve(), Path(repo).resolve())).as_posix()
