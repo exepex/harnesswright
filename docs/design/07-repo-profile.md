@@ -165,7 +165,8 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
   the folder. It never skips a layer.
 - It also stops when a rule in layers 2 to 6 names a role that is not in the release's roles file, when a key of
   `decisions` (the decision point's name, so `boilerplate` names `…-DP-BOILERPLATE`) names no active decision
-  point or more than one, or when its value is not one of that point's Options.
+  point, or more than one in one language's stack ([03 · Standards](03-standards.md)), or when its value is not
+  one of each named point's Options. A key binds the point of that name in every stack that holds one.
 
 ## Waivers
 

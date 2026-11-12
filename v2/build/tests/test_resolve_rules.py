@@ -137,12 +137,22 @@ class RulesTest(Application):
         self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule(
             "KOTLIN-STACK-01", extra="- **Binds:** CORE-DP-STACK: junit\n")))
         self.edit(".harness/profile.yaml", "[java]", "[java, kotlin]")
+        self.edit(".harness/profile.yaml", "TEAM-ACME-LOG-01\n    reason: old logger\n    until: 2026-01-01",
+                  "APP-TEST-01\n    reason: old logger\n    until: 2027-01-01")
+        self.write(".agents/harnesswright/rules/java/s.md", area("JAVA-S", rule(
+            "JAVA-S-01", "idiom", "- **Overrides:** CORE-SKILL-01\n")))
+        self.write("../acme/company/s.md", area("COMP-ACME-S", rule(
+            "COMP-ACME-S-01", extra="- **Overrides:** CORE-SKILL-01\n")))
         text = self.text()
         java, kotlin = text.split("## Stack: java\n")[1].split("## Stack: kotlin\n")
+        self.assertIn("| CORE-SKILL-01 | JAVA-S-01 |\n", java)  # the company rule replaces what stands in its place
+        self.assertIn("| JAVA-S-01 | COMP-ACME-S-01 |\n", java)
+        self.assertIn("| CORE-SKILL-01 | COMP-ACME-S-01 |\n", kotlin)
+        self.assertIn("| APP-TEST-01 | old logger | 2027-01-01 | app-owner | applied |\n", java)
         kotlin = kotlin.split("## Files read")[0]
         self.assertIn("| CORE-DP-STACK | testng | JAVA-STACK-01 |\n", java)
         self.assertIn("| JAVA-DP-BOILERPLATE | lombok | profile decisions |\n", java)
-        self.assertIn("| APP-TEST-01 | APP | idiom | Overrides JAVA-TEST-01 |  |\n", java)
+        self.assertIn("| APP-TEST-01 | APP | idiom | Overrides JAVA-TEST-01 | waived until 2027-01-01 |\n", java)
         self.assertIn("| CORE-DP-STACK | junit | KOTLIN-STACK-01 |\n", kotlin)
         self.assertIn("| COMP-ACME-ERR-01 | COMP-ACME | choice |  | waived until 2027-03-01 |\n", kotlin)
         for other in ("JAVA-", "APP-TEST-01", "COMP-ACME-CODE-01"):  # rules that change Java rules stay in java
@@ -150,6 +160,17 @@ class RulesTest(Application):
         self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule(
             "KOTLIN-STACK-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
         self.assertStops("KOTLIN-STACK-01: Overrides JAVA-TEST-01, a rule of another language")
+
+    def test_an_application_with_no_language_has_one_stack(self):
+        self.edit(".harness/profile.yaml", "[java]", "[]")
+        self.edit(".harness/profile.yaml", DECISION, "")
+        self.edit("../acme/company/code.md", BINDING, "")
+        self.edit(".harness/standards/test.md", "- **Overrides:** JAVA-TEST-01\n", "")
+        text = self.text()
+        self.assertEqual(text.count("## Stack: "), 1)
+        self.assertIn("## Stack: core\n", text)
+        self.assertIn("| CORE-WORK-01 | CORE | floor |  |  |\n", text)
+        self.assertIn("| APP-TEST-01 | APP | idiom |  |  |\n", text)
 
     def test_only_the_application_layer_counts_with_the_profile(self):
         self.edit(".harness/profile.yaml", "  repository: .harness/standards/\n", "")

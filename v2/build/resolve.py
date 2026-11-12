@@ -131,9 +131,11 @@ def load(repo, today):
 
 
 def language_of(source):
-    """The language a language or framework layer belongs to (JAVA for JAVA-SPRING), or None for any other layer."""
-    base = source.prefix.split("-")[0]
-    return None if source.prefix == "APP" or base in ("CORE",) + LEVELS else base
+    """The language a language or framework layer belongs to (JAVA for JAVA-SPRING), or None for any other layer.
+    It takes a Source or a layer prefix."""
+    prefix = getattr(source, "prefix", source)
+    base = prefix.split("-")[0]
+    return None if prefix == "APP" or base in ("CORE",) + LEVELS else base
 
 
 def builds_on(source, prefix):
@@ -183,16 +185,23 @@ def check_rules(sources, roles):
 
 
 def check_decisions(path, profile, sources):
-    """Each profile decision names exactly one active decision point and one of its Options."""
-    points = [r for s in sources for r in active(s) if r.is_decision_point]
+    """Each profile decision names one active decision point in each stack that holds one, at least one in all, and
+    one of each named point's Options. So `boilerplate` binds JAVA-DP-BOILERPLATE and KOTLIN-DP-BOILERPLATE alike."""
     bound = {}
     for key, (option, number) in profile["decisions"].items():
-        named = [r for r in points if r.id.endswith("-DP-" + key.upper())]
-        if len(named) != 1:
-            fail(path, number, f"decisions key {key!r} names {len(named)} active decision points; it must name one")
-        if option not in named[0].options:
-            fail(path, number, f"option {option!r} is not one of {named[0].id}'s Options")
-        bound[named[0].id] = (option, number)
+        named = {}
+        for _, stack in stacks(sources):
+            here = [r for s in stack for r in active(s) if r.is_decision_point and r.id.endswith("-DP-" + key.upper())]
+            if len(here) > 1:
+                fail(path, number, f"decisions key {key!r} names {len(here)} active decision points in one stack "
+                                   f"({', '.join(r.id for r in here)}); it must name one")
+            named.update({r.id: r for r in here})
+        if not named:
+            fail(path, number, f"decisions key {key!r} names 0 active decision points; it must name one")
+        for point in named.values():
+            if option not in point.options:
+                fail(path, number, f"option {option!r} is not one of {point.id}'s Options")
+            bound[point.id] = (option, number)
     return bound
 
 
@@ -246,14 +255,18 @@ def combine_stack(inputs, name, sources):
             change += f": {rule.option}" if relation == "Binds" else ""
             if relation and rule.changes not in done.rules and rule.changes not in done.replaced:
                 continue  # it changes another language's rule, so it belongs to that language's stack only
-            if relation and rule.changes in done.replaced:
-                by = done.replaced[rule.changes]
+            target = rule.changes
+            if relation and target in done.replaced and language_of(done.replaced[target]) and \
+                    prefix_of(target) == "CORE" and not language_of(source) and source.prefix != "CORE":
+                target = last(done, target)  # a language's replacement stands in the principles rule's place
+            if relation and target in done.replaced:
+                by = done.replaced[target]
                 advice = ("its layer's owner keeps one of the two" if prefix_of(by) == source.prefix else
                           "name that rule instead")
-                raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} {relation} {rule.changes}, which {by} "
+                raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} {relation} {target}, which {by} "
                                    f"already replaces; {advice}")
             if relation == "Overrides":
-                replace(rule.changes, rule.id)
+                replace(target, rule.id)
             if relation == "Binds":
                 if rule.changes in binds:
                     raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "

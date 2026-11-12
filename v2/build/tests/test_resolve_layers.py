@@ -231,10 +231,13 @@ class LayersTest(Application):
         self.edit(".harness/profile.yaml", '"1.0.0"', '"2.1.0"')
         self.assertStops("carries COMP-ACME, which")
 
-    def test_a_decisions_key_that_names_two_points_stops(self):
+    def test_a_decisions_key_names_one_point_per_stack(self):
         self.write(".agents/harnesswright/rules/kotlin/dp.md", area("KOTLIN-DP", POINT.replace("JAVA", "KOTLIN")))
         self.edit(".harness/profile.yaml", "[java]", "[java, kotlin]")
-        self.assertStops("decisions key 'boilerplate' names 2 active decision points")
+        self.assertEqual(self.load().decisions, {"JAVA-DP-BOILERPLATE": ("lombok", 30),
+                                                 "KOTLIN-DP-BOILERPLATE": ("lombok", 30)})
+        self.write(".agents/harnesswright/rules/core/dp.md", area("CORE-DP", POINT.replace("JAVA", "CORE")))
+        self.assertStops("names 2 active decision points in one stack (CORE-DP-BOILERPLATE, JAVA-DP-BOILERPLATE)")
 
     def test_decisions_and_waivers(self):
         cases = [

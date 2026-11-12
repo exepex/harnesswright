@@ -241,7 +241,9 @@ and no other rules:
 **Stacks.** No language outranks another, so each language the profile lists is resolved on its own, as one
 stack: the principles layer, that language and its frameworks, then layers 3 to 6. A rule of layers 3 to 6 that
 changes a rule of one language belongs to that language's stack only, and the profile's bindings apply in each
-stack that holds their point. An application with no language has one stack. The steps run once per stack.
+stack that holds their point. Where a language replaced a principles rule, its replacement stands in that rule's
+place: a rule of layers 3 to 6 that names the principles rule changes the replacement in that stack. An
+application with no language has one stack. The steps run once per stack.
 
 **Steps.**
 
