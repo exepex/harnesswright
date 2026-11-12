@@ -86,6 +86,8 @@ above stops the run.
   of one block share one indent. Tabs are not indents. Keys are lower case.
 - A list is `- ` items, indented under their key, or `[a, b]` on one line. `[]` and `{}` are empty.
 - ` #` starts a comment. A value in quotes, `"…"` or `'…'`, may hold ` #`. One leading `---` line is allowed.
+- An unquoted value starts with a letter, digit, `.`, `_` or `/`, holds no `: `, and is not a word YAML reads as
+  true, false or null, such as `yes` or `no`. Quote any other value.
 - Values have these shapes: versions are three numbers; folders are relative paths of letters, digits, `.`, `_` and
   `-`; a layer `name` is lower-case letters and digits; a language is lower-case words joined by `-`; `until` is a
   real date, `YYYY-MM-DD`; `approved by` is accounts of letters, digits, `.`, `_` and `-`, separated by commas;

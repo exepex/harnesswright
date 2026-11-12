@@ -36,6 +36,8 @@ SHAPES = {
 LINE = re.compile(r"( *)(- )?(?:([a-z][a-z0-9 -]*[a-z0-9]|[a-z]):(?: +(.*))?|(.+))")  # key: value, or - item
 COMMENT = re.compile(r"(?:^|\s)#")
 QUOTED_END = re.compile(r"\s*|\s+#.*")
+# An unquoted value: no YAML indicator first, no `: ` inside, and not a word YAML reads as true, false or null.
+PLAIN = re.compile(rf"(?!{rulebook.WORDS}$)[A-Za-z0-9._/](?:(?!: ){rulebook.PRINTABLE})*")
 
 
 class ResolveError(RulebookError):
@@ -75,6 +77,9 @@ def scalar(path, number, raw):
         if not all(parts):
             fail(path, number, f"a list written as [a, b] has an empty item: {text!r}")
         return [Node(number, scalar(path, number, part)) for part in parts]
+    if not PLAIN.fullmatch(text):
+        fail(path, number, f"{text!r} must be quoted: an unquoted value starts with a letter, digit, `.`, `_` or `/`, "
+                           "holds no `: ` and is not a word such as yes, no, true, false or null")
     return text
 
 
