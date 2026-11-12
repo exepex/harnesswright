@@ -24,7 +24,7 @@ MAX_LIMIT = 60000
 DEFAULT_LIMIT = 30000
 READ = ("harnesswright", "standards", "waivers", "rules-text-limit", "decisions")
 SKIP = ("toolchain", "scripts", "models", "capabilities", "process")  # doc 07's sections that resolve does not read
-VALUE = re.compile(r"[\x20-\x7e\xa0-�]+")
+VALUE = re.compile(f"{rulebook.PRINTABLE}+")
 ACCOUNT = r"[A-Za-z0-9._-]+"
 SHAPES = {
     "version": re.compile(r"[0-9]+\.[0-9]+\.[0-9]+"),
@@ -42,7 +42,7 @@ SHAPES = {
 }
 LINE = re.compile(r"( *)(- )?(?:([a-z][a-z0-9 -]*[a-z0-9]|[a-z]):(?: +(.*))?|(.+))")  # key: value, or - item
 COMMENT = re.compile(r"(?:^|\s)#")
-QUOTED_END = re.compile(r"(?:\s+#.*)?")
+QUOTED_END = re.compile(r"\s*|\s+#.*")
 
 
 class ResolveError(RulebookError):
@@ -79,7 +79,7 @@ def scalar(path, number, raw):
         parts = [part.strip() for part in text[1:-1].split(",")]
         if not all(parts):
             fail(path, number, f"a list written as [a, b] has an empty item: {text!r}")
-        return [Node(number, part) for part in parts]
+        return [Node(number, scalar(path, number, part)) for part in parts]
     return text
 
 
@@ -136,11 +136,14 @@ def read_yaml(path, read, skip=(), label=""):
     if lines and tops[0] != 0:
         fail(path, lines[0][0], "an indented line comes before the first section")
     data = {}
-    for here, after in zip(tops, tops[1:]):
+    heads = []
+    for here in tops[:-1]:  # every top-level line first, so a stray one stops at its own line
         number, line = lines[here]
-        head = token(path, number, line)
-        if head[2] or head[3] is None:
-            fail(path, number, f"a top-level line must be `section:`: {line!r}")
+        heads.append(token(path, number, line))
+        if heads[-1][2] or heads[-1][3] is None:
+            fail(path, number, f"a top-level line must be `section:`; indent list items under their key: {line!r}")
+    for head, here, after in zip(heads, tops, tops[1:]):
+        number = head[0]
         if head[3] in data:
             fail(path, number, f"{head[3]!r} appears twice")
         if head[3] in skip:

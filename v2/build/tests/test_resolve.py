@@ -101,10 +101,15 @@ class ProfileTest(unittest.TestCase):
     def test_other_allowed_forms(self):
         self.write(".harness/profile.yaml", "---\nharnesswright:\n    version: '1.0.0'\n    folder: hw/\n"
                    "standards:\n    languages:\n      - java\n      - java-spring\n    layers: []\n"
+                   "    repository: 'app/'  \n"
                    "waivers: []\ndecisions: {}\n")
         profile = self.load()
         self.assertEqual((profile["version"], profile["languages"]), ("1.0.0", ["java", "java-spring"]))
         self.assertEqual((profile["layers"], profile["waivers"], profile["decisions"]), ([], [], {}))
+        path = self.repo / resolve.PROFILE
+        block = "languages:\n      - java\n      - java-spring"
+        path.write_text(path.read_text().replace(block, "languages: [\"java\", 'java-spring']"))
+        self.assertEqual(self.load()["languages"], ["java", "java-spring"])
 
     def test_doc_07_example_is_read(self):
         doc = (ROOT / "docs/design/07-repo-profile.md").read_text(encoding="utf-8").split("\n")
@@ -139,6 +144,7 @@ class ProfileTest(unittest.TestCase):
             ("COMP-ACME-ERR-01", "comp-acme-err-01", 18, "'comp-acme-err-01' is not an allowed rule"),
             ("    reason: old logger\n", "", 22, "missing reason"),
             ("    reason: old logger", '    reason: "old logger', 23, "must end with its quote"),
+            ("    reason: old logger", "    reason: old\tlogger", 23, "is not an allowed reason"),
             ("    until: 2026-01-01", "    until: soon", 24, "'soon' is not an allowed until"),
             ("    until: 2026-01-01", "    until: 2027-02-30", 24, "'2027-02-30' is not an allowed until"),
             ("    approved by: app-owner\n", "    approved by: \n", 25, "'approved by' has no value"),
@@ -153,13 +159,24 @@ class ProfileTest(unittest.TestCase):
             ("  boilerplate: lombok", "  - lombok", 29, "expected one `point: option` line"),
             ("# a comment line\n", "  stray: x\n", 1, "an indented line comes before the first section"),
             ("models:", "- models:", 32, "a top-level line must be `section:`"),
+            ("  - rule: TEAM", "- rule: TEAM", 22, "a top-level line must be `section:`"),
+            ('  version: "0.1.0"', '\tversion: "0.1.0"', 3, "line has no allowed shape here"),
+            ("rules-text-limit: 45000", "rules-text-limit: 60000", 0, ""),
+            ("  boilerplate: lombok", "  http2: lombok", 0, ""),
+            ("    reason: old logger", '    reason: "old" logger', 23, "must end with its quote"),
+            ("  repository: .harness/standards/", "  repository: /abs/", 15, "'/abs/' is not an allowed folder"),
+            ("harnesswright:", "release:", 2, "'release' is not a section"),
+            ('  version: "0.1.0"\n  folder: .agents/harnesswright/\n', "", 2, "'harnesswright' has no value"),
             ("models:", "decisions:", 32, "'decisions' appears twice"),
         ]
         for old, new, line, expected in cases:
             with self.subTest(expected=expected):
                 self.setUp()
                 self.edit(".harness/profile.yaml", old, new)
-                self.assertStops(line, expected)
+                if line:
+                    self.assertStops(line, expected)
+                else:
+                    self.load()  # an allowed edge value is read
 
     def test_layer_yaml(self):
         folder = (self.repo / "../acme/team").resolve()
