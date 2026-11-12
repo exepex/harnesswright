@@ -127,6 +127,22 @@ class Gates(Gated):
             self.assertNotIn(token, text)
             self.assertIn("sign-in probe: the host said", text)
 
+    def test_a_host_whose_tools_changed_since_the_round_s_drift_record_stops_it(self):
+        self.planned()
+        measured = iter([{"tools": {"go": "go 1.0"}, "own files": {"task": ["home/a"], "trigger": []}},
+                         {"tools": {"go": "go 1.0"}, "own files": {"task": ["home/b"], "trigger": []}},
+                         {"tools": {"go": "go 2.0"}, "own files": {"task": ["home/a"], "trigger": []}}])
+
+        def probe_host(module, made, **options):
+            return {"not run": [], "drift": next(measured)}
+
+        with mock.patch("probes.probe_host", probe_host):
+            self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION)
+            again = self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION)  # own files differ
+            self.assertEqual(again["gates"][0]["outcome"]["passed"], ["fakehost"])
+            with self.assertRaisesRegex(rounds.RoundError, "its tools are not the round's"):
+                self.go(gates.GATES[2:3], version=lambda module, **containment: VERSION)
+
     def test_each_attempt_has_its_own_record(self):
         self.planned()
         steps = (("a", lambda r: None),)

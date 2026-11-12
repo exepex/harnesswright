@@ -480,10 +480,10 @@ its audit, or a canary in any output, raises, and the round stops.
 gate reads only the manifest and what the gates before it found, and the first that fails stops the round with its
 reason. A host that fails a probe is `not run` for the round; the round stops only when no host passed. The drift
 record of the first attempt a host passed is kept as the round's (`<store>/<round>/drift/<host>.json`) and used by
-every later attempt, so run keys stay the same from one attempt to the next. Every fault of the catalogue is planted
-on each host that passed, at a place the round's seed chooses, and every one must be caught. The runs follow
-`gates.order`: for each number, each case in turn, its two arms one after the other, the arm that goes first
-alternating. The host's version is measured just before each run, so a host that changed during the round voids its
-runs. Each gate's outcome is written, as it ends, to the attempt record
-`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Every gate runs again when the round runs again; only
-runs are kept. The check, grade and label gates follow in later steps.
+every later attempt, so run keys stay the same from one attempt to the next. Tools that are not the round's stop the
+round. Every fault of the catalogue is planted on each host that passed, at a place the round's seed chooses, and
+every one must be caught. The runs follow `gates.order`: for each number, each case in turn, its two arms one after
+the other, the arm that goes first alternating. The host's version is measured just before each run, so a host that
+changed during the round voids its runs. Each gate's outcome is written, as it ends, to the attempt record
+`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Every gate runs again when the round runs again;
+only runs are kept. The check, grade and label gates follow in later steps.

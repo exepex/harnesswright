@@ -11,7 +11,7 @@ back from the store.
   `not run` for the round, with its reasons; the round stops only when no host passed. The drift record of the
   first attempt a host passed is the round's, kept in the store (`drift/<host>.json`) and used by every later
   attempt, as a host's own files can differ by name from one empty run to the next and the record is in each run's
-  key.
+  key. Tools that are not the round's stop it.
 - `faults`: every fault of the catalogue (`faults.load`) is planted on each host that passed its probes, at a place
   the round's seed chooses, and every one must be caught. The bundles of its runs are copied to the store.
 - `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
@@ -109,6 +109,9 @@ def probe_gate(r):
             not_run[host] = [quiet.quiet(reason) for reason in found["not run"]]
         else:
             r.hosts[host] = {"drift": _pin(r.folder / "drift" / f"{host}.json", found["drift"])}
+            if r.hosts[host]["drift"]["tools"] != found["drift"]["tools"]:  # only own files may differ by name
+                raise rounds.RoundError(f"{host}: its tools are not the round's: {found['drift']['tools']} now, "
+                                        f"{r.hosts[host]['drift']['tools']} in the round's drift record")
             drift[host] = "the round's" if r.hosts[host]["drift"] == found["drift"] else found["drift"]
     if not r.hosts:
         raise rounds.RoundError(f"no host passed its probes: {json.dumps(not_run, sort_keys=True)}")
