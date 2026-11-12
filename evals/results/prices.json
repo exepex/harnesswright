@@ -8,7 +8,8 @@
   ],
   "notes": [
     "input is the price of input neither read from nor written to the cache; a run's input at that price is its input count less its cache reads and cache writes.",
-    "claude-sonnet-5-5: a cache write is priced at the 5-minute rate, as the eval signs Claude Code in with an API key; Claude Code's counts do not tell a 5-minute write from a 1-hour one (4 dollars).",
+    "Every price assumes the host signed in with an API key and was billed at these API rates. A run does not record how its host signed in, and the harness also passes on a subscription or ChatGPT sign-in; such a round's money is not what it paid, and the round must say so.",
+    "claude-sonnet-5-5: a cache write is priced at the 5-minute rate, which holds only for an API key sign-in; Claude Code's counts do not tell a 5-minute write from a 1-hour one, and a subscription sign-in writes for 1 hour (4 dollars), so its cache writes would be priced low.",
     "gpt-6.1-sol: short-context prices (272K input tokens a request or fewer), as a run's counts are summed over its requests; a cache write is priced at the 30-minute rate, as Codex asks for no longer cache (12-hour: 5 dollars)."
   ],
   "models": {
