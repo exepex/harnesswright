@@ -13,7 +13,9 @@ For each skill folder it writes release/<name>/:
 - every other Markdown file, expanded the same way (header and citations, no copied section);
 - scripts/ and licence files: the skill's own, and the shipped modules, copied byte for byte.
 Then release/manifest.json, which also names each skill's job and whether it is the job's `rest` skill. Any
-file the skill folder holds outside that list fails the build.
+file the skill folder holds outside that list fails the build. Last, what the standards reader reads at run time
+(plan/b01-plan.md part e0), byte for byte: every layer folder under v2/rules/ as release/rules/<folder>/, and
+v2/roles.md as release/roles.md.
 
 Run: python3 v2/build/build.py [--root ROOT] [--out OUT]
 """
@@ -29,7 +31,7 @@ import copyform
 import reach
 import rulebook
 
-SHIPPED = ("rulebook.py", "reach.py", "copyform.py")
+SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "resolve.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 # An ID inside a word, a file name or a path is not a citation: no letter, digit, "-", "/" or "." before it, and no
@@ -158,6 +160,8 @@ def build(root):
     folders = sorted(p for p in (root / "v2" / "skills").iterdir() if p.is_dir())
     skills = {}
     for folder in folders:
+        if folder.name == "rules":
+            raise BuildError(f"{folder}: `rules` is the release folder of the layers, not a skill name")
         skill_files(folder)
         skills[folder.name] = reach.read_skill(folder.name, rulebook.read_frontmatter(folder / TEMPLATE)[0])
     owner = reach.check_jobs(jobs, skills)
@@ -169,8 +173,26 @@ def build(root):
     for folder in folders:
         for module in SHIPPED:
             files[f"{folder.name}/scripts/{module}"] = (Path(__file__).parent / module).read_bytes()
+    files.update(layer_files(root / "v2" / "rules"))
+    files["roles.md"] = (root / "v2" / "roles.md").read_bytes()
     files["manifest.json"] = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     return files
+
+
+def layer_files(rules):
+    """Each layer folder's files, byte for byte, as rules/<folder>/<file>. A layer folder holds files only."""
+    files = {}
+    for folder in sorted(p for p in rules.iterdir() if p.is_dir()):
+        for path in sorted(folder.iterdir()):
+            if not path.is_file() or path.is_symlink():
+                raise BuildError(f"{path}: a layer folder holds only files")
+            files[f"rules/{folder.name}/{path.name}"] = path.read_bytes()
+    return files
+
+
+def is_copy(rel):
+    """True for a release file the build copies byte for byte from its source."""
+    return "/scripts/" in rel or rel.startswith("rules/") or rel == "roles.md"
 
 
 def write(out, files):

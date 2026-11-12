@@ -4,7 +4,8 @@ Standard library only. It imports only check_rules.py, its sibling, and runs bui
 rebuild comparison (plan/b01-plan.md, "Where things live" and part d2; reviews/release-design/final-design.md
 section 5). It collects every failure, prints each as "check failed: <where>: <what>" and returns 1; with none it
 returns 0. Each `check_*` method covers one kind of failure:
-- the rebuild: release/ must equal what build.py writes from the sources, byte for byte;
+- the rebuild: release/ must equal what build.py writes from the sources, byte for byte, which also proves
+  release/rules/ and release/roles.md equal their sources (every other folder of release/ is a skill);
 - each copied block against its rule, read by check_rules' own reader: prose compared with whitespace collapsed,
   code blocks exactly;
 - the manifest against the release skills: the same skills, and per skill the same metadata, with the hash, the
@@ -99,7 +100,7 @@ class ReleaseCheck:
                 self.rules.setdefault(rule.id, rule)
         self.check_rebuild()
         manifest = json.loads((self.release / "manifest.json").read_text(encoding="utf-8"))
-        skills = sorted(p.name for p in self.release.iterdir() if p.is_dir())
+        skills = sorted(p.name for p in self.release.iterdir() if p.is_dir() and p.name != "rules")
         if sorted(manifest.get("skills", {})) != skills:
             self.fail("release/manifest.json", f"lists {sorted(manifest.get('skills', {}))}, not the skills {skills}")
         for name in skills:

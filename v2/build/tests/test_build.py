@@ -48,10 +48,11 @@ class BuildTest(unittest.TestCase):
             subprocess.run(command, check=True, env={**os.environ, "PYTHONHASHSEED": seed})
         trees = [{p.relative_to(o).as_posix(): p.read_bytes() for p in o.rglob("*") if p.is_file()} for o in outs]
         self.assertEqual(trees[0], trees[1])
-        self.assertEqual(sorted(trees[0]), ["demo-skill/SKILL.md", "demo-skill/references/guide.md",
-                                            "demo-skill/scripts/copyform.py", "demo-skill/scripts/helper.py",
-                                            "demo-skill/scripts/reach.py", "demo-skill/scripts/rulebook.py",
-                                            "manifest.json"])
+        layers = [f"rules/core/{p.name}" for p in (self.root / "v2/rules/core").iterdir()]
+        self.assertEqual(sorted(trees[0]), sorted([
+            "demo-skill/SKILL.md", "demo-skill/references/guide.md", "demo-skill/scripts/copyform.py",
+            "demo-skill/scripts/helper.py", "demo-skill/scripts/reach.py", "demo-skill/scripts/resolve.py",
+            "demo-skill/scripts/rulebook.py", "manifest.json", "roles.md", *layers]))
 
     def test_skill_md_layout(self):
         lines = self.skill_md().split("\n")
@@ -191,8 +192,18 @@ class BuildTest(unittest.TestCase):
         shutil.rmtree(self.skill)
         roles = (ROOT / "v2" / "roles.md").read_text(encoding="utf-8")
         (self.root / "v2" / "roles.md").write_text(roles, encoding="utf-8")
-        self.assertEqual(build.build(self.root), {"manifest.json": '{\n  "rulebook-version": "0.1.0",\n'
-                                                                   '  "skills": {}\n}\n'})
+        files = build.build(self.root)
+        self.assertEqual(files["manifest.json"], '{\n  "rulebook-version": "0.1.0",\n  "skills": {}\n}\n')
+        self.assertEqual(sorted(p for p in files if not build.is_copy(p)), ["manifest.json"])
+
+    def test_a_skill_named_rules_or_a_folder_inside_a_layer_fails(self):
+        self.skill.rename(self.root / "v2/skills/rules")
+        with self.assertRaisesRegex(build.BuildError, "not a skill name"):
+            build.build(self.root)
+        (self.root / "v2/skills/rules").rename(self.skill)
+        (self.root / "v2/rules/core/extra").mkdir()
+        with self.assertRaisesRegex(build.BuildError, "a layer folder holds only files"):
+            build.build(self.root)
 
     def test_failures(self):
         original = (FIXTURE / "SKILL.tmpl.md").read_text(encoding="utf-8")
