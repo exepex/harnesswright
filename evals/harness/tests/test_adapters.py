@@ -222,24 +222,31 @@ class Tokens(TempCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(json.dumps(record) for record in records) + "\n")
 
-    def test_codex_counts_each_threads_last_total_under_its_model_sub_agents_included(self):
-        def count(total):
-            return {"type": "event_msg", "payload": {"type": "token_count", "info": total and {
-                "total_token_usage": total, "last_token_usage": {"input_tokens": 1}}}}
+    def test_codex_counts_each_response_once_under_its_turns_model_sub_agents_and_forks_included(self):
+        def turn(turn_id, model):
+            return {"type": "turn_context", "payload": {"turn_id": turn_id, "model": model}}
 
-        def turn(model):
-            return {"type": "turn_context", "payload": {"model": model}}
+        def used(thread, response, turn_id, usage):
+            return {"type": "token_usage_record", "payload": {
+                "thread_id": thread, "response_id": response, "turn_id": turn_id, "usage": usage,
+                "thread_token_usage": {"input_tokens": 999999}}}  # a running total is never read
 
-        self.session("a", [turn("model-a"), count(None), count({"input_tokens": 50, "cached_input_tokens": 20,
-                                                                "output_tokens": 5}),
-                           count({"input_tokens": 100, "cached_input_tokens": 60, "output_tokens": 7,
-                                  "reasoning_output_tokens": 3})])  # a running total: the last one counts
-        self.session("b", [turn("model-b"), count({"input_tokens": 10, "cached_input_tokens": 0,
-                                                   "cache_write_input_tokens": 4, "output_tokens": 1})])
-        self.session("c", [turn("model-a"), count({"input_tokens": 1, "cached_input_tokens": 1, "output_tokens": 1})])
+        def total(n):  # the running total a forked child inherits and goes on from
+            return {"type": "event_msg", "payload": {"type": "token_count", "info": {
+                "total_token_usage": {"input_tokens": n}, "last_token_usage": {"input_tokens": n}}}}
+
+        parent = [turn("t1", "model-a"), used("p", "r1", "t1", {"input_tokens": 1000, "cached_input_tokens": 600,
+                                                                 "output_tokens": 50}), total(1000)]
+        self.session("a", [*parent, used("p", "r3", "t1", {"input_tokens": 500, "cached_input_tokens": 0,
+                                                           "output_tokens": 5, "reasoning_output_tokens": 3})])
+        # A forked child: the parent's history copied, a usage record copied too, then its own turn on another model.
+        self.session("b", [*parent, total(1000), turn("t2", "model-b"),
+                           used("c", "r2", "t2", {"input_tokens": 200, "cached_input_tokens": 0,
+                                                  "cache_write_input_tokens": 4, "output_tokens": 1}), total(1200)])
+        self.session("c", [{"type": "token_usage_record", "payload": {"usage": "not usage"}}])
         self.assertEqual(CODEX.tokens("", self.tmp), {
-            "model-a": {"input": 101, "cache read": 61, "cache write": 0, "output": 8},
-            "model-b": {"input": 10, "cache read": 0, "cache write": 4, "output": 1}})
+            "model-a": {"input": 1500, "cache read": 600, "cache write": 0, "output": 55},
+            "model-b": {"input": 200, "cache read": 0, "cache write": 4, "output": 1}})
         self.assertIsNone(CODEX.tokens("", self.tmp / "nothing"))
 
     def test_claude_code_counts_are_its_last_results_for_each_model(self):

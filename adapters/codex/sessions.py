@@ -1,5 +1,5 @@
 """Codex's session files, which its adapter reads (adapter.py): every thread of a run, sub-agents included, writes
-one in the run's home, with each finished item and the thread's running token count in full."""
+one in the run's home, with each finished item and the usage of each model response."""
 
 import json
 from pathlib import Path
@@ -24,20 +24,21 @@ def threads(home):
 
 
 def tokens(stdout, home):
-    """The host's own token counts by model, or None when no thread reported one: each thread's last token count,
-    its running total, under the model of the thread's last turn, summed over the threads of each model."""
-    found = {}
+    """The host's own token counts by model, or None when no response reported one. Each model response leaves one
+    usage record with its own usage, its thread and its turn; a forked sub-agent copies its parent's history but not
+    these records, and a copy would be counted once anyway. Each response counts once, under the model of its turn."""
+    models, used = {}, {}  # turn id: model; (thread, response): (turn id, usage)
     for records in threads(home):
-        model = total = None
         for record in records:
             payload = record["payload"]
             if record.get("type") == "turn_context" and isinstance(payload.get("model"), str) and payload["model"]:
-                model = payload["model"]
-            info = payload.get("info") if payload.get("type") == "token_count" else None
-            if isinstance(info, dict) and isinstance(info.get("total_token_usage"), dict):
-                total = info["total_token_usage"]
-        if total is not None and "input_tokens" in total:
-            counts = found.setdefault(model or "unknown model", {name: 0 for name, _ in USAGE})
-            for name, field in USAGE:
-                counts[name] += total.get(field, 0)
+                models[payload.get("turn_id")] = payload["model"]
+            elif record.get("type") == "token_usage_record" and isinstance(payload.get("usage"), dict):
+                used[(payload.get("thread_id"), payload.get("response_id"))] = (payload.get("turn_id"),
+                                                                                payload["usage"])
+    found = {}
+    for turn, usage in used.values():
+        counts = found.setdefault(models.get(turn) or "unknown model", {name: 0 for name, _ in USAGE})
+        for name, field in USAGE:
+            counts[name] += usage.get(field, 0)
     return found or None
