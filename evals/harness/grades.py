@@ -12,16 +12,18 @@ on that question, with why.
 - Panels: two graders on two different hosts when two hosts passed their probes, else two fresh graders on the
   one host, and a tie-breaker on the reference host (`grader.panel`). A grader runs the round's model of its host.
 - Order: the pages of every run and golden are graded in the order the round's seed gives (`grader.blind`).
-- Each run's answers are written beside its bundle (`grades.json`): the panel's answers to the questions it was
-  asked, those left unanswered, those not trusted this round with why, the agreement, and each grader's sheet and
-  failed tries. A grader that breaks its jail, or a golden that cannot be built, stops the round.
+- Every page the gate grades leaves one record, written through the round's scrub to the attempt's own folder,
+  `<store>/<round>/grades/<attempt>/runs/<key>.json` or `.../goldens/<skill>/<case>/<golden>.json`, so no attempt
+  replaces another's: the questions asked, the panel's answers, those left unanswered, the agreement, and each
+  grader's host, model, sheet and failed tries, the tie-breaker last. A golden's record adds its settled answers; a
+  run's keeps only its trusted answers and names the untrusted questions, with why.
+- The gate's outcome names, per case, each question some page was asked: None when its grading is trusted, or why
+  not. A grader that breaks its jail, or a golden that cannot be built, stops the round.
 
 Standard library only.
 """
 
-import json
 import tempfile
-from pathlib import Path
 
 import checks
 import evidence
@@ -47,11 +49,12 @@ def text(record, blob):
 def grade_gate(r):
     """The grade gate of the round `r` (`gates.Round`)."""
     library, top = checks.library(r.repo / "evals" / "checks"), reference(r.hosts)
-    pages, asked, sheets = {}, {}, {}  # by page name: its text, its questions, its panel
+    pages, asked, sheets, case_of = {}, {}, {}, {}  # by page name: its text, its questions, its panel, its case
     for made in r.runs:
         if made["status"] in ("kept", "made") and r.asked[made["key"]]:
             record, blob = evidence.load(made["bundle"])
             pages[made["key"]], asked[made["key"]] = text(record, blob), r.asked[made["key"]]
+            case_of[made["key"]] = (made["skill"], made["case"])
     calibrated = {}  # (skill, case id): (case, its goldens)
     for (skill, case_id), case in r.cases.items():
         found = goldens.load(case, r.repo / "evals" / "goldens" / skill / case_id)
@@ -67,29 +70,52 @@ def grade_gate(r):
             name = f"golden {skill}/{case_id}/{golden.name}"
             asked[name] = grading.questions(case.expectations, verdicts)
             if asked[name]:  # a golden whose every question a check decided has no page to grade
-                pages[name] = text(record, blobs.__getitem__)
-    panel = _panel(r, top)
+                pages[name], case_of[name] = text(record, blobs.__getitem__), (skill, case_id)
+    panel, pair = _panel(r, top)
     for name, _ in grader.blind(pages, r.seed):
         sheets[name] = panel(pages[name], asked[name])
+    folder = r.folder / "grades" / r.attempt
+    outcome = {"goldens": {}, "runs": []}
     trusted = {}
     for (skill, case_id), (case, found) in calibrated.items():
-        graded = {golden.name: _graded(asked, sheets, f"golden {skill}/{case_id}/{golden.name}") for golden in found}
-        trusted[(skill, case_id)] = goldens.gate(case, found, graded)
-    outcome = {"goldens": {f"{skill}/{case_id}": gate for (skill, case_id), gate in trusted.items()}, "runs": []}
+        names = {golden.name: f"golden {skill}/{case_id}/{golden.name}" for golden in found}
+        gate = goldens.gate(case, found, {golden.name: _graded(asked, sheets, names[golden.name])
+                                          for golden in found})
+        trusted[(skill, case_id)] = gate
+        for golden in found:
+            if names[golden.name] in sheets:
+                r.write(_path(folder / "goldens" / skill / case_id, golden.name), {
+                    **_record(asked[names[golden.name]], sheets[names[golden.name]], pair, top, r),
+                    "settled": {q["id"]: golden.settled[q["id"]] for q in asked[names[golden.name]]}})
+        ids = {q["id"] for name in pages if case_of[name] == (skill, case_id) for q in asked[name]}  # graded ones
+        outcome["goldens"][f"{skill}/{case_id}"] = {id_: why for id_, why in gate.items() if id_ in ids}
     for made in r.runs:
         if made["key"] not in pages:
             continue
-        doubted = trusted[(made["skill"], made["case"])]
-        given = sheets[made["key"]]
-        answers = {id_: answer for id_, answer in given.answers.items() if doubted[id_] is None}
+        doubted, given = trusted[(made["skill"], made["case"])], sheets[made["key"]]
         untrusted = {q["id"]: doubted[q["id"]] for q in asked[made["key"]] if doubted[q["id"]] is not None}
-        found = {"answers": answers, "unanswered": given.unanswered, "untrusted": untrusted,
-                 "agreed": given.agreed, "asked": given.asked,
-                 "graders": [{"sheet": g.sheet, "tries": g.tries} for g in given.graded]}
-        r.write(Path(made["bundle"]).parent / "grades.json", found)
-        outcome["runs"].append({"key": made["key"], "answered": sorted(answers), "unanswered": given.unanswered,
-                                "untrusted": sorted(untrusted), "agreed": given.agreed, "asked": given.asked})
+        record = _record(asked[made["key"]], given, pair, top, r)
+        record.update(answers={id_: answer for id_, answer in given.answers.items() if id_ not in untrusted},
+                      untrusted=untrusted)
+        r.write(_path(folder / "runs", made["key"]), record)
+        outcome["runs"].append({"key": made["key"], "answered": sorted(record["answers"]),
+                                "unanswered": given.unanswered, "untrusted": sorted(untrusted),
+                                "agreed": given.agreed, "asked": given.asked})
     return outcome
+
+
+def _path(folder, name):
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{name}.json"
+
+
+def _record(asked, panel, pair, top, r):
+    """What a page's panel found, as the store keeps it: the questions asked, the panel's answers, those left
+    unanswered, the agreement, and each grader's host, model, sheet and failed tries, the tie-breaker last."""
+    hosts = [*pair, top][:len(panel.graded)]
+    return {"asked": [q["id"] for q in asked], "answers": panel.answers, "unanswered": panel.unanswered,
+            "agreed": panel.agreed, "graders": [{"host": host, "model": r.model(host), "sheet": g.sheet,
+                                                 "tries": g.tries} for host, g in zip(hosts, panel.graded)]}
 
 
 def _graded(asked, sheets, name):
@@ -99,7 +125,7 @@ def _graded(asked, sheets, name):
 
 
 def _panel(r, top):
-    """The panel of the round: a function of (page, questions) that gives a `grader.Panel`."""
+    """The panel of the round, a function of (page, questions) that gives a `grader.Panel`, and its two hosts."""
     hosts = sorted(r.hosts)
     pair = hosts[:2] if len(hosts) > 1 else hosts * 2
 
@@ -109,4 +135,4 @@ def _panel(r, top):
                            **r.containment)
         return grade_one
 
-    return lambda page, questions: grader.panel(page, questions, [one(host) for host in pair], one(top))
+    return (lambda page, questions: grader.panel(page, questions, [one(host) for host in pair], one(top))), pair

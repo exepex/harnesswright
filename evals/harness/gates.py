@@ -22,8 +22,8 @@ canaries and credentials of every containment its gates made, taken while its ho
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
   graders (`grading.questions`). A check that breaks stops the round.
-- `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each run's
-  answers written beside its bundle (`grades.grade_gate`).
+- `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each page's
+  grading written to the attempt's own folder (`grades.grade_gate`).
 
 The label and store gates follow in later steps. Every gate runs again when a round is run again,
 as each proves the kit and the hosts as they are now; only runs are kept (`runs.run`).
@@ -78,6 +78,7 @@ class Round:
         self.folder = kit.store_folder(store, repo) / record["round"]
         self.seed = secrets.randbelow(2 ** 32) if seed is None else seed
         self.containment, self.hosts, self.runs, self.asked = containment, {}, [], {}
+        self.attempt = None  # the name of the attempt (`run`)
         self.tokens, self.secrets = set(), set()  # of every containment the gates made (`keep`)
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
         root = self.repo / "evals" / "skills"
@@ -256,6 +257,7 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
     handle, path = tempfile.mkstemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", suffix=".json", dir=folder)
     os.close(handle)  # a new name for every attempt, never another attempt's
     path = Path(path)
+    r.attempt = path.stem  # names what this attempt alone writes, such as its grades
     for gate, step in gates:
         try:
             outcome = step(r)

@@ -73,7 +73,8 @@ class Graded(Gated):
                 made = tempfile.mkdtemp(dir=self.tmp)
                 record, blobs = goldens.bundle(goldens.Golden("run", wrote(poem)), case, r.modules["fakehost"],
                                                made, DRIFT, "fakehost 1.0", "named-model", self.repo / "skills")
-                bundle = str(evidence.store(record, blobs, folder / "bundle"))
+                kept = folder / "bundle"  # kept when the round runs again, as a run is
+                bundle = str(kept if kept.is_dir() else evidence.store(record, blobs, kept))
                 r.runs.append({"key": f"k{number}", "skill": "haiku-writer", "case": "c1", "status": "made",
                                "bundle": bundle})
         return step
@@ -83,8 +84,10 @@ class Graded(Gated):
         steps = (("run", self.ran(poems)), ("check", gates.check_gate), ("grade", grades.grade_gate))
         return self.go(steps, grade=grade)["gates"][2]["outcome"]
 
-    def grades(self, key):
-        return json.loads((self.store / "r1" / "runs" / key / "grades.json").read_text())
+    def grades(self, key, kind="runs"):
+        """The record the one attempt of the round wrote of the page `key`."""
+        [attempt] = (self.store / "r1" / "grades").iterdir()
+        return json.loads((attempt / kind / f"{key}.json").read_text())
 
     def test_what_no_check_decided_is_answered_where_the_goldens_were_and_kept_beside_the_bundle(self):
         calls = []
@@ -93,8 +96,12 @@ class Graded(Gated):
         self.assertEqual([run["answered"] for run in outcome["runs"]], [["q2"], ["q2"]])
         self.assertEqual(self.grades("k1")["answers"], {"q2": "yes"})
         self.assertEqual(self.grades("k2")["answers"], {"q2": "no"})
-        self.assertEqual((self.grades("k1")["agreed"], self.grades("k1")["asked"]), (1, 1))
-        self.assertEqual(len(self.grades("k1")["graders"]), 2)  # no tie, so no tie-breaker
+        self.assertEqual((self.grades("k1")["agreed"], self.grades("k1")["asked"]), (1, ["q2"]))
+        self.assertEqual([(g["host"], g["model"]) for g in self.grades("k1")["graders"]],
+                         [("fakehost", "named-model")] * 2)  # no tie, so no tie-breaker
+        golden = self.grades("haiku-writer/c1/no", "goldens")  # every graded page leaves the same record
+        self.assertEqual((golden["asked"], golden["answers"], golden["settled"]), (["q2"], {"q2": "no"}, {"q2": "no"}))
+        self.assertEqual(outcome["goldens"], {"haiku-writer/c1": {"q2": None}})  # only what a page was asked
         # Two runs and two goldens, each graded by two fresh graders with the host's model, on q2 alone.
         self.assertEqual(calls, [("named-model", ["q2"])] * 8)
 
@@ -136,6 +143,14 @@ class Graded(Gated):
         found = self.grades("k1")
         self.assertEqual((found["answers"], found["unanswered"]), ({}, ["q2"]))
         self.assertEqual(found["graders"][0]["tries"], ["the host failed: planted"])
+
+    def test_each_attempt_keeps_its_own_grading(self):
+        self.graded([POND], answering(pond))
+        steps = (("run", self.ran([POND])), ("check", gates.check_gate), ("grade", grades.grade_gate))
+        self.go(steps, grade=answering(lambda page: "yes"))  # the round run again, its goldens missed this time
+        found = [json.loads((attempt / "runs" / "k1.json").read_text())["answers"]
+                 for attempt in (self.store / "r1" / "grades").iterdir()]
+        self.assertCountEqual(found, [{}, {"q2": "yes"}])
 
     def test_a_golden_that_cannot_be_built_stops_the_round(self):
         self.golden("bad", {**wrote(POND), "changes": {"README.md/poem.md": POND}})
