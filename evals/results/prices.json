@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-12",
+  "currency": "USD",
+  "per": 1000000,
+  "sources": [
+    "https://platform.claude.com/docs/en/about-claude/pricing",
+    "https://developers.openai.com/api/docs/pricing.md"
+  ],
+  "notes": [
+    "input is the price of input neither read from nor written to the cache; a run's input at that price is its input count less its cache reads and cache writes.",
+    "claude-sonnet-5-5: a cache write is priced at the 5-minute rate, as the eval signs Claude Code in with an API key; Claude Code's counts do not tell a 5-minute write from a 1-hour one (4 dollars).",
+    "gpt-6.1-sol: short-context prices (272K input tokens a request or fewer), as a run's counts are summed over its requests; a cache write is priced at the 30-minute rate, as Codex asks for no longer cache (12-hour: 5 dollars)."
+  ],
+  "models": {
+    "claude-sonnet-5-5": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0},
+    "gpt-6.1-sol": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0}
+  }
+}
