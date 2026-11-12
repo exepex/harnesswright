@@ -196,14 +196,23 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(files["manifest.json"], '{\n  "rulebook-version": "0.1.0",\n  "skills": {}\n}\n')
         self.assertEqual(sorted(p for p in files if not build.is_copy(p)), ["manifest.json"])
 
-    def test_a_skill_named_rules_or_a_folder_inside_a_layer_fails(self):
+    def test_a_skill_named_like_the_layout_or_a_non_rule_file_in_a_layer_fails(self):
         self.skill.rename(self.root / "v2/skills/rules")
-        with self.assertRaisesRegex(build.BuildError, "not a skill name"):
+        with self.assertRaisesRegex(build.BuildError, "`rules` is a release file or folder, not a skill name"):
             build.build(self.root)
         (self.root / "v2/skills/rules").rename(self.skill)
-        (self.root / "v2/rules/core/extra").mkdir()
-        with self.assertRaisesRegex(build.BuildError, "a layer folder holds only files"):
-            build.build(self.root)
+        for name in ("extra", ".DS_Store", "notes.txt", "link.yaml"):
+            with self.subTest(name=name):
+                path = self.root / "v2/rules/core" / name
+                if name == "extra":
+                    path.mkdir()
+                elif name == "link.yaml":
+                    path.symlink_to(self.root / "v2/roles.md")
+                else:
+                    path.write_text("x\n", encoding="utf-8")
+                with self.assertRaisesRegex(build.BuildError, "a layer folder holds only .md and .yaml files"):
+                    build.build(self.root)
+                path.rmdir() if name == "extra" else path.unlink()
 
     def test_failures(self):
         original = (FIXTURE / "SKILL.tmpl.md").read_text(encoding="utf-8")

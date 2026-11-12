@@ -75,6 +75,19 @@ class CheckReleaseTest(unittest.TestCase):
         self.setUp()
         self.edit("release/roles.md", "| Role |", "| Roles |")
         self.assertFails("release/roles.md: differs from a rebuild")
+        self.setUp()
+        (self.release / "roles.md").unlink()
+        self.assertFails("release/roles.md: is missing")
+        self.setUp()
+        (self.release / "rules/core/extra.md").write_text("x\n", encoding="utf-8")
+        self.assertFails("release/rules/core/extra.md: is not made by the build")
+
+    def test_the_skills_are_the_folders_of_v2_skills(self):
+        (self.release / "stray").mkdir()
+        (self.release / "stray/SKILL.md").write_text("---\nname: stray\n---\n", encoding="utf-8")
+        failures = self.check()[0]
+        self.assertTrue(any("release/stray/SKILL.md: is not made by the build" in f for f in failures), failures)
+        self.assertFalse([f for f in failures if "manifest.json" in f], failures)
 
     def test_a_source_the_build_rejects_fails(self):
         with open(self.root / "v2/skills/golden-skill/SKILL.tmpl.md", "a", encoding="utf-8") as handle:
@@ -197,6 +210,7 @@ class CheckReleaseTest(unittest.TestCase):
 
     def test_a_name_over_64_characters_fails(self):
         name = "a" * 65
+        (self.root / "v2/skills" / name).mkdir()  # a skill of v2/skills, so its release folder is checked
         (self.release / name).mkdir()
         (self.release / name / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Long.\n---\n", encoding="utf-8")
         self.assertFails(f"name '{name}' must equal the folder name: at most 64")

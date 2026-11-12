@@ -38,6 +38,8 @@ VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 # letter, digit, "-" or "/" after it, nor a "." followed by a letter or digit (a file extension).
 CITATION = re.compile(rf"(?<![\w/.-])(?:{rulebook.DP_ID.pattern}|{rulebook.RULE_ID.pattern})(?![\w/-]|\.\w)")
 TEMPLATE = "SKILL.tmpl.md"
+LAYOUT = ("manifest.json", "roles.md", "rules")  # release/ holds these and one folder per skill, nothing else
+LAYER_FILE = re.compile(r"[a-z0-9-]+\.(?:md|yaml)")  # a layer folder holds rule files, its index, layer.yaml
 LICENCE = re.compile(r"LICENSE(?:-[A-Za-z0-9.]+)?\.txt")  # an adapted skill keeps its source's licence notice
 SCRIPT = re.compile(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.(?:py|sh)")  # HW-PORT-04: Python or POSIX sh
 
@@ -160,8 +162,8 @@ def build(root):
     folders = sorted(p for p in (root / "v2" / "skills").iterdir() if p.is_dir())
     skills = {}
     for folder in folders:
-        if folder.name == "rules":
-            raise BuildError(f"{folder}: `rules` is the release folder of the layers, not a skill name")
+        if folder.name in LAYOUT:
+            raise BuildError(f"{folder}: `{folder.name}` is a release file or folder, not a skill name")
         skill_files(folder)
         skills[folder.name] = reach.read_skill(folder.name, rulebook.read_frontmatter(folder / TEMPLATE)[0])
     owner = reach.check_jobs(jobs, skills)
@@ -184,8 +186,8 @@ def layer_files(rules):
     files = {}
     for folder in sorted(p for p in rules.iterdir() if p.is_dir()):
         for path in sorted(folder.iterdir()):
-            if not path.is_file() or path.is_symlink():
-                raise BuildError(f"{path}: a layer folder holds only files")
+            if not path.is_file() or path.is_symlink() or not LAYER_FILE.fullmatch(path.name):
+                raise BuildError(f"{path}: a layer folder holds only .md and .yaml files")
             files[f"rules/{folder.name}/{path.name}"] = path.read_bytes()
     return files
 
