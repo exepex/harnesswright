@@ -1,0 +1,26 @@
+{
+  "rulebook-version": "0.3.1",
+  "skills": {
+    "golden-skill": {
+      "areas": [
+        "TEST"
+      ],
+      "content-hash": "ef9bdad8b40f43330611ba60f4781606c977c32d94e34d73eddc158f24cddb6c",
+      "copied-ids": [
+        "CORE-WORK-01",
+        "CORE-DP-NAMES",
+        "CORE-TEST-01",
+        "CORE-TEST-011",
+        "CORE-TEST-04"
+      ],
+      "job": "golden",
+      "rest": true,
+      "roles": [
+        "tester"
+      ],
+      "rulebook-version": "0.3.1",
+      "size-floors": 284,
+      "size-rest": 2056
+    }
+  }
+}
