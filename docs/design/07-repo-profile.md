@@ -10,7 +10,7 @@ file and writes it by hand or with its runtime.
 ```yaml
 # .harness/profile.yaml
 harnesswright:                      # the installed release: principles, language and framework layers, skills
-  version: "1.4"
+  version: "1.4.0"
   folder: .agents/harnesswright/
 
 standards:
@@ -18,7 +18,7 @@ standards:
   layers:                           # company, department and team layers, most general first
     - name: acme
       folder: ../acme-rules/
-      version: "2.1"
+      version: "2.1.0"
   repository: .harness/standards/   # this repository's own rules
 
 waivers:                            # approved application waivers; never a floor
@@ -126,8 +126,8 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
 
 - The release holds the principles layer, the language and framework layers, the skills and a manifest that states
   the release version. Its version pins the principles, language and framework layers.
-- Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), which states the layer's
-  owner and version.
+- Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), with exactly two keys:
+  `owner` and `version`. Versions are three numbers, such as `"2.1.0"`.
 - At the start of a run, the standards reader checks every folder against the profile: the release by the version
   in its manifest, each layer 3 to 5 by the version in its `layer.yaml`. If a folder is missing or cannot be read,
   or its version is not exactly the one the profile pins, the run stops and names the layer and the folder. It
