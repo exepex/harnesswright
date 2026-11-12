@@ -130,6 +130,13 @@ def load(repo, today):
     return inputs
 
 
+def builds_on(source, prefix):
+    """A language or framework layer builds on CORE and its own language only; any other layer builds on every more
+    general layer. No two languages are ranked, so neither may change the other's rules (doc 03 step 5)."""
+    language = source.owner == "harnesswright" and source.prefix != "CORE"
+    return not language or prefix in ("CORE", source.prefix.split("-")[0])
+
+
 def active(source):
     return [r for r in source.rules.values() if r.status == "active"]
 
@@ -149,6 +156,9 @@ def check_rules(sources, roles):
             target = next((s.rules[rule.changes] for s in sources[:index] if rule.changes in s.rules), None)
             if target is None or target.status != "active":
                 raise ResolveError(f"{where}: {relation} {rule.changes}, which no more general layer holds active")
+            if not builds_on(source, prefix_of(target.id)):
+                raise ResolveError(f"{where}: {relation} {target.id}, a rule of another language; a language "
+                                   "changes only CORE rules and its own language's")
             kinds, target_kinds = RELATIONS[relation]
             if rule.kind not in kinds or target.kind not in target_kinds:
                 raise ResolveError(f"{where}: {relation} may not go from a {rule.kind} to a {target.kind}; it goes "
@@ -227,6 +237,10 @@ def combine(inputs):
                 if rule.changes in binds:
                     raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "
                                        f"{binds[rule.changes].id} already binds in layer {source.prefix}")
+                if rule.changes in bound and not builds_on(source, prefix_of(bound[rule.changes].id)):
+                    raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} binds {rule.changes}, which "
+                                       f"{bound[rule.changes].id} of another language binds; no language outranks "
+                                       "another, so two languages may not bind one point")
                 if rule.changes in bound:
                     replace(bound[rule.changes].id, rule.id)
                 binds[rule.changes] = bound[rule.changes] = rule

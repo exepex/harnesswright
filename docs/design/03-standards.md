@@ -244,7 +244,8 @@ and no other rules:
    tightening makes a floor stricter, a binding picks a decision point's option and replaces any earlier binding of
    that point, and any other rule is added. A rule that changes a rule a more specific layer already replaced is a
    contradiction: it must change the rule that replaced it. A binding changes only by binding its point again, so
-   an override never names a binding rule.
+   an override never names a binding rule. A language or framework layer changes only principles rules and its own
+   language's: no language outranks another, so two languages may not bind one point.
 2. Apply the profile's bindings; each replaces any layer's binding of its point. A decision point bound more than
    once in the application layer, by rules or by the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.

@@ -126,6 +126,13 @@ class RulesTest(Application):
         self.assertIn("| JAVA-STACK-01 | COMP-ACME-STACK-01 |\n", text)
         self.assertIn("| COMP-ACME-STACK-01 | profile decisions |\n", text)
         self.assertNotIn("| JAVA-STACK-01 | JAVA |", text)
+        self.edit(".harness/profile.yaml", "[java]", "[java, kotlin]")
+        self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule(
+            "KOTLIN-STACK-01", extra="- **Binds:** CORE-DP-STACK: junit\n")))
+        self.assertStops("KOTLIN-STACK-01 binds CORE-DP-STACK, which JAVA-STACK-01 of another language binds")
+        self.write(".agents/harnesswright/rules/kotlin/stack.md", area("KOTLIN-STACK", rule(
+            "KOTLIN-STACK-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
+        self.assertStops("KOTLIN-STACK-01: Overrides JAVA-TEST-01, a rule of another language")
 
     def test_only_the_application_layer_counts_with_the_profile(self):
         self.edit(".harness/profile.yaml", "  repository: .harness/standards/\n", "")
