@@ -172,13 +172,12 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
 An application's approved waivers live only in `waivers`, one entry per rule, with `rule`, `reason`, `until` (a
 date) and `approved by` (the accounts of every approver the table in [03 · Standards](03-standards.md) requires,
 comma-separated). A waiver is added in a pull request that each of them approves from that account. The rule ID
-comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver names a principle, idiom
-or choice that binds no decision point, never a floor; to change a binding, bind the point in `decisions`. The
+comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver names a principle,
+idiom or choice that binds no decision point, never a floor; to change a binding, bind the point in `decisions`. The
 standards reader stops on any other waiver, and on one that names a rule no layer holds active, even once it has
-expired. A
-waiver of a retired rule is removed in the pull request that retires it. It records `approved by` and does not
-verify it: only the pull request that added the waiver proves the approval. Story-scoped waivers live in their
-story ([06 · Contracts](06-contracts.md)).
+expired. A waiver of a retired rule is removed in the pull request that retires it. It records `approved by` and
+does not verify it: only the pull request that added the waiver proves the approval. Story-scoped waivers live in
+their story ([06 · Contracts](06-contracts.md)).
 
 ## Rules text limit
 

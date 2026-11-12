@@ -243,13 +243,15 @@ and no other rules:
 1. Start with the principles layer. Apply each listed layer, most general first: an override replaces a rule, a
    tightening makes a floor stricter, a binding picks a decision point's option and replaces any earlier binding of
    that point, and any other rule is added. A rule that changes a rule a more specific layer already replaced is a
-   contradiction: it must change the rule that replaced it.
+   contradiction: it must change the rule that replaced it. A binding changes only by binding its point again, so
+   an override never names a binding rule.
 2. Apply the profile's bindings; each replaces any layer's binding of its point. A decision point bound more than
    once in the application layer, by rules or by the profile, is a contradiction.
 3. An unbound decision point takes the language default, then the principles default.
 4. Mark each waived rule with its waiver: reason, end date and approver. A waiver names a principle, idiom or
-   choice that binds no decision point; a binding changes only by binding its point again. A story-scoped waiver is not an input: it
-   lives in its story, and the story judge checks it there ([06 · Contracts](06-contracts.md)).
+   choice that binds no decision point; a binding changes only by binding its point again. A waived rule that
+   overrides another still replaces it. A story-scoped waiver is not an input: it lives in its story, and the story
+   judge checks it there ([06 · Contracts](06-contracts.md)).
 5. If two inputs contradict each other without saying so, stop and ask the layer owners. If a layer loosens a
    floor, or a waiver names a floor, stop. If the release or a layer folder is missing, cannot be read or has a
    different version from the profile, stop and name the layer and the folder.

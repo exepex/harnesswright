@@ -153,6 +153,9 @@ def check_rules(sources, roles):
             if rule.kind not in kinds or target.kind not in target_kinds:
                 raise ResolveError(f"{where}: {relation} may not go from a {rule.kind} to a {target.kind}; it goes "
                                    f"from {'/'.join(sorted(kinds))} to {'/'.join(sorted(target_kinds))}")
+            if relation == "Overrides" and "Binds" in target.parts:
+                raise ResolveError(f"{where}: Overrides {target.id}, a binding; a binding changes only by binding "
+                                   "its point again")
             if relation == "Binds" and rule.option not in target.options:
                 raise ResolveError(f"{where}: option {rule.option!r} is not one of {target.id}'s Options")
 
@@ -205,8 +208,6 @@ def combine(inputs):
     def replace(old, new):
         del done.rules[old]
         done.replaced[old] = new
-        for point in [p for p, r in bound.items() if r.id == old]:
-            del bound[point]
 
     for source in inputs.sources:
         binds = {}  # decision point ID -> the rule in this layer that binds it
@@ -215,8 +216,11 @@ def combine(inputs):
             change = f"{relation} {rule.changes}" if relation else ""
             change += f": {rule.option}" if relation == "Binds" else ""
             if relation and rule.changes in done.replaced:
-                raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} {relation} {rule.changes}, which "
-                                   f"{done.replaced[rule.changes]} already replaces; name that rule instead")
+                by = done.replaced[rule.changes]
+                advice = ("its layer's owner keeps one of the two" if prefix_of(by) == source.prefix else
+                          "name that rule instead")
+                raise ResolveError(f"{rule.file}:{rule.line}: {rule.id} {relation} {rule.changes}, which {by} "
+                                   f"already replaces; {advice}")
             if relation == "Overrides":
                 replace(rule.changes, rule.id)
             if relation == "Binds":

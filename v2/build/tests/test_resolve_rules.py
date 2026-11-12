@@ -70,10 +70,8 @@ class RulesTest(Application):
         self.edit(".harness/profile.yaml", DECISION, "")
         self.write(".harness/standards/code.md", area("APP-CODE", rule(
             "APP-CODE-01", extra="- **Overrides:** COMP-ACME-CODE-01\n")))
-        text = self.text()
-        self.assertIn("| JAVA-DP-BOILERPLATE | records | default |\n", text)
-        self.assertIn("| COMP-ACME-CODE-01 | APP-CODE-01 |\n", text)
-        self.assertNotIn("| COMP-ACME-CODE-01 | COMP-ACME |", text)
+        self.assertStops("APP-CODE-01: Overrides COMP-ACME-CODE-01, a binding; a binding changes only by binding")
+        self.setUp()
         point = ".agents/harnesswright/rules/java/dp.md"
         for default in ("none", "`records` or `lombok`", "`getters`", "`records`, not `lombok`"):
             with self.subTest(default=default):
@@ -98,6 +96,10 @@ class RulesTest(Application):
             "COMP-ACME-TEST-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
         self.assertStops("test.md:3: APP-TEST-01 Overrides JAVA-TEST-01, which COMP-ACME-TEST-01 already replaces; "
                          "name that rule instead")
+        self.write("../acme/company/more.md", area("COMP-ACME-MORE", rule(
+            "COMP-ACME-MORE-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
+        self.assertStops("COMP-ACME-MORE-01 already replaces; its layer's owner keeps one of the two")
+        (self.repo / "../acme/company/more.md").unlink()
         self.edit(".harness/standards/test.md", "Overrides:** JAVA-TEST-01", "Overrides:** COMP-ACME-TEST-01")
         self.edit(".harness/profile.yaml", "TEAM-ACME-LOG-01\n    reason: old logger\n    until: 2026-01-01",
                   "JAVA-TEST-01\n    reason: old logger\n    until: 2027-01-01")
