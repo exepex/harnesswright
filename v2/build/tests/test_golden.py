@@ -1,8 +1,9 @@
 """The build against a hand-written golden release. Run: python3 -m unittest discover -s v2/build/tests
 
 golden/root is a small fixture repository: a CORE layer with multi-line parts, a code block with a blank line, a
-nested Source list, IDs where one is a prefix of another (CORE-TEST-01, CORE-TEST-011), a retired, an inferred and
-an Exceptions case, two decision points (one cited, one reaching only by role), and a language-layer rule the build
+nested Source list, IDs where one is a prefix of another (CORE-TEST-01, CORE-TEST-011), a retired, an inferred, an
+Exceptions and an Overrides case (CORE-TEST-04, which reaches only because it overrides a cited rule), two
+decision points (one cited, one reaching only by role), and a language-layer rule the build
 must ignore. golden/expected was written by hand, not by the build; its hash and sizes were computed from its own
 text. The build must give exactly these files, plus scripts/ copied byte for byte from their sources.
 """
@@ -38,7 +39,8 @@ class GoldenTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(data, (HERE.parent / Path(path).name).read_bytes())
 
-    def test_rules_that_must_not_reach(self):
+    def test_rules_that_must_not_be_copied(self):
+        """The first four do not reach; CORE-DP-STACK reaches by role only, so it is not copied."""
         text = "".join(t for t in self.files.values() if isinstance(t, str))
         for rule_id in ("JAVA-TEST-01", "CORE-TEST-02", "CORE-TEST-03", "CORE-WORK-02", "CORE-DP-STACK"):
             with self.subTest(rule=rule_id):

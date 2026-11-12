@@ -4,11 +4,11 @@ description: Golden fixture for the build tests. Never used as a real skill.
 metadata:
   roles: tester
   areas: rest
-  copied-ids: "CORE-WORK-01, CORE-DP-NAMES, CORE-TEST-01, CORE-TEST-011"
+  copied-ids: "CORE-WORK-01, CORE-DP-NAMES, CORE-TEST-01, CORE-TEST-011, CORE-TEST-04"
   rulebook-version: "0.3.1"
-  content-hash: "d5adbdc30ebce50d0a010bd8295f2a2c52f4beae7188895ed197b7eaac2c78fa"
+  content-hash: "ef9bdad8b40f43330611ba60f4781606c977c32d94e34d73eddc158f24cddb6c"
   size-floors: "284"
-  size-rest: "1703"
+  size-rest: "2056"
 ---
 <!-- Generated from v2/skills/golden-skill/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
 
@@ -66,6 +66,15 @@ The binding in your rules text wins; the default applies only when unbound.
 - **Good:** One test for the low-stock case, one for the enough-stock case.
 - **Bad (do not do this):** One test that asserts both cases.
 <!-- end CORE-TEST-011 -->
+
+<!-- rule CORE-TEST-04 -->
+#### CORE-TEST-04 · A test checks one outcome per case
+
+- **Kind:** principle
+- **Rule:** Each test case checks one outcome; a table of cases may share one test.
+- **Good:** One table test with a low-stock row and an enough-stock row.
+- **Bad (do not do this):** One case that asserts two outcomes.
+<!-- end CORE-TEST-04 -->
 
 1. Keep each test to one behaviour, as CORE-TEST-011 (A test checks one behaviour) says.
 2. Name tests in the style CORE-DP-NAMES (How tests are named) binds.

@@ -54,3 +54,18 @@ Golden fixture for the build tests. These rules are not part of the real ruleboo
 - **Bad:** A 3 s test.
 - **Eval:** a 3 s unit test, which the reviewer must flag
 - **Source:** own
+
+### CORE-TEST-04 · A test checks one outcome per case
+
+- **Kind:** principle
+- **Status:** active
+- **Review by:** 2027-11-03
+- **Applies to:** reviewer
+- **Overrides:** CORE-TEST-011
+- **Rule:** Each test case checks one outcome; a table of cases may share one test.
+- **Why:** Table tests keep many small cases readable.
+- **Check:** Does each case assert one outcome?
+- **Good:** One table test with a low-stock row and an enough-stock row.
+- **Bad:** One case that asserts two outcomes.
+- **Eval:** a case with two unrelated assertions, which the reviewer must flag
+- **Source:** own
