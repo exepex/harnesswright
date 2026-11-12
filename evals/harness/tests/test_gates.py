@@ -1,6 +1,7 @@
 """The gates of a round: a planned round goes through them in order, the first that fails stops it with its reason,
 and every gate's outcome is written to the round's attempt record in the store."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -13,8 +14,10 @@ from unittest import mock
 
 from test_gate import Upstream
 from test_host import FAKE
-from test_runs import DRIFT, JAIL, VERSION, Round
+from test_runs import DRIFT, JAIL, VERSION, WROTE, Round
 
+import checks
+import evidence
 import faults
 import gates
 import kit
@@ -191,6 +194,80 @@ class Gates(Gated):
         self.assertEqual(sorted(p.name for p in path.parent.iterdir()), ["fakehost.json"])
 
 
+JUDGED = {"question": "Is the poem a haiku?", "pass": "Yes when it has three lines.", "fail": "No otherwise.",
+          "examples": {"pass": ["Three short lines."], "fail": ["One line."]}}
+EXPECTATIONS = [
+    {"text": "The poem is written", "source": "format", "judged": JUDGED,
+     "check": {"name": "file_state", "args": {"path": "poem.md", "state": "changed"}}},
+    {"text": "The poem is a haiku", "source": "format", "judged": JUDGED},
+    {"text": "The notes are updated", "source": "format", "judged": JUDGED,
+     "check": {"name": "file_state", "args": {"path": "README.md", "state": "changed"}}},
+]
+
+
+def _poem():
+    """The record and blobs of a run that wrote poem.md and left README.md as it was."""
+    made = checks.Bundle.key({"before": {"README.md": "# Notes app\n"},
+                              "after": {"README.md": "# Notes app\n", "poem.md": "An old silent pond\n"}})
+    texts = [b"", b"# Notes app\n", b"An old silent pond\n"]
+    blobs = {hashlib.sha256(text).hexdigest(): text for text in texts}
+    empty = hashlib.sha256(b"").hexdigest()
+    return ({"files_after": made.files, "diff": made.changes, "log": [], "final_message": "Done.",
+             "transcript": {"stdout": empty, "stderr": empty}}, blobs)
+
+
+POEM = _poem()
+BROKEN = "from checks import Check\n\n\ndef broken(bundle):\n    raise ValueError('planted')\n\n\n" \
+         "CHECKS = {'broken': Check(broken, {})}\n"
+
+
+class Checked(Gated):
+    """The check gate, on bundles stored as a run stores them."""
+
+    def setUp(self):
+        super().setUp()
+        shutil.copytree(checks.LIBRARY, self.repo / "evals" / "checks",
+                        ignore=shutil.ignore_patterns("keys", "__pycache__"))
+        self.expect(EXPECTATIONS)
+
+    def expect(self, expectations):
+        (self.case_dir / "case.json").write_text(json.dumps({"prompt": WROTE, "kind": "task",
+                                                             "expectations": expectations}))
+
+    def ran(self, statuses):
+        """A run gate that gives one run of each status, each kept or made one with a bundle that wrote poem.md."""
+        def step(r):
+            for number, status in enumerate(statuses, start=1):
+                folder = self.store / "r1" / "runs" / f"k{number}"
+                bundle = None  # a void or empty run has no bundle
+                if status in ("kept", "made"):
+                    bundle = str(evidence.store(*POEM, folder / "bundle"))
+                r.runs.append({"key": f"k{number}", "skill": "haiku-writer", "case": "c1", "status": status,
+                               "bundle": bundle})
+        return step
+
+    def test_each_kept_or_made_run_is_checked_and_its_verdicts_written_beside_its_bundle(self):
+        self.planned()
+        steps = (("run", self.ran(["made", "void", "kept", "empty"])), ("check", gates.check_gate))
+        found = self.go(steps)["gates"][1]["outcome"]
+        self.assertEqual([f["key"] for f in found], ["k1", "k3"])  # a void or empty run has nothing to check
+        self.assertEqual(found[0], {"key": "k1", "pass": 1, "fail": 1, "undecidable": 0, "asked": ["q2"]})
+        verdicts = json.loads((self.store / "r1" / "runs" / "k1" / "checks.json").read_text())["verdicts"]
+        self.assertEqual([v and v["outcome"] for v in verdicts], ["pass", None, "fail"])
+        self.assertEqual(verdicts[2]["check"], "file_state")
+        self.assertFalse((self.store / "r1" / "runs" / "k2" / "checks.json").exists())
+
+    def test_a_check_that_breaks_stops_the_round(self):
+        (self.repo / "evals" / "checks" / "broken.py").write_text(BROKEN)
+        self.expect([{**EXPECTATIONS[0], "check": {"name": "broken", "args": {}}}])
+        self.planned()
+        with self.assertRaisesRegex(rounds.RoundError, "stopped at the check gate: broken: the check failed to run: "
+                                                       "ValueError: planted"):
+            self.go((("run", self.ran(["made"])), ("check", gates.check_gate)))
+        self.assertEqual(self.attempt()["gates"][1]["reason"],
+                         "CheckError: broken: the check failed to run: ValueError: planted")
+
+
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
 class Hosts(Gated):
     def setUp(self):
@@ -215,8 +292,10 @@ class Hosts(Gated):
         def probed(r):
             r.hosts["fakehost"] = {"drift": DRIFT}
 
-        steps = (("probe", probed), ("run", gates.run_gate))
-        made = self.go(steps, **self.options)["gates"][1]["outcome"]
+        steps = (("probe", probed), ("run", gates.run_gate), ("check", gates.check_gate))
+        attempt = self.go(steps, **self.options)
+        made = attempt["gates"][1]["outcome"]
+        self.assertEqual([c["key"] for c in attempt["gates"][2]["outcome"]], [m["key"] for m in made])  # each checked
         self.assertEqual([(m["number"], m["arm"]) for m in made],
                          [(1, ARMS[0]), (1, ARMS[1]), (2, ARMS[1]), (2, ARMS[0])])
         self.assertEqual({m["status"] for m in made}, {"made"})
