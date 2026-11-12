@@ -39,7 +39,7 @@ class SizeAndSkillTest(unittest.TestCase):
         self.assertEqual(reach.size("aé😀\n"), 4)
 
     def test_area_of_an_id(self):
-        self.assertEqual([rule(i).area for i in ("CORE-TEST-01", "JAVA-ERR-12", "CORE-DP-TEST-STACK")],
+        self.assertEqual([rule(i).area for i in ("CORE-TEST-01", "JAVA-SPRING-ERR-12", "CORE-DP-TEST-STACK")],
                          ["TEST", "ERR", "DP"])
 
     def test_good_skill(self):
@@ -84,6 +84,8 @@ class JobsTest(unittest.TestCase):
             (self.JOBS, self.SKILLS | {"lone": skill("lone", areas="rest")}, "in no job"),
             (self.JOBS, self.SKILLS | {"plan-it": skill("plan-it", OTHER)}, "differ from job build"),
             (self.JOBS, self.SKILLS | {"plan-it": skill("plan-it", f"{ROLE}, {OTHER}")}, "differ from job build"),
+            ({"build": row("build", f"{ROLE}, {OTHER}", "plan-it, build-it", "build-it")}, self.SKILLS,
+             "differ from job build"),
             (self.JOBS, self.SKILLS | {"build-it": skill("build-it")}, "exactly one `rest` skill.*none"),
             (self.JOBS, self.SKILLS | {"plan-it": skill("plan-it", areas="rest")}, "plan-it, build-it"),
             ({"build": row("build", ROLE, "plan-it, build-it", "plan-it")}, self.SKILLS, "exactly one `rest`"),
@@ -145,6 +147,11 @@ class ReachTest(unittest.TestCase):
             ([rule("CORE-DOC-01", OTHER)], ["CORE-DOC-01"], set(), ["CORE-DOC-01"]),
             ([rule("CORE-DOC-01", OTHER), rule("CORE-DOC-02", OTHER, Tightens="CORE-DOC-01")], ["CORE-DOC-01"],
              set(), ["CORE-DOC-01", "CORE-DOC-02"]),
+            ([rule("CORE-WORK-01", OTHER, kind="floor")], [], set(), []),
+            ([rule("CORE-SEC-01", OTHER)], [], {"SEC"}, []),
+            ([rule("CORE-DP-STACK", OTHER)], [], set(), []),
+            ([rule("CORE-DOC-01", OTHER)], [], set(), []),
+            ([rule("CORE-DOC-01", OTHER), rule("CORE-DOC-02", OTHER, Tightens="CORE-DOC-01")], [], set(), []),
         ]
         for rules, cited, areas, expected in cases:
             with self.subTest(expected=expected, areas=areas):
