@@ -111,7 +111,7 @@ class ReleaseCheck:
             top, meta, end = frontmatter(lines)
             self.check_format(name, top, meta)
             self.check_blocks(name, lines[end + 1:])
-            self.check_manifest(name, lines, meta, manifest["skills"].get(name, {}))
+            self.check_manifest(name, lines, end, meta, manifest["skills"].get(name, {}))
             self.check_references(name)
         return self.failures, (self.summary(manifest, base) if base is not None else [])
 
@@ -133,16 +133,23 @@ class ReleaseCheck:
             elif built[rel] != kept[rel]:
                 self.fail(f"release/{rel}", "differs from a rebuild; run the build and commit release/")
 
-    def blocks(self, body):
-        """(ID, line number, lines) of each copied block in a SKILL.md body."""
+    def blocks(self, body, where=None):
+        """(ID, line number, lines) of each copied block in a SKILL.md body. With where, a begin marker without its
+        own end marker before the next marker fails."""
         found, start = [], None
         for number, line in enumerate(body):
             begin, end = BEGIN.fullmatch(line), END.fullmatch(line)
+            if (begin or end) and start and not (end and end.group(1) == start[0]) and where:
+                self.fail(where, f"block {start[0]} has no end marker of its own")
             if begin:
                 start = (begin.group(1), number)
             elif end and start and end.group(1) == start[0]:
                 found.append((start[0], start[1], body[start[1] + 1:number]))
                 start = None
+            elif end:
+                start = None
+        if start and where:
+            self.fail(where, f"block {start[0]} has no end marker of its own")
         return found
 
     def check_blocks(self, name, body):
@@ -159,6 +166,8 @@ class ReleaseCheck:
                 label = LABEL.fullmatch(line)
                 if label:
                     part = label.group(1)
+                    if part in parts:
+                        extra.append(line)
                     parts[part] = label.group(2) or ""
                 elif part is not None and (line.startswith("  ") or line == ""):
                     parts[part] += "\n" + line
@@ -174,12 +183,16 @@ class ReleaseCheck:
                 if label in parts and compared(lines_of(parts[label])) != compared(lines_of(rule.parts[part_name])):
                     self.fail(where, f"its {label} differs from the rule in {rule.where}")
 
-    def check_manifest(self, name, lines, meta, entry):
+    def check_manifest(self, name, lines, end, meta, entry):
+        """Recount by line position: generated keys only from the frontmatter, the floors only from the lines
+        between the '### Floors' line and the next '### Other rules' line."""
         where = f"release/{name}"
-        text = "\n".join(lines)
-        body = "\n".join(line for line in lines if not any(line.startswith(f"  {key}: ") for key in GENERATED))
-        floors = text[text.index(FLOORS) + len(FLOORS) + 2:text.index(OTHERS) - 2] if FLOORS in text else ""
-        ids = [rule_id for rule_id, _, _ in self.blocks(lines)]
+        head = [line for line in lines[:end] if not any(line.startswith(f"  {key}: ") for key in GENERATED)]
+        body = "\n".join(head + lines[end:])
+        start = lines.index(FLOORS, end) if FLOORS in lines[end:] else None
+        stop = lines.index(OTHERS, start) if start is not None and OTHERS in lines[start:] else None
+        floors = "\n".join(lines[start + 2:stop - 1]) if stop is not None else ""
+        ids = [rule_id for rule_id, _, _ in self.blocks(lines[end:], where)]
         counted = {"copied-ids": ", ".join(ids), "rulebook-version": self.version(),
                    "content-hash": hashlib.sha256(body.encode("utf-8")).hexdigest(),
                    "size-floors": str(len(floors)), "size-rest": str(len(body) - len(floors))}
@@ -218,14 +231,16 @@ class ReleaseCheck:
     def check_references(self, name):
         for path in sorted((self.release / name).rglob("*.md")):
             lines = path.read_text(encoding="utf-8").split("\n")
-            if path.name != "SKILL.md" and len(lines) - 1 > REFERENCE_LINES:
+            if path != self.release / name / "SKILL.md" and len(lines) - 1 > REFERENCE_LINES:
                 header = HEADER.fullmatch(lines[0])
                 source = header.group(1) if header else "an unknown source"
                 self.fail(f"release/{name}/{path.relative_to(self.release / name).as_posix()}",
                           f"has {len(lines) - 1} lines, over {REFERENCE_LINES}; split its source {source}")
 
     def summary(self, manifest, base):
-        """One line per skill that changed: rules added and removed, removed floors flagged, sizes before -> after."""
+        """One line per skill that changed: rules added and removed, sizes before -> after, and two flags. FLOOR
+        REMOVED names a removed rule that is a floor now; FLOORS SHRANK marks a fall in size-floors, which also
+        catches a floor that left the skill because its Kind changed, since the base manifest has no Kind."""
         old, new, out = base.get("skills", {}), manifest.get("skills", {}), []
         for name in sorted(set(old) | set(new)):
             before, after = old.get(name, {}), new.get(name, {})
@@ -237,7 +252,9 @@ class ReleaseCheck:
                 continue
             state = "new skill" if not before else "removed skill" if not after else "changed"
             line = f"{name}: {state}; added {', '.join(added) or 'none'}; removed {', '.join(removed) or 'none'}"
-            out.append(f"{line}; {'; '.join(sizes)}" + (f"; FLOOR REMOVED: {', '.join(floors)}" if floors else ""))
+            shrank = after.get("size-floors", 0) < before.get("size-floors", 0)
+            out.append(f"{line}; {'; '.join(sizes)}" + (f"; FLOOR REMOVED: {', '.join(floors)}" if floors else "")
+                       + ("; FLOORS SHRANK" if shrank else ""))
         return out
 
 

@@ -72,6 +72,15 @@ class CheckReleaseTest(unittest.TestCase):
             handle.write("4. See CORE-TEST-09.\n")
         self.assertFails("build.py: the rebuild failed")
 
+    def test_body_lines_like_generated_metadata_or_sub_headings_are_counted(self):
+        with open(self.root / "v2/skills/golden-skill/SKILL.tmpl.md", "a", encoding="utf-8") as handle:
+            handle.write('\n```yaml\nmetadata:\n  size-rest: "123"\n```\n')
+        self.edit("root/v2/rules/core/work.md", "know how you know it.",
+                  "know how you know it, up to `### Other rules`.")
+        shutil.rmtree(self.release)
+        build.write(self.release, build.build(self.root))
+        self.assertEqual(self.check()[0], [])
+
     def test_a_copied_block_that_differs_from_its_rule_fails(self):
         cases = [("root/v2/rules/core/test.md", "- **Rule:** Each test checks one behaviour.",
                   "- **Rule:** Each test checks one or two behaviours.", "block CORE-TEST-011: its Rule differs"),
@@ -87,7 +96,25 @@ class CheckReleaseTest(unittest.TestCase):
                   "<!-- end CORE-TEST-03 -->\n<!-- rule CORE-TEST-04 -->",
                   "block CORE-TEST-03: copies a rule that is not an"),
                  (SKILL, "<!-- rule CORE-TEST-04 -->", "<!-- rule JAVA-TEST-01 -->\n<!-- end JAVA-TEST-01 -->\n"
-                  "<!-- rule CORE-TEST-04 -->", "block JAVA-TEST-01: copies a rule that is not an active CORE rule")]
+                  "<!-- rule CORE-TEST-04 -->", "block JAVA-TEST-01: copies a rule that is not an active CORE rule"),
+                 (SKILL, "<!-- rule CORE-TEST-04 -->", "<!-- rule CORE-TEST-02 -->\n<!-- end CORE-TEST-02 -->\n"
+                  "<!-- rule CORE-TEST-04 -->", "block CORE-TEST-02: copies a rule that is not an active CORE rule"),
+                 (SKILL, "outcome per case\n\n- **Kind:**", "outcome per case\n- **Kind:**",
+                  "block CORE-TEST-04: does not start with the heading"),
+                 (SKILL, "two outcomes.\n<!-- end CORE-TEST-04 -->", "two outcomes.\nExtra.\n<!-- end CORE-TEST-04 -->",
+                  "block CORE-TEST-04: holds other text"),
+                 (SKILL, "- **Rule:** Each test checks one behaviour.",
+                  "- **Rule:** Tests may check many.\n- **Rule:** Each test checks one behaviour.",
+                  "block CORE-TEST-011: holds other text"),
+                 (SKILL, "- **Good:** One test for the low-stock case, one for the enough-stock case.\n"
+                  "- **Bad (do not do this):** One test that asserts both cases.",
+                  "- **Bad (do not do this):** One test that asserts both cases.\n"
+                  "- **Good:** One test for the low-stock case, one for the enough-stock case.",
+                  "block CORE-TEST-011: holds the parts"),
+                 (SKILL, "  void rejectsOrderWhenStockIsLow() {}", "  void rejectsOrderWhenStockIsLow() {} ",
+                  "block CORE-TEST-01: its Good differs"),
+                 (SKILL, "<!-- end CORE-TEST-04 -->", "<!-- end CORE-TEST-05 -->",
+                  "block CORE-TEST-04 has no end marker of its own")]
         for path, old, new, expected in cases:
             with self.subTest(expected=expected):
                 self.setUp()
@@ -105,7 +132,9 @@ class CheckReleaseTest(unittest.TestCase):
         data = json.loads(manifest.read_text(encoding="utf-8"))
         cases = [("content-hash", "0" * 64, "golden-skill content-hash is"),
                  ("copied-ids", ["CORE-WORK-01"], "golden-skill copied-ids is 'CORE-WORK-01'"),
-                 ("size-rest", 5, "golden-skill size-rest is '5'")]
+                 ("size-rest", 5, "golden-skill size-rest is '5'"),
+                 ("size-floors", 5, "golden-skill size-floors is '5'"),
+                 ("rulebook-version", "0.0.1", "golden-skill rulebook-version is '0.0.1'")]
         for key, value, expected in cases:
             with self.subTest(key=key):
                 self.setUp()
@@ -131,6 +160,9 @@ class CheckReleaseTest(unittest.TestCase):
         self.edit(SKILL, 'size-rest: "2056"', 'size-rest: "30001"')
         self.assertFails("size-rest is 30001, over the ceiling of 30000")
         self.setUp()
+        self.edit(SKILL, 'size-floors: "284"', 'size-floors: "30001"')
+        self.assertFails("size-floors is 30001, over the ceiling of 30000")
+        self.setUp()
         self.edit(SKILL, 'size-rest: "2056"', 'size-rest: "30000"')
         self.assertNoFailure("over the ceiling")
 
@@ -138,6 +170,12 @@ class CheckReleaseTest(unittest.TestCase):
         cases = [("name: golden-skill", "name: Golden-Skill", "name 'Golden-Skill' must equal the folder name"),
                  ("name: golden-skill", "name: other-skill", "name 'other-skill' must equal the folder name"),
                  ("description: Golden fixture", "description: Golden < fixture", "description must be"),
+                 ("description: Golden fixture", "description: Golden > fixture", "description must be"),
+                 ("description: Golden fixture for the build tests. Never used as a real skill.",
+                  "description: " + "x" * 1025, "description must be"),
+                 ("description: Golden fixture for the build tests. Never used as a real skill.", "description: ''",
+                  "description must be"),
+                 ("name: golden-skill", "name: golden-skill\nBad line", "frontmatter line has no allowed shape"),
                  ("name: golden-skill", "name: golden-skill\nallowed-tools: Bash", "field 'allowed-tools' is not"),
                  ("description: Golden fixture", "description: <b>Golden</b> fixture", "description must be"),
                  ("description: Golden fixture", "compatibility: " + "x" * 501 + "\ndescription: Golden fixture",
@@ -154,6 +192,15 @@ class CheckReleaseTest(unittest.TestCase):
         (self.release / name / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Long.\n---\n", encoding="utf-8")
         self.assertFails(f"name '{name}' must equal the folder name: at most 64")
 
+    def test_the_skill_text_is_recounted_and_the_skill_md_has_no_line_limit(self):
+        self.edit(SKILL, "1. Keep each test", "1. Always keep each test")
+        self.assertFails("metadata.content-hash is")
+        self.assertFails("metadata.size-rest is '2056'; its text gives '2063'")
+        self.setUp()
+        with open(self.release / "golden-skill/SKILL.md", "a", encoding="utf-8") as handle:
+            handle.write("More.\n" * 500)
+        self.assertNoFailure("over 500")
+
     def test_an_expanded_reference_over_500_lines_fails_and_names_its_source(self):
         guide = self.release / "golden-skill/references/guide.md"
         lines = guide.read_text(encoding="utf-8").count("\n")
@@ -164,6 +211,10 @@ class CheckReleaseTest(unittest.TestCase):
             handle.write("More.\n")
         self.assertFails("guide.md: has 501 lines, over 500; split its source "
                          "v2/skills/golden-skill/references/guide.md")
+        self.setUp()
+        (self.root / "v2/skills/golden-skill/references/SKILL.md").write_text("Line.\n" * 501, encoding="utf-8")
+        build.write(self.release, build.build(self.root))
+        self.assertFails("references/SKILL.md: has 503 lines, over 500")
 
     def test_the_summary_lists_changes_and_flags_a_removed_floor(self):
         manifest = json.loads((self.release / "manifest.json").read_text(encoding="utf-8"))
@@ -176,8 +227,15 @@ class CheckReleaseTest(unittest.TestCase):
         self.assertEqual(self.check(base)[1], [
             "golden-skill: changed; added CORE-DP-NAMES, CORE-TEST-011, CORE-TEST-04; "
             "removed CORE-WORK-02, CORE-TEST-02; "
-            "size-floors 500 -> 284; size-rest 2056 -> 2056; FLOOR REMOVED: CORE-WORK-02",
-            "old-skill: removed skill; added none; removed none; size-floors 1 -> 0; size-rest 2 -> 0"])
+            "size-floors 500 -> 284; size-rest 2056 -> 2056; FLOOR REMOVED: CORE-WORK-02; FLOORS SHRANK",
+            "old-skill: removed skill; added none; removed none; size-floors 1 -> 0; size-rest 2 -> 0; FLOORS SHRANK"])
+        entry["copied-ids"], entry["size-floors"] = manifest["skills"]["golden-skill"]["copied-ids"], 285
+        del base["skills"]["old-skill"]
+        summary = self.check(base)[1]
+        self.assertTrue(summary[0].endswith("size-floors 285 -> 284; size-rest 2056 -> 2056; FLOORS SHRANK"), summary)
+        entry["size-floors"], entry["content-hash"] = 284, "0" * 64
+        self.assertEqual(self.check(base)[1], [
+            "golden-skill: changed; added none; removed none; size-floors 284 -> 284; size-rest 2056 -> 2056"])
 
     def test_the_command_line_prints_the_summary_and_each_failure(self):
         base = self.tmp / "base.json"
