@@ -77,6 +77,13 @@ class Keys(Round):
         self.assertEqual(len(others), 5)
         self.assertNotIn(first, others)
 
+    def test_the_skill_and_case_under_test_are_part_of_the_key(self):
+        record = self.plan()
+        twin = json.loads(json.dumps(record))
+        twin["cases"]["limerick-writer"] = {"c2": record["cases"]["haiku-writer"]["c1"]}  # the same bytes
+        self.assertNotEqual(runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1),
+                            runs.key(twin, "limerick-writer", "c2", "with_skill", "fakehost", 1))
+
     def test_a_run_the_round_does_not_plan_has_no_key(self):
         record = self.plan()
         for args in (("haiku-writer", "c1", "previous", "fakehost", 1), ("haiku-writer", "c9", "with_skill",
@@ -87,8 +94,13 @@ class Keys(Round):
                 runs.key(record, *args)
 
     def test_the_runner_code_is_hashed_from_its_files(self):
-        self.assertEqual(len(runs.runner()), 64)
-        self.assertEqual(runs.runner(), runs.runner())
+        copy = self.tmp / "harness"
+        copy.mkdir()
+        for name in runs.RUNNER:
+            shutil.copy2(runs.HARNESS / name, copy / name)
+        self.assertEqual(runs.runner(copy), runs.runner())
+        (copy / "evidence.py").write_text((copy / "evidence.py").read_text() + "# changed\n")
+        self.assertNotEqual(runs.runner(copy), runs.runner())
 
 
 @unittest.skipIf(JAIL, f"no containment on this machine: {JAIL}")
@@ -132,7 +144,31 @@ class Runs(Round):
         self.assertEqual(void["status"], "void")
         self.assertIn("the host failed", void["reason"])
         self.assertEqual(runs.stored(self.store / "r1" / "runs" / void["key"])[0], "void")
-        self.assertEqual(self.run_one(record)["status"], "void")  # made again, not kept
+        again = self.run_one(record)  # one remake, not kept
+        self.assertEqual(again["status"], "void")
+        self.assertEqual(len(runs.stored(self.store / "r1" / "runs" / void["key"])[1]), 2)
+        empty = self.run_one(record)  # voided twice, the slot stays empty and is not run again
+        self.assertEqual(empty["status"], "empty")
+        self.assertIn("the host failed", empty["reason"])
+
+    def test_a_repository_that_moved_on_from_the_round_commit_is_refused(self):
+        record = self.plan()
+        (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text("---\nname: haiku-writer\ndescription: "
+                                                                         "Changed. Use when asked.\n---\n")
+        with self.assertRaisesRegex(rounds.RoundError, "clean tree"):
+            self.run_one(record)
+        self.plan()  # committed: a new commit, not the round's
+        with self.assertRaisesRegex(runs.RunError, "not at round r1's commit"):
+            self.run_one(record)
+
+    def test_a_remade_slot_keeps_its_void_for_the_void_rate(self):
+        record = self.plan()
+        void = self.run_one(record, version={**VERSION, "version": "fakehost 2.0"})
+        made = self.run_one(record)
+        self.assertEqual((void["key"], made["status"]), (made["key"], "made"))
+        folder = self.store / "r1" / "runs" / made["key"]
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["bundle", "void.json"])
+        self.assertEqual(len(json.loads((folder / "void.json").read_text())["reasons"]), 1)
 
     def test_a_host_whose_version_changed_is_void_and_never_run(self):
         record = self.plan()
@@ -140,6 +176,15 @@ class Runs(Round):
         self.assertEqual(void["status"], "void")
         self.assertIn("is not the manifest's", void["reason"])
         self.assertFalse((self.store / "r1" / "runs" / void["key"] / "bundle").exists())
+
+    def test_a_run_slot_linked_into_the_working_tree_is_refused(self):
+        record = self.plan()
+        slot = self.store / "r1" / "runs" / runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1)
+        slot.parent.mkdir(parents=True)
+        slot.symlink_to(self.repo)
+        with self.assertRaisesRegex(runs.RunError, "outside the working tree"):
+            self.run_one(record, version={**VERSION, "version": "fakehost 2.0"})
+        self.assertFalse((self.repo / "void.json").exists())
 
     def test_a_store_inside_the_working_tree_is_refused(self):
         record = self.plan()

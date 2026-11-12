@@ -10,8 +10,11 @@ missing or voided runs, and a changed input gives a new key, never a changed run
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
-  `void.json` holding why, only for a harness fault: the host failed, or its version is not the manifest's. What
-  the agent did is never a void. A jail that fails its audit or a canary in the output raises: the round stops.
+  `void.json` holding why, only for a harness fault: the host failed, or its version is not the manifest's. What the
+  agent did, a run that timed out included, is never a void. A voided slot gets one remake; voided again, it stays
+  empty. `void.json` keeps every void of the slot, a remade one too, for the void rate. A jail that fails its audit
+  or a canary in the output raises: the round stops. A run is made only from the repository at the round's commit,
+  so it builds exactly the inputs the manifest hashed.
 
 Standard library only.
 """
@@ -28,6 +31,7 @@ import evidence
 import host
 import kit
 import manifest
+import rounds
 import world
 from cases import REPO
 
@@ -35,8 +39,9 @@ ARMS = ("without_skill", "with_skill")
 HARNESS = Path(__file__).resolve().parent
 # The runner code that affects a run: its jail and gate, the host contract, the world builder and the evidence.
 RUNNER = ("audit.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "manifest.py", "powers.py",
-          "scrub.py", "skills.py", "world.py")
+          "runs.py", "scrub.py", "skills.py", "world.py")
 BUNDLE, VOID = "bundle", "void.json"
+TRIES = 2  # a voided slot gets at most one remake (doc 11, Blocked actions and voids)
 
 
 class RunError(RuntimeError):
@@ -54,7 +59,8 @@ def key(record, skill, case_id, arm, host_name, number, code=None):
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
     if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
         raise RunError(f"{host_name}, run {number}: not a run of round {record['round']}")
-    inputs = {"case": record["cases"][skill][case_id], "skills": record["skills"], "arm": arm, "number": number,
+    inputs = {"skill": skill, "case_id": case_id, "case": record["cases"][skill][case_id], "skills": record["skills"],
+              "arm": arm, "number": number,
               "adapter": record["adapters"][host_name], "host": record["hosts"][host_name],
               "runner": code or runner()}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
@@ -65,36 +71,45 @@ def folder(record, store, run_key, repo=REPO):
     runs = Path(store) / record["round"] / "runs"
     try:
         (kit.store_folder(store, repo) / record["round"] / "runs").mkdir(parents=True, exist_ok=True)
-        return kit.store_folder(runs, repo) / run_key
+        return kit.store_folder(runs / run_key, repo)  # the slot itself, resolved, so a link at it is checked too
     except kit.KitError as error:
         raise RunError(str(error)) from None
 
 
 def stored(path):
-    """("kept", the bundle's folder) for a run whose bundle loads, ("void", why) for a voided one, or None."""
+    """("kept", the bundle's folder) for a run whose bundle loads, ("void", [why, for each void]) for a voided one,
+    or None."""
     path = Path(path)
     if (path / BUNDLE).is_dir() and not (path / BUNDLE).is_symlink():
         evidence.load(path / BUNDLE)  # every blob read back by its hash, or it raises
         return "kept", path / BUNDLE
     if (path / VOID).is_file() and not (path / VOID).is_symlink():
-        return "void", json.loads((path / VOID).read_text())["reason"]
+        return "void", json.loads((path / VOID).read_text())["reasons"]
     return None
 
 
-def run(record, store, case, arm, host_name, number, adapter, drift, version, skills_root=None, timeout=900,
-        repo=REPO, code=None, **containment):
-    """The run of `case` in `arm` on `host_name`, number `number`, in round `record`. `version` is the host's
-    version as its jail finds it now; `drift` its tools and drift record (`probes.drift`); `containment` passes on
-    to `contain.Containment`. Return {"key", "status": "kept", "made" or "void", "bundle" or "reason"}."""
-    run_key = key(record, case.skill, case.id, arm, host_name, number, code)
+def run(record, store, case, arm, host_name, number, adapter, drift, version, timeout=900, repo=REPO,
+        **containment):
+    """The run of `case` in `arm` on `host_name`, number `number`, in round `record`, from the repository `repo`
+    at the round's commit. `version` is the host's version as its jail finds it now; `drift` its tools and drift
+    record (`probes.drift`); `containment` passes on to `contain.Containment`. Return {"key", "status", and
+    "bundle" or "reason"}: `kept` or `made` with its bundle, `void` with why, or `empty` for a slot voided twice,
+    which gets no more remakes."""
+    if rounds.commit(repo) != record["commit"]:  # the inputs the run builds are the ones the manifest hashed
+        raise RunError(f"{repo} is not at round {record['round']}'s commit {record['commit']}")
+    run_key = key(record, case.skill, case.id, arm, host_name, number)
     path = folder(record, store, run_key, repo)
     found = stored(path)
     if found and found[0] == "kept":
         return {"key": run_key, "status": "kept", "bundle": str(found[1])}
+    voids = found[1] if found else []
+    if len(voids) >= TRIES:
+        return {"key": run_key, "status": "empty", "reason": "; ".join(voids)}
     planned = record["hosts"][host_name]
     if version != planned["version"]:
-        return _void(path, run_key, f"the host's version {version} is not the manifest's {planned['version']}")
-    skills_root = Path(skills_root) if skills_root else Path(repo) / "skills"
+        return _void(path, run_key, voids, f"the host's version {version} is not the manifest's "
+                                           f"{planned['version']}")
+    skills_root = Path(repo) / "skills"
     skill_dir = skills_root / case.skill
     with tempfile.TemporaryDirectory(prefix="r-") as scratch:
         scratch = Path(scratch)
@@ -110,21 +125,20 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, sk
         # Collected first, failed or not, so a canary in any output stops the round (`scrub.Leak`).
         bundle, blobs = evidence.collect(contained, result, case, arm, layer, drift, version["version"],
                                          planned["model"])
-        if bundle["failure"]:  # the host failed, not the agent: a harness fault, so the run is void and remade
-            return _void(path, run_key, f"the host failed: {bundle['failure']}")  # scrubbed by `collect`
+        if bundle["failure"] and not result.timed_out:  # the host failed, not the agent: a harness fault
+            return _void(path, run_key, voids, f"the host failed: {bundle['failure']}")  # scrubbed by `collect`
+        # A run that timed out is what the agent did in the time it had, and is scored like any other.
         path.mkdir(exist_ok=True)
         made = path / f".{BUNDLE}.{os.getpid()}"
         shutil.rmtree(made, ignore_errors=True)
         evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
-        if (path / VOID).exists():
-            (path / VOID).unlink()  # the void is replaced by the run that remade it
         os.rename(made, path / BUNDLE)
     return {"key": run_key, "status": "made", "bundle": str(stored(path)[1])}
 
 
-def _void(path, run_key, reason):
+def _void(path, run_key, voids, reason):
     path.mkdir(exist_ok=True)
     fresh = path / f".{VOID}.{os.getpid()}"
-    fresh.write_text(json.dumps({"reason": reason}, indent=1) + "\n")
+    fresh.write_text(json.dumps({"reasons": [*voids, reason]}, indent=1) + "\n")
     os.replace(fresh, path / VOID)
     return {"key": run_key, "status": "void", "reason": reason}
