@@ -82,19 +82,6 @@ def rule_files(root):
     return sorted(p for p in (root / "v2" / "rules").glob("*/*.md") if p.name not in NOT_RULE_FILES)
 
 
-def table(path, heading, width):
-    """The rows of the table under a '## heading' line, as lists of cells."""
-    lines = path.read_text(encoding="utf-8").split("\n")
-    start = lines.index(heading) + 1
-    rows = []
-    for line in lines[start:]:
-        if line.startswith("## "):
-            break
-        if line.startswith("|"):
-            rows.append([cell.strip() for cell in line.strip("|").split("|")])
-    return [row for row in rows[2:] if len(row) == width]
-
-
 def metadata(path):
     """The name and the metadata keys of a frontmatter block, quotes removed."""
     lines = path.read_text(encoding="utf-8").split("\n")
@@ -120,8 +107,8 @@ class Check:
 
     def run(self, changed=None, jobs=()):
         roles_file = self.root / "v2" / "roles.md"
-        self.roles = {row[0] for row in table(roles_file, "## Roles", 7)}
-        self.jobs = {row[0]: row for row in table(roles_file, "## Jobs", 4)}
+        self.roles = {row[0] for row in self.table(roles_file, "## Roles", 7)}
+        self.jobs = {row[0]: row for row in self.table(roles_file, "## Jobs", 4)}
         self.rules = {}
         for path in rule_files(self.root):
             self.check_markers(path)
@@ -139,6 +126,21 @@ class Check:
         if changed is not None:
             self.check_version(changed)
         return self.failures
+
+    def table(self, path, heading, width):
+        """The rows of the table under a '## heading' line, as lists of cells. A row of another width fails."""
+        lines = path.read_text(encoding="utf-8").split("\n")
+        start = lines.index(heading) + 1
+        rows = []
+        for number, line in enumerate(lines[start:], start=start + 1):
+            if line.startswith("## "):
+                break
+            if line.startswith("|"):
+                rows.append((number, [cell.strip() for cell in line.strip("|").split("|")]))
+        for number, row in rows[2:]:
+            if len(row) != width:
+                self.fail(f"v2/roles.md:{number}", f"row needs {width} cells under {heading!r}")
+        return [row for _, row in rows[2:] if len(row) == width]
 
     def check_markers(self, path):
         for number, line in enumerate(path.read_text(encoding="utf-8").split("\n"), start=1):
@@ -243,13 +245,21 @@ class Check:
             elif end and end.group(1) == inside:
                 inside = None
             elif inside is None:
-                for found in CITED.finditer(line):
-                    rule = self.rules.get(found.group(1))
-                    where = f"release/{name}/{path.relative_to(self.release / name).as_posix()}:{number}"
-                    if rule is None:
-                        self.fail(where, f"{found.group(1)} is not in the rulebook")
-                    elif not line[found.end():].startswith(f" ({rule.title})"):
-                        self.fail(where, f"{rule.id} is bare; a release writes it as \"{rule.id} ({rule.title})\"")
+                self.check_citations(line, f"release/{name}/{path.relative_to(self.release / name).as_posix()}:{number}")
+
+    def check_citations(self, line, where):
+        """Each ID must be followed by its title. A title is skipped once checked, so an ID inside it is not a
+        citation of its own."""
+        found = CITED.search(line)
+        while found:
+            rule, after = self.rules.get(found.group(1)), found.end()
+            if rule is None:
+                self.fail(where, f"{found.group(1)} is not in the rulebook")
+            elif not line[after:].startswith(f" ({rule.title})"):
+                self.fail(where, f"{rule.id} is bare; a release writes it as \"{rule.id} ({rule.title})\"")
+            else:
+                after += len(f" ({rule.title})")
+            found = CITED.search(line, after)
 
     def check_version(self, changed):
         rules = [p for p in changed if re.fullmatch(r"v2/rules/[^/]+/[^/]+\.md", p)

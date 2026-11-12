@@ -103,6 +103,17 @@ class CheckRulesTest(unittest.TestCase):
                 self.edit("root/v2/roles.md", old, new)
                 self.assertFails(expected)
 
+    def test_a_table_row_of_the_wrong_width_fails(self):
+        cases = [("| golden | tester | golden-skill | golden-skill |",
+                  "| golden | tester | golden-skill | golden-skill |\n| broken | tester | none | none | extra |",
+                  "row needs 4 cells under '## Jobs'"),
+                 ("| reviewer | checking |", "| reviewer | checking | extra |", "row needs 7 cells under '## Roles'")]
+        for old, new, expected in cases:
+            with self.subTest(expected=expected):
+                self.setUp()
+                self.edit("root/v2/roles.md", old, new)
+                self.assertFails(expected)
+
     def test_a_job_without_its_rest_skill_fails(self):
         self.edit("root/v2/skills/golden-skill/SKILL.tmpl.md", "areas: rest", "areas: TEST")
         self.assertFails("its `rest` skill is golden-skill, but the templates mark none")
@@ -155,6 +166,13 @@ class CheckRulesTest(unittest.TestCase):
         with open(self.release / "golden-skill/SKILL.md", "a", encoding="utf-8") as handle:
             handle.write("See CORE-TEST-09 (Nothing).\n")
         self.assertFails("CORE-TEST-09 is not in the rulebook")
+
+    def test_an_id_inside_a_checked_title_is_not_a_citation(self):
+        self.edit("root/v2/rules/core/test.md", "### CORE-TEST-01 · A test names its scenario",
+                  "### CORE-TEST-01 · A test follows CORE-WORK-01")
+        self.edit("release/golden-skill/references/guide.md", "(A test names its scenario)",
+                  "(A test follows CORE-WORK-01)")
+        self.assertFalse([f for f in self.check() if "guide.md" in f], self.check())
 
     def test_ids_inside_copied_blocks_and_file_names_are_not_citations(self):
         self.edit("release/golden-skill/SKILL.md", "<!-- end CORE-TEST-04 -->",
