@@ -116,7 +116,10 @@ by when retired. Options is a list with one item per option, written `` - `name`
 **HW-RULE-05 · A change to another rule is stated.** A rule that changes a more general rule names it with
 exactly one relation: `Overrides` (replaces a principle, idiom or choice; overriding a principle needs a stated
 reason), `Binds` (picks one of a decision point's Options, named on the same line) or `Tightens` (makes a floor
-stricter). A silent contradiction is a defect.
+stricter). The rule it changes is in a more general layer. A relation fits the kinds of both rules: `Tightens` goes
+from a floor to a floor, `Binds` from a choice to a decision point, and `Overrides` from a principle, idiom or
+choice to a principle, idiom or choice; anything else stops the run, so a floor is never loosened in two steps. A
+silent contradiction is a defect.
 
 **HW-RULE-06 · A floor is never loosened or waived.** No layer and no person may loosen a floor, override it or
 waive it. The only way to change a floor is a new rule with a new ID in the layer that owns it, approved by that
@@ -214,7 +217,7 @@ application's waivers live in its profile ([07 · Repository profile](07-repo-pr
 | Rule being overridden or waived | Who approves |
 |---|---|
 | A floor, in any layer | Nobody. A floor is never overridden or waived. |
-| A principles, language or framework rule | The owner of the layer where the override lives, or the application owner for a waiver. The reason is recorded and shown in the resolved standards. |
+| A principles, language or framework rule | The owner of the layer where the override lives, or the application owner for a waiver. The reason is recorded and shown in the rules text. |
 | A company, department or team rule | The owner of the layer where the override or waiver lives **and** the owner of the rule's layer |
 
 A waiver of an application rule is approved by the application owner. A story that skips one rule gets a waiver

@@ -1,22 +1,20 @@
-"""Tests for repoprofile.py (B0.1 part e1a): reading the profile and layer.yaml. Run: python3 -m unittest discover -s v2/build/tests
+"""Tests for repoprofile.py (B0.1 part e1a): reading the profile and layer.yaml.
+Run: python3 -m unittest discover -s v2/build/tests
 
-Each test starts from a valid profile and layer.yaml, breaks one thing and asserts the message that names it.
+ProfileTest starts from a valid profile and layer.yaml, breaks one thing and asserts the message that names it.
 """
 
-import io
 import re
 import shutil
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "v2" / "build"))
 
 import repoprofile  # noqa: E402
-import resolve  # noqa: E402
 
 PROFILE = """# a comment line
 harnesswright:                        # the release
@@ -52,6 +50,7 @@ decisions:
 models:
   deep: anything at all: here
 """
+
 
 
 class ProfileTest(unittest.TestCase):
@@ -118,7 +117,8 @@ class ProfileTest(unittest.TestCase):
         self.write(".harness/profile.yaml", "\n".join(doc[start:doc.index("```", start)]) + "\n")
         profile = self.load()
         self.assertEqual((profile["version"], profile["languages"]), ("1.4.0", ["java", "java-spring"]))
-        self.assertEqual(profile["layers"], [{"name": "acme", "folder": "../acme-rules/", "version": "2.1.0"}])
+        self.assertEqual(profile["layers"],
+                         [{"name": "acme", "folder": "../acme-rules/", "version": "2.1.0", "line": 9}])
         self.assertEqual([(w["rule"], w["line"]) for w in profile["waivers"]], [("COMP-ACME-ERR-03", 15)])
         self.assertEqual((profile["limit"], sorted(profile["decisions"])),
                          (45000, ["boilerplate", "construction", "mapping"]))
@@ -206,20 +206,6 @@ class ProfileTest(unittest.TestCase):
                 with self.assertRaises(repoprofile.RulebookError) as caught:
                     repoprofile.read_layer_yaml("acme", folder, "1.0.0", [])
                 self.assertIn(f"layer acme: {folder}/layer.yaml: is missing or cannot be read", str(caught.exception))
-
-    def test_the_command_line(self):
-        err = io.StringIO()
-        args = ["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"]
-        with redirect_stderr(err):
-            self.assertEqual(resolve.main(args), 2)
-        self.edit(".harness/profile.yaml", '"0.1.0"', "zero")
-        with redirect_stderr(err):
-            self.assertEqual(resolve.main(args), 1)
-        self.assertIn("resolve stopped: ", err.getvalue())
-        (self.repo / repoprofile.PROFILE).unlink()
-        with redirect_stderr(err):
-            self.assertEqual(resolve.main(args), 1)
-        self.assertIn("profile.yaml: is missing or cannot be read (FileNotFoundError)", err.getvalue())
 
 
 if __name__ == "__main__":

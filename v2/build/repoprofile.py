@@ -190,14 +190,16 @@ def read_profile(path):
     data = keys(path, read_yaml(path, READ, SKIP), ["harnesswright"], READ[1:])
     install = keys(path, data["harnesswright"], ["version", "folder"])
     profile = {"version": leaf(path, install["version"], "version"), "folder": leaf(path, install["folder"], "folder"),
-               "languages": [], "layers": [], "repository": None, "waivers": [], "limit": DEFAULT_LIMIT,
-               "decisions": {}}
+               "languages": [], "language lines": [], "layers": [], "repository": None, "waivers": [],
+               "limit": DEFAULT_LIMIT, "decisions": {}}
     standards = keys(path, data.get("standards", Node(1, {})), [], ["languages", "layers", "repository"])
     for node in items(path, standards.get("languages", Node(1, [])), "language names"):
         profile["languages"].append(leaf(path, node, "language"))
+        profile["language lines"].append(node.line)
     for node in items(path, standards.get("layers", Node(1, [])), "layers"):
         layer = keys(path, node, ["name", "folder", "version"])
-        profile["layers"].append({k: leaf(path, layer[k], k) for k in ("name", "folder", "version")})
+        profile["layers"].append({**{k: leaf(path, layer[k], k) for k in ("name", "folder", "version")},
+                                  "line": node.line})
     if "repository" in standards:
         profile["repository"] = leaf(path, standards["repository"], "folder")
     seen = {}
