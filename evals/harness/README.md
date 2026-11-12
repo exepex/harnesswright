@@ -487,5 +487,5 @@ the other, the arm that goes first alternating. The host's version is measured j
 changed during the round voids its runs. Each gate's outcome, that of the gate that stopped the round too, is
 written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
 Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
-every containment its gates made. Every gate runs again when the round runs again; only runs are kept. The check,
-grade and label gates follow in later steps.
+every containment its gates made, taken while its home is still there. Every gate runs again when the round runs
+again; only runs are kept. The check, grade and label gates follow in later steps.
