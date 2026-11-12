@@ -6,6 +6,7 @@ import shutil
 import time
 import types
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from helpers import SKILL_MD, TempCase
@@ -160,6 +161,17 @@ class FakeHost(TempCase):
         self.assertEqual(result.exposure, {"skills": ["haiku-writer"], "tools": list(fake_adapter().TOOLS)})
         self.assertEqual((world / "notes.txt").read_text(), "hi\n")
         self.assertEqual(result.requests, [])
+
+    def test_a_contract_error_leaves_the_run_scrubbed(self):
+        token = contain.new_token()
+
+        def broken(adapter, exposure, skills):
+            raise host.HostError(f"exposure: the host named {token}")
+
+        with mock.patch("host.check_exposure", broken), self.assertRaises(host.HostError) as raised:
+            self.run_of("task", fake_adapter(), [{"do": "say", "text": "Done."}], tokens=(token,))
+        self.assertIn("exposure: the host named", str(raised.exception))
+        self.assertNotIn(token, str(raised.exception))
 
     def test_the_jail_not_the_host_decides_what_a_run_may_write(self):
         result, world = self.run_of("trigger", fake_adapter(), [{"do": "write", "path": "notes.txt", "text": "x"},

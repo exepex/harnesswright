@@ -20,6 +20,7 @@ import time
 
 import manifest
 import powers
+import scrub
 
 # The names every harness adapter defines, with what each must be.
 CONTRACT = {
@@ -180,13 +181,16 @@ def run(contained, prompt, skills, model=None, timeout=900, plant=None):
             stdout, stderr, returncode, timed_out = (_text(expired.stdout), _text(expired.stderr), None, True)
         seconds = round(time.monotonic() - started, 3)
     failure = adapter.run_failure(stdout, returncode, timed_out)
-    log = kept(contained, adapter.action_log(stdout, contained.home))
-    check_log(log, skills)
-    exposure = adapter.exposure(stdout, contained.home)
-    if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
-        raise HostError("exposure: the host did not report the skills and tools it exposed")
-    if exposure is not None:
-        check_exposure(adapter, exposure, skills)
+    try:
+        log = kept(contained, adapter.action_log(stdout, contained.home))
+        check_log(log, skills)
+        exposure = adapter.exposure(stdout, contained.home)
+        if exposure is None and failure is None:  # a host that ran must say what it exposed: silence is not "nothing"
+            raise HostError("exposure: the host did not report the skills and tools it exposed")
+        if exposure is not None:
+            check_exposure(adapter, exposure, skills)
+    except HostError as error:  # its words may be the host's: they leave the run only scrubbed, while it is there
+        raise HostError(scrub.Scrub.of_run(contained).quiet(str(error))) from None
     return Result(stdout, stderr, returncode, timed_out, failure, log, exposure, list(gate.log), seconds)
 
 
