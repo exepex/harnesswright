@@ -73,7 +73,7 @@ def read_rules(path, root, fail):
             if part in rule.parts:
                 rule.twice.append(part)
             rule.parts[part] = found.group(2) or ""
-        elif part is not None and line.startswith("  "):
+        elif part is not None and (line.startswith("  ") or line == ""):
             rule.parts[part] += "\n" + line
         elif not (line == "" or (number == 1 and line.startswith("# ")) or (rule is None and PROSE.fullmatch(line))):
             fail(f"{where}:{number}", f"line has no allowed shape: {line!r}")
