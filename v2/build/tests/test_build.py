@@ -51,7 +51,8 @@ class BuildTest(unittest.TestCase):
         layers = [f"rules/core/{p.name}" for p in (self.root / "v2/rules/core").iterdir()]
         self.assertEqual(sorted(trees[0]), sorted([
             "demo-skill/SKILL.md", "demo-skill/references/guide.md", "demo-skill/scripts/copyform.py",
-            "demo-skill/scripts/helper.py", "demo-skill/scripts/reach.py", "demo-skill/scripts/resolve.py",
+            "demo-skill/scripts/helper.py", "demo-skill/scripts/reach.py", "demo-skill/scripts/repoprofile.py",
+            "demo-skill/scripts/resolve.py",
             "demo-skill/scripts/rulebook.py", "manifest.json", "roles.md", *layers]))
 
     def test_skill_md_layout(self):

@@ -1,4 +1,4 @@
-"""Tests for resolve.py part e1a: reading the profile and layer.yaml. Run: python3 -m unittest discover -s v2/build/tests
+"""Tests for repoprofile.py (B0.1 part e1a): reading the profile and layer.yaml. Run: python3 -m unittest discover -s v2/build/tests
 
 Each test starts from a valid profile and layer.yaml, breaks one thing and asserts the message that names it.
 """
@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "v2" / "build"))
 
+import repoprofile  # noqa: E402
 import resolve  # noqa: E402
 
 PROFILE = """# a comment line
@@ -75,10 +76,10 @@ class ProfileTest(unittest.TestCase):
         self.write(rel, self.files[rel])
 
     def load(self):
-        return resolve.read_profile(self.repo / resolve.PROFILE)
+        return repoprofile.read_profile(self.repo / repoprofile.PROFILE)
 
     def assertStops(self, line, expected):
-        with self.assertRaises(resolve.RulebookError) as caught:
+        with self.assertRaises(repoprofile.RulebookError) as caught:
             self.load()
         self.assertRegex(str(caught.exception), rf"profile\.yaml:{line}: (?:.* )?{re.escape(expected)}")
 
@@ -106,7 +107,7 @@ class ProfileTest(unittest.TestCase):
         profile = self.load()
         self.assertEqual((profile["version"], profile["languages"]), ("1.0.0", ["java", "java-spring"]))
         self.assertEqual((profile["layers"], profile["waivers"], profile["decisions"]), ([], [], {}))
-        path = self.repo / resolve.PROFILE
+        path = self.repo / repoprofile.PROFILE
         block = "languages:\n      - java\n      - java-spring"
         path.write_text(path.read_text().replace(block, "languages: [\"java\", 'java-spring']"))
         self.assertEqual(self.load()["languages"], ["java", "java-spring"])
@@ -180,7 +181,7 @@ class ProfileTest(unittest.TestCase):
 
     def test_layer_yaml(self):
         folder = (self.repo / "../acme/team").resolve()
-        self.assertEqual(resolve.read_layer_yaml("acme", folder, "1.0.0", []), "Acme payments team")
+        self.assertEqual(repoprofile.read_layer_yaml("acme", folder, "1.0.0", []), "Acme payments team")
         cases = [('"1.0.0"', '"1.0.1"', "version 1.0.1 is not the profile's 1.0.0"),
                  ("owner: Acme payments team\n", "", "layer.yaml:1: missing owner"),
                  ("owner: Acme payments team\n", "owner: x\nlevel: team\n", "layer.yaml:2: 'level' is not a section")]
@@ -188,16 +189,16 @@ class ProfileTest(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.setUp()
                 self.edit("../acme/team/layer.yaml", old, new)
-                with self.assertRaises(resolve.RulebookError) as caught:
-                    resolve.read_layer_yaml("acme", (self.repo / "../acme/team").resolve(), "1.0.0", [])
+                with self.assertRaises(repoprofile.RulebookError) as caught:
+                    repoprofile.read_layer_yaml("acme", (self.repo / "../acme/team").resolve(), "1.0.0", [])
                 self.assertIn(expected, str(caught.exception))
         for folder in (self.tmp / "gone", self.tmp / "latin1"):
             with self.subTest(folder=folder.name):
                 if folder.name == "latin1":
                     folder.mkdir()
                     (folder / "layer.yaml").write_bytes(b"owner: M\xfcller\nversion: \"1.0.0\"\n")
-                with self.assertRaises(resolve.RulebookError) as caught:
-                    resolve.read_layer_yaml("acme", folder, "1.0.0", [])
+                with self.assertRaises(repoprofile.RulebookError) as caught:
+                    repoprofile.read_layer_yaml("acme", folder, "1.0.0", [])
                 self.assertIn(f"layer acme: {folder}/layer.yaml: is missing or cannot be read", str(caught.exception))
 
     def test_the_command_line(self):
@@ -209,7 +210,7 @@ class ProfileTest(unittest.TestCase):
         with redirect_stderr(err):
             self.assertEqual(resolve.main(args), 1)
         self.assertIn("resolve stopped: ", err.getvalue())
-        (self.repo / resolve.PROFILE).unlink()
+        (self.repo / repoprofile.PROFILE).unlink()
         with redirect_stderr(err):
             self.assertEqual(resolve.main(args), 1)
         self.assertIn("profile.yaml: is missing or cannot be read (FileNotFoundError)", err.getvalue())
