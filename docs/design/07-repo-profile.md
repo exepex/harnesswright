@@ -149,7 +149,8 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
 - The release holds the principles layer, the language and framework layers, the skills and a manifest that states
   the release version. Its version pins the principles, language and framework layers. Language or framework `x`
   in `standards.languages`, such as `java-spring`, is the release folder `rules/x/`, and its IDs start with `X` in
-  capitals (`JAVA-SPRING-…`). A framework is listed after its language, and each name is listed once.
+  capitals (`JAVA-SPRING-…`). A name `x-y` is a framework of the language `x` and is listed after it. Each name
+  is listed once.
 - Each folder of layers 3 to 5 holds its `layer.yaml` ([03 · Standards](03-standards.md)), with exactly two keys:
   `owner` and `version`. Versions are three numbers, such as `"2.1.0"`.
 - A layer's level is the prefix its IDs carry. Every rule in one folder carries the same prefix: `COMP-X`, `DEPT-X`

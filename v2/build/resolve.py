@@ -106,11 +106,10 @@ def load(repo, today):
         raise ResolveError(f"release: {release / 'roles.md'} is missing or cannot be read") from None
     sources = []
     add_source(sources, "CORE", ("CORE",), release / "rules" / "core", "harnesswright", files)
-    for language in profile["languages"]:
-        base = language.split("-")[0]
-        if base != language and base not in profile["languages"][:profile["languages"].index(language)]:
-            raise ResolveError(f"{path}: standards.languages lists framework {language} without its language "
-                               f"{base} before it")
+    for index, (language, number) in enumerate(zip(profile["languages"], profile["language lines"])):
+        base = language.split("-")[0]  # a framework `x-y` belongs to the language `x`
+        if base != language and base not in profile["languages"][:index]:
+            fail(path, number, f"standards.languages lists framework {language} without its language {base} before it")
         add_source(sources, language, (language.upper(),), release / "rules" / language, "harnesswright", files)
     level = -1
     for layer in profile["layers"]:

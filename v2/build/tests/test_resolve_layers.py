@@ -196,7 +196,7 @@ class LayersTest(unittest.TestCase):
         cases = [
             (".harness/profile.yaml", "[java]", "[java, java]", "carries JAVA, which"),
             (".harness/profile.yaml", "[java]", "[core, java]", "carries CORE, which"),
-            (".harness/profile.yaml", "[java]", "[java-spring, java]", "framework java-spring without its language"),
+            (".harness/profile.yaml", "[java]", "[java-spring, java]", "profile.yaml:7: standards.languages lists framework java-spring"),
             (java, "- **Status:** active", "- **Status:** inferred", "Overrides JAVA-TEST-01, which no more general"),
             (java, "**Applies to:** implementer", "**Applies to:** astronaut", "roles not in the release's roles.md"),
             ("../acme/company/err.md", "**Status:** active", "**Status:** inferred",
@@ -271,6 +271,40 @@ class LayersTest(unittest.TestCase):
                 else:
                     self.assertEqual([s.prefix for s in self.load().sources][2:5],
                                      ["COMP-ACME", "DEPT-ACME", "TEAM-ACME"])
+
+    def test_two_company_layers_stop(self):
+        self.write("../acme/team/log.md", area("COMP-OTHER-LOG", rule("COMP-OTHER-LOG-01")))
+        self.edit(".harness/profile.yaml", "    - name: acme\n      folder: ../acme/team/",
+                  "    - name: other\n      folder: ../acme/team/")
+        self.edit(".harness/profile.yaml", "TEAM-ACME-LOG-01", "COMP-OTHER-LOG-01")
+        self.assertStops("profile.yaml:12: layer other")
+        self.assertStops("is a COMP layer listed after a COMP layer")
+
+    def test_a_framework_reads_after_its_language(self):
+        self.write(".agents/harnesswright/rules/java-spring/web.md", area("JAVA-SPRING-WEB", rule(
+            "JAVA-SPRING-WEB-01", "idiom", "- **Overrides:** JAVA-TEST-01\n")))
+        self.edit(".harness/profile.yaml", "[java]", "[java, java-spring]")
+        self.assertEqual([s.prefix for s in self.load().sources][:3], ["CORE", "JAVA", "JAVA-SPRING"])
+
+    def test_each_relation_goes_only_between_allowed_kinds(self):
+        kinds = ("floor", "principle", "idiom", "choice")
+        for relation in ("Overrides", "Tightens"):
+            for source in kinds:
+                for target in kinds:
+                    with self.subTest(relation=relation, source=source, target=target):
+                        self.setUp()
+                        self.edit(".agents/harnesswright/rules/java/test.md", "- **Kind:** idiom",
+                                  f"- **Kind:** {target}")
+                        self.edit(".harness/standards/test.md", "- **Kind:** idiom\n",
+                                  f"- **Kind:** {source}\n")
+                        self.edit(".harness/standards/test.md", "Overrides:** JAVA", f"{relation}:** JAVA")
+                        changeable = ("principle", "idiom", "choice")  # doc 03 HW-RULE-05, written out here
+                        allowed = (source == target == "floor" if relation == "Tightens"
+                                   else source in changeable and target in changeable)
+                        if allowed:
+                            self.load()
+                        else:
+                            self.assertStops(f"{relation} may not go from a {source} to a {target}")
 
     def test_a_waiver_applies_through_its_until_date(self):
         self.edit(".harness/profile.yaml", "    until: 2026-01-01", "    until: 2026-11-12")
