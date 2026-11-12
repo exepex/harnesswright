@@ -32,7 +32,7 @@ class CheckReleaseTest(unittest.TestCase):
         shutil.copytree(GOLDEN / "root", self.root)
         shutil.copytree(GOLDEN / "expected", self.release)
         for rel, data in build.build(self.root).items():
-            if "/scripts/" in rel:
+            if build.is_copy(rel):
                 (self.release / rel).parent.mkdir(parents=True, exist_ok=True)
                 (self.release / rel).write_bytes(data)
 
@@ -66,6 +66,28 @@ class CheckReleaseTest(unittest.TestCase):
         self.setUp()
         (self.release / "golden-skill/notes.md").write_text("Hand-written.\n", encoding="utf-8")
         self.assertFails("golden-skill/notes.md: is not made by the build")
+
+    def test_the_copied_layers_and_roles_file_are_not_skills_and_must_equal_their_sources(self):
+        self.assertTrue((self.release / "rules/core/test.md").is_file())
+        self.assertNoFailure("release/rules: has no SKILL.md")
+        self.edit("release/rules/core/test.md", "Name each test", "Name every test")
+        self.assertFails("release/rules/core/test.md: differs from a rebuild")
+        self.setUp()
+        self.edit("release/roles.md", "| Role |", "| Roles |")
+        self.assertFails("release/roles.md: differs from a rebuild")
+        self.setUp()
+        (self.release / "roles.md").unlink()
+        self.assertFails("release/roles.md: is missing")
+        self.setUp()
+        (self.release / "rules/core/extra.md").write_text("x\n", encoding="utf-8")
+        self.assertFails("release/rules/core/extra.md: is not made by the build")
+
+    def test_the_skills_are_the_folders_of_v2_skills(self):
+        (self.release / "stray").mkdir()
+        (self.release / "stray/SKILL.md").write_text("---\nname: stray\n---\n", encoding="utf-8")
+        failures = self.check()[0]
+        self.assertTrue(any("release/stray/SKILL.md: is not made by the build" in f for f in failures), failures)
+        self.assertFalse([f for f in failures if "manifest.json" in f], failures)
 
     def test_a_source_the_build_rejects_fails(self):
         with open(self.root / "v2/skills/golden-skill/SKILL.tmpl.md", "a", encoding="utf-8") as handle:
@@ -188,6 +210,7 @@ class CheckReleaseTest(unittest.TestCase):
 
     def test_a_name_over_64_characters_fails(self):
         name = "a" * 65
+        (self.root / "v2/skills" / name).mkdir()  # a skill of v2/skills, so its release folder is checked
         (self.release / name).mkdir()
         (self.release / name / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Long.\n---\n", encoding="utf-8")
         self.assertFails(f"name '{name}' must equal the folder name: at most 64")
