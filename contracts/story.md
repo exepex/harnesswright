@@ -4,7 +4,7 @@ plan: P-<item>              # or none for a change with no plan
 depends-on: [<story ID>]    # [] when none
 covers: [<AC, NFR or TD ID>]          # the criteria, targets and design elements this story delivers
 tests: {<AC or NFR ID>: [<test type>]}   # test types for each requirement it covers
-targets: {<NFR ID>: <state>}           # the state of each target it covers; {} when none
+targets: {<NFR ID>: <state>}           # exact | estimated | unknown | not applicable | not testable here; {} when none
 waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reason: <reason>, until: <YYYY-MM-DD>, approved by: <account>}
 ---
 
