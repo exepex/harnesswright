@@ -20,12 +20,6 @@ expectation, so a case never accepts claims the old check refused. A case counts
 runner its project names and it ends with the exit code that world gives. `files/`, `tasks.json` and `checks/` stay
 for the old runner until rounds replace it.
 
-`story-met` is the first case for the new claims writer, in the seven-section claims format of
-[contracts/claims.md](../../../contracts/claims.md): the `py-discount` project with its story in the story contract's
-format (`covers`, `tests`). Its contract expectations cite the story: each criterion's outcome, and each required
-test type proved by a named test. Rounds of the new skill list only the new cases; the three cases above stay for
-the old skill until it is replaced.
-
 `checks/` holds the script checks. `claims_valid.py` runs the skill's own `claims_check.py check` on the claims
 file a run wrote. `code_unchanged.py` confirms that writing claims changed no project file and added none.
 
