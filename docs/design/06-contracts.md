@@ -12,7 +12,7 @@ Each run has a folder, `.harness/runs/<run-id>/`, on the change's branch:
 .harness/runs/2026-10-30-order-retry/
 ├── triage.md
 ├── rules.md
-├── rules-text-<skill>.md
+├── rules-text-<skill>.<stack>.md
 ├── functional-plan.md
 ├── design.md
 ├── decisions/
@@ -58,10 +58,10 @@ pipeline: feature-t2
 
 `rules.md`, written once by the standards reader at the start of the run. Its inputs, steps and fields are defined
 in [03 · Standards](03-standards.md), "Resolving the rules for an application". It holds rule IDs and fingerprints,
-never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill,
-`rules-text-<skill>.md`, and records the hash of each in `rules.md`. A rules text ends with a read-back block: the
-rule count, and the ID and title of its last rule. Claims and verdicts record the hash of `rules.md` and quote each
-read-back block, as the claims contract says.
+never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill
+and stack, `rules-text-<skill>.<stack>.md`, and records the hash of each in `rules.md`. A rules text ends with a
+read-back block: the rule count, and the ID and title of its last rule. Claims and verdicts record the hash of
+`rules.md` and quote each read-back block, as the claims contract says.
 
 ## Functional plan
 

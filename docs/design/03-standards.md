@@ -80,7 +80,7 @@ a quoted request, are not standards and are not restatements.
 A skill is its template. Three kinds of file hold rule text and are copies, not a second source: the release skills a
 build script generates from templates; the layer folders and roles file the build copies byte for byte into the
 release (`release/rules/`, `release/roles.md`), so the standards reader can read them; and the
-`rules-text-<skill>.md` file the standards reader writes beside `rules.md` for a run. A script proves each copy
+`rules-text-<skill>.<stack>.md` files the standards reader writes beside `rules.md` for a run. A script proves each copy
 exact. Release files are only ever generated; where scripts cannot run, the rules text is written by reading and
 marked "not verified". None is edited by hand, and the restatement test above does not apply to them.
 
@@ -270,16 +270,17 @@ the ID, layer, kind, the ID it changed and any waiver, plus a fingerprint (hash)
 lists each decision point with its option and where the option came from (a binding rule's ID, "profile decisions"
 or "default"), each waiver with its status (applied, expired, or replaced by the rule that applies in its place),
 and each rule that no longer applies with what replaced it (a rule ID or "profile decisions"). It holds no rule
-text, so it is not a copy. It ends with the hash of each rules text the run wrote and each skill it parked. Every
+text, so it is not a copy. It ends with the hash of each rules text the run wrote and each one it parked. Every
 role in the run reads this file, and each claim and verdict records the hash of this file. A run writes it once: if
 the run's `rules.md` already exists and a new resolve gives different bytes, an input changed during the run, and
 the run stops.
 
-The same resolve writes one **rules text** per release skill, `.harness/runs/<run-id>/rules-text-<skill>.md`, also
-once, with one section per stack. A section holds the rules that reach the skill's run: the rules of layers 2 to 6,
+The same resolve writes one **rules text** per release skill and stack, once:
+`.harness/runs/<run-id>/rules-text-<skill>.<stack>.md`. A skill run reads the rules text of each stack whose code it
+touches. A rules text holds the rules of its stack that reach the skill's run: the rules of layers 2 to 6,
 and the CORE rules the skill did not copy, in full, floors first, each override with its Why as the reason. A rule
 that no longer applies is never in full: it has one line naming what replaced it. One line marks each waived rule
 with its end date and reason, and each copied CORE rule a more specific floor tightens. One line per decision point
-gives its option and where the option came from. A read-back block ends each section. A rules text over the
-application's ceiling ([07 · Repo profile](07-repo-profile.md)) is not written: the skill is parked, the resolve
-exits with code 3, and it names the owner of the largest layer and the size per layer and area.
+gives its option and where the option came from. A read-back block ends it. A rules text over the application's
+ceiling ([07 · Repo profile](07-repo-profile.md)) is not written: it is parked, the resolve exits with code 3, and
+it names the owner of the largest layer and the size per layer and area.
