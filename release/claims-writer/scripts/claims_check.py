@@ -45,7 +45,7 @@ NONE = ("none", re.compile(r"None\."))
 SHAPES = {
     "Request": [("quote", re.compile(r">(?: .*)?"))],
     "Requirements": [("entry", re.compile(r"### (\S+)")), ("field", re.compile(r"- \*\*([A-Za-z ]+):\*\*(?: (\S.*))?")),
-                     ("type", re.compile(r"  - ([^:`]+): (\S.*)")), MORE],
+                     ("type", re.compile(r"  - ([^:`]+): (\S.*)")), MORE, NONE],  # None.: the story covers none
     "Open proof items": [NONE, ("entry", re.compile(r"### (OP-[0-9]+)")),
                          ("field", re.compile(r"- \*\*([A-Za-z ]+):\*\* (\S.*)")), MORE],
     "Standards": None,  # any line: not checked yet

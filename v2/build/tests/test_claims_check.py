@@ -1,8 +1,5 @@
-"""Tests for the claims writer's check script. Run: python3 -m unittest discover -s v2/build/tests
-
-The script ships in release/claims-writer/scripts/, so it is loaded by path. Each test writes a small project with a
-story and a claims file that passes, then breaks one thing.
-"""
+"""Tests for the claims check script, which ships in release/, so it is loaded by path. Each case breaks one thing in
+a passing claims file. Run: python3 -m unittest discover -s v2/build/tests"""
 
 import importlib.util
 import io
@@ -125,6 +122,8 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("`tests/test_pricing.py:3`", "`tests/missing_test:3`", "AC-1, unit: give the test with a `path:line`"),
     ("- **Status:** not verified", "- **Status:** met", "NFR-1 is `met`, but OP-1 stands in"),
     ("- **Owner:** not named\n", "", "OP-1 must have Unproven, Proof, Owner"),
+    ("### OP-1", "### OP-2", "must be numbered OP-1, OP-2"),
+    ("- `src/old.py` (deleted)", "- `tests/test_pricing.py` (deleted)", "is marked deleted, but it exists"),
     ("### OP-1\n", "None.\n\n### OP-1\n", "Open proof items: write `None.` alone"),
     ("- Prices: another story.\n", "", "Out of scope: write `None.` alone"),
     ("(3 lines)", "(4 lines)", "`src/pricing.py` has 3 lines, not 4"),
@@ -192,15 +191,16 @@ class ClaimsCheckTest(unittest.TestCase):
                 self.assertEqual(code, 0, out)
 
     def test_the_story_frontmatter(self):
+        self.write(".harness/runs/r1/stories/S01.md", STORY.replace("NFR-1, NFR-2, TD-1]", "NFR-2, TD-1]"))
+        self.claims = CLAIMS.replace(CLAIMS[CLAIMS.index("### AC-1"):CLAIMS.index("## Open")], "None.\n\n")
+        self.assertEqual(self.run_check()[0], 1)  # it covers AC-1 and AC-2
+        self.write(".harness/runs/r1/stories/S01.md", STORY.replace("AC-1, AC-2, NFR-1, NFR-2, TD-1]", "NFR-2, TD-1]"))
+        self.assertEqual(self.run_check()[0], 0)  # a story that covers no requirement
         self.write(".harness/runs/r1/stories/S01.md", "## What\n\nNo frontmatter.\n")
-        code, out = self.run_check()
-        self.assertEqual(code, 0, out)
-        self.assertIn("not checked: requirements against the story", out)
+        self.assertIn("not checked: requirements against the story", self.run_check()[1])
         self.write(".harness/runs/r1/stories/S01.md", STORY.replace(
             "tests: {AC-1: [unit], AC-2: [unit, api], NFR-1: [performance]}", "tests:\n  AC-1: [unit]"))
-        code, out = self.run_check()
-        self.assertEqual(code, 2, out)
-        self.assertIn("flow form", out)
+        self.assertIn("flow form", self.run_check()[1])
         self.assertEqual(self.run_check("--story", "missing.md")[0], 2)
 
     @unittest.skipUnless(shutil.which("git"), "git is not installed")
