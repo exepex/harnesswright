@@ -47,17 +47,24 @@ class Outcomes(unittest.TestCase):
         self.assertEqual(labels.task_outcome(case(expectations=EXPECTATIONS[:1]), [verdict("pass")], {}),
                          (None, "the case has no contract expectation"))
 
-    def test_a_trigger_run_passes_when_the_skill_loaded_exactly_when_it_should(self):
-        loaded = [{"kind": "skill", "source": "observed", "name": "haiku-writer"}]
-        other = [{"kind": "skill", "source": "observed", "name": "other-skill"}]
-        self.assertTrue(labels.trigger_outcome(case("trigger", should_trigger=True), loaded))
-        self.assertFalse(labels.trigger_outcome(case("trigger", should_trigger=True), other))
-        self.assertTrue(labels.trigger_outcome(case("trigger", should_trigger=False), other))
-        self.assertFalse(labels.trigger_outcome(case("trigger", should_trigger=False), loaded))
+    def test_a_trigger_run_passes_when_the_skill_loaded_exactly_when_it_should_and_only_on_an_observed_load(self):
+        def load(name, source="observed"):
+            return [{"kind": "skill", "source": source, "name": name}]
+
+        should, should_not = case("trigger", should_trigger=True), case("trigger", should_trigger=False)
+        self.assertEqual(labels.trigger_outcome(should, load("haiku-writer")), (True, ""))
+        self.assertEqual(labels.trigger_outcome(should, load("other-skill")), (False, ""))
+        self.assertEqual(labels.trigger_outcome(should_not, load("other-skill")), (True, ""))
+        self.assertEqual(labels.trigger_outcome(should_not, load("haiku-writer")), (False, ""))
+        for kind in (should, should_not):
+            self.assertEqual(labels.trigger_outcome(kind, load("haiku-writer", "inferred")),
+                             (None, "the skill load is inferred only"))
+        both = load("haiku-writer", "inferred") + load("haiku-writer")
+        self.assertEqual(labels.trigger_outcome(should, both), (True, ""))
 
 
-def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None):
-    cases = {"t": case(), "g": case("trigger", should_trigger=True, split="test")}
+def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, should=True):
+    cases = {"t": case(), "g": case("trigger", should_trigger=should, split="test")}
     scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [bool(o) for o in baseline],
               ("g", "with_skill"): [bool(o) for o in trigger]}
     if train is not None:
@@ -67,34 +74,40 @@ def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None):
 
 
 class Decide(unittest.TestCase):
-    def decide(self, measures, reference=None, unreliable=None, reference_run=True):
-        return labels.decide(measures, reference, unreliable or {}, reference_run)
-
     def test_enough_runs_meeting_every_threshold_with_lift_are_verified(self):
         found = measured(train=[False] * 3)  # the train split is for tuning: it does not count
         self.assertEqual((found["task_pass_rate"], found["baseline_pass_rate"], found["lift"]), (1.0, 0.0, 1.0))
         self.assertEqual((found["trigger_accuracy"], found["trigger_cases"]), (1.0, 1))
-        self.assertEqual(self.decide(found), {"label": "verified", "gaps": []})
+        self.assertEqual(labels.decide(found, []), {"label": "verified", "gaps": []})
+        self.assertEqual(labels.decide(found, [], measured(), None), {"label": "verified", "gaps": []})
 
-    def test_a_missing_result_is_incomplete(self):
-        found = self.decide(measured(trigger=()))
-        self.assertEqual(found, {"label": "incomplete", "gaps": ["g, with_skill: no scored run"]})
+    def test_a_trigger_case_passes_on_half_its_runs_only_when_it_should_trigger(self):
+        self.assertEqual(measured(trigger=(1, 1, 0, 0))["trigger_accuracy"], 1.0)
+        self.assertEqual(measured(trigger=(1, 1, 0, 0), should=False)["trigger_accuracy"], 0.0)  # loaded twice of 4
+
+    def test_a_skill_with_no_task_case_or_no_test_trigger_case_is_incomplete_with_every_doubt_named(self):
         no_triggers = labels.summary({"t": case()}, {("t", "with_skill"): [True] * 3,
                                                      ("t", "without_skill"): [False] * 3})
-        self.assertEqual(self.decide(no_triggers)["gaps"], ["test trigger cases: none"])
+        self.assertEqual(labels.decide(no_triggers, ["t, with_skill, run 4: not scored (void)"]),
+                         {"label": "incomplete", "gaps": ["test trigger cases: none",
+                                                          "t, with_skill, run 4: not scored (void)"]})
 
-    def test_too_few_runs_missed_goldens_no_lift_or_no_reference_host_are_inconclusive(self):
-        self.assertEqual(self.decide(measured(task=(1, 1)))["gaps"], ["t, with_skill: 2 scored run(s), 3 needed"])
-        found = self.decide(measured(), unreliable={"haiku-writer/c1 q2": "a golden was missed"})
-        self.assertEqual(found, {"label": "inconclusive", "gaps": ["haiku-writer/c1 q2: goldens missed (a golden "
-                                                                   "was missed)"]})
-        self.assertIn("no lift", self.decide(measured(baseline=(1, 1, 1)))["gaps"][0])
-        self.assertEqual(self.decide(measured(), reference_run=False)["label"], "inconclusive")
-        found = labels.decide(measured(), None, {}, True, ["t, with_skill, run 4: empty"])
-        self.assertEqual(found, {"label": "inconclusive", "gaps": ["t, with_skill, run 4: empty: not scored"]})
+    def test_every_doubt_is_named_and_keeps_the_label_inconclusive(self):
+        found = labels.decide(measured(task=(1, 1)), [])
+        self.assertEqual(found, {"label": "inconclusive", "gaps": ["t, with_skill: 2 scored run(s), 3 needed"]})
+        self.assertEqual(labels.decide(measured(trigger=()), [])["gaps"], ["g, with_skill: 0 scored run(s), 3 needed"])
+        unscored = ["t, with_skill, run 4: not scored (expectation 2 has no trusted answer)",
+                    "t, with_skill, run 5: not scored (empty)", "haiku-writer/t q2: goldens missed (planted)"]
+        self.assertEqual(labels.decide(measured(), unscored), {"label": "inconclusive", "gaps": unscored})
+        self.assertIn("no lift", labels.decide(measured(baseline=(1, 1, 1)), [])["gaps"][0])
+
+    def test_another_host_is_never_verified_on_a_reference_result_that_is_not_settled(self):
+        found = labels.decide(measured(), [], None, "the reference host claude-code's result is not settled")
+        self.assertEqual(found, {"label": "inconclusive",
+                                 "gaps": ["the reference host claude-code's result is not settled"]})
 
     def test_a_missed_threshold_is_unsupported_with_each_gap_named(self):
-        found = self.decide(measured(task=(1, 1, 0), trigger=(0, 0, 1)), reference=measured())
+        found = labels.decide(measured(task=(1, 1, 0), trigger=(0, 0, 1)), [], measured(), None)
         self.assertEqual(found["label"], "unsupported")
         self.assertEqual(found["gaps"], ["task pass rate 67% below 90%", "task pass rate 33% below the reference host",
                                          "trigger accuracy 0% below 90%"])
@@ -146,11 +159,11 @@ class Gate(Pages):
         entry = found["skills"]["haiku-writer"]["fakehost"]
         self.assertEqual((entry["task_pass_rate"], entry["baseline_pass_rate"], entry["lift"]), (1.0, 0.0, 1.0))
         self.assertEqual(entry["runs"], {"c1, with_skill": 3, "c1, without_skill": 3})
-        self.assertEqual((entry["model"], entry["gaps"], found["ungraded"]), ("named-model",
-                                                                              ["test trigger cases: none"], []))
+        self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
+            "test trigger cases: none", "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
 
-    def test_a_run_ungraded_on_a_contract_question_is_left_out_and_named(self):
+    def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()
         probe, run = self.stored([("with_skill", POND)])
         steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
@@ -158,8 +171,10 @@ class Gate(Pages):
         self.go(steps, grade=answering(lambda page: "yes"))  # the "no" golden is missed: q2 is untrusted
         [path] = (self.store / "r1" / "labels").iterdir()
         found = json.loads(path.read_text())
-        self.assertEqual(found["ungraded"], [{"key": "k1", "why": "expectation 2 has no trusted answer"}])
-        self.assertIn("c1, with_skill: no scored run", found["skills"]["haiku-writer"]["fakehost"]["gaps"])
+        gaps = found["skills"]["haiku-writer"]["fakehost"]["gaps"]
+        self.assertIn("c1, with_skill, run 1: not scored (expectation 2 has no trusted answer)", gaps)
+        self.assertIn("c1, with_skill: 0 scored run(s), 3 needed", gaps)
+        self.assertTrue(any(gap.startswith("haiku-writer/c1 q2: goldens missed") for gap in gaps))
 
 
 if __name__ == "__main__":

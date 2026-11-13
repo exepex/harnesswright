@@ -51,12 +51,13 @@ calibrate only their own attempt's graders, runs again when the round runs again
 
 The label gate (`labels.py`) gives each skill on each host one label of [10 · Skills](../../docs/design/10-skills.md),
 computed from the store alone: the attempt record, and for each kept or made run its bundle, its `checks.json` and
-its trusted grades. A task run passes when every contract expectation of its case passed, a check deciding first and
-a trusted `yes` deciding what no check did; it fails when one failed, and is ungraded, and named, when one has no
-trusted answer. Format expectations do not count, as only the skill knows its own format. A trigger run, scored in
-the with-skill arm only, passes when the skill loaded exactly when the case says it should, and trigger accuracy is
-that of the `test` split. A host that was not run, a skill with no task case or no test trigger case, or a case with
-no scored run in an arm is `incomplete`. Too few scored runs, a void or empty run, missed goldens, no lift or a
-reference host that was not run make it `inconclusive`, so only the reference host's run lets another be
-`verified`. A missed threshold is `unsupported`, each gap named. The label file goes to
-`<store>/<round>/labels/<attempt>.json`.
+its trusted grades. One rule holds: a label rests only on settled results. A task run passes when every contract
+expectation of its case passed, a check deciding first and a trusted `yes` deciding what no check did; it fails when
+one failed, and is not scored when one has no trusted answer. Format expectations do not count, as only the skill
+knows its own format. A trigger run, scored in the with-skill arm only, passes when the skill loaded exactly when
+the case says it should; a load the host did not report, only inferred, leaves the run not scored. A trigger case
+passes when the skill loaded in at least half its runs if it should trigger, and in fewer than half if it should
+not. Trigger accuracy is that of the `test` split. A host that was not run, or a skill with no task case or no test
+trigger case, is `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs,
+missed goldens, no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A
+missed threshold is `unsupported`, each gap named. The label file goes to `<store>/<round>/labels/<attempt>.json`.
