@@ -31,9 +31,9 @@
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
 
-<!-- one fence per read-back block, in file order -->
+<!-- one fence per rules text read, in the stack order of rules.md -->
 ```text
-<a read-back block of its rules text, markers included, quoted exactly>
+<the read-back block of one rules text, markers and Stack line included, quoted exactly>
 ```
 
 ### Changes applied

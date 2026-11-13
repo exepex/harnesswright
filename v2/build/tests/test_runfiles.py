@@ -1,4 +1,4 @@
-"""Tests for runfiles.py part e2: one rules text per release skill, with one section per stack.
+"""Tests for runfiles.py parts e2 and e3: one rules text per release skill and stack (one file per language).
 Run: python3 -m unittest discover -s v2/build/tests
 
 Each test starts from test_resolve_layers' valid application and adds a release skill `implement`, the `rest` skill of
@@ -21,7 +21,7 @@ import resolve  # noqa: E402
 import rulebook  # noqa: E402
 
 RELEASE = ".agents/harnesswright"
-TEXT = ".harness/runs/r1/rules-text-implement.md"
+TEXT = ".harness/runs/r1/rules-text-implement.java.md"
 JOBS = "| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n"
 
 
@@ -52,10 +52,9 @@ class RulesTextTest(Application):
         inputs = resolve.load(self.repo, TODAY)
         return resolve.run_files(self.repo, "r1", TODAY, inputs)
 
-    def text(self):
-        texts = self.outputs()[1]
-        self.assertEqual([p.name for p in texts], ["rules-text-implement.md"])
-        return next(iter(texts.values()))
+    def text(self, stack="java"):
+        texts = {p.name: text for p, text in self.outputs()[1].items()}
+        return texts[f"rules-text-implement.{stack}.md"]
 
     def main(self):
         err = io.StringIO()
@@ -84,8 +83,8 @@ class RulesTextTest(Application):
         self.assertEqual(self.ids(others), ["COMP-ACME-ERR-01", "TEAM-ACME-LOG-01", "APP-TEST-01"])
         self.assertIn("- **Bad (do not do this):** not done\n- **Reason for the override:** Because.\n"
                       "<!-- end APP-TEST-01 -->", others)  # the expired waiver of TEAM-ACME-LOG-01 leaves no line
-        self.assertTrue(text.endswith("<!-- read-back -->\nRules in this text: 4. Last rule: APP-TEST-01 · "
-                                      "Title of APP-TEST-01.\n<!-- end read-back -->\n"))
+        self.assertTrue(text.endswith("<!-- read-back -->\nStack: java. Rules in this text: 4. Last rule: "
+                                      "APP-TEST-01 · Title of APP-TEST-01.\n<!-- end read-back -->\n"))
         for loser in ("#### JAVA-TEST-01", "#### COMP-ACME-CODE-01", "#### CORE-"):  # never in full
             self.assertNotIn(loser, text)
 
@@ -146,26 +145,40 @@ class RulesTextTest(Application):
         self.assertIn("#### COMP-ACME-WORK-01", text)  # a floor of every role reaches every run
         self.assertIn("- JAVA-DP-BOILERPLATE · ", text)  # a decision point of the run's role reaches
 
-    def test_each_stack_has_its_own_section_and_read_back(self):
+    def test_each_stack_has_its_own_file_and_read_back(self):
         self.edit(".harness/profile.yaml", "[java]", "[java, kotlin]")
         self.write(".agents/harnesswright/rules/kotlin/k.md", area("KOTLIN-K", rule("KOTLIN-K-01")))
-        text = self.text()
-        java, kotlin = text.split("## Stack: java\n")[1].split("## Stack: kotlin\n")
-        self.assertEqual(text.count("<!-- read-back -->"), 2)
+        self.assertEqual(sorted(p.name for p in self.outputs()[1]),
+                         ["rules-text-implement.java.md", "rules-text-implement.kotlin.md"])
+        java, kotlin = self.text("java"), self.text("kotlin")
+        self.assertTrue(kotlin.startswith("# Rules text: implement\n\n- **Release:** 0.1.0\n\n## Stack: kotlin\n"))
+        self.assertEqual((java.count("<!-- read-back -->"), java.count("## Stack: ")), (1, 1))
         self.assertIn("Last rule: APP-TEST-01 · ", java)
         self.assertIn("#### KOTLIN-K-01", kotlin)
         for other in ("JAVA-", "APP-TEST-01", "COMP-ACME-CODE-01"):
             self.assertNotIn(other, kotlin)
-        self.assertIn("Rules in this text: 4. Last rule: TEAM-ACME-LOG-01 · ", kotlin)
+        self.assertIn("Stack: kotlin. Rules in this text: 4. Last rule: TEAM-ACME-LOG-01 · ", kotlin)
+        big = rule("KOTLIN-BIG-01").replace("Do it.", "Do it. " + "x" * 2000)
+        self.write(".agents/harnesswright/rules/kotlin/big.md", area("KOTLIN-BIG", big))
+        limit = max(reach.size(java), reach.size(kotlin)) + 100
+        self.edit(".harness/profile.yaml", "rules-text-limit: 45000", f"rules-text-limit: {limit}")
+        code, err = self.main()  # each file has its own limit: only kotlin's, the second stack, is over it
+        self.assertEqual(code, 3)
+        self.assertTrue((self.repo / TEXT).exists())
+        self.assertFalse((self.repo / ".harness/runs/r1/rules-text-implement.kotlin.md").exists())
+        self.assertIn("resolve: parked implement (kotlin): ", err)
+        rules_md = (self.repo / ".harness/runs/r1/rules.md").read_text(encoding="utf-8")
+        self.assertIn("| implement | kotlin | ", rules_md)
 
     def test_rules_md_records_each_rules_text_hash(self):
         self.assertEqual(self.main()[0], 0)
         text = (self.repo / TEXT).read_bytes()
         rules_md = (self.repo / ".harness/runs/r1/rules.md").read_text(encoding="utf-8")
         self.assertIn(f"## Rules texts\n\n| SHA-256 | File |\n|---|---|\n| {hashlib.sha256(text).hexdigest()} | "
-                      f"{TEXT} |\n\n## Parked skills\n\n| Skill | Size | Limit | Owner of the largest layer |\n"
-                      "|---|---|---|---|\n", rules_md)
-        self.assertTrue(rules_md.endswith("|---|---|---|---|\n"))
+                      f"{TEXT} |\n\n## Parked rules texts\n\n"
+                      "| Skill | Stack | Size | Limit | Owner of the largest layer |\n|---|---|---|---|---|\n",
+                      rules_md)
+        self.assertTrue(rules_md.endswith("|---|---|---|---|---|\n"))
         self.assertIn("and 1 rules texts", self.last_err)
         self.assertEqual(self.main()[0], 0)  # a second resolve of the same run writes the same bytes
 
@@ -177,9 +190,9 @@ class RulesTextTest(Application):
         self.assertEqual(code, 3)
         self.assertFalse((self.repo / TEXT).exists())
         rules_md = (self.repo / ".harness/runs/r1/rules.md").read_text(encoding="utf-8")
-        self.assertRegex(rules_md, r"\| implement \| [0-9]+ \| 1000 \| Acme payments team \|\n$")
+        self.assertRegex(rules_md, r"\| implement \| java \| [0-9]+ \| 1000 \| Acme payments team \|\n$")
         self.assertIn("## Rules texts\n\n| SHA-256 | File |\n|---|---|\n\n", rules_md)
-        self.assertIn("resolve: parked implement: its rules text is ", err)
+        self.assertIn("resolve: parked implement (java): its rules text is ", err)
         self.assertIn("it goes to Acme payments team. Sizes per layer and area:\n", err)
         self.assertIn("  TEAM-ACME BIG: ", err)
 
@@ -200,12 +213,13 @@ class RulesTextTest(Application):
         self.edit(".harness/profile.yaml", "rules-text-limit: 45000", "rules-text-limit: 2000")
         code, err = self.main()
         self.assertEqual(code, 3)
-        written = self.repo / ".harness/runs/r1/rules-text-alpha.md"
-        self.assertFalse((self.repo / ".harness/runs/r1/rules-text-zeta.md").exists())
+        written = self.repo / ".harness/runs/r1/rules-text-alpha.java.md"
+        self.assertFalse((self.repo / ".harness/runs/r1/rules-text-zeta.java.md").exists())
         rules_md = (self.repo / ".harness/runs/r1/rules.md").read_text(encoding="utf-8")
-        self.assertIn(f"| {hashlib.sha256(written.read_bytes()).hexdigest()} | .harness/runs/r1/rules-text-alpha.md |",
+        self.assertIn(f"| {hashlib.sha256(written.read_bytes()).hexdigest()} | "
+                      ".harness/runs/r1/rules-text-alpha.java.md |",
                       rules_md)
-        self.assertRegex(rules_md, r"\| zeta \| [0-9]+ \| 2000 \| Acme payments team \|\n$")
+        self.assertRegex(rules_md, r"\| zeta \| java \| [0-9]+ \| 2000 \| Acme payments team \|\n$")
         big_size = int(err.split("  TEAM-ACME BIG: ")[1].split()[0])
         self.assertGreater(big_size, 2 * 900)  # both rules of the area count
 

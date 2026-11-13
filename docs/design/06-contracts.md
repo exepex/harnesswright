@@ -12,7 +12,7 @@ Each run has a folder, `.harness/runs/<run-id>/`, on the change's branch:
 .harness/runs/2026-10-30-order-retry/
 ├── triage.md
 ├── rules.md
-├── rules-text-<skill>.md
+├── rules-text-<skill>.<stack>.md
 ├── functional-plan.md
 ├── design.md
 ├── decisions/
@@ -58,10 +58,10 @@ pipeline: feature-t2
 
 `rules.md`, written once by the standards reader at the start of the run. Its inputs, steps and fields are defined
 in [03 · Standards](03-standards.md), "Resolving the rules for an application". It holds rule IDs and fingerprints,
-never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill,
-`rules-text-<skill>.md`, and records the hash of each in `rules.md`. A rules text ends with a read-back block: the
-rule count, and the ID and title of its last rule. Claims and verdicts record the hash of `rules.md` and quote each
-read-back block, as the claims contract says.
+never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill
+and stack, `rules-text-<skill>.<stack>.md`, and records the hash of each in `rules.md`. A rules text ends with a
+read-back block: its stack, the rule count, and the ID and title of its last rule. Claims and verdicts record the
+hash of `rules.md` and quote each read-back block, as the claims contract says.
 
 ## Functional plan
 
@@ -180,12 +180,15 @@ proof item after merge.
 
 - the hash of `rules.md`;
 - each skill run, in the order it ran, with its version, the hash of its release `SKILL.md` and the read-back block
-  of its rules text, quoted exactly, marked `not verified` where the rules text was written by reading;
+  of each rules text it read, quoted exactly, in the stack order of `rules.md`, marked `not verified` where the rules
+  text was written by reading;
 - the ID and title of each change applied (an override, binding or tightening in a rules text), quoted exactly;
 - the rules applied, by ID, and each waiver used.
 
 A script compares the skills, read-back blocks and changes, character for character, with the rules texts and the
-job in the roles file. The story judge rebuilds the rules texts and fails on any difference.
+job in the roles file. The story judge rebuilds the rules texts and fails on any difference. It also fails when a
+skill run quotes no read-back block for a stack whose code the change touches, or for each stack when it touches no
+stack's code.
 
 ## Finding
 
@@ -231,7 +234,7 @@ blockers: []                # confirmed blockers; any entry forces fail
 ```
 
 Body: **Claims**: each claim, checked or refuted with evidence · **Approvals** (see Approvals) · **Standards**:
-each skill the judge ran, in order, with its version, hash and read-back block, and each change applied, as in the
+each skill the judge ran, in order, with its version, hash and read-back blocks, and each change applied, as in the
 claims · **To pass**: what must change for a pass. The story judge fails a requirement whose required test type has
 no test, unless that test is an approved open proof item.
 

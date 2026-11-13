@@ -322,24 +322,25 @@ def combine_stack(inputs, name, sources):
 
 
 def run_files(repo, run, today, inputs):
-    """What the run writes: rules.md, each skill's rules text (path -> text), and the skills parked over the
-    ceiling (skill -> size, owner of its largest layer, sizes per layer and area)."""
+    """What the run writes: rules.md, one rules text per skill and stack (path -> text), and the rules texts parked
+    over the ceiling ((skill, stack) -> size, owner of its largest layer, sizes per layer and area)."""
     stacks_done = combine(inputs)
     held = [[r for s in sources for r in active(s) if r.id in done.rules or r.id in done.replaced]  # a rule that
             for (_, sources), done in zip(stacks(inputs.sources), stacks_done)]  # changes another stack's is not here
     texts, parked = {}, {}
     for name in sorted(inputs.manifest["skills"]):
-        text, full = runfiles.rules_text(name, inputs, list(zip(held, stacks_done)))
-        if reach.size(text) > inputs.limit:
-            parked[name] = (reach.size(text), *runfiles.largest_owner(full, inputs))
-        else:
-            texts[Path(repo) / runfiles.RULES_TEXT.format(run=run, skill=name)] = text
-    summary = {name: (size, owner) for name, (size, owner, _) in parked.items()}
+        for rules, done in zip(held, stacks_done):
+            text, full = runfiles.rules_text(name, inputs, rules, done)
+            if reach.size(text) > inputs.limit:
+                parked[(name, done.stack)] = (reach.size(text), *runfiles.largest_owner(full, inputs))
+            else:
+                texts[Path(repo) / runfiles.RULES_TEXT.format(run=run, skill=name, stack=done.stack)] = text
+    summary = {key: (size, owner) for key, (size, owner, _) in parked.items()}
     return runfiles.rules_md(repo, run, today, inputs, stacks_done, texts, summary), texts, parked
 
 
 def main(argv=None):
-    """Exit 0 when every rules text is written, 3 when a skill is parked over the ceiling, 1 when the run stops."""
+    """Exit 0 when every rules text is written, 3 when one is parked over the ceiling, 1 when the run stops."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True)
     parser.add_argument("--run", required=True)
@@ -357,9 +358,9 @@ def main(argv=None):
         print(f"resolve stopped: {error}", file=sys.stderr)
         return 1
     print(f"resolve: wrote {path} and {len(texts)} rules texts", file=sys.stderr)
-    for name, (size, owner, sizes) in parked.items():
-        print(f"resolve: parked {name}: its rules text is {size} characters, over the limit of {inputs.limit}; "
-              f"it goes to {owner}. Sizes per layer and area:", file=sys.stderr)
+    for (name, stack), (size, owner, sizes) in parked.items():
+        print(f"resolve: parked {name} ({stack}): its rules text is {size} characters, over the limit of "
+              f"{inputs.limit}; it goes to {owner}. Sizes per layer and area:", file=sys.stderr)
         for (layer, area), count in sorted(sizes.items()):
             print(f"  {layer} {area}: {count}", file=sys.stderr)
     return 3 if parked else 0

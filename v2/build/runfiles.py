@@ -1,15 +1,17 @@
-"""The files one run writes beside its rules: `rules.md` and one `rules-text-<skill>.md` per release skill (doc 03).
+"""The files one run writes beside its rules: `rules.md`, and `rules-text-<skill>.<stack>.md` per release skill and
+stack (doc 03).
 
 Standard library only. `rules.md` holds no rule text: per stack (one per language) it lists the rules that apply,
 the decision points, the waivers and the replaced rules, then the SHA-256 of every file read and every rules text
-written, and the skills parked over the ceiling.
+written, and the rules texts parked over the ceiling.
 
-A rules text holds, per stack, the rules from layers 2 to 6 that reach the skill's run and the CORE rules that reach
-it but the skill did not copy, in full; one line for each change to a rule that reaches (what replaced it, what
-tightened it, its waiver); one line per decision point that reaches, with its option and where that came from; and a
-read-back block. What reaches is reach.reach over every active rule of the stack, with the skill's copied IDs as
-cited, so a rule that changes a copied CORE rule reaches too (reviews/release-design/size-final.md section 1). A rule
-that lost to a more specific input appears only as its "replaced by" line, never in full.
+A rules text holds, for one skill and one stack (owner, 2026-11-13: one file per language), the rules from layers
+2 to 6 that reach the skill's run and the CORE rules that reach it but the skill did not copy, in full; one line for
+each change to a rule that reaches (what replaced it, what tightened it, its waiver); one line per decision point
+that reaches, with its option and where that came from; and a read-back block that names its stack. What reaches is
+reach.reach over every active rule of the stack, with the skill's copied IDs as cited, so a rule that changes a
+copied CORE rule reaches too (reviews/release-design/size-final.md section 1). A rule that lost to a more specific
+input appears only as its "replaced by" line, never in full.
 """
 
 import hashlib
@@ -22,7 +24,7 @@ from repoprofile import ResolveError
 
 RUN = ".harness/runs/{run}"
 RULES_MD = RUN + "/rules.md"
-RULES_TEXT = RUN + "/rules-text-{skill}.md"
+RULES_TEXT = RUN + "/rules-text-{skill}.{stack}.md"
 MARKS = "### Changes to rules that reach this run"
 POINTS = "### Decision points"
 
@@ -64,7 +66,7 @@ def stack_md(inputs, done):
 
 def rules_md(repo, run, today, inputs, stacks_done, texts=None, parked=None):
     """The resolved standards file. texts maps each written rules text's path to its text; parked maps each parked
-    skill to (size, owner of its largest layer)."""
+    (skill, stack) to (size, owner of its largest layer)."""
     lines = ["# Resolved standards", "", f"- **Run:** {run}", f"- **Date:** {today.isoformat()}",
              f"- **Release:** {inputs.version}"]
     for done in stacks_done:
@@ -73,8 +75,9 @@ def rules_md(repo, run, today, inputs, stacks_done, texts=None, parked=None):
     lines += [row(sha(Path(path).read_bytes()), relative(repo, path)) for path in inputs.files]
     lines += ["", "## Rules texts", "", "| SHA-256 | File |", "|---|---|"]
     lines += [row(sha(text.encode("utf-8")), relative(repo, path)) for path, text in (texts or {}).items()]
-    lines += ["", "## Parked skills", "", "| Skill | Size | Limit | Owner of the largest layer |", "|---|---|---|---|"]
-    lines += [row(skill, size, inputs.limit, owner) for skill, (size, owner) in (parked or {}).items()]
+    lines += ["", "## Parked rules texts", "", "| Skill | Stack | Size | Limit | Owner of the largest layer |",
+              "|---|---|---|---|---|"]
+    lines += [row(skill, stack, size, inputs.limit, owner) for (skill, stack), (size, owner) in (parked or {}).items()]
     return "\n".join(lines) + "\n"
 
 
@@ -149,18 +152,14 @@ def stack_text(name, inputs, rules, done):
     lines = [f"## Stack: {done.stack}", "", MARKS, ""] + (marks or ["None."]) + ["", POINTS, ""] + (points or ["None."])
     for title, group in ((copyform.FLOORS, floors), (copyform.OTHERS, others)):
         lines += ["", title, ""] + ("\n\n".join(text for _, _, text in group) or "None.").split("\n")
-    text = "\n".join(lines) + "\n\n" + copyform.read_back([rule for rule, _, _ in floors + others])
+    text = "\n".join(lines) + "\n\n" + copyform.read_back([rule for rule, _, _ in floors + others], done.stack)
     return text, full
 
 
-def rules_text(name, inputs, stacks):
-    """One skill's rules text and its full copies. stacks is a list of (active rules of a stack, its Resolved)."""
-    parts, full = [f"# Rules text: {name}\n\n- **Release:** {inputs.version}\n"], []
-    for rules, done in stacks:
-        text, copies = stack_text(name, inputs, rules, done)
-        parts.append(text)
-        full += copies
-    return "\n".join(parts), full
+def rules_text(name, inputs, rules, done):
+    """One skill's rules text for one stack, and its full copies. rules are the active rules the stack holds."""
+    text, full = stack_text(name, inputs, rules, done)
+    return f"# Rules text: {name}\n\n- **Release:** {inputs.version}\n\n" + text, full
 
 
 def largest_owner(full, inputs):

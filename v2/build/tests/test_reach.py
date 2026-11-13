@@ -272,10 +272,10 @@ class CopyFormTest(unittest.TestCase):
         self.assertTrue(copyform.rules_section(cited).endswith(POINT_COPY + "\n"))
 
     def test_read_back(self):
-        self.assertEqual(copyform.read_back([self.point, self.rule]),
-                         "<!-- read-back -->\nRules in this text: 2. Last rule: CORE-TEST-03 · A test name states the "
-                         "scenario.\n<!-- end read-back -->\n")
-        self.assertIn("Rules in this text: 0. Last rule: none.", copyform.read_back([]))
+        self.assertEqual(copyform.read_back([self.point, self.rule], "java"),
+                         "<!-- read-back -->\nStack: java. Rules in this text: 2. Last rule: CORE-TEST-03 · A test "
+                         "name states the scenario.\n<!-- end read-back -->\n")
+        self.assertIn("Stack: core. Rules in this text: 0. Last rule: none.", copyform.read_back([], "core"))
 
 
 class RealRulebookTest(unittest.TestCase):

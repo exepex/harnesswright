@@ -63,7 +63,7 @@ def rules_section(reached):
     return "\n\n".join([SECTION, FLOORS] + floors + [OTHERS] + others) + "\n"
 
 
-def read_back(rules):
-    """The block that ends a rules text: the rule count, and the ID and title of its last rule."""
+def read_back(rules, stack):
+    """The block that ends a rules text: its stack, the rule count, and the ID and title of its last rule."""
     last = f"{rules[-1].id} · {rules[-1].title}" if rules else "none"
-    return f"{READ_BACK}\nRules in this text: {len(rules)}. Last rule: {last}.\n{READ_BACK_END}\n"
+    return f"{READ_BACK}\nStack: {stack}. Rules in this text: {len(rules)}. Last rule: {last}.\n{READ_BACK_END}\n"

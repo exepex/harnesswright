@@ -86,7 +86,7 @@ cannot decide with evidence, the coordinator escalates to the human.
 | Plan revision rounds | 2 | Escalate to the human |
 | Token budget per change | Set per tier in the profile | Stop and report what is done and what is not |
 | Wall-clock time per stage | Set per tier in the profile | Stop and report |
-| Rules text per skill and run | 30,000 characters; an application may raise it to at most 60,000 ([07](07-repo-profile.md)) | Park the item with an open item that lists sizes per layer and area |
+| Each rules text (one per skill and stack) | 30,000 characters; an application may raise it to at most 60,000 ([07](07-repo-profile.md)) | Park the item with an open item that lists sizes per layer and area |
 
 ## Escalation
 
