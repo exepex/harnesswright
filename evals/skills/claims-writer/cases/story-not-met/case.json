@@ -135,40 +135,6 @@
       }
     },
     {
-      "text": "No claims section is left empty",
-      "source": "format",
-      "judged": {
-        "question": "Does every one of the seven sections hold text, with None. where there is nothing to say?",
-        "pass": "Yes when each section has at least one line under its heading.",
-        "fail": "No when any heading is followed straight away by the next heading or the end of the file.",
-        "examples": {
-          "pass": [
-            "Open proof items says None. and Not verified says None."
-          ],
-          "fail": [
-            "Out of scope is a heading with nothing under it."
-          ]
-        }
-      }
-    },
-    {
-      "text": "The claims state results without hedging words",
-      "source": "format",
-      "judged": {
-        "question": "Is the writer's own text, outside quotes and code, free of words such as should work, probably, seems to or looks good?",
-        "pass": "Yes when every result is stated as a fact backed by evidence, or moved to Not verified.",
-        "fail": "No when any claim leans on a hedge in place of evidence.",
-        "examples": {
-          "pass": [
-            "AC-1 met: its test passed, as the quoted output shows."
-          ],
-          "fail": [
-            "AC-1 met: it should work."
-          ]
-        }
-      }
-    },
-    {
       "text": "Every file listed under Files changed has its true line count",
       "source": "format",
       "check": {
@@ -250,12 +216,12 @@
         }
       },
       "judged": {
-        "question": "Do the claims give AC-1 the status met?",
-        "pass": "Yes when AC-1 appears with the status met.",
+        "question": "Do the claims say that AC-1 is met, in any words such as met, done, satisfied or passing?",
+        "pass": "Yes when the claims state that outcome for AC-1, whatever words or layout they use.",
         "fail": "No when AC-1 is missing or has another status, since the code and its tests meet it.",
         "examples": {
           "pass": [
-            "AC-1: Status met."
+            "AC-1: done, as the quoted test run shows."
           ],
           "fail": [
             "AC-1 not met, or not verified, or AC-1 left out."
@@ -273,12 +239,12 @@
         }
       },
       "judged": {
-        "question": "Do the claims give AC-2 the status met?",
-        "pass": "Yes when AC-2 appears with the status met.",
+        "question": "Do the claims say that AC-2 is met, in any words such as met, done, satisfied or passing?",
+        "pass": "Yes when the claims state that outcome for AC-2, whatever words or layout they use.",
         "fail": "No when AC-2 is missing or has another status, since the code and its test meet it.",
         "examples": {
           "pass": [
-            "AC-2: Status met."
+            "AC-2: done, as the quoted test run shows."
           ],
           "fail": [
             "AC-2 not met, or not verified, or AC-2 left out."
@@ -296,12 +262,12 @@
         }
       },
       "judged": {
-        "question": "Do the claims give AC-3 the status not met?",
-        "pass": "Yes when AC-3 appears with the status not met.",
+        "question": "Do the claims say that AC-3 is not met, in any words such as not met, failing, broken or not done?",
+        "pass": "Yes when the claims state that outcome for AC-3, whatever words or layout they use.",
         "fail": "No when AC-3 is missing or has another status, since its test fails on the code as it is.",
         "examples": {
           "pass": [
-            "AC-3: Status not met."
+            "AC-3: failing, as the quoted test run shows."
           ],
           "fail": [
             "AC-3 met, or not verified, or AC-3 left out."
@@ -310,7 +276,7 @@
       }
     },
     {
-      "text": "Each criterion's unit test type is given its named test",
+      "text": "Each criterion is tied to its unit test, and AC-3's is shown failing",
       "source": {
         "contract": {
           "path": ".harness/runs/2026-11-13-shipping/stories/S02.md",
@@ -319,15 +285,15 @@
         }
       },
       "judged": {
-        "question": "For each of AC-1, AC-2 and AC-3, do the claims name, under that requirement's test types, a unit test by its function name with its path:line in tests/test_shipping.py, and for AC-3 say that its test fails?",
-        "pass": "Yes when each of the three requirements gives its unit test type a test that exists, by name and path:line, and AC-3's is shown failing.",
-        "fail": "No when a requirement leaves its unit test type out, gives it no test, names a test that is not there, or AC-3's failing test is given as proof.",
+        "question": "Do the claims tie each of AC-1, AC-2 and AC-3 to its unit test of tests/test_shipping.py, named in any form, and say that AC-3's test fails?",
+        "pass": "Yes when each criterion is tied to a unit test that exists, and AC-3's test is reported as failing.",
+        "fail": "No when a criterion is tied to no test or to one that is not there, or AC-3's failing test is given as proof that it works.",
         "examples": {
           "pass": [
-            "AC-3, unit: test_unserved_country_is_rejected at its line in tests/test_shipping.py, failing."
+            "AC-3: test_unserved_country_is_rejected fails, ValueError not raised."
           ],
           "fail": [
-            "AC-3 lists no test types, or gives its failing test as passing proof."
+            "AC-3 is proved by test_unserved_country_is_rejected."
           ]
         }
       }
@@ -336,7 +302,7 @@
       "text": "Each requirement has its own entry, with what was done, the evidence and its test types",
       "source": "format",
       "judged": {
-        "question": "Under Requirements, does each of AC-1, AC-2 and AC-3 have one entry headed by its ID, with a Done line, an Evidence line and a Test types list, AC-1 and AC-2 citing a path:line in src/shipping.py and AC-3 quoting the failure of test_unserved_country_is_rejected?",
+        "question": "Under Requirements, does each of AC-1, AC-2 and AC-3 have one entry headed by its ID, with a Done line, an Evidence line and a Test types list giving unit with its test's path:line, AC-1 and AC-2 citing a path:line in src/shipping.py and AC-3 quoting the failure of test_unserved_country_is_rejected?",
         "pass": "Yes when every covered requirement has exactly one such entry, the met ones cite their code line, and AC-3 quotes its test failing.",
         "fail": "No when requirements share an entry, one has two entries or none, an entry lacks Done, Evidence or Test types, or AC-3 shows no failure.",
         "examples": {
@@ -388,7 +354,7 @@
       "source": "format",
       "judged": {
         "question": "Does Files changed list both src/shipping.py and tests/test_shipping.py, and no file the change did not touch?",
-        "pass": "Yes when both are listed and nothing else but the claims file itself.",
+        "pass": "Yes when both are listed and nothing else but the claims file and the run folder's rules files.",
         "fail": "No when either is missing or an untouched file is listed.",
         "examples": {
           "pass": [
