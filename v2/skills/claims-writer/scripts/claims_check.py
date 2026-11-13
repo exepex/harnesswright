@@ -251,7 +251,7 @@ def check_files(lines, repo, base, fails, notes):
 def points(repo, path, first, last):
     """Whether `path:first-last` names lines of a file that exists; a last line with no newline counts."""
     data = (repo / path).read_bytes() if (repo / path).is_file() else None
-    return data is not None and 1 <= int(first) <= int(last or first) <= len(data.split(b"\n")) - data.endswith(b"\n")
+    return data is not None and 1 <= int(first) <= int(last or first) <= len(data.splitlines())  # empty file: 0
 
 
 def check_references(text, repo, fails):

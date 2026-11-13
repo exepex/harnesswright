@@ -119,7 +119,7 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("performance: OP-1", "performance: OP-2", "names an OP-n that Open proof items does not define"),
     ("performance: OP-1", "performance: on staging", "give the test with a `path:line` that exists"),
     ("`tests/test_pricing.py:3`", "`tests/missing_test:3`", "`tests/missing_test:3`: no such file or line"),
-    ("`tests/test_pricing.py:3`", "`tests/missing_test:3`", "AC-1, unit: give the test with a `path:line`"),
+    ("`tests/test_pricing.py:3`", "`tests/empty.py:1`", "AC-1, unit: give the test with a `path:line`"),
     ("- **Status:** not verified", "- **Status:** met", "NFR-1 is `met`, but OP-1 stands in"),
     ("- **Owner:** not named\n", "", "OP-1 must have Unproven, Proof, Owner"),
     ("### OP-1", "### OP-2", "must be numbered OP-1, OP-2"),
@@ -150,10 +150,9 @@ class ClaimsCheckTest(unittest.TestCase):
     def setUp(self):
         self.repo = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.repo)
-        self.write("src/pricing.py", "a\nb\nc\n")
-        self.write("tests/test_pricing.py", "1\n2\n3\n4\n5\n")
-        self.write("app/[id]/page.py", "1\n2")  # brackets in a name; a last line with no newline
-        self.write(".harness/runs/r1/stories/S01.md", STORY)
+        for path, text in (("src/pricing.py", "a\nb\nc\n"), ("app/[id]/page.py", "1\n2"), ("tests/empty.py", ""),
+                           ("tests/test_pricing.py", "1\n2\n3\n4\n5\n"), (".harness/runs/r1/stories/S01.md", STORY)):
+            self.write(path, text)  # brackets in a name, a last line with no newline, an empty file
         self.claims = CLAIMS
 
     def write(self, path, text):
