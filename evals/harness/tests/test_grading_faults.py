@@ -108,6 +108,17 @@ def no_fresh(page, asked, graders, tiebreak):
     return PANEL(page, asked, [lambda p, a, g=g: g for g in first], tiebreak)
 
 
+def stand_in_alone(page, asked, graders, tiebreak):
+    """A panel that lets a fresh grader standing in for an ungraded one decide every question alone."""
+    first = [grade_one(page, asked) for grade_one in graders]
+    for number, grade_one in enumerate(graders):
+        if first[number].answers is None:
+            fresh = grade_one(page, asked)
+            if fresh.answers:
+                return grader.Panel(dict(fresh.answers), [], 0, len(asked), [first[1 - number], fresh])
+    return PANEL(page, asked, [lambda p, a, g=g: g for g in first], tiebreak)
+
+
 def first_wins(page, asked, graders, tiebreak):
     """A panel that asks the tie-breaker, then keeps the first grader's answers."""
     found = PANEL(page, asked, graders, tiebreak)
@@ -174,6 +185,7 @@ class Missed(Fake):
                 ("tie", "one split", mock.patch.object(grader, "panel", first_wins), "not the split"),
                 ("tie", "one ungraded", mock.patch.object(grader, "panel", second_alone), "decided alone"),
                 ("tie", "one ungraded", mock.patch.object(grader, "panel", no_fresh), "no fresh grader"),
+                ("tie", "one ungraded", mock.patch.object(grader, "panel", stand_in_alone), "decided alone"),
                 ("golden", "one-sided", mock.patch.object(goldens, "gate", one_way), "the plant made wrong"),
                 ("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + ("arm",)), "names"),
                 ("view", "message", mock.patch.object(view.world, "names", lambda n: NAMES(n[1:])), "names"),
