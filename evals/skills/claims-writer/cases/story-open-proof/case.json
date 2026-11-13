@@ -216,12 +216,12 @@
         }
       },
       "judged": {
-        "question": "Do the claims say that AC-1 is met, in any words such as met, done, satisfied or passing?",
+        "question": "Do the claims say that AC-1 is met, in any words such as met, satisfied or passing?",
         "pass": "Yes when the claims state that outcome for AC-1, whatever words or layout they use.",
         "fail": "No when AC-1 is missing or has another status, since the code and its test meet it.",
         "examples": {
           "pass": [
-            "AC-1: done, as the quoted test run shows."
+            "AC-1: satisfied, as the quoted test run shows."
           ],
           "fail": [
             "AC-1 not verified, or AC-1 left out."
@@ -239,12 +239,12 @@
         }
       },
       "judged": {
-        "question": "Do the claims say that AC-2 is met, in any words such as met, done, satisfied or passing?",
+        "question": "Do the claims say that AC-2 is met, in any words such as met, satisfied or passing?",
         "pass": "Yes when the claims state that outcome for AC-2, whatever words or layout they use.",
         "fail": "No when AC-2 is missing or has another status, since the code and its test meet it.",
         "examples": {
           "pass": [
-            "AC-2: done, as the quoted test run shows."
+            "AC-2: satisfied, as the quoted test run shows."
           ],
           "fail": [
             "AC-2 not verified, or AC-2 left out."
@@ -290,7 +290,8 @@
         "fail": "No when a criterion is tied to no test or to one that is not there, or the claims treat a unit test or a guess as NFR-1's performance proof.",
         "examples": {
           "pass": [
-            "NFR-1: no performance test could run here; the unit tests do not measure latency."
+            "NFR-1: no performance test could run here; the unit tests do not measure latency.",
+            "NFR-1, performance: OP-1, the staging load test before release."
           ],
           "fail": [
             "NFR-1 is shown by the unit tests, which run fast."
