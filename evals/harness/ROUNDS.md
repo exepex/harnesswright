@@ -63,3 +63,9 @@ that of the `test` split. A host that was not run, or a skill with no task case 
 `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
 no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
 `unsupported`, each gap named. The label file goes to `<store>/<round>/labels/<attempt>.json`.
+
+Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated: the void
+rate per arm, grader agreement, golden accuracy, the faults the fault gate caught, how many expectations a check
+left undecidable on inferred evidence, format conformance per arm, and per arm the runs, seconds, token counts by
+model and money at the price file, whose date the label file names. A run with no token counts, or a model with no
+price, leaves its arm with no money, and the arm says how many runs had none.

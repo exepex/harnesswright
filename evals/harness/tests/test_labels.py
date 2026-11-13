@@ -7,6 +7,7 @@ import unittest
 
 from test_gates import JUDGED
 from test_grades import HELLO, POND, Pages, answering, pond, wrote
+from test_prices import PRICES
 from test_runs import DRIFT
 
 import evidence
@@ -125,6 +126,8 @@ class Gate(Pages):
                                          "by": "judge-a"}
                                for n, (e, a) in enumerate(zip(EXPECTATIONS, ["yes", answer, "yes"]), start=1)}
             self.golden(name, data)
+        (self.repo / "evals" / "results").mkdir(parents=True, exist_ok=True)
+        (self.repo / "evals" / "results" / "prices.json").write_text(json.dumps(PRICES))
 
     def stored(self, poems):
         """A probe and run gate that give the fake host and one made run per (arm, poem) of `poems`."""
@@ -161,6 +164,10 @@ class Gate(Pages):
         self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
             "test trigger cases: none", "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
+        self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]),
+                         (PRICES["date"], None, {"with_skill": 0.0, "without_skill": 0.0}))  # no fault gate here
+        self.assertEqual({arm: (c["runs"], c["money"], c["unpriced"]) for arm, c in entry["cost"].items()},
+                         {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()

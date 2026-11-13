@@ -36,6 +36,8 @@ from pathlib import Path
 
 import evidence
 import grades
+import measures
+import prices
 
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0}
 EPSILON = 1e-9
@@ -135,9 +137,10 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     return {"label": "verified", "gaps": []}
 
 
-def labels(folder, attempt, record, cases):
+def labels(folder, attempt, record, cases, price_file):
     """The label file of attempt `attempt` of the round in `folder` (`<store>/<round>`), whose manifest is
-    `record`, with the round's `cases` by (skill, case id): every number in it read from the store."""
+    `record`, with the round's `cases` by (skill, case id) and the checked `price_file`: every number in it read
+    from the store, with the other measures of `measures`."""
     gates = {gate["gate"]: gate for gate in json.loads((folder / "attempts" / f"{attempt}.json").read_text())["gates"]}
     for needed in ("probe", "run", "grade"):
         if not gates.get(needed, {}).get("passed"):
@@ -171,7 +174,8 @@ def labels(folder, attempt, record, cases):
         scored.setdefault((made["host"], made["skill"]), {}).setdefault((made["case"], made["arm"]), []).append(
             passed_)
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,
-             "reference": grades.REFERENCE, "skills": {}}
+             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {}}
+    rest = measures.measures(folder, attempt, gates, cases, price_file)
     for skill in sorted(record["cases"]):
         own = {i: case for (s, i), case in cases.items() if s == skill}
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
@@ -195,9 +199,10 @@ def labels(folder, attempt, record, cases):
                 entry.update(label="incomplete", gaps=[f"not run: {why}" for why in not_run.get(host, ["no probe"])])
             else:
                 other = host != grades.REFERENCE
-                entry.update(measured[host], inferred_loads=inferred.get((host, skill), 0),
-                         **decide(measured[host], doubted[host], reference if other else None,
-                                  reference_doubt if other else None))
+                entry.update(measured[host], **rest.get((host, skill), {}),
+                             inferred_loads=inferred.get((host, skill), 0),
+                             **decide(measured[host], doubted[host], reference if other else None,
+                                      reference_doubt if other else None))
             found["skills"][skill][host] = entry
     return found
 
@@ -208,7 +213,7 @@ class LabelError(Exception):
 
 def label_gate(r):
     """The label gate of the round `r` (`gates.Round`): the attempt's label file, written to the store."""
-    found = labels(r.folder, r.attempt, r.record, r.cases)
+    found = labels(r.folder, r.attempt, r.record, r.cases, prices.load(r.repo))
     path = r.folder / "labels" / f"{r.attempt}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     r.write(path, found)
