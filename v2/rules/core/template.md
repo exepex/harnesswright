@@ -85,7 +85,7 @@ with the older rule it carries over.
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
 - **Rule:** The first step of every template reads the run's rules texts, `rules-text-<skill>.<stack>.md` beside
-  `rules.md`: one for each stack whose code the work touches, or every stack's when the work touches no code. It
+  `rules.md`: one for each stack whose code the work touches, or every stack's when it touches no stack's code. It
   tells the agent to apply every rule in them and in the skill's copied rules. Where a rules text marks a copied
   rule as replaced or waived, or binds a decision point, the rules text wins. If a file is missing, the step runs
   the standards reader's command to make it; if that cannot run, it writes `rules.md` and the rules texts by reading
@@ -96,7 +96,7 @@ with the older rule it carries over.
   missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each read-back
   block?
 - **Good:** "1. Read `rules-text-claims-writer.<stack>.md` beside `rules.md` for each stack whose code the story
-  touches (every stack's when it touches no code), making it with the standards reader's command if it is missing.
+  touches (every stack's when it touches none), making it with the standards reader's command if it is missing.
   Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
   step: "Quote the read-back block of each rules text in the claims."
 - **Bad:** A template whose first step is "Read the story", with no read of the rules texts, one that reads a single

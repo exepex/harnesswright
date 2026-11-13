@@ -186,7 +186,8 @@ proof item after merge.
 - the rules applied, by ID, and each waiver used.
 
 A script compares the skills, read-back blocks and changes, character for character, with the rules texts and the
-job in the roles file. The story judge rebuilds the rules texts and fails on any difference.
+job in the roles file. The story judge rebuilds the rules texts and fails on any difference. It also fails when a skill
+run quotes no read-back block for a stack whose code the change touches, or for any stack when it touches none.
 
 ## Finding
 

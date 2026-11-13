@@ -277,11 +277,11 @@ already exists and a new resolve gives different bytes, an input changed during 
 The same resolve writes one **rules text** per release skill and stack, once:
 `.harness/runs/<run-id>/rules-text-<skill>.<stack>.md`. The stack is the language in lower case, with its frameworks
 (`java-spring` is in `java`), or `core` for an application with no language. A skill run reads the rules text of each
-stack whose code it touches, or of every stack when it touches no code. A rules text holds the rules of its stack that
-reach the skill's run: the rules of layers 2 to 6, and the CORE rules the skill did not copy, in full, floors first,
-each override with its Why as the reason. A rule that no longer applies is never in full: it has one line naming what
-replaced it. One line marks each waived rule with its end date and reason, and each copied CORE rule a more specific
-floor tightens. One line per decision point gives its option and where the option came from. A read-back block ends it
-and names its stack. A rules text over the application's ceiling ([07 · Repo profile](07-repo-profile.md)) is not
-written: it is parked, the resolve exits with code 3, and it names the owner of the largest layer and the size per layer
-and area.
+stack whose code it touches, or of every stack when it touches no stack's code. A rules text holds the rules of its
+stack that reach the skill's run: the rules of layers 2 to 6, and the CORE rules the skill did not copy, in full, floors
+first, each override with its Why as the reason. A rule that no longer applies is never in full: it has one line naming
+what replaced it. One line marks each waived rule with its end date and reason, and each copied CORE rule a more
+specific floor tightens. One line per decision point gives its option and where the option came from. A read-back block
+ends it and names its stack. A rules text over the application's ceiling ([07 · Repo profile](07-repo-profile.md)) is
+not written: it is parked, the resolve exits with code 3, and it names the owner of the largest layer and the size per
+layer and area.
