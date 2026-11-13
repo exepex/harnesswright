@@ -64,6 +64,9 @@ class Library(TempCase):
         verdict = checks.decide("pushed", bundle, {}, reader)  # a check that reads the log, through its one door
         self.assertEqual(verdict["outcome"], "undecidable")
         self.assertIn("inferred, not observed", verdict["reason"])
+        self.assertIs(verdict["inferred"], True)  # counted as inferred evidence in the label file
+        unsure = {"unsure": checks.Check(lambda bundle: ("undecidable", "no output to read"), {})}
+        self.assertIs(checks.decide("unsure", bundle, {}, unsure)["inferred"], False)
 
     def test_a_broken_check_or_wrong_arguments_stop_the_round(self):
         bundle = checks.Bundle.key({})

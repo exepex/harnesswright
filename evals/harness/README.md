@@ -44,6 +44,7 @@ allowed connections.
 | `grades.py` | The grade gate: what no check decided, answered by blind panels with the goldens mixed in, trusted only where the goldens were |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 | `labels.py` | The label gate: each skill's label on each host, by the thresholds of 10 · Skills, from what the round stored |
+| `measures.py` | The label file's other measures: void rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
 | `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
 
 ## Commands

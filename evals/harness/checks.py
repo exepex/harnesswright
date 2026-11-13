@@ -37,6 +37,10 @@ class Undecidable(Exception):
     """Raised inside a check when the evidence it needs is not the host's own, with the reason."""
 
 
+class Inferred(Undecidable):
+    """Raised when the evidence a check reads is inferred, not observed."""
+
+
 @dataclass(frozen=True)
 class Check:
     """One check: `decide(bundle, **args)` returns (outcome, reason). `args` maps each argument to its shape, a
@@ -89,12 +93,13 @@ class Bundle:
         return self._blob(entry.split(" ")[1]).decode("utf-8", errors="replace")
 
     def entries(self, kind):
-        """The log entries of `kind`. Raise Undecidable when any of them is inferred: no check decides on it."""
+        """The log entries of `kind`. Raise Inferred, an Undecidable, when any of them is inferred: no check decides
+        on it."""
         found = [item for item in self._log if item["kind"] == kind]
         inferred = [item for item in found if item["source"] != "observed"]
         if inferred:
-            raise Undecidable(f"{len(inferred)} {kind} entries are inferred, not observed: "
-                              f"{json.dumps(inferred[0])[:200]}")
+            raise Inferred(f"{len(inferred)} {kind} entries are inferred, not observed: "
+                           f"{json.dumps(inferred[0])[:200]}")
         return found
 
 
@@ -142,17 +147,18 @@ def validate(name, args, checks=None):
 
 
 def decide(name, bundle, args, checks=None):
-    """{"check", "outcome", "reason"} of the check `name` on `bundle` with `args`."""
-    check = validate(name, args, checks)
+    """{"check", "outcome", "reason", "inferred"} of the check `name` on `bundle` with `args`: `inferred` is True
+    when it is undecidable because evidence it reads is inferred."""
+    check, inferred = validate(name, args, checks), False
     try:
         outcome, reason = check.decide(bundle, **args)
     except Undecidable as error:
-        outcome, reason = "undecidable", str(error)
+        outcome, reason, inferred = "undecidable", str(error), isinstance(error, Inferred)
     except Exception as error:  # a check that breaks decides nothing, and the round stops
         raise CheckError(f"{name}: the check failed to run: {type(error).__name__}: {error}") from None
     if outcome not in OUTCOMES or not isinstance(reason, str) or not reason:
         raise CheckError(f"{name}: gave {outcome!r} with reason {reason!r}, not an outcome with a reason")
-    return {"check": name, "outcome": outcome, "reason": reason}
+    return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred}
 
 
 def keys(name, folder=KEYS):
