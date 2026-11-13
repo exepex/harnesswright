@@ -20,6 +20,19 @@ expectation, so a case never accepts claims the old check refused. A case counts
 runner its project names and it ends with the exit code that world gives. `files/`, `tasks.json` and `checks/` stay
 for the old runner until rounds replace it.
 
+Three cases measure the new claims writer, in the seven-section format of
+[contracts/claims.md](../../../contracts/claims.md), each a project from above with its story in the story
+contract's format (`covers`, `tests`):
+
+- `story-met` (`py-discount`): every criterion met.
+- `story-not-met` (`py-shipping`): AC-3's test fails.
+- `story-open-proof` (`go-ratelimit`): the staging latency target, NFR-1, cannot be measured here, so its
+  performance test becomes an open proof item; the project README says who runs the staging load test and when.
+
+Their contract expectations cite the story or the README and accept any wording of the outcome; the skill's own
+words are format expectations. Rounds of the new skill list only these cases; the three above stay for the old
+skill until it is replaced.
+
 `checks/` holds the script checks. `claims_valid.py` runs the skill's own `claims_check.py check` on the claims
 file a run wrote. `code_unchanged.py` confirms that writing claims changed no project file and added none.
 
