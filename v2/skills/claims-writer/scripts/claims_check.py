@@ -107,8 +107,8 @@ def sections(text, fails):
 
 
 def lists(found, fails):
-    """Open proof items, Out of scope and Not verified hold `None.` alone, or one or more items and no `None.`;
-    Requirements holds one or more entries."""
+    """Requirements, Open proof items, Out of scope and Not verified each hold `None.` alone, or one or more items
+    and no `None.`. Whether Requirements may be `None.` is the story's to say (check_requirements)."""
     for section in ("Requirements", "Open proof items", "Out of scope", "Not verified"):
         names = [name for _, name, _ in found.get(section, [])]
         if section in found and (not names or "none" in names and len(names) > 1):
