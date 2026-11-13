@@ -86,7 +86,11 @@ def waivers(rules_text, story, stacks):
     """The waivers a run uses: the story's, and those rules.md marks `applied` in the stacks quoted."""
     lines = story.split("\n")
     front = lines[1:lines.index("---", 1)] if lines[0] == "---" and "---" in lines[1:] else []
-    found = [m.group(1) for line in front if (m := STORY_WAIVER.fullmatch(line))]
+    shapes = [re.fullmatch(r"waivers: *(\[\])? *(?:#.*)?", line) for line in front if line.startswith("waivers:")]
+    rules = [line for line in front if re.match(r" *(?:- +)?rule:", line)]
+    if any(m is None for m in shapes) or any(not STORY_WAIVER.fullmatch(line) for line in rules):
+        raise InputError("story: `waivers` must be `[]` or the block form of contracts/story.md, IDs unquoted")
+    found = [STORY_WAIVER.fullmatch(line).group(1) for line in rules]
     parts = re.split(r"^## Stack: (\S+)$", rules_text, flags=re.MULTILINE)
     bodies = [body for stack, body in zip(parts[1::2], parts[2::2]) if stack in stacks]
     found += [m.group(1) for body in bodies for line in section(body, "### Waivers") if (m := APPLIED.fullmatch(line))]

@@ -367,11 +367,10 @@ class ClaimsCheckTest(unittest.TestCase):
         self.assertEqual(self.run_check()[0], 0)  # a story that covers no requirement
         self.write(".harness/runs/r1/stories/S01.md", "## What\n\nNo frontmatter.\n")
         self.assertIn("not checked: requirements against the story", self.run_check()[1])
-        self.write(".harness/runs/r1/stories/S01.md", STORY.replace(
-            "tests: {AC-1: [unit], AC-2: [unit, api], NFR-1: [performance]}", "tests:\n  AC-1: [unit]"))
-        self.assertIn("flow form", self.run_check()[1])
-        self.write(".harness/runs/r1/stories/S01.md", STORY.replace("[AC-1, AC-2,", "['AC-1', 'AC-2',"))
-        self.assertIn("flow form", self.run_check()[1])  # a quoted ID is not the contract's form
+        for old, new in (("tests: {AC-1: [unit], AC-2: [unit, api], NFR-1: [performance]}", "tests:\n  AC-1: [unit]"),
+                         ("[AC-1, AC-2,", "['AC-1', 'AC-2',"), ("rule: APP-JAVA-02", "rule: 'APP-JAVA-02'")):
+            self.write(".harness/runs/r1/stories/S01.md", STORY.replace(old, new))  # not the contract's form
+            self.assertIn("must be in the flow form" if "[" in old else "block form of contracts", self.run_check()[1])
         self.assertEqual(self.run_check("--story", "missing.md")[0], 2)
 
     @unittest.skipUnless(shutil.which("git"), "git is not installed")
