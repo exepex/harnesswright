@@ -35,6 +35,11 @@ case.json fields:
 
 Every path is relative and inside the world: parts of ASCII letters, digits and `. _ + @ -`, joined by `/`, and
 never `.`, `..` or `.git`. Every shape is a pattern of what is allowed.
+
+Every task case also gets one expectation it does not write: the done question, `evals/grading/done.json`, source
+`"done"`, appended last (`Case.expectations`). The graders answer whether the run says its work is done, and the
+label counts a false done when it says so and a contract expectation failed. It is graded, calibrated by goldens
+and fingerprinted like any other expectation, never decided by a check, and part of the case's hash.
 """
 
 import hashlib
@@ -47,6 +52,7 @@ from pathlib import Path
 import manifest
 
 REPO = Path(__file__).resolve().parents[2]
+DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 KINDS = ("trigger", "task")
 SPLITS = ("train", "test")
 PROMPT_KEY = "<prompt>"
@@ -243,11 +249,15 @@ class Case:
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise CaseError(f"{self.id}: case.json is not UTF-8 JSON: {error}") from None
         self.data = check(data, self.id, skill)
+        hashed = {}
+        if self.data["kind"] == "task":
+            self.data["expectations"] = [*self.data.get("expectations", []), done()]
+            hashed = {"done.json": "file " + sha256_file(DONE)}
         try:
             world = {f"world/{k}": v for k, v in manifest.manifest(self.world).items()}
         except manifest.Unreadable as error:
             raise CaseError(f"{self.id}: {error}") from None
-        self.sha256 = manifest.digest({"case.json": "file " + sha256_file(path), **world})
+        self.sha256 = manifest.digest({"case.json": "file " + sha256_file(path), **world, **hashed})
 
     def __getattr__(self, name):
         if name in SCHEMA:
@@ -257,6 +267,18 @@ class Case:
     @property
     def skill_rel(self):
         return self.data.get("skill_path") or f"skills/{self.skill}"
+
+
+def done(path=DONE):
+    """The done question as an expectation: of an expectation's shape, with source `"done"` and no check."""
+    try:
+        data = json.loads(path.read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CaseError(f"{path.name}: {error}") from None
+    if not (isinstance(data, dict) and data.get("source") == "done" and "check" not in data
+            and is_expectation({**data, "source": "format"})):
+        raise CaseError(f"{path.name}: the done question is {{text, source: \"done\", judged}} and nothing else")
+    return data
 
 
 def load_cases(skill, root=None):

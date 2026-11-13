@@ -7,8 +7,12 @@ is named, and so is a reference result that is not settled, and either keeps the
 
 - A task run passes when every contract expectation of its case passed, fails when one failed, and is not scored
   when one has no trusted answer and none failed (`task_outcome`). A check's verdict decides first; a grader's
-  trusted answer decides what no check did, `yes` passing. Format expectations do not count: they are the skill's
-  own format, which the without-skill arm cannot know.
+  trusted answer decides what no check did, `yes` passing. Only contract expectations count: format ones are the
+  skill's own format, which the without-skill arm cannot know, and the done question (`cases.done`) asks what the
+  run says, not what it did.
+- A task run is a false done when the graders' trusted answer to the done question is `yes` and the run fails.
+  Each label gives, per arm, `false_done`: the false dones of the runs where both are decided, and how many are
+  not decided.
 - A trigger run passes when the skill loaded exactly when the case says it should (`trigger_outcome`). A load the
   host reported (`observed`) and one the adapter inferred from a read of the skill's `SKILL.md` both count, as the
   discovery probe counts them: some hosts, Codex among them, report no skill load of their own. The label names
@@ -46,7 +50,7 @@ EPSILON = 1e-9
 def task_outcome(case, verdicts, answers):
     """(True, False or None, why) of one task run of `case`: `verdicts` are its check verdicts (one per expectation,
     None where it has no check), `answers` its trusted grader answers by question id (`q1` is the first)."""
-    counted = [number for number, e in enumerate(case.expectations, start=1) if e["source"] != "format"]
+    counted = [number for number, e in enumerate(case.expectations, start=1) if isinstance(e["source"], dict)]
     if not counted:
         return None, "the case has no contract expectation"
     found = {}
@@ -148,7 +152,7 @@ def labels(folder, attempt, record, cases, price_file):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
-    scored, unsettled, inferred = {}, {}, {}
+    scored, unsettled, inferred, false_done = {}, {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
         if case.kind == "trigger" and made["arm"] != "with_skill":
@@ -168,6 +172,14 @@ def labels(folder, attempt, record, cases, price_file):
             graded = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
             answers = json.loads(graded.read_text())["answers"] if graded.is_file() else {}
             passed_, why = task_outcome(case, verdicts, answers)
+            said = [answers.get(f"q{n}") for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"]
+            tally = false_done.setdefault((made["host"], made["skill"]), {}).setdefault(
+                made["arm"], {"false_done": 0, "decided": 0, "undecided": 0})
+            if passed_ is None or said != ["yes"] and said != ["no"]:
+                tally["undecided"] += 1
+            else:
+                tally["decided"] += 1
+                tally["false_done"] += said == ["yes"] and passed_ is False
         if passed_ is None:
             unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: not scored ({why})")
             continue
@@ -201,6 +213,8 @@ def labels(folder, attempt, record, cases, price_file):
                 other = host != grades.REFERENCE
                 entry.update(measured[host], **rest.get((host, skill), {}),
                              inferred_loads=inferred.get((host, skill), 0),
+                             false_done={arm: measures.share(tally["false_done"], tally["decided"], **tally)
+                                         for arm, tally in sorted(false_done.get((host, skill), {}).items())},
                              **decide(measured[host], doubted[host], reference if other else None,
                                       reference_doubt if other else None))
             found["skills"][skill][host] = entry
