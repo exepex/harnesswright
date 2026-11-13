@@ -77,8 +77,9 @@ decides what to do: the standards reader's result stands, unless it could not ru
    run ID, the date and the line `not verified: <the reason>`. Write one rules text for each language the profile
    names, or one named `core` when there is none, holding the rules you can read from the `rules/core/` and
    `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
-   there are none (always, when there is no profile). End
-   each with its read-back block:
+   there are none (always, when there is no profile). Put first in each `### Changes to rules that reach this run`
+   and one line for each rule a layer replaces, waives or tightens, as `- <ID> · <title>: replaced by <ID>`,
+   `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End each with its read-back block:
    the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
    line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
    `READ_BACK_END`. Add to **Not verified**: "Standards reader not run: <the reason>. `rules.md` and the rules texts
@@ -148,7 +149,8 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
      you wrote the rules texts by reading, and the read-back block of each rules text you read, in the stack order
      of `rules.md`; the ID and title of every line of their "Changes to rules that reach this run" and of every
      decision point a layer binds (each not `from default`); the rules you applied; every waiver of the story's
-     `waivers` and every one `rules.md` marks `applied`. The script checks changes and waivers both ways.
+     `waivers` and every one `rules.md` marks `applied` in the stacks you quoted. The script checks changes and
+     waivers both ways.
    - `log`: each other skill run and the rules it applied, as the log records them. When the log does not record
      them, write no entry for them; add to **Not verified**: "Skills run before the claims writer: not verified:
      `<run folder>/log.md` does not record them." Never copy them from memory.

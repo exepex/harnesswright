@@ -41,7 +41,8 @@ JAVA = BLOCK.format("java", 1, "APP-JAVA-01 · Use records")
 TEXT = ("# Rules text: claims-writer\n\n## Stack: {}\n\n### Changes to rules that reach this run\n\n{}\n\n"
         "### Decision points\n\n{}\n\n{}\n")
 CORE_TEXT = TEXT.format("core", "- CORE-WORK-01 · Fresh evidence: tightened by APP-JAVA-01\n- CORE-ERR-01 · Error "
-                        "format: waived until 2027-03-01: legacy", "- CORE-DP-01 · Style: `a` (from default)", CORE)
+                        "format: `json`: waived until 2027-03-01: legacy", "- CORE-DP-01 · Style: `a` (from default)",
+                        CORE)
 JAVA_TEXT = TEXT.format("java", "- JAVA-TEST-01 · Tests: replaced by APP-JAVA-01",
                         "- JAVA-DP-01 · Boilerplate: `records` (from acme company)", JAVA)
 
@@ -52,8 +53,8 @@ covers: [AC-1, AC-2, NFR-1, NFR-2, TD-1]   # a TD and an NFR not testable here a
 tests: {AC-1: [unit], AC-2: [unit, api], NFR-1: [performance]}
 targets: {NFR-1: exact, NFR-2: not testable here}
 waivers:
-  - rule: APP-JAVA-02
-    reason: the old client
+  - reason: the old client
+    rule: APP-JAVA-02
     until: 2027-01-01
     approved by: a, b
 ---
@@ -138,7 +139,7 @@ JAVA
 ### Changes applied
 
 - CORE-WORK-01 · Fresh evidence
-- CORE-ERR-01 · Error format
+- CORE-ERR-01 · Error format: `json`
 - JAVA-TEST-01 · Tests
 - JAVA-DP-01 · Boilerplate
 
@@ -191,7 +192,7 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("### Waivers used\n\n", "### Waivers used\n\nNone.\n", "Waivers used: write `None.`"),
     ("- JAVA-DP-01 · Boilerplate\n", "", "Changes applied: JAVA-DP-01 · Boilerplate is missing"),
     ("- JAVA-DP-01 · Boilerplate\n", "- CORE-DP-01 · Style\n", "CORE-DP-01 · Style is not in the changes applied"),
-    ("- JAVA-DP-01 · Boilerplate\n", "- CORE-ERR-01 · Error format\n", "CORE-ERR-01 · Error format is listed twice"),
+    ("- JAVA-DP-01 · Boilerplate\n", "- JAVA-TEST-01 · Tests\n", "JAVA-TEST-01 · Tests is listed twice"),
     ("- APP-JAVA-02 (this run)", "- TEAM-LOG-01 (this run)", "TEAM-LOG-01 is not in the waivers used"),
     ("- APP-JAVA-02 (this run)", "- APP-JAVA-02 (log)", "Waivers used: APP-JAVA-02 is missing"),
     ("#### implementer", "#### claims-writer", "claims-writer has a second entry under Skills run"),
@@ -202,7 +203,9 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("### Rules applied", "### Skills run", "Standards headings are Skills run"),
     ("```text\n" + JAVA, "```text\n" + CORE, "not the read-back block of one of claims-writer's"),
     ("- **Source:** log\n", "- **Source:** log\n- CORE-WORK-01 (this run)\n", "not a line Skills run allows"),
-    ("- CORE-WORK-01 (this run)", "- CORE-WORK-0 (this run)", "CORE-WORK-0 is in no rule source of this run"),
+    ("- CORE-WORK-01 (this run)", "- WORK-01 (this run)", "WORK-01 is in no rule source of this run"),
+    ("- CORE-WORK-01 (this run)", "- CORE-WORK (this run)", "CORE-WORK is in no rule source of this run"),
+    ("- APP-JAVA-01 (log)", "```text\nx\n```", "Rules applied: write `None.` alone"),
     ("### Waivers used", "### Waivers", "Standards: the headings must be"),
     ("#### implementer\n", "#### implementer\n\n- **Owner:** x\n", "not a line the contract allows in Standards"),
     ("### AC-1\n", "### AC-1\n\nAC-1: validation added.\n", "not a line the contract allows in Requirements"),
@@ -241,7 +244,7 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("`tests/test_pricing.py:5`", "`tests/test_pricing.py:9`", "`tests/test_pricing.py:9`: no such file or line"),
     ("`src/pricing.py:1-3`", "`src/pricing.py:1-4`", "`src/pricing.py:1-4`: no such file or line"),
 ]
-PASSES = [  # (old text, new text): each still passes
+PASSES = [  # (old text, new text, ...): each still passes
     ("OK\n```", "OK\n## Files changed\n```"),  # a heading in a code block is output
     ("```text\nRan 2 tests in 0.001s\nOK\n```", "  ```text\nRan 2 tests `src/x.py:9`\n  ```"),  # indented block
     ("> Reject a negative quantity.", "> Reject a negative quantity, `src/x.py:9`."),  # the request is the story's
@@ -249,9 +252,11 @@ PASSES = [  # (old text, new text): each still passes
     ("`tests/test_pricing.py:3`", "`app/[id]/page.py:2`"),
     ("- **Status:** met\n", "- **Status:** `met`\n"),
     ("exit code 0.\n", "exit code 0.\n  - exit code: 0\n"),  # an indented bullet under Evidence
-    ("- **Status:** not verified", "- **Status:** met"),  # with the open proof item replaced below
+    ("- **Status:** not verified", "- **Status:** met", OP_BLOCK, "None.\n\n", "OP-1", "`src/pricing.py:1`"),
     ("- **Version:** " + VERSION, "- **Version:** `" + VERSION + "`"),
-    ("- JAVA-DP-01 · Boilerplate\n", ""),  # with the java block removed below: its changes are not wanted
+    ("\n```text\n" + JAVA + "\n```\n", "", "- JAVA-TEST-01 · Tests\n", "", "- JAVA-DP-01 · Boilerplate\n", ""),
+    ("```text\n" + CORE + "\n```\n\n", "", "- CORE-WORK-01 · Fresh evidence\n", "", "- CORE-ERR-01 (this run)\n", "",
+     "- CORE-ERR-01 · Error format: `json`\n", ""),  # a stack not quoted: its changes and waivers are not wanted
 ]
 
 
@@ -295,15 +300,12 @@ class ClaimsCheckTest(unittest.TestCase):
                 self.assertIn(expected, out)
 
     def test_what_the_contract_allows_passes(self):
-        for old, new in PASSES:
-            with self.subTest(new=new):
-                self.assertIn(old, CLAIMS)
-                self.claims = CLAIMS.replace(old, new)
-                if old == "- JAVA-DP-01 · Boilerplate\n":
-                    self.claims = self.claims.replace("\n```text\n" + JAVA + "\n```\n", "").replace(
-                        "- JAVA-TEST-01 · Tests\n", "")
-                if new == "- **Status:** met":
-                    self.claims = self.claims.replace(OP_BLOCK, "None.\n\n").replace("OP-1", "`src/pricing.py:1`")
+        for row in PASSES:
+            with self.subTest(new=row[1]):
+                self.claims = CLAIMS
+                for old, new in zip(row[::2], row[1::2]):
+                    self.assertIn(old, self.claims)
+                    self.claims = self.claims.replace(old, new)
                 code, out = self.run_check()
                 self.assertEqual(code, 0, out)
 
@@ -321,13 +323,12 @@ class ClaimsCheckTest(unittest.TestCase):
         self.assertIn("rules.md` does not exist; step 1 writes it in the run folder", self.run_check()[1])
 
     def test_a_log_entry_needs_the_log_and_a_wrong_block_fails_alone(self):
-        (self.repo / ".harness/runs/r1/log.md").unlink()
-        out = self.run_check()[1]
-        self.assertEqual(out.count("is written only when `.harness/runs/r1/log.md` records it"), 2, out)
-        self.write(".harness/runs/r1/log.md", "# Run log\n")
         self.claims = CLAIMS.replace("Rules in this text: 1.", "Rules in this text: 2.")
         out = self.run_check()[1]
         self.assertEqual(out.count("fail: "), 1, out)  # the java changes still listed are not faults of their own
+        (self.repo / ".harness/runs/r1/log.md").unlink()
+        out = self.run_check()[1]
+        self.assertEqual(out.count("is written only when `.harness/runs/r1/log.md` records it"), 2, out)
         (self.repo / ".harness/runs/r1/rules-text-claims-writer.java.md").write_bytes(b"\xff")
         self.assertEqual(self.run_check()[0], 2)  # a run file that cannot be read stops the check
 
@@ -339,8 +340,7 @@ class ClaimsCheckTest(unittest.TestCase):
         rules_md, texts, _ = app.outputs()
         text = texts[app.repo / test_runfiles.TEXT]
         self.write(".harness/runs/r1/rules.md", rules_md)
-        (self.repo / ".harness/runs/r1/rules-text-claims-writer.core.md").unlink()
-        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", text)
+        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", text)  # core's text is there, not quoted
         block = text[text.index("<!-- read-back -->"):].rstrip("\n")
         changes = ("- CORE-WORK-01 · Report only what you verified\n- JAVA-TEST-01 · Title of JAVA-TEST-01\n"
                    "- COMP-ACME-CODE-01 · Title of COMP-ACME-CODE-01\n"

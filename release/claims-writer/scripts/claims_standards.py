@@ -10,7 +10,7 @@ source both ways: nothing left out and nothing added.
   of rules.md;
 - Changes applied: the ID and title of each line under "Changes to rules that reach this run" and of each decision
   point a layer binds (not `from default`), in the rules texts quoted;
-- Waivers used: each waiver of the story's `waivers` and each that rules.md marks `applied`;
+- Waivers used: each waiver of the story's `waivers`, and each that rules.md marks `applied` in the stacks quoted;
 - Rules applied: each ID one that SKILL.md, rules.md, a rules text or the story names (what the agent applied is
   not in a file, so this list is checked one way only).
 A `log` entry or line is checked only once the run log records skill runs; until then <run folder>/log.md must exist
@@ -39,8 +39,9 @@ SHAPES = [
 ]
 STACK = re.compile(r"## Stack: (\S+)", re.MULTILINE)
 NOT_VERIFIED = re.compile(r"^not verified: \S", re.MULTILINE)
-HEAD = re.compile(r"- (\S+ · .+?): (?:replaced by |waived until |tightened by |`)")
-STORY_WAIVER = re.compile(rf" *- rule: *({RULE_ID}) *(?:#.*)?")
+MARK = re.compile(r"- (\S+ · .+?): (?:replaced by|waived until|tightened by) \S.*")
+POINT = re.compile(r"- (\S+ · .+): `[^`]*` \(from (?!default\))[^)]*\)")
+STORY_WAIVER = re.compile(rf" *(?:- +)?rule: *({RULE_ID}) *(?:#.*)?")  # the one `rule:` key of the frontmatter
 APPLIED = re.compile(rf"\| ({RULE_ID}) \|.*\| applied \|")
 
 
@@ -77,17 +78,18 @@ def section(text, heading):
 
 def changes(text):
     """The ID and title of each change and each bound decision point of a rules text."""
-    lines = section(text, runfiles.MARKS) + [line for line in section(text, runfiles.POINTS)
-                                             if not line.endswith("(from default)")]
-    return [m.group(1) for line in lines if (m := HEAD.match(line))]
+    return [m.group(1) for pattern, heading in ((MARK, runfiles.MARKS), (POINT, runfiles.POINTS))
+            for line in section(text, heading) if (m := pattern.fullmatch(line))]
 
 
-def waivers(rules_text, story):
-    """The waivers a run uses: the story's and those rules.md marks `applied`."""
+def waivers(rules_text, story, stacks):
+    """The waivers a run uses: the story's, and those rules.md marks `applied` in the stacks quoted."""
     lines = story.split("\n")
     front = lines[1:lines.index("---", 1)] if lines[0] == "---" and "---" in lines[1:] else []
     found = [m.group(1) for line in front if (m := STORY_WAIVER.fullmatch(line))]
-    found += [m.group(1) for line in section(rules_text, "### Waivers") if (m := APPLIED.fullmatch(line))]
+    parts = re.split(r"^## Stack: (\S+)$", rules_text, flags=re.MULTILINE)
+    bodies = [body for stack, body in zip(parts[1::2], parts[2::2]) if stack in stacks]
+    found += [m.group(1) for body in bodies for line in section(body, "### Waivers") if (m := APPLIED.fullmatch(line))]
     return found
 
 
@@ -166,7 +168,7 @@ def check(repo, run, lines, story, fails, notes, skill_dir=None):
     head = found[""]
     if [name for _, name, _ in head] != ["hash"]:
         fails.append("Standards: it starts with one line, `- **rules.md:** <hash of rules.md>`")
-    elif head[0][2].group(1) != runfiles.sha(rules_bytes):
+    elif head[0][2].group(1).strip("`") != runfiles.sha(rules_bytes):
         fails.append(f"line {head[0][0]}: the hash is not the SHA-256 of `{run}/rules.md`")
     texts = {}
     for path in sorted((repo / run).glob(f"rules-text-{own}.*.md")):
@@ -174,8 +176,9 @@ def check(repo, run, lines, story, fails, notes, skill_dir=None):
         texts[path.name[len(f"rules-text-{own}."):-3]] = (text, read_back(text))
     entries = skills(found.get("Skills run", []), fails)
     known = check_own(entries.get(own), own, version, runfiles.sha(skill_bytes), texts, rules_text, fails)
-    logged = [n for key, (n, fields, _) in entries.items() if key != own] + [
-        n for h in ("Rules applied", "Waivers used") for n, _, m in found.get(h, []) if m.group(0).endswith("(log)")]
+    logged = [n for key, (n, _, _) in entries.items() if key != own] + [n for h in ("Rules applied", "Waivers used")
+                                                                      for n, name, m in found.get(h, [])
+                                                                      if name == "rule" and m.group(2) == "log"]
     for key, (number, fields, _) in entries.items():
         if key != own and fields.get("Source") != "log":
             fails.append(f"line {number}: {key}: Source is `log`; only this skill's own run is `this run`")
@@ -192,7 +195,7 @@ def check(repo, run, lines, story, fails, notes, skill_dir=None):
             fails.append(f"line {number}: {match.group(1)} is in no rule source of this run")
     used = items(found.get("Waivers used", []), "Waivers used", "rule", fails)
     equal("Waivers used", [(n, m.group(1)) for n, m in used if m.group(2) == "this run"],
-          waivers(rules_text, story), fails)
+          waivers(rules_text, story, known["quoted"]), fails, extras=known["complete"])
 
 
 def check_own(entry, own, version, skill_hash, texts, rules_text, fails):
