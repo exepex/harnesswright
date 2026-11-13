@@ -9,12 +9,12 @@ metadata:
   source-licence: MIT
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
-  rulebook-version: "0.3.0"
-  content-hash: "27c80631376b0a1fadf71ec0b9776210529ad66bd100a709383d7f581230a4a3"
+  rulebook-version: "0.3.1"
+  content-hash: "15d54d5b8d323a975fd8a4e7de3839dcdc2f4ef6ac633ece28740ea94337aa63"
   size-floors: "4881"
-  size-rest: "15271"
+  size-rest: "16564"
 ---
-<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.0. Do not edit. -->
+<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
 
 # Claims writer
 
@@ -169,9 +169,9 @@ decides what to do: the standards reader's result stands, unless it could not ru
 
 1. List the files the change touched (see Inputs), to know which stacks it touches.
 2. If `rules.md` or a rules text you need, `rules-text-claims-writer.<stack>.md`, is missing from the run folder,
-   run the standards reader's command from the project root, with the run folder's name as the run ID and today's
-   date. It writes each file once, so running it again is safe. `SKILL_DIR` is the folder that holds this
-   `SKILL.md`.
+   run the standards reader's command from the project root, with the run folder's name as the run ID, and the
+   date `rules.md` records when it exists, else today's date. It writes each file once, so running it again is
+   safe. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
    ```sh
    python3 SKILL_DIR/scripts/resolve.py --repo . --run <run-id> --date <YYYY-MM-DD>
@@ -183,9 +183,11 @@ decides what to do: the standards reader's result stands, unless it could not ru
      reading, as below.
    - Any other result, exit 3 (a rules text is parked over its ceiling) included: the inputs have a fault the
      run must not pass. Stop, and report the command's output.
-3. By reading: write `rules.md` with the run ID, the date and the line `not verified: <the reason>`. Write one rules
-   text for each language the profile names, or one named `core` when there is none, holding the rules you can read
-   from the layer folders the profile lists, and `None.` when there are none. End each with its read-back block:
+3. By reading: write only the files that are missing, and keep a `rules.md` that exists. A new `rules.md` holds the
+   run ID, the date and the line `not verified: <the reason>`. Write one rules text for each language the profile
+   names, or one named `core` when there is none, holding the rules you can read from the release's `rules/core/`
+   and `rules/<language>/` folders and the layer folders the profile lists, and `None.` when there are none. End
+   each with its read-back block:
    the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
    line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
    `READ_BACK_END`. Add to **Not verified**: "Standards reader not run: <the reason>. `rules.md` and the rules texts
@@ -275,20 +277,34 @@ other project file was created or changed.
 
 ### 6. Check the file
 
-The claims check script is not shipped yet, so check by reading (CORE-WORK-03 (A check that did not run never passes)):
+Run the claims check from the project root (CORE-WORK-03 (A check that did not run never passes)). Give `--base` the ref you listed the changed files
+against in step 1; leave it out when there is no git. The script writes nothing.
 
-1. Open each changed file and confirm its line count, and open each `path:line` you cite at that line.
-2. Confirm the sections, the statuses, and a test or `OP-n` for every required test type.
-3. Add to **Not verified**: "Claims check script not run: not shipped in this release. Line counts, `path:line`
-   references and the layout were checked by reading only." Replace a `None.` that was there.
+```sh
+python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --story <story file> --base <base>
+```
 
-Check: every item above was checked, and **Not verified** has the entry.
+- Exit 0: add each `not checked:` line it prints to **Not verified**, as "Claims check: <what was not checked>".
+- Exit 1: each `fail:` line is a fault in the claims file. Fix the claims file, never code or tests, and run the
+  check again until it exits 0.
+- Exit 2: it names an input it cannot read. Fix the path you gave, or, when the input itself is at fault, check by
+  reading as below.
+- It could not run (scripts are forbidden in `.harness/profile.yaml`, or there is no Python): check by reading.
+  Open each changed file and confirm its line count, open each `path:line` you cite at that line, and confirm the
+  sections, the statuses, and a test or `OP-n` for every required test type. Add to **Not verified**: "Claims check
+  script not run: <the reason>. Line counts, `path:line` references and the layout were checked by reading only."
+
+The script does not check Standards. Open `rules.md` and each rules text you quoted, and confirm the hash and that
+each read-back block and change line is quoted character for character. Replace a `None.` in **Not verified** when
+you add an entry to it.
+
+Check: the last run of the check exits 0, or the by-reading checks are done; **Not verified** has each entry above.
 
 ### 7. Report
 
-Say first which scripts did not run, and why: the claims check script, and the standards reader when you wrote the
-rules texts by reading. Then give where the claims file is and one line per
-requirement with its status. List the open proof items, ready for the top of the pull request description, and
+Say first which scripts did not run, and why: the claims check script when it could not run, and the standards
+reader when you wrote the rules texts by reading. Then give where the claims file is and one line per requirement
+with its status. List the open proof items, ready for the top of the pull request description, and
 name any owner that is `not named`. Do not call the story done unless every requirement is `met`.
 
 Check: your report matches the statuses in the file.
@@ -328,3 +344,4 @@ because the code looks fast.
 ## Reference files
 
 - `SKILL_DIR/references/claims-template.md`: the layout of a claims file. Read it in step 5.
+- `SKILL_DIR/scripts/claims_check.py`: the claims check. Run it in step 6; you need not read it.
