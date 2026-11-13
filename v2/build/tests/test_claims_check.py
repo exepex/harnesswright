@@ -1,20 +1,33 @@
 """Tests for the claims check script, which ships in release/, so it is loaded by path. Each case breaks one thing in
 a passing claims file. Run: python3 -m unittest discover -s v2/build/tests"""
 
+import hashlib
 import importlib.util
 import io
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "claims_check", ROOT / "v2" / "skills" / "claims-writer" / "scripts" / "claims_check.py")
+SCRIPTS = ROOT / "v2" / "skills" / "claims-writer" / "scripts"
+sys.path[:0] = [str(SCRIPTS), str(ROOT / "v2" / "build")]  # its own module, and the shipped ones it imports
+SPEC = importlib.util.spec_from_file_location("claims_check", SCRIPTS / "claims_check.py")
 claims_check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(claims_check)
+SKILL = ROOT / "release" / "claims-writer"  # the built skill: its SKILL.md is what a run hashes
+claims_check.claims_standards.SKILL_DIR = SKILL
+SKILL_HASH = hashlib.sha256((SKILL / "SKILL.md").read_bytes()).hexdigest()
+VERSION = (ROOT / "v2" / "VERSION").read_text(encoding="utf-8").strip()
+RULES_MD = "# Resolved standards\n\n## Stack: core\n\n## Stack: java\n"
+BLOCK = "<!-- read-back -->\nStack: {}. Rules in this text: {}. Last rule: {}.\n<!-- end read-back -->"
+CORE = BLOCK.format("core", 0, "none")
+JAVA = BLOCK.format("java", 1, "APP-JAVA-01 · Use records")
+TEXT = ("# Rules text: claims-writer\n\n## Stack: {}\n\n### Changes to rules that reach this run\n\n{}\n\n"
+        "### Decision points\n\nNone.\n\n{}\n")
 
 STORY = """---
 id: S01
@@ -78,7 +91,42 @@ OK
 
 ## Standards
 
-- **rules.md:** abc
+- **rules.md:** RULES_HASH
+
+### Skills run
+
+#### claims-writer
+
+- **Source:** this run
+- **Version:** VERSION
+- **SKILL.md:** SKILL_HASH
+
+```text
+CORE
+```
+
+```text
+JAVA
+```
+
+#### implementer
+
+- **Source:** log
+- **Version:** 0.3.1
+- **SKILL.md:** unknown
+
+### Changes applied
+
+- CORE-WORK-01 · Fresh evidence
+
+### Rules applied
+
+- CORE-WORK-01 (this run)
+- APP-JAVA-01 (log)
+
+### Waivers used
+
+None.
 
 ## Out of scope
 
@@ -96,8 +144,28 @@ OK
 CLAIMS_PATH = ".harness/runs/r1/claims/S01.md"
 
 
+CLAIMS = (CLAIMS.replace("RULES_HASH", hashlib.sha256(RULES_MD.encode()).hexdigest()).replace("VERSION", VERSION)
+          .replace("SKILL_HASH", SKILL_HASH).replace("CORE\n", CORE + "\n").replace("JAVA\n", JAVA + "\n"))
 OP_BLOCK = CLAIMS[CLAIMS.index("### OP-1"):CLAIMS.index("## Standards")]
 FAILS = [  # (old text, new text, the fail line it must print)
+    ("- **rules.md:** ", "- **rules.md:** 0", "the hash is not the SHA-256 of `.harness/runs/r1/rules.md`"),
+    ("- **Version:** " + VERSION, "- **Version:** 9.9.9", "claims-writer: Version must be"),
+    ("- **SKILL.md:** " + SKILL_HASH, "- **SKILL.md:** 0", "claims-writer: SKILL.md must be"),
+    ("- **Source:** this run", "- **Source:** log", "claims-writer: Source must be `this run`"),
+    ("- **Source:** log", "- **Source:** this run", "implementer: Source is `log`"),
+    ("#### claims-writer", "#### claims-writer-x", "no entry for claims-writer"),
+    ("SKILL.md:** " + SKILL_HASH + "\n", "SKILL.md:** " + SKILL_HASH + "\n- **Rules text:** not verified\n",
+     "Rules text is `not verified` only when rules.md says so"),
+    ("Rules in this text: 1.", "Rules in this text: 2.", "not the read-back block of one of claims-writer's"),
+    ("```text\n" + CORE + "\n```\n\n```text\n" + JAVA, "```text\n" + JAVA + "\n```\n\n```text\n" + CORE,
+     "the read-back blocks are not in the stack order of rules.md"),
+    ("- **SKILL.md:** " + SKILL_HASH + "\n\n```text\n" + CORE + "\n```\n\n```text\n" + JAVA + "\n```\n",
+     "- **SKILL.md:** " + SKILL_HASH + "\n", "claims-writer quotes no read-back block"),
+    ("- CORE-WORK-01 · Fresh evidence", "- CORE-WORK-02 · Fresh evidence", "not the ID and title of a change line"),
+    ("- APP-JAVA-01 (log)", "- APP-NOPE-01 (log)", "APP-NOPE-01 is in no rule source of this run"),
+    ("### Waivers used\n\nNone.", "### Waivers used\n\nNone.\n- APP-JAVA-01 (log)", "Waivers used: write `None.`"),
+    ("### Waivers used", "### Waivers", "Standards: the headings must be"),
+    ("#### implementer\n", "#### implementer\n\n- **Owner:** x\n", "not a line the contract allows in Standards"),
     ("### AC-1\n", "### AC-1\n\nAC-1: validation added.\n", "not a line the contract allows in Requirements"),
     ("> Reject", "Reject", "not a line the contract allows in Request"),
     ("> Reject a negative quantity.\n", "", "Request: the story is not quoted"),
@@ -105,7 +173,7 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("## Out of scope\n\n- Prices: another story.\n\n", "", "the sections must be"),
     ("## Standards", "## Extra", "not a section of the contract, or repeats one"),
     ("## Standards\n", "## Standards\n\n## Standards\n", "not a section of the contract, or repeats one"),
-    ("OK\n```", "OK\n", "a code block is not closed"),
+    (JAVA + "\n```\n", JAVA + "\n", "a code block is not closed"),
     ("### NFR-1", "### TD-1", "NFR-1: a requirement the story covers, but it has no entry"),
     ("### NFR-1", "### TD-1", "TD-1 is not a requirement the story covers"),
     ("### AC-2", "### AC-1", "AC-1 has a second entry"),
@@ -153,6 +221,10 @@ class ClaimsCheckTest(unittest.TestCase):
         for path, text in (("src/pricing.py", "a\nb\nc\n"), ("app/[id]/page.py", "1\n2"), ("tests/empty.py", ""),
                            ("tests/test_pricing.py", "1\n2\n3\n4\n5\n"), (".harness/runs/r1/stories/S01.md", STORY)):
             self.write(path, text)  # brackets in a name, a last line with no newline, an empty file
+        self.write(".harness/runs/r1/rules.md", RULES_MD)
+        self.write(".harness/runs/r1/rules-text-claims-writer.core.md", TEXT.format(
+            "core", "- CORE-WORK-01 · Fresh evidence: tightened by APP-JAVA-01", CORE))
+        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", TEXT.format("java", "None.", JAVA))
         self.claims = CLAIMS
 
     def write(self, path, text):
@@ -169,7 +241,7 @@ class ClaimsCheckTest(unittest.TestCase):
     def test_a_sound_file_passes_and_names_what_it_did_not_check(self):
         code, out = self.run_check()
         self.assertEqual(code, 0, out)
-        self.assertIn("not checked: Standards", out)
+        self.assertIn("not checked: Standards: entries from the run log", out)
         self.assertIn("not checked: Files changed against the change: no --base given", out)
 
     def test_each_fault_fails_with_its_line(self):
@@ -190,6 +262,12 @@ class ClaimsCheckTest(unittest.TestCase):
                     self.claims = self.claims.replace(OP_BLOCK, "None.\n\n").replace("OP-1", "`src/pricing.py:1`")
                 code, out = self.run_check()
                 self.assertEqual(code, 0, out)
+
+    def test_standards_follow_rules_md(self):
+        (self.repo / ".harness/runs/r1/rules.md").unlink()
+        self.assertIn("rules.md` does not exist; step 1 writes it", self.run_check()[1])
+        self.write(".harness/runs/r1/rules.md", RULES_MD + "\nnot verified: no profile\n")  # written by reading
+        self.assertIn("claims-writer: Rules text must be `not verified`", self.run_check()[1])
 
     def test_the_story_frontmatter(self):
         self.write(".harness/runs/r1/stories/S01.md", STORY.replace("NFR-1, NFR-2, TD-1]", "NFR-2, TD-1]"))

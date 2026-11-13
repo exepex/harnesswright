@@ -9,12 +9,12 @@ metadata:
   source-licence: MIT
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
-  rulebook-version: "0.3.1"
-  content-hash: "bd7ba5a28c5b2a7972f7c3fef631686b1d92e098ec70047107cbf0f3b23630ee"
+  rulebook-version: "0.3.2"
+  content-hash: "e323b17b52f31fdee93f0e43ecd1000bc608ada1eebffb6d53000079622294e7"
   size-floors: "4881"
-  size-rest: "17016"
+  size-rest: "16901"
 ---
-<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
+<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.2. Do not edit. -->
 
 # Claims writer
 
@@ -289,21 +289,19 @@ python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --stor
 Before it, remove the files your commands in step 4 created that the project does not ignore, such as caches; they
 are not part of the change.
 
-- Exit 0: add each `not checked:` line it prints, except the Standards line, to **Not verified**, as "Claims check:
-  <what was not checked>".
+- Exit 0: add each `not checked:` line it prints to **Not verified**, as "Claims check: <what was not checked>".
 - Exit 1: each `fail:` line is a fault in the claims file. Fix the claims file, never code or tests, and run the
   check again until it exits 0.
 - Exit 2: it names an input it cannot read. Fix the path you gave, or, when the input itself is at fault, check by
   reading as below.
 - It could not run (scripts are forbidden in `.harness/profile.yaml`, or there is no Python): check by reading.
   Open each changed file and confirm its line count, open each `path:line` you cite at that line, and confirm the
-  sections, the statuses, and a test or `OP-n` for every required test type. Add to **Not verified**: "Claims check
-  script not run: <the reason>. Line counts, `path:line` references and the layout were checked by reading only."
+  sections, the statuses, and a test or `OP-n` for every required test type. Open `rules.md` and each rules text
+  you quoted, and confirm the hash and that each read-back block and change line is quoted character for character.
+  Add to **Not verified**: "Claims check script not run: <the reason>. Line counts, `path:line` references, the
+  layout and Standards were checked by reading only."
 
-The script does not check Standards. Open `rules.md` and each rules text you quoted, and confirm the hash and that
-each read-back block and change line is quoted character for character. If you cannot, add the Standards line to
-**Not verified** too. Replace a `None.` in **Not verified** when
-you add an entry to it.
+Replace a `None.` in **Not verified** when you add an entry to it.
 
 Check: the last run of the check exits 0, or the by-reading checks are done; **Not verified** has each entry above.
 

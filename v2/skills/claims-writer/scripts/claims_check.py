@@ -19,7 +19,7 @@ in its section (one table of shapes, SHAPES), or the check fails on it. Then it 
   untracked files, outside .harness/runs/;
 - each `path:line` outside the request and outside code blocks, when it holds a `/` or names a file at the root:
   the file exists and has that line.
-It does not check Standards yet; it says so.
+- Standards, by claims_standards.py.
 
 The story is --story, else <run folder>/stories/<claims file name>. Exit 0: no failure; each "not checked:" line names
 a check that did not run, for Not verified. Exit 1: each "fail:" line names a fault. Exit 2: an input is missing or
@@ -31,6 +31,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+import claims_standards
 
 SECTIONS = ("Request", "Requirements", "Open proof items", "Standards", "Out of scope", "Files changed",
             "Not verified")
@@ -48,7 +50,7 @@ SHAPES = {
                      ("type", re.compile(r"  - ([^:`]+): (\S.*)")), MORE, NONE],  # None.: the story covers none
     "Open proof items": [NONE, ("entry", re.compile(r"### (OP-[0-9]+)")),
                          ("field", re.compile(r"- \*\*([A-Za-z ]+):\*\* (\S.*)")), MORE],
-    "Standards": None,  # any line: not checked yet
+    "Standards": claims_standards.SHAPES,  # its read-back blocks come from fences, as "block"
     "Out of scope": [NONE, BULLET, MORE],
     "Files changed": [("file", re.compile(r"- `([^`]+)` \((?:([0-9]+) lines?|(deleted))\)"))],
     "Not verified": [NONE, BULLET, MORE],
@@ -79,7 +81,10 @@ def sections(text, fails):
     found, current, fence = {}, None, None
     for number, line in enumerate(text.split("\n"), 1):
         if fence:
+            if line.strip() == fence and current == "Standards":
+                found[current].append((block[0], "block", "\n".join(block[1:])))
             fence = None if line.strip() == fence else fence
+            block.append(line)
             continue
         if line.startswith("## "):
             current = line[3:]
@@ -91,13 +96,12 @@ def sections(text, fails):
             continue
         opened = FENCE.match(line)
         if opened and current in FENCED:
-            fence = opened.group(1)
+            fence, block = opened.group(1), [number]
             continue
-        shapes = SHAPES.get(current, [])
-        matched = next(((name, m) for name, shape in shapes or [] if (m := shape.fullmatch(line))), None)
-        if current is None or (shapes is not None and matched is None):
+        matched = next(((name, m) for name, shape in SHAPES.get(current, []) if (m := shape.fullmatch(line))), None)
+        if matched is None:
             fails.append(f"line {number}: not a line the contract allows in {current or 'the file before Request'}")
-        elif shapes is not None:
+        else:
             found[current].append((number, *matched))
     if fence:
         fails.append("a code block is not closed")
@@ -274,8 +278,8 @@ def check(repo, claims, story_path, base):
     """Returns (fails, notes)."""
     text = read(repo / claims, "claims")
     story_file = repo / story_path if story_path else (repo / claims).parent.parent / "stories" / Path(claims).name
-    story = story_lists(read(story_file, "story"))
-    fails, notes = [], ["Standards: the rules.md hash, read-back blocks and changes are not checked by this script"]
+    story_text = read(story_file, "story")
+    story, fails, notes = story_lists(story_text), [], []
     found = sections(text, fails)
     if found.get("Request") == []:
         fails.append("Request: the story is not quoted with `>`")
@@ -283,6 +287,8 @@ def check(repo, claims, story_path, base):
     check_requirements(repo, found, story, fails, notes)
     check_files(found.get("Files changed", []), repo, base, fails, notes)
     check_references(text, repo, fails)
+    run = Path(claims).parent.parent
+    claims_standards.check(repo, run, found.get("Standards", []), story_text, fails, notes)
     return fails, notes
 
 
