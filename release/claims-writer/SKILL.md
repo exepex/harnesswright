@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
   rulebook-version: "0.3.2"
-  content-hash: "56eecc00fec6dcbac1c082f1a21fe94c390e0513d474e84753a8fd9ded68143e"
+  content-hash: "9a4dc342b573d08b0f789f3f1df7d7ba2fd0325da98fed7282c51f5d44e77971"
   size-floors: "4881"
-  size-rest: "17316"
+  size-rest: "17329"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.2. Do not edit. -->
 
@@ -187,9 +187,10 @@ decides what to do: the standards reader's result stands, unless it could not ru
    run ID, the date and the line `not verified: <the reason>`. Write one rules text for each language the profile
    names, or one named `core` when there is none, holding the rules you can read from the `rules/core/` and
    `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
-   there are none (always, when there is no profile). Put first in each `### Changes to rules that reach this run`
-   and one line for each rule a layer replaces, waives or tightens, as `- <ID> · <title>: replaced by <ID>`,
-   `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End each with its read-back block:
+   there are none (always, when there is no profile). Start each with the heading
+   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
+   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
+   each with its read-back block:
    the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
    line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
    `READ_BACK_END`. Add to **Not verified**: "Standards reader not run: <the reason>. `rules.md` and the rules texts
