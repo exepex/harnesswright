@@ -285,8 +285,8 @@
         }
       },
       "judged": {
-        "question": "Do the claims tie AC-1 and AC-2 each to a unit test of limiter/limiter_test.go, named in any form, and say that NFR-1's performance test was not run here?",
-        "pass": "Yes when both criteria are tied to unit tests that exist, and the claims say no performance test of NFR-1 ran.",
+        "question": "Do the claims tie AC-1 and AC-2 each to a unit test of limiter/limiter_test.go, named in any form, and say that no staging performance test of NFR-1 ran?",
+        "pass": "Yes when both criteria are tied to unit tests that exist, and the claims say no staging performance test of NFR-1 ran.",
         "fail": "No when a criterion is tied to no test or to one that is not there, or the claims treat a unit test or a guess as NFR-1's performance proof.",
         "examples": {
           "pass": [
