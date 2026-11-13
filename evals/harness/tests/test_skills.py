@@ -193,7 +193,7 @@ class Release(TempCase):
                                                                "old": self.tmp / "skills" / "old"})
 
     def test_a_manifest_without_a_list_of_names_is_refused(self):
-        for text in ("[]", '{"skills": {"../x": {}}}', "{"):
+        for text in ("[]", '{"skills": {"../x": {}}}', "{", '{"skills": "abc"}'):
             with self.subTest(text=text):
                 self.write("release/manifest.json", text)
                 self.track(self.tmp)

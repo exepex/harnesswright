@@ -70,7 +70,7 @@ built instead of failing part way:
   commit messages and the index row all obey this one rule (`cases.is_plain`);
 - a trigger case needs `should_trigger`, `split` and `index`; a task case may not have the first two;
 - a commit needs a non-empty message and a list of paths;
-- a copy names a source outside `skills/`, `release/`, `v2/`, `borrowed/` and `evals/` and its 64-character sha256;
+- a copy names a source that is a file at the repository root, and its 64-character sha256;
 - an index row may use only `{name}`, `{path}` and `{description}`, with no index, attribute or format spec;
 - an expectation is `{text, source, judged}`, with a `check` when a script can decide it (doc 11, Scoring).
   `source` is `"format"`, the skill's own format, or `{"contract": {"path", "line", "quote"}}`, a rule a world

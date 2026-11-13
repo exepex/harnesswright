@@ -78,6 +78,8 @@ class Schema(TempCase):
         good = {"world": "AGENTS.md", "source": "AGENTS.md", "source_sha256": SHA}
         for change in ({"source": "skills/haiku-writer/SKILL.md"}, {"source": "evals/x.md"},
                        {"source": "release/haiku-writer/SKILL.md"}, {"source": "v2/rules/core/work.md"},
+                       {"source": "borrowed/x/SKILL.md"}, {"source": "docs/notes.md"},
+                       {"source": "contracts/claims.md"},
                        {"source_sha256": "abc"}, {"source_sha256": SHA.upper()}, {"world": 7}):
             with self.subTest(change=change):
                 self.refused({"copies": [dict(good, **change)]}, "copies must be")

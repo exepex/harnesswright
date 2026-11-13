@@ -76,10 +76,11 @@ candidate, so it wins over an older skill of the same name.
   the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
   trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
   outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
-  world. A document declared as copied names a source outside `skills/`, `release/`, `v2/`, `borrowed/` and
-  `evals/`, since none is project text. The copy is the source as git tracks it, with the table rows that name a
-  skill removed, since the arm's index rows replace them. Every world path, and every text the run sees, follows the
-  same one rule as `case.json`: ASCII path parts, and plain text with no control characters.
+  world. A document declared as copied names a file at the repository root, such as `AGENTS.md`: every folder
+  holds skill text, its sources, the measuring kit or harnesswright's own formats, none of them project text. The
+  copy is the source as git tracks it, with the table rows that name a skill removed, since the arm's index rows
+  replace them. Every world path, and every text the run sees, follows the same one rule as `case.json`: ASCII path
+  parts, and plain text with no control characters.
 - **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. A skill brings only

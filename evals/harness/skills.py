@@ -1,6 +1,6 @@
 """Read a skill folder, and check that a folder is sound to copy into an arm (doc 11, Worlds).
 
-Two rules, each a list of what is allowed:
+Four rules, each a list of what is allowed:
 
 - **Frontmatter** is read from one stated subset of YAML, with only the fields of `HW-PORT-01`
   ([10 · Skills](../../docs/design/10-skills.md)). Anything else is refused with its line number, so a value is
@@ -10,6 +10,8 @@ Two rules, each a list of what is allowed:
 - **A skill** is the files git tracks in its folder, each a regular file reached through real folders, and nothing
   else on the machine. A cache, a virtual environment or a draft left beside them is never part of it and never
   decides anything. Which skills exist is read from the same list: a folder whose `SKILL.md` git tracks.
+- **The skills of the repository** are one list, `folders`: each `release/<name>/` the release manifest lists, and
+  each other skill of `skills/`. Every reader takes a skill's folder from it.
 """
 
 import json
@@ -33,12 +35,13 @@ WORD = r"[^\s:#][^\s:]*(?::[^\s:]+)*"
 PLAIN = re.compile(rf"[\w(][^\s:]*(?::[^\s:]+)*(?: {WORD})*")
 # The plain spellings that YAML reads as null, a boolean, a number or a date, from the YAML 1.1 and 1.2 schemas.
 # A value or metadata key spelled like one of these is not text, so it is refused.
-# A metadata value in double quotes, as the release build writes generated values: the inside holds no quote, no
-# backslash and no control character, so YAML reads it as exactly the inside.
-QUOTED = re.compile(r'"([^"\\]*)"')
 TYPED = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n)|[-+]?(?:\.inf|\.Inf|\.INF)|\.nan|\.NaN|\.NAN"
                    r"|[-+]?(?:[0-9][0-9_]*(?::[0-5]?[0-9])*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?"
                    r"|0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:[Tt ].*)?")
+
+# A metadata value in double quotes, as the release build writes generated values: the inside holds no quote, no
+# backslash and no control character, so YAML reads it as exactly the inside.
+QUOTED = re.compile(r'"([^"\\]*)"')
 
 
 def skill_files(skill_dir, name=None):
@@ -105,6 +108,8 @@ def folders(repo):
     if (repo / "release" / "manifest.json").is_file():
         try:
             listed = json.loads(tracked_file(repo / "release", "manifest.json"))["skills"]
+            if not isinstance(listed, dict):
+                raise TypeError("skills is not an object")
         except (ValueError, KeyError, TypeError) as error:
             raise CaseError(f"release/manifest.json: no skills list to read: {error}") from None
         for name in listed:
