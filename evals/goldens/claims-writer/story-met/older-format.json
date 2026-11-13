@@ -1,0 +1,162 @@
+{
+ "changes": {
+  ".harness/runs/2026-11-13-bulk-discount/claims/S01.md": "# S01 claims\n\n## Request\n\nBulk discount for large orders, and refusal of negative quantities, with totals rounded to cents (story S01).\n\n## Requirements\n\n### AC-1\n- **Criterion:** An order whose subtotal is 100.00 or more is discounted by 10%; below 100.00 there is no discount.\n- **Status:** met\n- **Done:** the discount is applied in `order_total`, `src/discount.py:17-18`.\n- **Evidence:** `test_subtotal_of_exactly_100_gets_ten_percent_off` and `test_subtotal_below_100_gets_no_discount` pass.\n\n### AC-2\n- **Criterion:** Pricing a line with a negative quantity raises ValueError.\n- **Status:** met\n- **Done:** `line_total` checks the quantity, `src/discount.py:9-10`.\n- **Evidence:** `test_negative_quantity_is_rejected` passes.\n\n### AC-3\n- **Criterion:** The total is rounded to two decimal places.\n- **Status:** met\n- **Done:** `round(subtotal, 2)`, `src/discount.py:19`.\n- **Evidence:** `test_total_is_rounded_to_cents` passes.\n\nTest run for all three: `python3 -m unittest discover -s tests -t .` → `Ran 4 tests in 0.001s`, `OK`.\n\n## Standards\n\nNone.\n\n## Out of scope\n\n- Discount codes and per-customer discounts: not part of S01.\n\n## Files changed\n\n- `src/discount.py` (19 lines)\n- `tests/test_discount.py` (22 lines)\n\n## Not verified\n\nNone.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-bulk-discount/stories/S01.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "src/discount.py"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "tests/test_discount.py"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m unittest discover -s tests -t . 2>&1 | tail -n 5",
+   "exit_code": 0,
+   "output": "----------------------------------------------------------------------\nRan 4 tests in 0.001s\n\nOK\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l src/discount.py tests/test_discount.py",
+   "exit_code": 0,
+   "output": "  19 src/discount.py\n  22 tests/test_discount.py\n  41 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-bulk-discount/claims/S01.md",
+   "sha256": "c0c2388a0a158757c246cec24bd9b46e506135987611e28375f335cd4dd4e234"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Done. The claims for S01 are in .harness/runs/2026-11-13-bulk-discount/claims/S01.md: AC-1, AC-2 and AC-3 are all met, and the suite passes (Ran 4 tests, OK)."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S01.md in the story's run folder",
+   "sha256": "e47b3edaa551af6573199e6b9bafa7b93e0f57ca949921af3d4d3f466721bff5",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "d7183294668d0edf698d9d8ea2ea807a2d8b20998539e6a6f973496478cfd10e",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "The claims file has the seven claims headings in their order",
+   "sha256": "f897f60226f66709dbb4561f2e9ad642b449ed05f1554689489223bf37676786",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "The Request section quotes the story line by line",
+   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "The claims carry the story's own words, not a rewording",
+   "sha256": "9f12072bfa004b65e5815e15cb776f73a137f60792bae349a6d0ecbff27ea748",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "The claims state results without hedging words",
+   "sha256": "3990023ad36dc24b7fd02559b1b8fbc3b490d9b4a1ac8695ad3a5e90f8209405",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "Every file listed under Files changed has its true line count",
+   "sha256": "2d6c7dd97783edef25f6985590097d6a681f66829dc600763f9da68ff9a67ba9",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "Every file and line the claims cite exists",
+   "sha256": "2e6d58ed490a04d070ef4317b648c642110cfb71a1042ec10052923a740a42df",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "fa836ff0658b3e0b5160c0879acbd1ea55164f8b48140e07d78c488c1bceb7e1",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "AC-1 is claimed as met",
+   "sha256": "8efd45ca22ea34a99f78ce2977387abf9aff2910f58571d40578f615c25c9641",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q11": {
+   "expectation": "AC-2 is claimed as met",
+   "sha256": "472bf53affbaef7a838a0d233922192b317fa9c2a39b7d760abda3655796512f",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q12": {
+   "expectation": "AC-3 is claimed as met",
+   "sha256": "efd378615a222f675cbdbed7e3ef6eeb2134e3a2db6d5fb7adb2fd137dfec020",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q13": {
+   "expectation": "Each criterion is tied to the unit test that proves it",
+   "sha256": "e69f0e1060b25b0e29810f7e95c29915b1563b5dbf37900821293db5374043d9",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q14": {
+   "expectation": "Each requirement has its own entry, with what was done, the evidence and its test types",
+   "sha256": "8620fb9301010406d93effade26ca8d894dba6179c103d892eeec953dddfdcc8",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q15": {
+   "expectation": "Open proof items says None.",
+   "sha256": "4e699246a519b6110e16afd07ad8fa89ba1dc6881af4b2b16bc04873d565ceb3",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q16": {
+   "expectation": "The claims quote the result of the run of the tests: four tests, all passing",
+   "sha256": "0c8445164fe76ddbaac0afafacfbbac75b524af25e11d1ba71f328a17ac22c9c",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q17": {
+   "expectation": "Files changed lists src/discount.py and tests/test_discount.py",
+   "sha256": "7e73e9ff783e50217bd110765732b5ebeb837b04c0ca3d772038a5ec7430e64b",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q18": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "yes",
+   "by": "judge-e"
+  }
+ }
+}
