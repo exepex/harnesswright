@@ -315,9 +315,10 @@ After each round the judges look for ways the round could have been wrong, and a
 - **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
   or its result is not settled, every other host is at most `inconclusive`. A task run passes when every contract
   expectation passed; format expectations are reported as format conformance, never in the pass rate. Trigger
-  accuracy is that of the `test` split, scored in the with-skill arm, on loads the host reported. A planned run
-  that is not scored (void, empty, undecided or resting on an inferred load) makes the label `inconclusive`, with
-  the reason. The label file adds the void rate per arm, grader agreement, golden accuracy, the fault gate result,
+  accuracy is that of the `test` split, scored in the with-skill arm. A skill load the adapter inferred from a read
+  of the skill's `SKILL.md` counts, as in the discovery probe, since some hosts report no skill load of their own;
+  the label names how many trigger runs rested on an inferred load only. A planned run that is not scored (void,
+  empty or undecided) makes the label `inconclusive`, with the reason. The label file adds the void rate per arm, grader agreement, golden accuracy, the fault gate result,
   how many expectations rested on inferred evidence, and format conformance.
 - **Cost.** Each run keeps its host's own token counts by model and its seconds; a host that reports no counts
   has none, never an estimate. Money is the counts priced by one dated price file, `evals/results/prices.json`,

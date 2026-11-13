@@ -9,12 +9,13 @@ is named, and so is a reference result that is not settled, and either keeps the
   when one has no trusted answer and none failed (`task_outcome`). A check's verdict decides first; a grader's
   trusted answer decides what no check did, `yes` passing. Format expectations do not count: they are the skill's
   own format, which the without-skill arm cannot know.
-- A trigger run passes when the skill loaded exactly when the case says it should (`trigger_outcome`). A load
-  counts only when the host reported it (`observed`); a load the adapter only inferred leaves the run not scored,
-  as nothing decides on inferred evidence. Only the with-skill arm of a trigger case is scored, as only it installs
-  the skill. A trigger case passes when the skill loaded in at least half its scored runs if it should trigger, and
-  in fewer than half if it should not. Trigger accuracy is that of the `test` split, the `train` split being for
-  tuning a description.
+- A trigger run passes when the skill loaded exactly when the case says it should (`trigger_outcome`). A load the
+  host reported (`observed`) and one the adapter inferred from a read of the skill's `SKILL.md` both count, as the
+  discovery probe counts them: some hosts, Codex among them, report no skill load of their own. The label names
+  how many trigger runs rested on an inferred load only (`inferred_loads`). Only the with-skill arm of a trigger
+  case is scored, as only it installs the skill. A trigger case passes when the skill loaded in at least half its
+  scored runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is that of the `test`
+  split, the `train` split being for tuning a description.
 - A planned run is not scored when it is void or empty, or its outcome is not decided. Each is named (`unsettled`).
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
   - `incomplete` when the host was not run, or the skill has no task case or no test trigger case, with every
@@ -63,12 +64,10 @@ def task_outcome(case, verdicts, answers):
 
 
 def trigger_outcome(case, log):
-    """(True, False or None, why) of one with-skill trigger run of `case`: whether the skill loaded exactly when it
-    should, None when only an inferred load names it."""
+    """(passed, inferred) of one with-skill trigger run of `case`: whether the skill loaded exactly when it should,
+    and whether only an inferred load says it loaded."""
     sources = {entry.get("source") for entry in log if entry.get("kind") == "skill" and entry.get("name") == case.skill}
-    if "observed" not in sources and sources:
-        return None, "the skill load is inferred only"
-    return ("observed" in sources) == bool(case.should_trigger), ""
+    return bool(sources) == bool(case.should_trigger), bool(sources) and "observed" not in sources
 
 
 def rate(passed):
@@ -146,7 +145,7 @@ def labels(folder, attempt, record, cases):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
-    scored, unsettled = {}, {}
+    scored, unsettled, inferred = {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
         if case.kind == "trigger" and made["arm"] != "with_skill":
@@ -158,7 +157,9 @@ def labels(folder, attempt, record, cases):
         run_folder = folder / "runs" / made["key"]
         if case.kind == "trigger":
             record_, _ = evidence.load(run_folder / "bundle")
-            passed_, why = trigger_outcome(case, record_["log"])
+            passed_, only_inferred = trigger_outcome(case, record_["log"])
+            slot = (made["host"], made["skill"])
+            inferred[slot] = inferred.get(slot, 0) + bool(only_inferred)
         else:
             verdicts = json.loads((run_folder / "checks.json").read_text())["verdicts"]
             graded = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
@@ -194,8 +195,9 @@ def labels(folder, attempt, record, cases):
                 entry.update(label="incomplete", gaps=[f"not run: {why}" for why in not_run.get(host, ["no probe"])])
             else:
                 other = host != grades.REFERENCE
-                entry.update(measured[host], **decide(measured[host], doubted[host], reference if other else None,
-                                                      reference_doubt if other else None))
+                entry.update(measured[host], inferred_loads=inferred.get((host, skill), 0),
+                         **decide(measured[host], doubted[host], reference if other else None,
+                                  reference_doubt if other else None))
             found["skills"][skill][host] = entry
     return found
 

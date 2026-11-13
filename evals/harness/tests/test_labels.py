@@ -47,20 +47,19 @@ class Outcomes(unittest.TestCase):
         self.assertEqual(labels.task_outcome(case(expectations=EXPECTATIONS[:1]), [verdict("pass")], {}),
                          (None, "the case has no contract expectation"))
 
-    def test_a_trigger_run_passes_when_the_skill_loaded_exactly_when_it_should_and_only_on_an_observed_load(self):
+    def test_a_trigger_run_passes_when_the_skill_loaded_exactly_when_it_should_an_inferred_load_named(self):
         def load(name, source="observed"):
             return [{"kind": "skill", "source": source, "name": name}]
 
         should, should_not = case("trigger", should_trigger=True), case("trigger", should_trigger=False)
-        self.assertEqual(labels.trigger_outcome(should, load("haiku-writer")), (True, ""))
-        self.assertEqual(labels.trigger_outcome(should, load("other-skill")), (False, ""))
-        self.assertEqual(labels.trigger_outcome(should_not, load("other-skill")), (True, ""))
-        self.assertEqual(labels.trigger_outcome(should_not, load("haiku-writer")), (False, ""))
-        for kind in (should, should_not):
-            self.assertEqual(labels.trigger_outcome(kind, load("haiku-writer", "inferred")),
-                             (None, "the skill load is inferred only"))
+        self.assertEqual(labels.trigger_outcome(should, load("haiku-writer")), (True, False))
+        self.assertEqual(labels.trigger_outcome(should, load("other-skill")), (False, False))
+        self.assertEqual(labels.trigger_outcome(should_not, load("other-skill")), (True, False))
+        self.assertEqual(labels.trigger_outcome(should_not, load("haiku-writer")), (False, False))
+        self.assertEqual(labels.trigger_outcome(should, load("haiku-writer", "inferred")), (True, True))
+        self.assertEqual(labels.trigger_outcome(should_not, load("haiku-writer", "inferred")), (False, True))
         both = load("haiku-writer", "inferred") + load("haiku-writer")
-        self.assertEqual(labels.trigger_outcome(should, both), (True, ""))
+        self.assertEqual(labels.trigger_outcome(should, both), (True, False))
 
 
 def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, should=True):
@@ -158,7 +157,7 @@ class Gate(Pages):
         found = json.loads(path.read_text())
         entry = found["skills"]["haiku-writer"]["fakehost"]
         self.assertEqual((entry["task_pass_rate"], entry["baseline_pass_rate"], entry["lift"]), (1.0, 0.0, 1.0))
-        self.assertEqual(entry["runs"], {"c1, with_skill": 3, "c1, without_skill": 3})
+        self.assertEqual((entry["runs"], entry["inferred_loads"]), ({"c1, with_skill": 3, "c1, without_skill": 3}, 0))
         self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
             "test trigger cases: none", "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])

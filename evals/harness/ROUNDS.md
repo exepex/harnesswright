@@ -49,15 +49,17 @@ Everything a round writes or reports, its drift records included, passes one scr
 every containment its gates made, taken while its home is still there. Every gate, grading too, as goldens
 calibrate only their own attempt's graders, runs again when the round runs again; only runs are kept.
 
-The label gate (`labels.py`) gives each skill on each host one label of [10 · Skills](../../docs/design/10-skills.md),
-computed from the store alone: the attempt record, and for each kept or made run its bundle, its `checks.json` and
-its trusted grades. One rule holds: a label rests only on settled results. A task run passes when every contract
-expectation of its case passed, a check deciding first and a trusted `yes` deciding what no check did; it fails when
-one failed, and is not scored when one has no trusted answer. Format expectations do not count, as only the skill
-knows its own format. A trigger run, scored in the with-skill arm only, passes when the skill loaded exactly when
-the case says it should; a load the host did not report, only inferred, leaves the run not scored. A trigger case
-passes when the skill loaded in at least half its runs if it should trigger, and in fewer than half if it should
-not. Trigger accuracy is that of the `test` split. A host that was not run, or a skill with no task case or no test
-trigger case, is `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs,
-missed goldens, no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A
-missed threshold is `unsupported`, each gap named. The label file goes to `<store>/<round>/labels/<attempt>.json`.
+The label gate (`labels.py`) gives each skill on each host one label of [10 ·
+Skills](../../docs/design/10-skills.md), computed from the store alone: the attempt record, and for each kept or
+made run its bundle, its `checks.json` and its trusted grades. One rule holds: a label rests only on settled
+results. A task run passes when every contract expectation of its case passed, a check deciding first and a trusted
+`yes` deciding what no check did; it fails when one failed, and is not scored when one has no trusted answer. Format
+expectations do not count, as only the skill knows its own format. A trigger run, scored in the with-skill arm only,
+passes when the skill loaded exactly when the case says it should. A load the adapter inferred from a read of the
+skill's `SKILL.md` counts, as the discovery probe counts it, since some hosts (Codex) report no skill load of their
+own; the label names how many trigger runs rested on an inferred load only. A trigger case passes when the skill
+loaded in at least half its runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is
+that of the `test` split. A host that was not run, or a skill with no task case or no test trigger case, is
+`incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
+no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
+`unsupported`, each gap named. The label file goes to `<store>/<round>/labels/<attempt>.json`.
