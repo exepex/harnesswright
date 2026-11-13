@@ -1,0 +1,169 @@
+{
+ "changes": {
+  ".harness/runs/2026-11-13-rate-limit/claims/S03.md": "# Claims · S03\n\n## Request\n\n> ---\n> id: S03\n> plan: none\n> depends-on: []\n> covers: [AC-1, AC-2, NFR-1]\n> tests: {AC-1: [unit], AC-2: [unit], NFR-1: [performance]}\n> targets: {NFR-1: exact}\n> waivers: []\n> ---\n>\n> ## What\n>\n> Limit each API client to a fixed number of requests per time window.\n>\n> ## Request\n>\n> > Clients are hammering the API. Cap each client at a configurable number of requests per window and answer\n> > 429 once they are over it. The limiter must not slow the hot path: p99 under 5 ms in staging.\n>\n> ## Acceptance criteria\n>\n> ### AC-1\n>\n> - **Criterion:** A client may make up to the configured limit of requests in one window; the next request is refused.\n> - **Test types:** [unit]\n>\n> ### AC-2\n>\n> - **Criterion:** A refused request is answered with HTTP status 429.\n> - **Test types:** [unit]\n>\n> ## Targets\n>\n> ### NFR-1\n>\n> - **Measures:** p99 latency of API requests on staging while the limiter is on\n> - **State:** exact\n> - **Number or range:** under 5 ms\n> - **Test types:** [performance]\n>\n> ## Gaps\n>\n> None.\n>\n> ## Out of scope\n>\n> - Distributed limits across several API instances.\n\n## Requirements\n\n### AC-1\n\n- **Status:** met\n- **Done:** `Allow` counts each client's requests in its window and refuses once the count reaches the limit, `limiter/limiter.go:27-39`; the refusal is `limiter/limiter.go:34-36`.\n- **Evidence:** `go test ./...` → `ok example.com/ratelimit/limiter 0.004s`, exit code 0; `go test -v ./...` shows `--- PASS: TestAllowsUpToLimitThenRefuses` and `--- PASS: TestNewWindowResetsCount`.\n- **Test types:**\n  - unit: `TestAllowsUpToLimitThenRefuses`, `limiter/limiter_test.go:10`; `TestNewWindowResetsCount`, `limiter/limiter_test.go:22`\n\n### AC-2\n\n- **Status:** met\n- **Done:** `Middleware` answers `http.StatusTooManyRequests` when `Allow` refuses, `limiter/limiter.go:44-46`.\n- **Evidence:** `--- PASS: TestRefusedRequestGets429` in the same `go test -v ./...` run.\n- **Test types:**\n  - unit: `TestRefusedRequestGets429`, `limiter/limiter_test.go:33`\n\n### NFR-1\n\n- **Status:** not verified\n- **Done:** nothing beyond the limiter: one mutex-guarded map update per request, `limiter/limiter.go:28-38`. No latency was measured.\n- **Evidence:** none from here. This project cannot reach staging, `README.md:7`, and the unit tests do not measure latency, so no performance test of NFR-1 ran.\n- **Test types:**\n  - performance: OP-1\n\n## Open proof items\n\n### OP-1\n\n- **Unproven:** NFR-1, performance: p99 latency of API requests on staging under 5 ms with the limiter on.\n- **Proof:** the platform team's staging load test of this change, run before its release; the p99 is posted on the release ticket.\n- **Owner:** the platform team.\n\n## Standards\n\nNone resolved for this repository.\n\n## Out of scope\n\n- Distributed limits across several API instances: the story lists them as out of scope.\n\n## Files changed\n\n- `limiter/limiter.go` (50 lines)\n- `limiter/limiter_test.go` (42 lines)\n\n## Not verified\n\n- NFR-1, p99 under 5 ms on staging: this project cannot reach staging; OP-1 covers it.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-rate-limit/stories/S03.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "limiter/limiter.go"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "limiter/limiter_test.go"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "go test ./...",
+   "exit_code": 0,
+   "output": "ok  \texample.com/ratelimit/limiter\t0.004s\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "go test -v ./...",
+   "exit_code": 0,
+   "output": "=== RUN   TestAllowsUpToLimitThenRefuses\n--- PASS: TestAllowsUpToLimitThenRefuses (0.00s)\n=== RUN   TestNewWindowResetsCount\n--- PASS: TestNewWindowResetsCount (0.00s)\n=== RUN   TestRefusedRequestGets429\n--- PASS: TestRefusedRequestGets429 (0.00s)\nPASS\nok  \texample.com/ratelimit/limiter\t0.005s\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l limiter/limiter.go limiter/limiter_test.go",
+   "exit_code": 0,
+   "output": "  50 limiter/limiter.go\n  42 limiter/limiter_test.go\n  92 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-rate-limit/claims/S03.md",
+   "sha256": "6e758f781dc7046e09deb23f22917eb6f597cd5b134af65e4679bfbb213bf687"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Claims written to .harness/runs/2026-11-13-rate-limit/claims/S03.md.\n\n- AC-1: met\n- AC-2: met\n- NFR-1: not verified: staging cannot be reached from here.\n\nOpen proof items for the top of the pull request:\n- S03 OP-1: NFR-1, p99 under 5 ms on staging, proven by the platform team's staging load test before release. Owner: the platform team.\n\nS03 is not done until OP-1 is approved and its proof comes in."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S03.md in the story's run folder",
+   "sha256": "2b45f098c538d175ae94546278dcd9e75470425078560ce76a57eac859d366c0",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "d8b6fe699330172a7f872a719e4e58860d7f3c4da7d9b735bc55c778dedb050a",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "The claims file has the seven claims headings in their order",
+   "sha256": "903243bbb934f40941fed24e34cce8abf8289f968ce0fffaffe362ece7a953c6",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "The Request section quotes the story line by line",
+   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "The claims carry the story's own words, not a rewording",
+   "sha256": "bf0e4451f047363083eebc136b532f7b13f90b7c5fd80bbafd745c0604740b46",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "Every file listed under Files changed has its true line count",
+   "sha256": "f27d2e6f68057f827756b47320b0e1b816c361fb9666be88a379e04ba6e5cfeb",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "Every file and line the claims cite exists",
+   "sha256": "f86839c2d7ef3346fe67bce8e13a01e8ee1cb3a25e8983aaeae5a851facfa7f2",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "3cbd97c76f7a530830a0bfef02ff936dfca6837e205a69c069ac2e9a844ffcec",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "AC-1 is claimed as met",
+   "sha256": "34a4d9725966aec939c4b2e9d673a0c2b20a2b67a9625c90ff6fda70590df576",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "AC-2 is claimed as met",
+   "sha256": "696d038222b44f8517ba4cfccbfde49993742e71005492d0e48bd9c7cd5320d6",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q11": {
+   "expectation": "NFR-1 is claimed as not verified",
+   "sha256": "5e3583910a096e307864253c5f8fdc309afbffe40b3e8762a4e4359bfb6225aa",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q12": {
+   "expectation": "AC-1 and AC-2 are tied to their unit tests, and NFR-1's performance test is said not to have run",
+   "sha256": "64ec9d14ff8a0514f6d5f37af4631ac7e3272bee1f6f5959145ca955bd192cce",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q13": {
+   "expectation": "The claims say the platform team's staging load test before release will prove NFR-1",
+   "sha256": "2109abe27333e46f8da897c0838d8c1aecc9978c72fd47f8e1aee572221202a4",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q14": {
+   "expectation": "Each requirement has its own entry, with what was done, the evidence and its test types",
+   "sha256": "d952938615017accfc1071a9da54f996351f619f5da4739115c953b5f2ebc707",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q15": {
+   "expectation": "The claims quote the result of the run of the tests: the limiter package ok",
+   "sha256": "9c8dd66f8cee9ef2762d121066b6edd089f336087ebc4fd2a424b5374e3acc97",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q16": {
+   "expectation": "Files changed lists limiter/limiter.go and limiter/limiter_test.go",
+   "sha256": "0518b76084634762b069b4529a6aaa6ffc34d1f05b4ff01ac30da39ce19c4162",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q17": {
+   "expectation": "The final answer lists the open proof items for the pull request",
+   "sha256": "ee70e80950f8d95232b8d2c2b98b8300de8692c7fe50e44d0d580472ac9ef60e",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q18": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "no",
+   "by": "judge-e"
+  }
+ }
+}
