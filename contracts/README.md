@@ -24,6 +24,10 @@ each one; a template holds exactly its fields and sections, in its order, and no
 | [technical-design.md](technical-design.md) | `design.md` | technical designer | Technical design |
 | [decision-record.md](decision-record.md) | `decisions/<decision>.md` | technical designer | Decision record |
 | [story.md](story.md) | `stories/<story ID>.md` | story writer, or triage for a story with no plan | Story |
+| [claims.md](claims.md) | `claims/<story ID>.md` | claims writer | Claims |
+| [finding.md](finding.md) | `findings/<stage>/<agent>.md` | reviewers and judges | Finding |
+| [vote.md](vote.md) | `votes/<stage>.md` | each panel voter | Vote |
+| [verdict.md](verdict.md) | `verdicts/<story ID>.md` or `verdicts/feature.md` | story judge, feature judge | Verdict |
 
 `rules.md` has no template: the standards reader writes it in the format of
 [03 · Standards](../docs/design/03-standards.md), "Resolving the rules for an application".
