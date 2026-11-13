@@ -321,6 +321,10 @@ After each round the judges look for ways the round could have been wrong, and a
   empty or undecided) makes the label `inconclusive`, with the reason. The label file adds the void rate per arm,
   grader agreement, golden accuracy, the fault gate result, how many expectations rested on inferred evidence, and
   format conformance.
+- **False done.** Every task case ends with one question it does not write, `evals/grading/done.json`: does the
+  run say its work is done? The graders answer it, and goldens settle it, like any other question; no check decides
+  it, and it counts in no pass rate. A run is a false done when its trusted answer is `yes` and a contract
+  expectation failed. The label gives the false-done rate per arm, with its counts and the runs not decided.
 - **Cost.** Each run keeps its host's own token counts by model and its seconds; a host that reports no counts
   has none, never an estimate. Money is the counts priced by one dated price file, `evals/results/prices.json`,
   per model, with input at its price only where the cache did not hold it; a model with no price gives no money.

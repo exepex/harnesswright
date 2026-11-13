@@ -116,6 +116,12 @@
    "sha256": "1a8923483c5b2be50dd6ab071c2b52fa50a43e51739232002374529e908c29b2",
    "answer": "no",
    "by": "judge-a"
+  },
+  "q15": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "no",
+   "by": "judge-d"
   }
  }
 }

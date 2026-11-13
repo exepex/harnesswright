@@ -24,7 +24,8 @@ LOG = [{"kind": "write", "source": "observed", "path": "notes.txt", "sha256": No
 DRIFT = {"own files": {"task": [], "trigger": []}}
 
 
-def settled(answers=("yes", "no"), expectations=EXPECT):
+def settled(answers=("yes", "no", "yes"), expectations=(*EXPECT, cases.done())):
+    """Settled answers for each expectation, the done question every task case ends with last."""
     return {f"q{n}": {"expectation": item["text"], "sha256": goldens.fingerprint(item), "answer": answer,
                       "by": "judge-a"} for n, (item, answer) in enumerate(zip(expectations, answers), start=1)}
 
@@ -85,10 +86,11 @@ class Goldens(TempCase):
 
     def test_a_trigger_golden_changes_nothing_as_a_trigger_run_cannot(self):
         trigger = types.SimpleNamespace(kind="trigger", expectations=EXPECT, skill="haiku-writer", id="t")
-        self.write("g.json", GOLDEN)
+        no_done = {**GOLDEN, "settled": settled(expectations=EXPECT)}  # a trigger case has no done question
+        self.write("g.json", no_done)
         with self.assertRaisesRegex(goldens.GoldenError, "read-only"):
             goldens.load(trigger, self.folder)
-        self.write("g.json", {**GOLDEN, "changes": {}})
+        self.write("g.json", {**no_done, "changes": {}})
         self.assertEqual([g.name for g in goldens.load(trigger, self.folder)], ["g"])
 
     def test_a_case_without_goldens_has_none(self):
@@ -101,8 +103,8 @@ class Goldens(TempCase):
                 ("path.json", {**GOLDEN, "changes": {"../out.txt": "x"}}, "inside the world"),
                 ("log.json", {**GOLDEN, "log": [{"kind": "message", "text": "x"}]}, "action log"),
                 ("missing.json", {**GOLDEN, "settled": {"q1": GOLDEN["settled"]["q1"]}}, "one answer for each"),
-                ("changed.json", {**GOLDEN, "settled": settled(expectations=changed)}, "as it is now"),
-                ("maybe.json", {**GOLDEN, "settled": settled(("yes", "maybe"))}, "yes or no"),
+                ("changed.json", {**GOLDEN, "settled": settled(expectations=(*changed, cases.done()))}, "as it is now"),
+                ("maybe.json", {**GOLDEN, "settled": settled(("yes", "maybe", "yes"))}, "yes or no"),
                 ("by.json", {**GOLDEN, "settled": {**GOLDEN["settled"], "q1": {**GOLDEN["settled"]["q1"], "by": ""}}},
                  "by names the judge"),
                 ("surrogate.json", json.dumps({**GOLDEN, "changes": {"a.txt": "\ud800"}}), "not UTF-8 JSON"),
@@ -134,11 +136,12 @@ class Gate(TempCase):
     def setUp(self):
         super().setUp()
         self.subject = self.case({"README.md": "A notes app.\n"}, {"expectations": EXPECT})
-        self.goldens = [goldens.Golden("a", GOLDEN), goldens.Golden("b", {**GOLDEN, "settled": settled(("no", "yes"))})]
+        self.goldens = [goldens.Golden("a", GOLDEN), goldens.Golden("b", {**GOLDEN, "settled": settled(("no", "yes", "no"))})]
 
     def test_a_question_is_trusted_when_every_golden_asked_it_got_its_settled_answer_both_ways(self):
-        graded = {"a": (["q1", "q2"], {"q1": "yes", "q2": "no"}), "b": (["q1", "q2"], {"q1": "no", "q2": "yes"})}
-        self.assertEqual(goldens.gate(self.subject, self.goldens, graded), {"q1": None, "q2": None})
+        graded = {"a": (["q1", "q2", "q3"], {"q1": "yes", "q2": "no", "q3": "yes"}),
+                  "b": (["q1", "q2", "q3"], {"q1": "no", "q2": "yes", "q3": "no"})}
+        self.assertEqual(goldens.gate(self.subject, self.goldens, graded), {"q1": None, "q2": None, "q3": None})
 
     def test_one_miss_or_one_unanswered_golden_is_enough(self):
         graded = {"a": (["q1", "q2"], {"q1": "yes", "q2": "yes"}), "b": (["q1", "q2"], {"q2": "yes"})}
@@ -151,9 +154,9 @@ class Gate(TempCase):
         found = goldens.gate(self.subject, self.goldens, graded)
         self.assertIn("settled yes and one with a settled no", found["q1"])
         self.assertIn("settled yes and one with a settled no", found["q2"])
-        self.assertEqual(goldens.gate(self.subject, [], {}), {"q1": found["q1"], "q2": found["q1"]})
+        self.assertEqual(goldens.gate(self.subject, [], {}), dict.fromkeys(("q1", "q2", "q3"), found["q1"]))
         self.assertEqual((goldens.uncovered(self.subject, self.goldens), goldens.uncovered(self.subject, [])),
-                         ([], ["q1", "q2"]))
+                         ([], ["q1", "q2", "q3"]))
 
     def test_a_golden_that_was_not_graded_cannot_drop_out(self):
         for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"})}, {"a": ([], {}), "b": ([], {}), "c": ([], {})}):
