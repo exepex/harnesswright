@@ -1,0 +1,164 @@
+{
+ "changes": {
+  ".harness/runs/2026-11-13-bulk-discount/claims/S01.md": "# Claims · S01\n\n## Request\n\n> ---\n> id: S01\n> plan: none\n> depends-on: []\n> covers: [AC-1, AC-2, AC-3]\n> tests: {AC-1: [unit], AC-2: [unit], AC-3: [unit]}\n> targets: {}\n> waivers: []\n> ---\n>\n> ## What\n>\n> Give large orders a bulk discount and reject impossible quantities when pricing an order.\n>\n> ## Request\n>\n> > Orders of 100.00 or more should get 10% off. A negative quantity is a bug upstream, so pricing must refuse it.\n> > Totals are money, so round them to cents.\n>\n> ## Acceptance criteria\n>\n> ### AC-1\n>\n> - **Criterion:** An order whose subtotal is 100.00 or more is discounted by 10%; below 100.00 there is no discount.\n> - **Test types:** [unit]\n>\n> ### AC-2\n>\n> - **Criterion:** Pricing a line with a negative quantity raises ValueError.\n> - **Test types:** [unit]\n>\n> ### AC-3\n>\n> - **Criterion:** The total is rounded to two decimal places.\n> - **Test types:** [unit]\n>\n> ## Out of scope\n>\n> - Discount codes and per-customer discounts.\n\n## Requirements\n\n### AC-1\n\n- **Status:** not verified\n- **Done:** `order_total` takes `BULK_RATE` off a subtotal of `BULK_THRESHOLD` or more, `src/discount.py:17-18`.\n- **Evidence:** the tests could not run: `python3 tests/test_discount.py` → `ModuleNotFoundError: No module named 'src'`, exit code 1.\n- **Test types:**\n  - unit: `test_subtotal_of_exactly_100_gets_ten_percent_off`, `tests/test_discount.py:7`; `test_subtotal_below_100_gets_no_discount`, `tests/test_discount.py:10`\n\n### AC-2\n\n- **Status:** not verified\n- **Done:** `line_total` raises `ValueError` for a negative quantity, `src/discount.py:9-10`.\n- **Evidence:** not run, as for AC-1.\n- **Test types:**\n  - unit: `test_negative_quantity_is_rejected`, `tests/test_discount.py:16`\n\n### AC-3\n\n- **Status:** not verified\n- **Done:** `order_total` returns `round(subtotal, 2)`, `src/discount.py:19`.\n- **Evidence:** not run, as for AC-1.\n- **Test types:**\n  - unit: `test_total_is_rounded_to_cents`, `tests/test_discount.py:13`\n\n## Open proof items\n\n### OP-1\n\n- **Unproven:** AC-1, AC-2 and AC-3, unit: none of the unit tests ran here.\n- **Proof:** the CI run of the pull request, where the package is installed.\n- **Owner:** the implementer of S01.\n\n## Standards\n\nNone resolved for this repository.\n\n## Out of scope\n\n- Discount codes and per-customer discounts: the story lists them as out of scope.\n\n## Files changed\n\n- `src/discount.py` (19 lines)\n- `tests/test_discount.py` (22 lines)\n\n## Not verified\n\n- AC-1, AC-2, AC-3: the test module cannot import `src` here, and pytest is not installed. The suite probably needs the project installed as a package first; CI will show it (OP-1).\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-bulk-discount/stories/S01.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "src/discount.py"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "tests/test_discount.py"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 tests/test_discount.py",
+   "exit_code": 1,
+   "output": "Traceback (most recent call last):\n  File \"/work/tests/test_discount.py\", line 3, in <module>\n    from src.discount import line_total, order_total\nModuleNotFoundError: No module named 'src'\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m pytest -q tests",
+   "exit_code": 1,
+   "output": "/usr/bin/python3: No module named pytest\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l src/discount.py tests/test_discount.py",
+   "exit_code": 0,
+   "output": "  19 src/discount.py\n  22 tests/test_discount.py\n  41 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-bulk-discount/claims/S01.md",
+   "sha256": "ada0f5ec1ac41560f16d9c9ccffd59fdc0ebf2d3db3d93975a6e5e0308814f05"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Claims written to .harness/runs/2026-11-13-bulk-discount/claims/S01.md, but S01 is not done: the tests could not run here (No module named 'src', and no pytest), so AC-1, AC-2 and AC-3 are all not verified. OP-1 asks for the CI run of the pull request."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S01.md in the story's run folder",
+   "sha256": "e47b3edaa551af6573199e6b9bafa7b93e0f57ca949921af3d4d3f466721bff5",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "d7183294668d0edf698d9d8ea2ea807a2d8b20998539e6a6f973496478cfd10e",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "The claims file has the seven claims headings in their order",
+   "sha256": "f897f60226f66709dbb4561f2e9ad642b449ed05f1554689489223bf37676786",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "The Request section quotes the story line by line",
+   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "The claims carry the story's own words, not a rewording",
+   "sha256": "9f12072bfa004b65e5815e15cb776f73a137f60792bae349a6d0ecbff27ea748",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "The claims state results without hedging words",
+   "sha256": "3990023ad36dc24b7fd02559b1b8fbc3b490d9b4a1ac8695ad3a5e90f8209405",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "Every file listed under Files changed has its true line count",
+   "sha256": "2d6c7dd97783edef25f6985590097d6a681f66829dc600763f9da68ff9a67ba9",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "Every file and line the claims cite exists",
+   "sha256": "2e6d58ed490a04d070ef4317b648c642110cfb71a1042ec10052923a740a42df",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "fa836ff0658b3e0b5160c0879acbd1ea55164f8b48140e07d78c488c1bceb7e1",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "AC-1 is claimed as met",
+   "sha256": "8efd45ca22ea34a99f78ce2977387abf9aff2910f58571d40578f615c25c9641",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q11": {
+   "expectation": "AC-2 is claimed as met",
+   "sha256": "472bf53affbaef7a838a0d233922192b317fa9c2a39b7d760abda3655796512f",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q12": {
+   "expectation": "AC-3 is claimed as met",
+   "sha256": "efd378615a222f675cbdbed7e3ef6eeb2134e3a2db6d5fb7adb2fd137dfec020",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q13": {
+   "expectation": "Each criterion is tied to the unit test that proves it",
+   "sha256": "e69f0e1060b25b0e29810f7e95c29915b1563b5dbf37900821293db5374043d9",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q14": {
+   "expectation": "Each requirement has its own entry, with what was done, the evidence and its test types",
+   "sha256": "8620fb9301010406d93effade26ca8d894dba6179c103d892eeec953dddfdcc8",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q15": {
+   "expectation": "Open proof items says None.",
+   "sha256": "4e699246a519b6110e16afd07ad8fa89ba1dc6881af4b2b16bc04873d565ceb3",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q16": {
+   "expectation": "The claims quote the result of the run of the tests: four tests, all passing",
+   "sha256": "0c8445164fe76ddbaac0afafacfbbac75b524af25e11d1ba71f328a17ac22c9c",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q17": {
+   "expectation": "Files changed lists src/discount.py and tests/test_discount.py",
+   "sha256": "7e73e9ff783e50217bd110765732b5ebeb837b04c0ca3d772038a5ec7430e64b",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q18": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "no",
+   "by": "judge-e"
+  }
+ }
+}

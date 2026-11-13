@@ -126,9 +126,12 @@ def skill(repo, name):
     """{"sha256", "source", "upstream"} of the skill `name`: the hash of its tracked files, the upstream source its
     metadata names, and the hash of the copy of that source stored under `evals/skills/NAME/upstream/`, or None
     when there is none."""
-    _, meta = skills.skill_files(Path(repo) / "skills" / name, name)
+    known = skills.folders(repo)
+    if name not in known:
+        raise RoundError(f"no skill named {name!r} in the repository")
+    _, meta = skills.skill_files(known[name], name)
     upstream = Path(repo) / "evals" / "skills" / name / "upstream"
-    return {"sha256": tracked_digest(Path(repo) / "skills" / name),
+    return {"sha256": tracked_digest(known[name]),
             "source": (meta.get("metadata") or {}).get("source"),
             "upstream": tracked_digest(upstream) if upstream.is_dir() and not upstream.is_symlink() else None}
 
