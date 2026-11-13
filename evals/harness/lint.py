@@ -37,7 +37,7 @@ import checks
 import manifest
 import world
 from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
-from skills import skill_files, skill_names, tracked, tracked_file
+from skills import folders, library, skill_files, tracked, tracked_file
 
 RUN = 8
 EXPECTATION_RUN = 6
@@ -220,7 +220,7 @@ def verified_copies(case, repo=REPO):
     if not case.copies:
         return verified, problems
     known = set(tracked(repo))
-    skills = skill_names(Path(repo) / "skills") if (Path(repo) / "skills").is_dir() else []
+    skills = list(folders(repo))
     for copy in case.copies:
         try:
             source = tracked_file(repo, copy["source"]) if copy["source"] in known else None
@@ -371,7 +371,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
 def lint_case(case, adapter, out, skills_root, skill_dir=None, upstream=(), kit=(), repo=REPO, cases=()):
     """Lint `case` as it will run: build both arms in the empty folder `out` with `skill_dir`, the skill folder the
     run uses, prove them, and lint the without-skill arm. Raise CaseError when the case cannot run."""
-    skill_dir = Path(skill_dir) if skill_dir else Path(skills_root) / case.skill
+    skill_dir = Path(skill_dir) if skill_dir else library(skills_root).get(case.skill)
     base = world.build(case, adapter, Path(out) / "without", skills_root)
     with_arm = world.build(case, adapter, Path(out) / "with", skills_root, True, skill_dir)
     world.prove(case, adapter, base, with_arm, skills_root, skill_dir)
@@ -382,7 +382,7 @@ def lint_skill(skill, adapter, cases_root=None, skills_root=None, repo=REPO, ski
     """Lint every case of a skill for the host of `adapter`, as `lint_case` does. `skill_dir` is the skill folder
     the run will use, such as a candidate version. Each case is read and built on its own, so a case that cannot be
     is listed and the others are still linted. Returns the problems; none means every case may run."""
-    skills_root = Path(skills_root) if skills_root else Path(repo) / "skills"
+    skills_root = skills_root if skills_root else folders(repo)
     cases_root = Path(cases_root) if cases_root else Path(repo) / "evals" / "skills" / skill / "cases"
     if not cases_root.is_dir():
         return [f"{skill}: no cases folder at {cases_root}"]

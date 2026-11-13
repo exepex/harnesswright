@@ -58,6 +58,7 @@ import probes
 import rounds
 import runs
 import scrub
+import skills
 from cases import REPO, Case, CaseError
 from runs import ARMS
 
@@ -84,6 +85,7 @@ class Round:
         self.attempt = None  # the name of the attempt (`run`)
         self.tokens, self.secrets = set(), set()  # of every containment the gates made (`keep`)
         self.modules = {name: rounds.adapter(name, adapters) for name in sorted(record["hosts"])}
+        self.skills = skills.folders(self.repo)  # {name: folder}: where every gate reads each skill
         root = self.repo / "evals" / "skills"
         self.cases = {(skill, i): Case(root / skill / "cases" / i, skill)
                       for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])}
@@ -128,7 +130,7 @@ def lint_gate(r):
         for (skill, case_id), case in r.cases.items():
             with tempfile.TemporaryDirectory(prefix="hw-lint-") as out:
                 try:
-                    found = lint.lint_case(case, module, out, r.repo / "skills", None, upstream[skill], measuring,
+                    found = lint.lint_case(case, module, out, r.skills, None, upstream[skill], measuring,
                                            r.repo, data)
                 except CaseError as error:
                     found = [str(error)]
@@ -171,7 +173,7 @@ def faults_gate(r):
         # Plants and runs under a short temporary folder, as every jail's socket path must stay short; each fault's
         # bundles are copied to the store for the judges.
         with tempfile.TemporaryDirectory(prefix="hw-f-") as scratch:
-            setup = faults.Setup(r.modules[host], case, r.repo / "skills", scratch, passed["drift"],
+            setup = faults.Setup(r.modules[host], case, r.skills, scratch, passed["drift"],
                                  model=r.model(host), host_version=r.version(host)["version"], timeout=r.timeout,
                                  repo=r.repo, **r.containment)
             found[host] = []

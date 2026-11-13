@@ -29,7 +29,8 @@ case.json fields:
 - `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
 - `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
   "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is never under
-  `skills/` or `evals/`: a skill's text or the measuring kit is not project text.
+  `skills/`, `release/`, `v2/`, `borrowed/` or `evals/`: a skill's text, written or generated, its sources and the
+  measuring kit are not project text.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -64,7 +65,8 @@ NOT_PARTS = (".", "..", ".git")
 COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
 CHECK_NAME = re.compile(r"[a-z][a-z0-9_]*")
 ROW_FIELDS = ("name", "path", "description")
-NOT_PROJECT_TEXT = ("skills", "evals")
+# The folders that hold a skill's text, its sources or the measuring kit: never project text.
+NOT_PROJECT_TEXT = ("skills", "release", "v2", "borrowed", "evals")
 
 
 class CaseError(ValueError):
@@ -180,8 +182,8 @@ SCHEMA = {
                 "a list of {message, paths}: non-empty text and a list of paths in the world"),
     "copies": (list_of(record(world=is_path, source=is_source, source_sha256=lambda v: isinstance(v, str)
                               and SHA256.fullmatch(v) is not None)),
-               "a list of {world, source, source_sha256}: two paths, the source outside skills/ and evals/, "
-               "and its 64-character lower-case hex sha256"),
+               "a list of {world, source, source_sha256}: two paths, the source outside skills/, release/, v2/, "
+               "borrowed/ and evals/, and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
 }
 REQUIRED = {"task": ("prompt", "kind"), "trigger": ("prompt", "kind", "should_trigger", "split", "index")}

@@ -157,5 +157,49 @@ class Structure(TempCase):
         self.assertFalse((copy / "sub" / "back").resolve().is_relative_to(copy.resolve()))
 
 
+class Release(TempCase):
+    """A skill the release build generates is read like any other, and the release wins over a same-named skill."""
+
+    def test_the_release_build_frontmatter_is_read(self):
+        folder = cases.REPO / "v2" / "build" / "tests" / "golden" / "expected" / "golden-skill"
+        _, meta = skills.skill_files(folder, "golden-skill")
+        self.assertEqual(meta["metadata"]["rulebook-version"], "0.3.1")
+        self.assertTrue(meta["metadata"]["copied-ids"].startswith("CORE-WORK-01, "))
+
+    def test_only_a_plain_inside_may_be_quoted_and_only_in_metadata(self):
+        read = skills.frontmatter('---\nname: a\nmetadata:\n  ids: "A-1, B-2"\n  size: "12"\n---\n')
+        self.assertEqual(read["metadata"], {"ids": "A-1, B-2", "size": "12"})
+        for text in ('---\nmetadata:\n  a: "x\\\\y"\n---\n', '---\nmetadata:\n  a: "x"y"\n---\n',
+                     '---\nmetadata:\n  a: "x\n---\n', '---\ndescription: "x"\n---\n'):
+            with self.subTest(text=text), self.assertRaisesRegex(cases.CaseError, "not plain"):
+                skills.frontmatter(text)
+
+    def write(self, rel, text):
+        (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+        (self.tmp / rel).write_text(text)
+
+    def test_folders_lists_skills_and_the_release_wins(self):
+        for name in ("old", "kept"):
+            self.write(f"skills/{name}/SKILL.md", f"---\nname: {name}\n---\n")
+        self.track(self.tmp)
+        self.assertEqual(skills.folders(self.tmp), {"kept": self.tmp / "skills" / "kept",
+                                                    "old": self.tmp / "skills" / "old"})
+        self.write("release/manifest.json", '{"rulebook-version": "0.1.0", "skills": {"old": {}, "new": {}}}')
+        self.track(self.tmp)
+        self.assertEqual(skills.folders(self.tmp), {"kept": self.tmp / "skills" / "kept",
+                                                    "new": self.tmp / "release" / "new",
+                                                    "old": self.tmp / "release" / "old"})
+        self.assertEqual(skills.library(self.tmp / "skills"), {"kept": self.tmp / "skills" / "kept",
+                                                               "old": self.tmp / "skills" / "old"})
+
+    def test_a_manifest_without_a_list_of_names_is_refused(self):
+        for text in ("[]", '{"skills": {"../x": {}}}', "{"):
+            with self.subTest(text=text):
+                self.write("release/manifest.json", text)
+                self.track(self.tmp)
+                with self.assertRaisesRegex(cases.CaseError, "release/manifest.json"):
+                    skills.folders(self.tmp)
+
+
 if __name__ == "__main__":
     unittest.main()

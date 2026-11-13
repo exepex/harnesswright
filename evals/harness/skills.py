@@ -12,6 +12,7 @@ Two rules, each a list of what is allowed:
   decides anything. Which skills exist is read from the same list: a folder whose `SKILL.md` git tracks.
 """
 
+import json
 import os
 import re
 import subprocess
@@ -32,6 +33,9 @@ WORD = r"[^\s:#][^\s:]*(?::[^\s:]+)*"
 PLAIN = re.compile(rf"[\w(][^\s:]*(?::[^\s:]+)*(?: {WORD})*")
 # The plain spellings that YAML reads as null, a boolean, a number or a date, from the YAML 1.1 and 1.2 schemas.
 # A value or metadata key spelled like one of these is not text, so it is refused.
+# A metadata value in double quotes, as the release build writes generated values: the inside holds no quote, no
+# backslash and no control character, so YAML reads it as exactly the inside.
+QUOTED = re.compile(r'"([^"\\]*)"')
 TYPED = re.compile(r"(?i:null|~|true|false|yes|no|on|off|y|n)|[-+]?(?:\.inf|\.Inf|\.INF)|\.nan|\.NaN|\.NAN"
                    r"|[-+]?(?:[0-9][0-9_]*(?::[0-5]?[0-9])*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?"
                    r"|0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:[Tt ].*)?")
@@ -90,6 +94,34 @@ def tracked_file(folder, rel):
     return (Path(folder) / rel).read_bytes()
 
 
+def folders(repo):
+    """Every skill of the repository at `repo`, as {name: folder}, sorted: each `release/<name>/` that the release
+    manifest lists, and each other folder of `skills/` whose `SKILL.md` git tracks. A release skill wins over one of
+    the same name in `skills/`: it is the candidate a round measures. Every reader of a skill takes its folder, and
+    the list of skills, from here. A skill's text, generated or not, is never project text."""
+    repo = Path(repo)
+    found = {name: repo / "skills" / name for name in skill_names(repo / "skills")} \
+        if (repo / "skills").is_dir() else {}
+    if (repo / "release" / "manifest.json").is_file():
+        try:
+            listed = json.loads(tracked_file(repo / "release", "manifest.json"))["skills"]
+        except (ValueError, KeyError, TypeError) as error:
+            raise CaseError(f"release/manifest.json: no skills list to read: {error}") from None
+        for name in listed:
+            if not is_name(name):
+                raise CaseError(f"release/manifest.json: {name!r} is not a skill name")
+            found[name] = repo / "release" / name
+    return dict(sorted(found.items()))
+
+
+def library(skills):
+    """`skills` as {name: folder}: a mapping as given, or the skills of a folder that holds skills, each a folder
+    whose `SKILL.md` git tracks (`skill_names`)."""
+    if isinstance(skills, dict):
+        return skills
+    return {name: Path(skills) / name for name in skill_names(skills)}
+
+
 def skill_names(skills_root):
     """The skills under `skills_root`: each folder whose `SKILL.md` git tracks."""
     return sorted({rel.split("/")[0] for rel in tracked(skills_root) if rel.count("/") == 1
@@ -101,8 +133,9 @@ def frontmatter(text):
 
     The subset: a first line `---`, then fields at the left margin, then a line that is exactly `---`. Each field
     appears once. `name`, `description`, `license` and `compatibility` hold one plain value on the same line.
-    `metadata` holds one or more lines of `  key: value`, each value plain. Blank lines may sit between fields. There are no
-    quoted values, block scalars or comments: YAML reads every value in the subset as exactly the text written.
+    `metadata` holds one or more lines of `  key: value`, each value plain or in double quotes (`QUOTED`, as the
+    release build writes). Blank lines may sit between fields. There are no other quoted values, block scalars or
+    comments: YAML reads every value in the subset as exactly the text written, a quoted one without its quotes.
     """
     # Lines end only at \n (a \r before it is dropped). Any other control or line-break character, a tab included,
     # is refused, so nothing can end a value or the block early.
@@ -128,7 +161,8 @@ def frontmatter(text):
                 raise CaseError(f"frontmatter line {number}: an indented line that is not `  key: value` in metadata")
             if found.group(1) in mapping:
                 raise CaseError(f"frontmatter line {number}: metadata key {found.group(1)!r} appears twice")
-            mapping[found.group(1)] = _plain(found.group(2), number)
+            quoted = QUOTED.fullmatch(found.group(2))
+            mapping[found.group(1)] = quoted.group(1) if quoted else _plain(found.group(2), number)
             continue
         found = KEY.fullmatch(line)
         if not found or found.group(1) not in SCALARS + MAPPINGS:
