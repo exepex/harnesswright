@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -B evals/harness/kit.py approve:*)",
+      "Bash(PYTHONDONTWRITEBYTECODE=1 python3 -B evals/harness/kit.py approve:*)"
+    ]
+  }
+}
