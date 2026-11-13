@@ -1,11 +1,44 @@
+# The release check (reviews/release-design/final-design.md section 5; build order B0.2). On every pull request and
+# every push to main it runs the build tests, then check_rules.py and check_release.py: release/ must equal a rebuild
+# of its sources, and every rule, template and copied block must pass. "release-check" is the one required check.
 name: release-check
+
 on:
   pull_request:
+  push:
+    branches: [main]
+
 permissions:
   contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release-check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - run: python3 --version
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+      - name: Build tests
+        run: python3 -B -m unittest discover -s v2/build/tests
+      - name: Files this change touches, and the base manifest
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt"
+          git show "$BASE:release/manifest.json" > "$RUNNER_TEMP/base.json"
+      - name: Check rules, roles and templates
+        run: python3 -B v2/build/check_rules.py --changed "$RUNNER_TEMP/changed.txt"
+      - name: Check the release and summarise each skill
+        run: |
+          set -o pipefail
+          echo '### Release summary per skill' >> "$GITHUB_STEP_SUMMARY"
+          python3 -B v2/build/check_release.py --base "$RUNNER_TEMP/base.json" | tee -a "$GITHUB_STEP_SUMMARY"
