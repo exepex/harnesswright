@@ -9,7 +9,8 @@ each one; a template holds exactly its fields and sections, in its order, and no
 - Keep every field and heading, except the sections and lines marked `only when` or `optional` that you leave out.
   Replace each part in angle brackets.
 - A comment gives the allowed values, the form a value takes, the order of entries, or when a part applies
-  (`only when`): after `#` in the frontmatter, inside `<!-- -->` in the body. Delete the body comments as you fill the file.
+  (`only when`): after `#` in the frontmatter, inside `<!-- -->` in the body. Delete the body comments as you
+  fill the file.
 - Repeat an entry, such as `### AC-1`, once per item, under the item's own ID. A story with a plan keeps the plan's
   IDs.
 - Leave out a section or line marked `only when` when its condition does not hold, and an `optional` one the team
