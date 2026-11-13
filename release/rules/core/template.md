@@ -84,23 +84,25 @@ with the older rule it carries over.
 - **Status:** active
 - **Review by:** 2027-11-03
 - **Applies to:** skill designer, skill judge
-- **Rule:** The first step of every template reads the run's rules text for each stack whose code the work touches,
-  `rules-text-<skill>.<stack>.md` beside `rules.md`, and tells the agent to apply every rule in it and in the skill's
-  copied rules. Where a rules text marks a copied rule as replaced or waived, or binds a decision point, the rules
-  text wins. If a file is missing, the step runs the standards reader's command to make it; if that cannot run, it
-  writes `rules.md` and the rules text by reading and marks both `not verified`. The claims or verdict quote each
-  file's read-back block.
+- **Rule:** The first step of every template reads the run's rules texts, `rules-text-<skill>.<stack>.md` beside
+  `rules.md`: one for each stack whose code the work touches, or every stack's when the work touches no code. It
+  tells the agent to apply every rule in them and in the skill's copied rules. Where a rules text marks a copied
+  rule as replaced or waived, or binds a decision point, the rules text wins. If a file is missing, the step runs
+  the standards reader's command to make it; if that cannot run, it writes `rules.md` and the rules texts by reading
+  and marks them `not verified`. The claims or verdict quote each file's read-back block, which names its stack.
 - **Why:** Rules of the language, company, department, team and application layers, overrides and decision point
-  bindings reach the agent only through this file. A skill that never reads it applies only the core rules.
-- **Check:** Is the first step of the template the read of the rules text, with the missing-file path, and does it
-  say the rules text wins over a copied rule? Does the output step quote the read-back block?
+  bindings reach the agent only through these files. A skill that never reads them applies only the core rules.
+- **Check:** Is the first step of the template the read of the rules texts, with which stacks to read and the
+  missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each read-back
+  block?
 - **Good:** "1. Read `rules-text-claims-writer.<stack>.md` beside `rules.md` for each stack whose code the story
-  touches, making it with the standards reader's command if it is missing. Apply every rule in it and in Rules
-  above; where it replaces, waives or binds a rule above, it wins." and a last step: "Quote the read-back block of
-  each rules text in the claims."
-- **Bad:** A template whose first step is "Read the story", with no read of the rules text, or one that reads the
-  rules text but never says it wins over a copied rule it replaces or waives.
-- **Eval:** a template with no rules-text step, and one whose rules-text step does not say the rules text wins, which
-  the skill judge must flag.
+  touches (every stack's when it touches no code), making it with the standards reader's command if it is missing.
+  Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
+  step: "Quote the read-back block of each rules text in the claims."
+- **Bad:** A template whose first step is "Read the story", with no read of the rules texts, one that reads a single
+  rules text whatever the work touches, or one that never says a rules text wins over a copied rule it replaces or
+  waives.
+- **Eval:** a template with no rules-text step, one that reads a single rules text whatever the work touches, and
+  one whose rules-text step does not say the rules text wins, which the skill judge must flag.
 - **Source:**
   - own (CORE-SKILL-06)

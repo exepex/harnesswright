@@ -182,10 +182,10 @@ their story ([06 · Contracts](06-contracts.md)).
 
 ## Rules text limit
 
-The rules text a skill reads at the start of each run has a ceiling of 30,000 characters
-([05 · Process](05-process.md)). An application may raise its own ceiling with `rules-text-limit`, up to 60,000
-characters, with its own eval token counts as evidence and the application owner's approval. Above 60,000, the work
-is split into smaller skills.
+Each rules text, one per skill and stack, has a ceiling of 30,000 characters ([05 · Process](05-process.md)). A run that
+touches several stacks reads one rules text per stack, each within the ceiling. An application may raise its own ceiling
+with `rules-text-limit`, up to 60,000 characters, with its own eval token counts as evidence and the application owner's
+approval. Above 60,000, the work is split into smaller skills.
 
 ## Onboarding
 

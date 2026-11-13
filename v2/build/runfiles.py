@@ -7,10 +7,11 @@ written, and the rules texts parked over the ceiling.
 
 A rules text holds, for one skill and one stack (owner, 2026-11-13: one file per language), the rules from layers
 2 to 6 that reach the skill's run and the CORE rules that reach it but the skill did not copy, in full; one line for
-each change to a rule that reaches (what replaced it, what tightened it, its waiver); one line per decision point that reaches, with its option and where that came from; and a
-read-back block. What reaches is reach.reach over every active rule of the stack, with the skill's copied IDs as
-cited, so a rule that changes a copied CORE rule reaches too (reviews/release-design/size-final.md section 1). A rule
-that lost to a more specific input appears only as its "replaced by" line, never in full.
+each change to a rule that reaches (what replaced it, what tightened it, its waiver); one line per decision point
+that reaches, with its option and where that came from; and a read-back block that names its stack. What reaches is
+reach.reach over every active rule of the stack, with the skill's copied IDs as cited, so a rule that changes a
+copied CORE rule reaches too (reviews/release-design/size-final.md section 1). A rule that lost to a more specific
+input appears only as its "replaced by" line, never in full.
 """
 
 import hashlib
@@ -151,7 +152,7 @@ def stack_text(name, inputs, rules, done):
     lines = [f"## Stack: {done.stack}", "", MARKS, ""] + (marks or ["None."]) + ["", POINTS, ""] + (points or ["None."])
     for title, group in ((copyform.FLOORS, floors), (copyform.OTHERS, others)):
         lines += ["", title, ""] + ("\n\n".join(text for _, _, text in group) or "None.").split("\n")
-    text = "\n".join(lines) + "\n\n" + copyform.read_back([rule for rule, _, _ in floors + others])
+    text = "\n".join(lines) + "\n\n" + copyform.read_back([rule for rule, _, _ in floors + others], done.stack)
     return text, full
 
 

@@ -60,8 +60,8 @@ pipeline: feature-t2
 in [03 · Standards](03-standards.md), "Resolving the rules for an application". It holds rule IDs and fingerprints,
 never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill
 and stack, `rules-text-<skill>.<stack>.md`, and records the hash of each in `rules.md`. A rules text ends with a
-read-back block: the rule count, and the ID and title of its last rule. Claims and verdicts record the hash of
-`rules.md` and quote each read-back block, as the claims contract says.
+read-back block: its stack, the rule count, and the ID and title of its last rule. Claims and verdicts record the
+hash of `rules.md` and quote each read-back block, as the claims contract says.
 
 ## Functional plan
 
@@ -180,7 +180,8 @@ proof item after merge.
 
 - the hash of `rules.md`;
 - each skill run, in the order it ran, with its version, the hash of its release `SKILL.md` and the read-back block
-  of its rules text, quoted exactly, marked `not verified` where the rules text was written by reading;
+  of each rules text it read, quoted exactly, in the stack order of `rules.md`, marked `not verified` where the rules
+  text was written by reading;
 - the ID and title of each change applied (an override, binding or tightening in a rules text), quoted exactly;
 - the rules applied, by ID, and each waiver used.
 
@@ -231,7 +232,7 @@ blockers: []                # confirmed blockers; any entry forces fail
 ```
 
 Body: **Claims**: each claim, checked or refuted with evidence · **Approvals** (see Approvals) · **Standards**:
-each skill the judge ran, in order, with its version, hash and read-back block, and each change applied, as in the
+each skill the judge ran, in order, with its version, hash and read-back blocks, and each change applied, as in the
 claims · **To pass**: what must change for a pass. The story judge fails a requirement whose required test type has
 no test, unless that test is an approved open proof item.
 
