@@ -87,12 +87,32 @@ class Panel(unittest.TestCase):
                                                                            [], 1))
         self.assertEqual([g.answers for g in found.graded][2], {"q2": "no", "q3": "yes"})  # the tie-breaker is last
 
-    def test_an_ungraded_grader_leaves_the_run_ungraded_so_no_host_grades_it_alone(self):
+    def test_an_ungraded_grader_twice_leaves_the_run_ungraded_so_no_host_grades_it_alone(self):
         for graders in ([sheet_of(), sheet_of(q1="yes", q2="yes", q3="no")], [sheet_of(), sheet_of()]):
             tiebreak = sheet_of(q1="yes", q2="yes", q3="no")
             found = grader.panel(PAGE, self.THREE, graders, tiebreak)
             self.assertEqual((found.answers, found.unanswered, found.agreed), ({}, ["q1", "q2", "q3"], 0))
             self.assertEqual((tiebreak.asked, len(found.graded)), ([], 2))
+            self.assertEqual(graders[0].asked, [["q1", "q2", "q3"]] * 2)  # its host's fresh grader stood in once
+            self.assertEqual(found.graded[0].tries, ["the host failed: x"] * 2)
+
+    def test_a_fresh_grader_of_its_host_stands_in_for_an_ungraded_grader(self):
+        def once(**answers):
+            later = sheet_of(**answers)
+            def grade_one(page, asked):
+                grade_one.asked.append([question["id"] for question in asked])
+                return (sheet_of() if len(grade_one.asked) == 1 else later)(page, asked)
+            grade_one.asked = []
+            return grade_one
+        for turn in (0, 1):
+            pair = [once(q1="yes", q2="no", q3="yes"), sheet_of(q1="yes", q2="no", q3="no")]
+            graders, tiebreak = pair[::-1] if turn else pair, sheet_of(q3="no")
+            found = grader.panel(PAGE, self.THREE, graders, tiebreak)
+            self.assertEqual(pair[0].asked, [["q1", "q2", "q3"]] * 2)
+            self.assertEqual((found.answers, found.unanswered, found.agreed), ({"q1": "yes", "q2": "no", "q3": "no"},
+                                                                               [], 2))
+            self.assertEqual(tiebreak.asked, [["q3"]])
+            self.assertEqual(found.graded[1 if turn else 0].tries, ["the host failed: x"])  # its failed try is kept
 
     def test_a_tie_breaker_that_is_ungraded_leaves_its_questions_unanswered(self):
         found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="no", q3="no"), sheet_of(q1="no", q2="yes",

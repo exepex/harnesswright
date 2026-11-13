@@ -282,7 +282,7 @@ Every harness fault must be caught, or the round stops.
 | A file read through an unusual command, or a command that names a file without reading it | The entry is tagged inferred and no check decides on it |
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
 | A grading file missing, repeating or misquoting an answer | The schema check rejects it |
-| Two graders that disagree, or one with no answer sheet | A fresh grader answers only the split questions; one grader never decides alone |
+| Two graders that disagree, or one with no answer sheet | A fresh tie-breaker answers only the split questions; a fresh grader of the same host stands in once for one with no sheet; one grader never decides alone |
 | A view that names the arm or the skill | The page a grader reads names neither |
 | A grader that writes to its folder or reads outside it | The jail stops every write and read; the grader's page, its folder and the folders beside it stay as they were |
 

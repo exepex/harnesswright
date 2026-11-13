@@ -138,10 +138,16 @@ class Panel:
 def panel(page, asked, graders, tiebreak):
     """Grade `page` on the questions `asked` with the two `graders` and, for the questions they answered two ways,
     the `tiebreak` grader. Each grader is a function of (page, questions) that gives a `Graded`, such as `grade`
-    bound to one host; each call is a fresh grader."""
+    bound to one host; each call is a fresh grader. A grader with no sheet is replaced once by a fresh grader of its
+    own host, which answers every question, so the two sheets still come from the two hosts; its failed tries are
+    kept. A question that has no two answers the same stays unanswered: one grader never decides alone."""
     if len(graders) != 2:
         raise ValueError("a panel has two graders, and a tie-breaker")
     graded = [grade_one(page, asked) for grade_one in graders]
+    for number, grade_one in enumerate(graders):
+        if graded[number].answers is None:
+            fresh, failed = grade_one(page, asked), graded[number]
+            graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs)
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
     disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways

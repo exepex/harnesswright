@@ -151,7 +151,7 @@ class Graded(Pages):
         self.go(steps, grade=broken)
         found = self.grades("k1")
         self.assertEqual((found["answers"], found["unanswered"]), ({}, ["q2", "q4"]))
-        self.assertEqual(found["graders"][0]["tries"], ["the host failed: planted"])
+        self.assertEqual(found["graders"][0]["tries"], ["the host failed: planted"] * 2)  # its fresh grader's too
 
     def test_each_attempt_keeps_its_own_grading(self):
         self.graded([POND], answering(pond))

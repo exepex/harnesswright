@@ -118,6 +118,14 @@ def _grader(answer, calls=None):
     return grade_one
 
 
+def _once(answer, calls):
+    """A planted grader of a host whose first grader gives no sheet and whose next grader answers by `answer`, as
+    `_grader` does."""
+    def grade_one(page, asked):
+        return _grader(answer if calls else None, calls)(page, asked)
+    return grade_one
+
+
 def sheet(setup, fault, rng, place):
     """A correct sheet of one golden's page, then planted sheets for each of its answers in turn, given as `yes` and as
     `no`, with every word of WORDS for `not yes or no`, every misquote (invented, in other case, a word changed,
@@ -220,9 +228,11 @@ def golden(setup, fault, rng, place):
 def tie(setup, fault, rng, place):
     """Two graders of one page that split as `place` says (`one split`: on each question in turn), and a fresh
     tie-breaker, in two panels for each split: the tie-breaker sides with the first grader on a split question in one
-    and with the second in the other, and with one grader ungraded, each grader is the ungraded one once. Caught
-    when, in every panel, the tie-breaker is asked exactly the split questions and the panel takes its answers, or,
-    with one grader ungraded, no question is answered and none asked."""
+    and with the second in the other, and with one grader ungraded, each grader is the ungraded one once, and its
+    host's fresh grader gives the right sheet in one panel and none in the other. Caught when, in every panel, the
+    tie-breaker is asked exactly the split questions and the panel takes its answers, or, with one grader ungraded,
+    the tie-breaker is asked nothing, a fresh grader of that host is asked every question once, and the panel answers
+    every question with its sheet and none without it: one grader never decides alone."""
     _, pages = _pages(setup, rng)
     golden, record, blob, asked = _asked(pages, rng)
     page, ids, settled = _text(record, blob), [question["id"] for question in asked], golden.settled
@@ -231,10 +241,14 @@ def tie(setup, fault, rng, place):
     for (split, order), turn in ((pair, turn) for pair in zip(splits, orders) for turn in (0, 1)):
         calls = []
         if place == "one ungraded":
-            pair = [_grader(settled.get), _grader(None)]
-            found = grader.panel(page, asked, pair[::-1] if turn else pair, _grader(settled.get, calls))
-            if calls or found.answers or found.unanswered != ids:
-                return f"one grader decided alone: tie-breaker asked {calls}, answers {found.answers}"
+            for fresh in (settled.get, None):
+                again = []
+                pair = [_grader(settled.get), _once(fresh, again)]
+                found = grader.panel(page, asked, pair[::-1] if turn else pair, _grader(settled.get, calls))
+                want = {id_: settled[id_] for id_ in ids} if fresh else {}
+                if calls or again != [ids, ids] or found.answers != want:
+                    return (f"one grader decided alone, or no fresh grader stood in: tie-breaker asked {calls}, "
+                            f"the ungraded host asked {again}, answers {found.answers}")
             continue
         second = lambda id_, split=split: _flip(settled[id_]) if id_ in split else settled[id_]
         sides = {id_: (n + turn) % 2 for n, id_ in enumerate(order)}  # 0: with the first grader, 1: the second
