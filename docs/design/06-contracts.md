@@ -31,12 +31,17 @@ Whether the run folder stays in the repository after merge is an open question (
 Gaps, estimated ranges, story-scoped waivers and open proof items each need a person's approval. Each has an ID: a
 gap or an estimated range has its requirement's ID (`AC-1`, `NFR-2`), a story-scoped waiver its rule ID, and an open
 proof item its own (`OP-1`, `OP-2`, … in the claims). An approval counts only when the person gave it from their
-own account: a review or a comment in the pull request, naming the IDs it covers. A name typed into a contract does
-not count.
+own account: a review or a comment in the pull request, naming the IDs it covers, with the story ID for a waiver
+or an open proof item (`S02 OP-1`). A name typed into a contract does not count.
 
 Every vote and verdict has an **Approvals** part: each item it relies on, by ID, with the review or comment cited,
 or `not approved`, or `not verified` when the role cannot look the approval up. Both of the last two count as
-missing. A verdict cannot pass while an item it relies on is missing.
+missing. A vote cannot approve, and a verdict cannot pass, while an item it relies on is missing. A part with no
+item says `none`.
+
+- A plan reviewer's vote relies on the plan's gaps and estimated ranges.
+- A story judge's verdict relies on every open proof item in the claims, each story-scoped waiver the claims cite,
+  and the gaps and estimated ranges of the criteria and targets the story covers, from its plan or its own.
 
 ## Triage
 
@@ -76,7 +81,7 @@ throughput, memory, CPU, availability), each in one state · **Gaps** · **Risks
 | Target state | Holds | Requirement |
 |---|---|---|
 | `exact` | A number, such as "p95 under 200 ms" | Yes. Its test must pass. |
-| `estimated` | A range the person gave or confirmed, approved | Yes. A missed range is a finding, never a `blocker`. |
+| `estimated` | A range the person gave or confirmed, approved | Yes. A missed range is a `minor` finding. |
 | `unknown` | No measured figure. A target relative to a figure nobody measured is unknown. | Yes, as a baseline benchmark: the test writer measures the figure in the test environment and saves it, and the test fails when a later change makes it worse by more than the process setting `baseline-tolerance`, a percentage |
 | `not applicable` | Nothing | No |
 | `not testable here` | Nothing: the team has no performance test type | No |
@@ -135,7 +140,8 @@ waivers: []                 # story-scoped waivers: rule ID, reason, end date, a
 Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: the request, quoted) ·
 **Acceptance criteria** (testable, each with its required test types) · **Targets** (only when `plan` is `none`:
 each target with its state, as in the functional plan) · **Gaps** (only when `plan` is `none`: each target that is
-`unknown`, `not applicable` or `not testable here`, with its reason) · **Out of scope** · **Tasks** (optional, only when the team tracks tasks).
+`unknown`, `not applicable` or `not testable here`, with its reason) · **Out of scope** · **Tasks** (optional, only
+when the team tracks tasks).
 
 A story with a plan uses the plan's IDs and the plan's state for each target. A story with `plan: none` numbers its
 own criteria `AC-1`, `AC-2`, … and targets `NFR-1`, `NFR-2`, …, lists them in `covers`, and keys `tests` and
@@ -161,13 +167,14 @@ Written by the claims writer when a story is finished.
 
 Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
 done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
-proves it · **Open proof items** · **Standards** · **Out of scope**, with reasons · **Files changed**, each with
-its line count · **Not verified**: anything that could not be proven.
+proves it, or the `OP-n` that stands in for it · **Open proof items** · **Standards** · **Out of scope**, with
+reasons · **Files changed**, each with its line count · **Not verified**: anything that could not be proven.
 
 **Open proof items** are proof that cannot be made in the pull request, such as a full load run on staging or tests
-in a repository the agent cannot reach. Each one says what is unproven, where and when the proof will come from,
-and who owns it. Each is numbered `OP-1`, `OP-2`, … The claims writer also lists them at the top of the pull
-request description. Nothing tracks an open proof item after merge.
+in a repository the agent cannot reach. Each one says what is unproven (with the requirement ID and test type when
+it stands in for a test), where and when the proof will come from, and who owns it. Each is numbered `OP-1`,
+`OP-2`, … The claims writer also lists them at the top of the pull request description. Nothing tracks an open
+proof item after merge.
 
 **Standards** holds:
 
