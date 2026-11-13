@@ -90,7 +90,6 @@ class Measures(TempCase):
         self.run_("k2", "with_skill", record=priced, verdicts=[None] * 3, answers={})
         self.run_("k3", "without_skill", record={"seconds": None, "tokens": None}, verdicts=[None] * 3, answers={})
         self.run_("k4", "without_skill", record=priced, verdicts=[None] * 3, answers={})
-        found = self.measure()
         self.run_("k5", "without_skill", record={"seconds": 1, "tokens": {"model-z": counts(10)}}, verdicts=[None] * 3,
                   answers={})
         found = self.measure()
