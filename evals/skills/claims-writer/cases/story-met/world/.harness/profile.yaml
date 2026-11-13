@@ -1,0 +1,9 @@
+harnesswright:
+  version: "1.0"
+  folder: .agents/harnesswright/
+toolchain:
+  test: python3 -m unittest discover -s tests -t .
+models:
+  deep: host-default
+  standard: host-default
+  fast: host-default
