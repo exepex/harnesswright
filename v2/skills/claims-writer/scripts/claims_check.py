@@ -54,7 +54,7 @@ SHAPES = {
     "Not verified": [NONE, BULLET, MORE],
 }
 FENCED = ("Requirements", "Open proof items", "Standards", "Not verified")  # sections that may quote output in a fence
-REFERENCE = re.compile(r"`([A-Za-z0-9_./-]+):([0-9]+)(?:-([0-9]+))?`")
+REFERENCE = re.compile(r"`([^`:\n]+):([0-9]+)(?:-([0-9]+))?`")  # any file name; a URL has `:` before its `//`
 OP = re.compile(r"\b(OP-[0-9]+)\b")
 
 
@@ -249,9 +249,9 @@ def check_files(lines, repo, base, fails, notes):
 
 
 def points(repo, path, first, last):
-    """Whether `path:first-last` names lines of a file that exists."""
-    target = repo / path
-    return target.is_file() and 1 <= int(first) <= int(last or first) <= max(line_count(target), 1)
+    """Whether `path:first-last` names lines of a file that exists; a last line with no newline counts."""
+    data = (repo / path).read_bytes() if (repo / path).is_file() else None
+    return data is not None and 1 <= int(first) <= int(last or first) <= len(data.split(b"\n")) - data.endswith(b"\n")
 
 
 def check_references(text, repo, fails):

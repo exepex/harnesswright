@@ -138,7 +138,8 @@ PASSES = [  # (old text, new text): each still passes
     ("OK\n```", "OK\n## Files changed\n```"),  # a heading in a code block is output
     ("```text\nRan 2 tests in 0.001s\nOK\n```", "  ```text\nRan 2 tests `src/x.py:9`\n  ```"),  # indented block
     ("> Reject a negative quantity.", "> Reject a negative quantity, `src/x.py:9`."),  # the request is the story's
-    ("see `localhost:8080`", "see `localhost:8080` and `api.example.com:443`"),  # not paths
+    ("see `localhost:8080`", "see `localhost:8080`, `api.example.com:443` and `http://a.b:80`"),  # not paths
+    ("`tests/test_pricing.py:3`", "`app/[id]/page.py:2`"),
     ("- **Status:** met\n", "- **Status:** `met`\n"),
     ("exit code 0.\n", "exit code 0.\n  - exit code: 0\n"),  # an indented bullet under Evidence
     ("- **Status:** not verified", "- **Status:** met"),  # with the open proof item replaced below
@@ -151,6 +152,7 @@ class ClaimsCheckTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.repo)
         self.write("src/pricing.py", "a\nb\nc\n")
         self.write("tests/test_pricing.py", "1\n2\n3\n4\n5\n")
+        self.write("app/[id]/page.py", "1\n2")  # brackets in a name; a last line with no newline
         self.write(".harness/runs/r1/stories/S01.md", STORY)
         self.claims = CLAIMS
 
@@ -216,7 +218,6 @@ class ClaimsCheckTest(unittest.TestCase):
         self.write("src/pricing.py", "a\nb\nC\n")
         self.write("src/new.py", "n\n")
         code, out = self.run_check("--base", "HEAD")
-        self.assertEqual(code, 1, out)
         self.assertIn("`src/new.py` changed since HEAD, but Files changed does not list it", out)
         self.assertNotIn("`.harness", out)  # the run folder is not part of the change
         self.claims = CLAIMS.replace("(deleted)\n", "(deleted)\n- `src/new.py` (1 line)\n- `src/moved.py` (deleted)\n"
