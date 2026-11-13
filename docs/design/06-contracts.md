@@ -1,8 +1,8 @@
 # 06 · Contracts
 
 A contract is the fixed shape of what one role hands to another. Agents can be swapped; contracts cannot, because
-every panel, judge and resumed run depends on them. Each contract is a Markdown file with YAML frontmatter. The
-templates will live in `contracts/`.
+every panel, judge and resumed run depends on them. Each contract is a Markdown file, with YAML frontmatter where
+its section below shows one. The templates will live in `contracts/`.
 
 ## Where contracts are kept
 
@@ -28,11 +28,15 @@ Whether the run folder stays in the repository after merge is an open question (
 
 ## Approvals
 
-Gaps, estimated ranges, story-scoped waivers and open proof items each need a person's approval. An approval counts
-only when the person gave it from their own account: a review or a comment in the pull request, naming the IDs it
-covers. A name typed into a contract does not count. The role that checks an approval cites the review or comment
-in its vote or verdict. If it cannot look the approval up, it marks it `not verified`, and the approval counts as
-missing.
+Gaps, estimated ranges, story-scoped waivers and open proof items each need a person's approval. Each has an ID: a
+gap or an estimated range has its requirement's ID (`AC-1`, `NFR-2`), a story-scoped waiver its rule ID, and an open
+proof item its own (`OP-1`, `OP-2`, … in the claims). An approval counts only when the person gave it from their
+own account: a review or a comment in the pull request, naming the IDs it covers. A name typed into a contract does
+not count.
+
+Every vote and verdict has an **Approvals** part: each item it relies on, by ID, with the review or comment cited,
+or `not approved`, or `not verified` when the role cannot look the approval up. Both of the last two count as
+missing. A verdict cannot pass while an item it relies on is missing.
 
 ## Triage
 
@@ -50,8 +54,9 @@ pipeline: feature-t2
 `rules.md`, written once by the standards reader at the start of the run. Its inputs, steps and fields are defined
 in [03 · Standards](03-standards.md), "Resolving the rules for an application". It holds rule IDs and fingerprints,
 never rule text. Every role in the run reads it. Beside it, the standards reader writes one rules text per skill,
-`rules-text-<skill>.md`, which ends with a read-back block. Claims and verdicts record the hash of `rules.md` and
-quote each read-back block, as the claims contract says.
+`rules-text-<skill>.md`, and records the hash of each in `rules.md`. A rules text ends with a read-back block: the
+rule count, and the ID and title of its last rule. Claims and verdicts record the hash of `rules.md` and quote each
+read-back block, as the claims contract says.
 
 ## Functional plan
 
@@ -71,8 +76,8 @@ throughput, memory, CPU, availability), each in one state · **Gaps** · **Risks
 | Target state | Holds | Requirement |
 |---|---|---|
 | `exact` | A number, such as "p95 under 200 ms" | Yes. Its test must pass. |
-| `estimated` | A range the person gave or confirmed, approved | Yes. A missed range is a warning, not a fail. |
-| `unknown` | No measured figure. A target relative to a figure nobody measured is unknown. | Yes, as a baseline benchmark: the test measures and saves the figure, and fails when a later change makes it worse by more than the process setting `baseline-tolerance` |
+| `estimated` | A range the person gave or confirmed, approved | Yes. A missed range is a finding, never a `blocker`. |
+| `unknown` | No measured figure. A target relative to a figure nobody measured is unknown. | Yes, as a baseline benchmark: the test writer measures the figure in the test environment and saves it, and the test fails when a later change makes it worse by more than the process setting `baseline-tolerance`, a percentage |
 | `not applicable` | Nothing | No |
 | `not testable here` | Nothing: the team has no performance test type | No |
 
@@ -82,8 +87,12 @@ No number is ever invented. The functional planner asks the person for each targ
 testable here` is a *requirement*. Each requirement names the test types it requires, only from the process setting
 `test-types`. Everything below that says "requirement" means both kinds.
 
+Each acceptance criterion gives its statement and its test types. Each target gives what it measures, its state,
+its number (`exact`) or range (`estimated`), and its test types.
+
 **Gaps** lists, each with its reason: every target that is `unknown`, `not applicable` or `not testable here`, and
-every acceptance criterion with no test type. A person approves each gap, at every tier.
+every acceptance criterion with no test type. A person approves each gap, at every tier, even where the tier has
+no human plan gate. The plan reviewer checks that each gap is listed with its reason and approved.
 
 Performance and load tests are written against the non-functional targets. A T3 plan whose team has a performance
 test type cannot be approved without at least one performance requirement; a baseline benchmark counts.
@@ -118,15 +127,15 @@ plan: P-order-retry         # or "none" for a change with no plan
 depends-on: [S01]
 covers: [AC-1, AC-3, NFR-1, TD-2]   # the criteria, targets and design elements this story delivers
 tests: {AC-1: [unit], AC-3: [unit, integration], NFR-1: [performance]}   # test types for each requirement
-targets: {NFR-1: estimated} # the state of each target it covers
-waivers: []                 # story-scoped waivers: rule ID, reason, end date, approver
+targets: {NFR-1: estimated} # exact | estimated | unknown | not applicable | not testable here
+waivers: []                 # story-scoped waivers: rule ID, reason, end date, approving accounts
 ---
 ```
 
 Sections: **What** (one paragraph) · **Request** (only when `plan` is `none`: the request, quoted) ·
 **Acceptance criteria** (testable, each with its required test types) · **Targets** (only when `plan` is `none`:
-each target with its state, as in the functional plan) · **Gaps** (only when `plan` is `none`, as in the functional
-plan) · **Out of scope** · **Tasks** (optional, only when the team tracks tasks).
+each target with its state, as in the functional plan) · **Gaps** (only when `plan` is `none`: each target that is
+`unknown`, `not applicable` or `not testable here`, with its reason) · **Out of scope** · **Tasks** (optional, only when the team tracks tasks).
 
 A story with a plan uses the plan's IDs and the plan's state for each target. A story with `plan: none` numbers its
 own criteria `AC-1`, `AC-2`, … and targets `NFR-1`, `NFR-2`, …, lists them in `covers`, and keys `tests` and
@@ -157,18 +166,19 @@ its line count · **Not verified**: anything that could not be proven.
 
 **Open proof items** are proof that cannot be made in the pull request, such as a full load run on staging or tests
 in a repository the agent cannot reach. Each one says what is unproven, where and when the proof will come from,
-and who owns it. The claims writer also lists them at the top of the pull request description.
+and who owns it. Each is numbered `OP-1`, `OP-2`, … The claims writer also lists them at the top of the pull
+request description. Nothing tracks an open proof item after merge.
 
 **Standards** holds:
 
 - the hash of `rules.md`;
 - each skill run, in the order it ran, with its version, the hash of its release `SKILL.md` and the read-back block
-  of its rules text, quoted exactly;
+  of its rules text, quoted exactly, marked `not verified` where the rules text was written by reading;
 - the ID and title of each change applied (an override, binding or tightening in a rules text), quoted exactly;
 - the rules applied, by ID, and each waiver used.
 
 A script compares the skills, read-back blocks and changes, character for character, with the rules texts and the
-job in the roles file.
+job in the roles file. The story judge rebuilds the rules texts and fails on any difference.
 
 ## Finding
 
@@ -198,7 +208,7 @@ findings: [F-003, F-004]
 ---
 ```
 
-Body: one paragraph of reasoning, written before the voter sees any other vote.
+Body: one paragraph of reasoning, written before the voter sees any other vote · **Approvals** (see Approvals).
 
 ## Verdict
 
@@ -213,10 +223,10 @@ blockers: []                # confirmed blockers; any entry forces fail
 ---
 ```
 
-Body: **Claims**: each claim, checked or refuted with evidence · **Open proof items**: each one, with the
-person's approval cited or `not approved` · **Standards**: as in the claims, for the skills the judge ran · **To
-pass**: what must change for a pass. The story judge fails a requirement whose required test type has no test,
-unless that test is an open proof item a person approved.
+Body: **Claims**: each claim, checked or refuted with evidence · **Approvals** (see Approvals) · **Standards**:
+each skill the judge ran, in order, with its version, hash and read-back block, and each change applied, as in the
+claims · **To pass**: what must change for a pass. The story judge fails a requirement whose required test type has
+no test, unless that test is an approved open proof item.
 
 A verdict applies to the content of the commit it names, outside the run folder. A later commit keeps the verdict
 valid only if it changes nothing outside `.harness/runs/`, which holds the verdict files themselves and the
