@@ -56,7 +56,9 @@ def area(prefix, *rules):
     return f"# {prefix} · Area\n\n" + "\n".join(rules)
 
 
-class LayersTest(unittest.TestCase):
+class Application(unittest.TestCase):
+    """A valid application to break: the base of the layer and rules.md tests; it holds no test itself."""
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
@@ -100,6 +102,8 @@ class LayersTest(unittest.TestCase):
             self.load()
         self.assertIn(expected, str(caught.exception))
 
+
+class LayersTest(Application):
     def test_a_valid_application_reads_every_layer_in_order(self):
         inputs = self.load()
         self.assertEqual([s.prefix for s in inputs.sources], ["CORE", "JAVA", "COMP-ACME", "TEAM-ACME", "APP"])
@@ -227,17 +231,22 @@ class LayersTest(unittest.TestCase):
         self.edit(".harness/profile.yaml", '"1.0.0"', '"2.1.0"')
         self.assertStops("carries COMP-ACME, which")
 
-    def test_a_decisions_key_that_names_two_points_stops(self):
+    def test_a_decisions_key_names_one_point_per_stack(self):
         self.write(".agents/harnesswright/rules/kotlin/dp.md", area("KOTLIN-DP", POINT.replace("JAVA", "KOTLIN")))
         self.edit(".harness/profile.yaml", "[java]", "[java, kotlin]")
-        self.assertStops("decisions key 'boilerplate' names 2 active decision points")
+        self.assertEqual(self.load().decisions, {"JAVA-DP-BOILERPLATE": ("lombok", 30),
+                                                 "KOTLIN-DP-BOILERPLATE": ("lombok", 30)})
+        self.write(".agents/harnesswright/rules/core/dp.md", area("CORE-DP", POINT.replace("JAVA", "CORE")))
+        self.assertStops("names 2 active decision points in one stack (CORE-DP-BOILERPLATE, JAVA-DP-BOILERPLATE)")
 
     def test_decisions_and_waivers(self):
         cases = [
             ("  boilerplate: lombok", "  boilerplate: getters", "option 'getters' is not one of JAVA-DP-BOILERPLATE"),
             ("  boilerplate: lombok", "  mapping: mapstruct", "decisions key 'mapping' names 0 active decision"),
             ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-ERR-09", "waiver of COMP-ACME-ERR-09, which no layer"),
-            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-WORK-01", "a floor; a floor is never waived"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-WORK-01", "COMP-ACME-WORK-01, a floor; only a"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: COMP-ACME-CODE-01", "COMP-ACME-CODE-01, a binding; only a"),
+            ("  - rule: COMP-ACME-ERR-01", "  - rule: JAVA-DP-BOILERPLATE", "a decision point; only a principle"),
             ("  boilerplate: lombok", "  boilerplate: lombok\n  stack: x", "decisions key 'stack' names 0 active"),
             ("    until: 2027-03-01", "    until: 2027-02-30", "'2027-02-30' is not an allowed until"),
         ]
@@ -320,7 +329,7 @@ class LayersTest(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])
-        self.assertEqual((code, "inputs checked" in err.getvalue()), (2, True))
+        self.assertEqual((code, "rules texts are not built yet" in err.getvalue()), (2, True))
         self.edit(".harness/profile.yaml", '"0.1.0"', '"9.9.9"')
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])

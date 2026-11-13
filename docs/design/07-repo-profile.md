@@ -165,18 +165,20 @@ as a copy, a git submodule or a package download. Paths are relative to the repo
   the folder. It never skips a layer.
 - It also stops when a rule in layers 2 to 6 names a role that is not in the release's roles file, when a key of
   `decisions` (the decision point's name, so `boilerplate` names `…-DP-BOILERPLATE`) names no active decision
-  point or more than one, or when its value is not one of that point's Options.
+  point, or more than one in one language's stack ([03 · Standards](03-standards.md)), or when its value is not
+  one of each named point's Options. A key binds the point of that name in every stack that holds one.
 
 ## Waivers
 
 An application's approved waivers live only in `waivers`, one entry per rule, with `rule`, `reason`, `until` (a
 date) and `approved by` (the accounts of every approver the table in [03 · Standards](03-standards.md) requires,
 comma-separated). A waiver is added in a pull request that each of them approves from that account. The rule ID
-comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver never names a floor;
-the standards reader stops if one does, and if it names a rule no layer holds active, even once it has expired. A
-waiver of a retired rule is removed in the pull request that retires it. It records `approved by` and does not
-verify it: only the pull request that added the waiver proves the approval. Story-scoped waivers live in their
-story ([06 · Contracts](06-contracts.md)).
+comes from the finding that cited it. Once `until` has passed, the rule applies again. A waiver names a principle,
+idiom or choice that binds no decision point, never a floor; to change a binding, bind the point in `decisions`. The
+standards reader stops on any other waiver, and on one that names a rule no layer holds active, even once it has
+expired. A waiver of a retired rule is removed in the pull request that retires it. It records `approved by` and
+does not verify it: only the pull request that added the waiver proves the approval. Story-scoped waivers live in
+their story ([06 · Contracts](06-contracts.md)).
 
 ## Rules text limit
 
