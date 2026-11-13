@@ -77,7 +77,9 @@ decides what to do: the standards reader's result stands, unless it could not ru
    run ID, the date and the line `not verified: <the reason>`. Write one rules text for each language the profile
    names, or one named `core` when there is none, holding the rules you can read from the `rules/core/` and
    `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
-   there are none (always, when there is no profile). End
+   there are none (always, when there is no profile). Start each with the heading
+   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
+   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
    each with its read-back block:
    the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
    line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
@@ -146,8 +148,10 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
      from the frontmatter of `SKILL_DIR/SKILL.md` and the hash of that file, `not verified` on **Rules text** when
      you wrote the rules texts by reading, and the read-back block of each rules text you read, in the stack order
-     of `rules.md`; each line of the rules texts' "Changes to rules that reach this run", by ID and title; the
-     rules you applied; the waivers from the story and from `rules.md`.
+     of `rules.md`; the ID and title of every line of their "Changes to rules that reach this run" and of every
+     decision point a layer binds (each not `from default`); the rules you applied; every waiver of the story's
+     `waivers` and every one `rules.md` marks `applied` in the stacks you quoted. The script checks changes and
+     waivers both ways.
    - `log`: each other skill run and the rules it applied, as the log records them. When the log does not record
      them, write no entry for them; add to **Not verified**: "Skills run before the claims writer: not verified:
      `<run folder>/log.md` does not record them." Never copy them from memory.
@@ -179,21 +183,19 @@ python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --stor
 Before it, remove the files your commands in step 4 created that the project does not ignore, such as caches; they
 are not part of the change.
 
-- Exit 0: add each `not checked:` line it prints, except the Standards line, to **Not verified**, as "Claims check:
-  <what was not checked>".
+- Exit 0: add each `not checked:` line it prints to **Not verified**, as "Claims check: <what was not checked>".
 - Exit 1: each `fail:` line is a fault in the claims file. Fix the claims file, never code or tests, and run the
   check again until it exits 0.
 - Exit 2: it names an input it cannot read. Fix the path you gave, or, when the input itself is at fault, check by
   reading as below.
 - It could not run (scripts are forbidden in `.harness/profile.yaml`, or there is no Python): check by reading.
   Open each changed file and confirm its line count, open each `path:line` you cite at that line, and confirm the
-  sections, the statuses, and a test or `OP-n` for every required test type. Add to **Not verified**: "Claims check
-  script not run: <the reason>. Line counts, `path:line` references and the layout were checked by reading only."
+  sections, the statuses, and a test or `OP-n` for every required test type. Open `rules.md` and each rules text
+  you quoted, and confirm the hash and that each read-back block and change line is quoted character for character.
+  Add to **Not verified**: "Claims check script not run: <the reason>. Line counts, `path:line` references, the
+  layout and Standards were checked by reading only."
 
-The script does not check Standards. Open `rules.md` and each rules text you quoted, and confirm the hash and that
-each read-back block and change line is quoted character for character. If you cannot, add the Standards line to
-**Not verified** too. Replace a `None.` in **Not verified** when
-you add an entry to it.
+Replace a `None.` in **Not verified** when you add an entry to it.
 
 Check: the last run of the check exits 0, or the by-reading checks are done; **Not verified** has each entry above.
 
