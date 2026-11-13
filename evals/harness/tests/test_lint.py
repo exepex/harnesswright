@@ -237,9 +237,9 @@ class Lint(TempCase):
         (repo / "real").mkdir()
         (repo / "real" / "STYLE.md").write_text("Old style.\n")
         (repo / "Draft.md").write_text("Old style.\n")
-        (repo / "project").symlink_to("real")
+        (repo / "Linked.md").symlink_to("real/STYLE.md")
         self.track(repo)
-        for source in ("project/STYLE.md", "Draft.md", "style.md"):
+        for source in ("Linked.md", "Draft.md", "style.md"):
             with self.subTest(source=source):
                 if source == "Draft.md":
                     subprocess.run(["git", "rm", "-q", "--cached", source], cwd=repo, check=True)
@@ -249,6 +249,17 @@ class Lint(TempCase):
         (repo / "STYLE.md").write_text("New style.\n")
         self.assertTrue(any("changed since" in p for p in self.problems({"STYLE.md": "Old style.\n"},
                                                                         {"copies": [copy]}, repo=repo)))
+
+    def test_a_copy_drops_the_rows_that_name_a_release_skill(self):
+        rows = "| note-taker | [release/note-taker/SKILL.md](release/note-taker/SKILL.md) | Notes. |\n"
+        source = AGENTS.replace("|---|---|---|\n", "|---|---|---|\n" + rows)
+        repo, copy = self.source(source)
+        (repo / "release" / "note-taker").mkdir(parents=True)
+        (repo / "release" / "note-taker" / "SKILL.md").write_text(SKILL_MD.replace("haiku-writer", "note-taker"))
+        (repo / "release" / "manifest.json").write_text('{"skills": {"note-taker": {}}}\n')
+        self.track(repo)
+        copy = dict(copy, world="AGENTS.md")
+        self.assertEqual(self.problems({"AGENTS.md": AGENTS}, {"copies": [copy]}, repo=repo), [])
 
     def test_a_copy_drops_the_rows_that_name_a_skill(self):
         rows = "| haiku-writer | [skills/haiku-writer/SKILL.md](skills/haiku-writer/SKILL.md) | Poems. |\n"

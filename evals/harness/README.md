@@ -70,7 +70,7 @@ built instead of failing part way:
   commit messages and the index row all obey this one rule (`cases.is_plain`);
 - a trigger case needs `should_trigger`, `split` and `index`; a task case may not have the first two;
 - a commit needs a non-empty message and a list of paths;
-- a copy names a source outside `skills/` and `evals/` and its 64-character sha256;
+- a copy names a source that is a file at the repository root, and its 64-character sha256;
 - an index row may use only `{name}`, `{path}` and `{description}`, with no index, attribute or format spec;
 - an expectation is `{text, source, judged}`, with a `check` when a script can decide it (doc 11, Scoring).
   `source` is `"format"`, the skill's own format, or `{"contract": {"path", "line", "quote"}}`, a rule a world
@@ -83,12 +83,19 @@ built instead of failing part way:
 
 ## How a skill is read
 
-`skills.py` works from three rules, each a list of what is allowed.
+`skills.py` works from four rules, each a list of what is allowed.
+
+`skills.folders` is the one list of the repository's skills, name to folder: each `release/<name>/` the release
+manifest lists, and each other folder of `skills/` whose `SKILL.md` git tracks. A release skill wins over one of
+the same name in `skills/`, as it is the candidate a round measures. Every gate, the run key, the world builder and
+the lint take a skill's folder, and the list of skills, from it.
 
 `skills.frontmatter` reads one stated subset of YAML, with only the fields of `HW-PORT-01`: `name`, `description`,
 `license` and `compatibility` hold one plain line, and `metadata` holds `  key: value` lines whose keys are
-lower-case words joined by `-` and whose values are plain lines. A plain line is words separated by single spaces,
-which YAML reads as exactly the text written. There are no quoted values, block scalars or comments, and a value or
+lower-case words joined by `-` and whose values are plain lines, or, as the release build writes them, text in
+double quotes with no quote, backslash or control character inside. A plain line is words separated by single
+spaces, which YAML reads as exactly the text written, as it reads such a quoted value as its inside. There are no
+other quoted values, block scalars or comments, and a value or
 key spelled like a YAML null, boolean, number or date is refused. Each field appears once, lines end only at a
 newline, no other control character is allowed, and the block ends at a line that is exactly `---`.
 Anything else is refused with its line number, so a value is never read short or as the wrong type: the index row
