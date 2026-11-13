@@ -165,18 +165,21 @@ requires for each requirement it covers, and that no story does anything the pla
 
 Written by the claims writer when a story is finished.
 
-Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, what was
-done and the evidence (`file:line`, test name, command and output), and for each required test type the test that
-proves it, or the `OP-n` that stands in for it · **Open proof items** · **Standards** · **Out of scope**, with
-reasons · **Files changed**, each with its line count · **Not verified**: anything that could not be proven.
+Sections: **Request** (the story, quoted) · **Requirements**: for each requirement the story covers, its status (`met`,
+`not met` or `not verified`), what was done and the evidence (`file:line`, test name, command and output), and for each
+required test type the test that proves it, or the `OP-n` that stands in for it · **Open proof items** · **Standards** ·
+**Out of scope**, with reasons · **Files changed**, each with its line count · **Not verified**: anything that could not
+be proven.
 
 **Open proof items** are proof that cannot be made in the pull request, such as a full load run on staging or tests
 in a repository the agent cannot reach. Each one says what is unproven (with the requirement ID and test type when
 it stands in for a test), where and when the proof will come from, and who owns it. Each is numbered `OP-1`,
-`OP-2`, … The claims writer also lists them at the top of the pull request description. Nothing tracks an open
-proof item after merge.
+`OP-2`, … The claims writer also lists them in its report, and the coordinator puts that list at the top of the
+pull request description. Nothing tracks an open proof item after merge.
 
-**Standards** holds:
+**Standards** holds the entries below. Each one names its source: `this run`, what the claims writer read or ran
+itself, or `log`, what the run log records for another skill's run. Only `this run` entries count as verified; a
+`log` entry is marked `not verified`, with the reason, until the log records it.
 
 - the hash of `rules.md`;
 - each skill run, in the order it ran, with its version, the hash of its release `SKILL.md` and the read-back block

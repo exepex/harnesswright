@@ -6,6 +6,7 @@
 
 ### <requirement ID>
 
+- **Status:** <met | not met | not verified>
 - **Done:** <what was done, with `path:line`>
 - **Evidence:** <test names with `path:line`; the command run and the output lines that prove it>
 - **Test types:**
@@ -27,9 +28,11 @@
 
 #### <skill name>  <!-- in the order run -->
 
+- **Source:** <this run | log>
 - **Version:** <skill version>
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
+- **Not verified:** <why>  <!-- only when Source is log and the log does not record this run -->
 
 <!-- one fence per rules text read, in the stack order of rules.md -->
 ```text
@@ -42,11 +45,11 @@
 
 ### Rules applied
 
-- <rule ID>
+- <rule ID> (<this run | log>)
 
 ### Waivers used
 
-- <rule ID>
+- <rule ID> (<this run | log>)
 
 ## Out of scope
 
