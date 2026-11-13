@@ -13,7 +13,7 @@ All text below is written new. Each Source names where the idea came from.
 - **Applies to:** skill designer, skill judge
 - **Rule:** The descriptions of all skills that one repository lists together stay under 15,000 characters, about
   4,000 tokens. Before a new skill would exceed the budget, descriptions are shortened or skills merged.
-- **Why:** Hosts load every description on every task, and some cut the list above a limit. The reference host
+- **Why:** Note. Hosts load every description on every task, and some cut the list above a limit. The reference host
   keeps 2% of the context window, about 16,000 characters on a 200,000-token window; the budget sits just under
   it. Past it, skills are missed.
 - **Check:** Add up the length of every listed description. Is it under the budget? If a new skill would exceed it,
