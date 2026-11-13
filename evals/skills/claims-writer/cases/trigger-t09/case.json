@@ -1,0 +1,14 @@
+{
+  "prompt": "S05 is implemented (rate limits on /search). produce the hand-off file for the story judge listing the evidence for AC-1 to AC-4 and every changed file with its line count",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

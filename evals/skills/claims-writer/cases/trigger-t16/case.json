@@ -1,0 +1,14 @@
+{
+  "prompt": "add the claims template to contracts/claims.md with the sections from doc 06",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}
