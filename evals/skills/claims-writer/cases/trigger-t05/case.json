@@ -1,0 +1,14 @@
+{
+  "prompt": "finished the go migration for the config loader (S07). need the claims.md: request quoted, each criterion with evidence, files changed with line counts, not verified section",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

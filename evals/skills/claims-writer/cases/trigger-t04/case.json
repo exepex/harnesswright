@@ -1,0 +1,14 @@
+{
+  "prompt": "Prove the pagination story is actually done \u2014 run what needs running and write it up in the claims file under the run folder, including anything you couldn't verify",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}
