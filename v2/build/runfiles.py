@@ -98,14 +98,18 @@ def skills_of(manifest):
             for name, entry in manifest["skills"].items()}
 
 
-def reached(name, inputs, rules):
-    """What reaches a run of the skill over the active rules of one stack, in layer order. The `rest` skill also
-    takes, at run time, every area of the job's roles that no other skill of the job lists."""
+def reached(name, inputs, rules, done):
+    """What reaches a run of the skill over the active rules of one stack, in layer order, following what each rule
+    replaces in this stack. The `rest` skill also takes, at run time, every area of the job's roles that no other
+    skill of the job lists."""
     entry, skills = inputs.manifest["skills"][name], skills_of(inputs.manifest)
     areas = set(entry["areas"])
     if entry["rest"]:
         areas |= reach.areas_of(skills[name], reach.job(inputs.jobs, entry["job"]), skills, rules)
-    return reach.reach(rules, entry["roles"], areas, entry["copied-ids"])
+    replaces = {}
+    for old, new in done.replaced.items():
+        replaces.setdefault(new, []).append(old)
+    return reach.reach(rules, entry["roles"], areas, entry["copied-ids"], replaces)
 
 
 def tightened_by(rule, done):
@@ -126,7 +130,7 @@ def stack_text(name, inputs, rules, done):
     copied = set(inputs.manifest["skills"][name]["copied-ids"])
     waived = {w["rule"]: w for w in done.waivers if w not in inputs.expired}
     marks, points, full = [], [], []
-    for rule in reached(name, inputs, rules).rules:
+    for rule in reached(name, inputs, rules, done).rules:
         head = f"- {rule.id} · {rule.title}:"
         if rule.id in done.replaced:
             marks.append(f"{head} replaced by {done.replaced[rule.id]}")

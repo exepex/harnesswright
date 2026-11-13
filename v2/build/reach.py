@@ -115,10 +115,12 @@ class Reach:
         return self.floors + self.others
 
 
-def reach(rules, roles, areas, cited):
+def reach(rules, roles, areas, cited, replaces=None):
     """The rules that reach a run of a skill with these roles and areas whose steps cite these IDs.
 
     rules are in rulebook order, from every layer the caller reads. A cited ID that is not an active rule fails.
+    replaces maps a rule ID to the IDs a resolve found it replaces, which item 6 follows too: an override that names
+    a CORE rule replaces the language rule standing in its place.
     """
     live = active(rules)
     by_id = {r.id: r for r in live}
@@ -135,7 +137,8 @@ def reach(rules, roles, areas, cited):
             reached.add(rule.id)
     grew = True
     while grew:
-        changers = {r.id for r in live if r.changes in reached and r.id not in reached}
+        changers = {r.id for r in live if r.id not in reached and (
+            r.changes in reached or set((replaces or {}).get(r.id, ())) & reached)}
         reached |= changers
         grew = bool(changers)
     kept = [r for r in live if r.id in reached]

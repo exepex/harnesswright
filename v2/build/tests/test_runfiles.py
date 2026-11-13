@@ -104,6 +104,18 @@ class RulesTextTest(Application):
         self.assertNotIn("#### COMP-ACME-T-01", text)
         self.assertIn("#### APP-TEST-01", text)
 
+    def test_an_override_of_a_core_rule_follows_the_language_rule_in_its_place(self):
+        self.write(".agents/harnesswright/rules/core/x.md", area("CORE-X", rule(
+            "CORE-X-01", "principle", applies="test writer")))
+        self.write(".agents/harnesswright/rules/java/x.md", area("JAVA-X", rule(
+            "JAVA-X-01", "idiom", "- **Overrides:** CORE-X-01\n")))
+        self.write(".harness/standards/x.md", area("APP-X", rule(
+            "APP-X-01", "idiom", "- **Overrides:** CORE-X-01\n", "test writer")))
+        text = self.text()
+        self.assertIn("- JAVA-X-01 · Title of JAVA-X-01: replaced by APP-X-01", text)
+        self.assertIn("#### APP-X-01", text)  # it replaces a rule that reaches, so it reaches
+        self.assertNotIn("CORE-X-01", text)
+
     def test_a_rule_outside_the_skill_does_not_reach(self):
         self.manifest(rest=False, areas=[])
         text = self.text()
