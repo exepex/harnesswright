@@ -315,6 +315,10 @@ After each round the judges look for ways the round could have been wrong, and a
 - **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
   every other host is at most `inconclusive`. The label file adds the void rate per arm, grader agreement, golden
   accuracy, the fault gate result, how many expectations rested on inferred evidence, and format conformance.
+- **Cost.** Each run keeps its host's own token counts by model and its seconds; a host that reports no counts
+  has none, never an estimate. Money is the counts priced by one dated price file, `evals/results/prices.json`,
+  per model, with input at its price only where the cache did not hold it; a model with no price gives no money.
+  The label names the price file's date.
 - **Description tuning** keeps its train and test split. A tuned description is a declared, hashed input.
 - **Labels from the phase 2 runner** stay in `evals/results/`, marked as from the old harness, until the first
   round of this harness replaces them.

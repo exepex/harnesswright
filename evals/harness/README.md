@@ -43,6 +43,7 @@ allowed connections.
 | `gates.py` | `round run`: a planned round through its gates in order, the first that fails stopping it, each outcome in the attempt record |
 | `grades.py` | The grade gate: what no check decided, answered by blind panels with the goldens mixed in, trusted only where the goldens were |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
+| `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
 
 ## Commands
 
@@ -232,13 +233,13 @@ reads, writes with content hashes, commands with exit code and whole output, act
 skills the arm installs, and expose only the adapter's tools. A host that ran must report what it exposed: no report
 is never read as "nothing". Anything else raises `HostError`, and the round stops. The jail's audit runs first, and
 a host that crashes or times out is a `failure`: the run is void. The host's own token counts by model
-(`host.TOKENS`) are kept with the run, or none when it reported none.
+(`host.TOKENS`) are kept with the run, or none when it reported none. `prices.cost` prices them by the dated price
+file `evals/results/prices.json`; a model with no price, or a run with no counts, has no money, never a guess.
 
 `tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
 its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,
 so the contract and its faults are shown end to end in every pull request. The Codex and Claude Code adapters give
-the contract too ([adapters](../../adapters/README.md#the-harness-contract)), beside the older interface that
-`evals/runner/` still uses.
+it too ([adapters](../../adapters/README.md#the-harness-contract)), beside the older interface of `evals/runner/`.
 
 An adapter reports a write that failed as `failed`, and `host.run` decides what it was from the jail's own mount
 list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
@@ -495,6 +496,5 @@ attempt's own folder (`<store>/<round>/grades/<attempt>/`). A check that breaks,
 golden that cannot be built stops the round. Each gate's outcome, that of the gate that stopped the round too, is
 written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
 Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
-every containment its gates made, taken while its home is still there. Every gate runs again when the round runs
-again; only runs are kept. The label gate follows in a later step. Grading runs again on every attempt, as goldens
-calibrate only their own attempt's graders.
+every containment its gates made, taken while its home is still there. Every gate, grading too, as goldens
+calibrate only their own attempt's graders, runs again when the round runs again; only runs are kept.
