@@ -71,7 +71,7 @@ with the older rule or duty it carries over.
   - own (HW-PORT-08; CORE-SKILL-21)
   - `anthropics/claude-plugins-official@a2e251d plugins/hookify/hooks/pretooluse.py` (Apache-2.0; the Bad example)
 
-### CORE-WORK-04 · Do only what was asked
+### CORE-WORK-04 · Do  only what was asked
 
 - **Kind:** floor
 - **Status:** active
