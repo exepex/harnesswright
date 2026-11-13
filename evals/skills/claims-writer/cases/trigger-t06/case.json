@@ -1,0 +1,14 @@
+{
+  "prompt": "The implementer for S03 says everything passes but didn't leave any evidence. As the implementer's follow-up, write the claims for S03 from the diff against main and fresh test runs",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}
