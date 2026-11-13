@@ -1,0 +1,51 @@
+# Publish a release (reviews/release-design/final-design.md section 5; build order B0.2). Only a tag v<version> on a
+# commit of main publishes, and only after the same checks as release-check pass on that commit, so a red main
+# cannot be tagged out. This is the one workflow with contents: write.
+name: release-publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+jobs:
+  release-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: The tag names v2/VERSION and a commit of main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="$(cat v2/VERSION)"
+          test "$TAG" = "v$VERSION" || { echo "tag $TAG is not v$VERSION from v2/VERSION"; exit 1; }
+          git merge-base --is-ancestor HEAD origin/main || { echo "tag $TAG is not on main"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build tests
+        run: python3 -B -m unittest discover -s v2/build/tests
+      - name: Check rules, roles and templates
+        run: python3 -B v2/build/check_rules.py
+      - name: Check the release
+        run: python3 -B v2/build/check_release.py
+      - name: Zip release/ and publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git archive --format=zip --prefix="harnesswright-skills-$VERSION/" \
+            -o "harnesswright-skills-$VERSION.zip" HEAD:release
+          gh release create "$TAG" "harnesswright-skills-$VERSION.zip" --verify-tag --title "$TAG" \
+            --notes "harnesswright skills $VERSION: the release/ folder of $GITHUB_SHA."
