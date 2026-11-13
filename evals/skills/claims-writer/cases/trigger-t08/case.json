@@ -1,0 +1,14 @@
+{
+  "prompt": "write the claims for the Groovy pipeline change in vars/deploy.groovy. one AC needs a real Jenkins to check, so that one probably goes under not verified",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

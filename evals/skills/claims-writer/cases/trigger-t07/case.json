@@ -1,0 +1,14 @@
+{
+  "prompt": "wrapping up the rust parser story; tests are green on my machine. record per acceptance criterion what was done and the proof, so the judge can verify without asking me",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

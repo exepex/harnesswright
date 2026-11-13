@@ -1,0 +1,14 @@
+{
+  "prompt": "can you prepare this change for the judge? it's the T1 fix for the null customer name in CustomerMapper.java, story is in .harness/runs/2026-10-29-null-name/stories/S01.md",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}
