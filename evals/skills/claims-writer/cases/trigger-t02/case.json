@@ -1,0 +1,14 @@
+{
+  "prompt": "I'm done implementing S02 (password reset email). Before the story judge looks at it, put together the evidence for every AC: which file:line, which test, what the test run printed",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

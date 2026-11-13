@@ -1,0 +1,14 @@
+{
+  "prompt": "implement story S06: add an export-to-CSV button to the reports page, with unit tests",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}

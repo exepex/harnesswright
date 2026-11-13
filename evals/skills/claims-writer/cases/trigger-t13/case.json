@@ -1,0 +1,14 @@
+{
+  "prompt": "write the pull request description for this branch: what changed, why, and how it was tested",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "skill-designer"
+  ]
+}
