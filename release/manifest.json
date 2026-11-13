@@ -3,7 +3,7 @@
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "45c41ba0d45f743c54ccf843c3711f4658605d5e0a2cf4c9adb5facdefdf80e4",
+      "content-hash": "27c80631376b0a1fadf71ec0b9776210529ad66bd100a709383d7f581230a4a3",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -22,7 +22,7 @@
       ],
       "rulebook-version": "0.3.0",
       "size-floors": 4881,
-      "size-rest": 13821
+      "size-rest": 15271
     }
   }
 }

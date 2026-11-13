@@ -1,7 +1,7 @@
 # Claims layout
 
 The layout of a claims file, `<run folder>/claims/<story ID>.md`. It is the claims contract,
-`contracts/claims.md`, unchanged, between the two `~~~~` lines below.
+`contracts/claims.md` in the harnesswright repository, unchanged, between the two `~~~~` lines below.
 
 How to fill it:
 
@@ -46,7 +46,6 @@ How to fill it:
 - **Version:** <skill version>
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
-- **Not verified:** <why>  <!-- only when Source is log and the log does not record this run -->
 
 <!-- one fence per rules text read, in the stack order of rules.md -->
 ```text
@@ -71,7 +70,7 @@ How to fill it:
 
 ## Files changed
 
-- `<path>` (<N> lines)
+- `<path>` (<N> lines)  <!-- or (deleted) for a deleted file -->
 
 ## Not verified
 

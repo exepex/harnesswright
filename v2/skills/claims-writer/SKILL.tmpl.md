@@ -14,7 +14,7 @@ metadata:
 
 Adapted from `verification-before-completion` in `obra/superpowers@2ce8aa1` (MIT, Copyright 2025 Jesse Vincent).
 harnesswright changed it: the output is the claims contract, the steps are numbered and checkable, and inputs and
-failure handling are added. The list of changes is in `THIRD_PARTY.md` at the repository root.
+failure handling are added. The list of changes is in `THIRD_PARTY.md` at the root of the harnesswright repository.
 
 ## Purpose and limits
 
@@ -35,7 +35,8 @@ This skill does not:
 
 | Input | Required | If missing |
 |---|---|---|
-| The story, in the story contract's format: its requirements (`covers`), the test types each one needs (`tests`), its waivers, and the request when `plan` is `none` | Yes | Look in the run folder, `.harness/runs/<run-id>/stories/<story ID>.md`. If there is none, ask one question: "Which story or request does this change deliver?" Never write requirements yourself. |
+| The story, in the story contract's format: its requirements (`covers`), the test types each one needs (`tests`), its waivers, and the request when `plan` is `none` | Yes | Look in the run folder, `.harness/runs/<run-id>/stories/<story ID>.md`. If there is none, ask one question: "Which story or request does this change deliver?" Never write requirements yourself. If the story's criteria have no IDs, number them `AC-1`, `AC-2`, … in the order written, and say so under **Not verified**. |
+| The functional plan, when the story's `plan` is not `none`: what each covered target measures, and its number or range | Yes, for a planned story | `<run folder>/functional-plan.md`. Without it, the targets are `not verified`, with the reason. |
 | The change: the files it touched | Yes | With git, `git diff --name-only <base>` and `git status --short`. Without git, the files the request names; if none are named, ask which files changed. |
 | The commands that prove the work: build, test, lint | No | The `toolchain` in `.harness/profile.yaml`; else the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
 | The project's notes on where and when proof outside the change is made, and who owns it | No | Write `not named` for an owner nobody names, and say so in the report. Never invent an owner or a date. |
@@ -53,23 +54,33 @@ Do the steps in order. Each ends with a check; do not start the next until it pa
 
 ### 1. Read the run's rules
 
-The rules of the more specific layers reach this skill only through its rules texts, so read them first.
+The rules of the more specific layers reach this skill only through its rules texts, so read them first. One rule
+decides what to do: the standards reader's result stands, unless it could not run at all.
 
-1. If the run folder has no `rules.md`, run the standards reader's command from the project root, with the run
-   folder's name as the run ID: `python3 SKILL_DIR/scripts/resolve.py --repo . --run <run-id> --date <YYYY-MM-DD>`.
-   `SKILL_DIR` is the folder that holds this `SKILL.md`.
-   - Exit 0: `rules.md` and `rules-text-claims-writer.<stack>.md` are written in the run folder.
-   - Exit 3: a rules text is over its ceiling and the run is parked. Stop, and report the command's output.
-   - Exit 1, or the command cannot run (no profile, no Python, scripts forbidden in `.harness/profile.yaml`): go
-     on by reading. Write `rules.md` with the run ID, the date and the line `not verified: <the reason>`. Write one
-     rules text for each language the profile names, or one named `core` when it names none, holding the rules you
-     can read from the layer folders the profile lists, and `None.` when there are none. End each with its
-     read-back block: the line `READ_BACK` from `SKILL_DIR/scripts/copyform.py`, then
-     `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the line
-     `READ_BACK_END` from the same file.
+1. List the files the change touched (see Inputs), to know which stacks it touches.
+2. If `rules.md` or a rules text you need, `rules-text-claims-writer.<stack>.md`, is missing from the run folder,
+   run the standards reader's command from the project root, with the run folder's name as the run ID and today's
+   date. It writes each file once, so running it again is safe. `SKILL_DIR` is the folder that holds this
+   `SKILL.md`.
 
-     Never stop to ask: a run with no rules yet still gets its claims.
-2. Read the rules text of each stack whose code the change touches, or of every stack when it touches no stack's
+   ```sh
+   python3 SKILL_DIR/scripts/resolve.py --repo . --run <run-id> --date <YYYY-MM-DD>
+   ```
+
+   - Exit 0: the files are written. Go on.
+   - It could not run: scripts are forbidden in `.harness/profile.yaml`, there is no Python, or it stopped with
+     `.harness/profile.yaml: is missing or cannot be read` (the project has no harnesswright set-up yet). Go on by
+     reading, as below.
+   - Any other result, exit 3 (a rules text is parked over its ceiling) included: the inputs have a fault the
+     run must not pass. Stop, and report the command's output.
+3. By reading: write `rules.md` with the run ID, the date and the line `not verified: <the reason>`. Write one rules
+   text for each language the profile names, or one named `core` when there is none, holding the rules you can read
+   from the layer folders the profile lists, and `None.` when there are none. End each with its read-back block:
+   the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
+   line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
+   `READ_BACK_END`. Add to **Not verified**: "Standards reader not run: <the reason>. `rules.md` and the rules texts
+   were written by reading." Never stop to ask: a run with no rules yet still gets its claims.
+4. Read the rules text of each stack whose code the change touches, or of every stack when it touches no stack's
    code. Apply every rule in it and in "Rules for this skill" above; where it replaces, waives or binds a rule
    above, it wins.
 
@@ -78,10 +89,11 @@ Check: the run folder holds `rules.md` and the rules texts you read, and you kno
 ### 2. Find the story and the change
 
 1. Read the story in full. List each requirement it covers (`AC-n`, `NFR-n`) and, from `tests`, the test types each
-   one needs.
-2. List the files the change touched (see Inputs).
+   one needs. For a planned story, read each covered target in the functional plan: what it measures and its number
+   or range.
+2. Keep the list of changed files from step 1.
 
-Check: you have every requirement with its test types, and the list of changed files.
+Check: you have every requirement with its test types and targets, and the list of changed files.
 
 ### 3. Decide what proves each requirement
 
@@ -112,8 +124,8 @@ Check: for each command you have its exact text, its exit code and the output li
 
 ### 5. Write the claims file
 
-Write `<run folder>/claims/<story ID>.md` in the layout of
-[references/claims-template.md](references/claims-template.md); read it now. Write it with a file-writing
+Write `<run folder>/claims/<story ID>.md` in the layout of `SKILL_DIR/references/claims-template.md`; read it
+now. Write it with a file-writing
 capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray files.
 
 1. **Request:** the story, quoted with `>` on each line.
@@ -125,16 +137,18 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
      in for it.
 3. **Open proof items:** `OP-1`, `OP-2`, … each with what is unproven, where and when the proof comes from, and its
    owner. `None.` when there are none.
-4. **Standards:** every entry names its source.
+4. **Standards:** only what you read or ran yourself is `this run`; anything else comes from the run log,
+   `<run folder>/log.md`, and is written only when the log records it.
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
-     and `content-hash` from the frontmatter of this `SKILL.md`, `not verified` on **Rules text** when you wrote
-     the rules texts by reading, and the read-back block of each rules text you read, in the stack order of
-     `rules.md`; each line of the rules texts' "Changes to rules that reach this run", by ID and title; the rules
-     you applied; the waivers from the story and from `rules.md`.
-   - `log`: the implementer's skills and the rules they applied, as the run log records them. When the log does not
-     record them, add one entry under **Not verified** saying so; never copy them from memory.
+     from the frontmatter of `SKILL_DIR/SKILL.md` and the hash of that file, `not verified` on **Rules text** when
+     you wrote the rules texts by reading, and the read-back block of each rules text you read, in the stack order
+     of `rules.md`; each line of the rules texts' "Changes to rules that reach this run", by ID and title; the
+     rules you applied; the waivers from the story and from `rules.md`.
+   - `log`: each other skill run and the rules it applied, as the log records them. When the log does not record
+     them, write no entry for them; add to **Not verified**: "Skills run before the claims writer: not verified:
+     `<run folder>/log.md` does not record them." Never copy them from memory.
 5. **Out of scope:** what the change deliberately does not do, each with a reason.
-6. **Files changed:** `` - `path` (N lines) ``, the count from `wc -l path`, or `(deleted)`.
+6. **Files changed:** `` - `path` (N lines) ``, the count from `wc -l path`, or `` - `path` (deleted) ``.
 7. **Not verified:** everything you could not prove, each with why. `None.` only when every claim has evidence.
 
 Hash a file with this command, giving its path in place of `FILE`:
@@ -162,7 +176,8 @@ Check: every item above was checked, and **Not verified** has the entry.
 
 ### 7. Report
 
-Say first that the claims check script did not run, and why. Then give where the claims file is and one line per
+Say first which scripts did not run, and why: the claims check script, and the standards reader when you wrote the
+rules texts by reading. Then give where the claims file is and one line per
 requirement with its status. List the open proof items, ready for the top of the pull request description, and
 name any owner that is `not named`. Do not call the story done unless every requirement is `met`.
 
@@ -202,4 +217,4 @@ because the code looks fast.
 
 ## Reference files
 
-- [references/claims-template.md](references/claims-template.md): the layout of a claims file. Read it in step 5.
+- `SKILL_DIR/references/claims-template.md`: the layout of a claims file. Read it in step 5.

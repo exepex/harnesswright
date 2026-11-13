@@ -32,7 +32,6 @@
 - **Version:** <skill version>
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
-- **Not verified:** <why>  <!-- only when Source is log and the log does not record this run -->
 
 <!-- one fence per rules text read, in the stack order of rules.md -->
 ```text
@@ -57,7 +56,7 @@
 
 ## Files changed
 
-- `<path>` (<N> lines)
+- `<path>` (<N> lines)  <!-- or (deleted) for a deleted file -->
 
 ## Not verified
 

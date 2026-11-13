@@ -177,9 +177,10 @@ it stands in for a test), where and when the proof will come from, and who owns 
 `OP-2`, … The claims writer also lists them in its report, and the coordinator puts that list at the top of the
 pull request description. Nothing tracks an open proof item after merge.
 
-**Standards** holds the entries below. Each one names its source: `this run`, what the claims writer read or ran
-itself, or `log`, what the run log records for another skill's run. Only `this run` entries count as verified; a
-`log` entry is marked `not verified`, with the reason, until the log records it.
+**Standards** holds the entries below. Each skill entry and each rule and waiver line names its source: `this run`,
+what the claims writer read or ran itself, or `log`, what the run log records for another skill's run. The hash
+and the changes applied are always `this run`. A `log` entry is written only when the log records it; until then
+**Not verified** names the runs the log does not record.
 
 - the hash of `rules.md`;
 - each skill run, in the order it ran, with its version, the hash of its release `SKILL.md` and the read-back block
