@@ -6,8 +6,12 @@ each one; a template holds exactly its fields and sections, in its order, and no
 ## How to fill one
 
 - Copy the template into the run folder, `.harness/runs/<run-id>/`, at the path below.
-- Keep every field and heading. Replace each part in angle brackets. A comment after `#` lists the allowed values.
-- Repeat an entry, such as `### AC-1`, once per item, numbered in order.
+- Keep every field and heading, except the sections the last point lets you leave out. Replace each part in angle
+  brackets.
+- A comment lists the allowed values: after `#` in the frontmatter, inside `<!-- -->` in the body. Delete the body
+  comments as you fill the file.
+- Repeat an entry, such as `### AC-1`, once per item, under the item's own ID. A story with a plan keeps the plan's
+  IDs.
 - Leave out a section marked `only when` when its condition does not hold, and an `optional` one the team does not
   use. Write `None.` in any other section that has nothing in it.
 

@@ -5,7 +5,11 @@ depends-on: [<story ID>]    # [] when none
 covers: [<AC, NFR or TD ID>]          # the criteria, targets and design elements this story delivers
 tests: {<AC or NFR ID>: [<test type>]}   # test types for each requirement it covers
 targets: {<NFR ID>: <state>}           # exact | estimated | unknown | not applicable | not testable here; {} when none
-waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reason: <reason>, until: <YYYY-MM-DD>, approved by: <account>}
+waivers:                    # story-scoped waivers; [] when none
+  - rule: <rule ID>
+    reason: <reason>
+    until: <YYYY-MM-DD>
+    approved by: <account>, <account>
 ---
 
 ## What
@@ -23,7 +27,7 @@ waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reaso
 ### AC-1
 
 - **Criterion:** <a testable statement>
-- **Test types:** [<test type>]
+- **Test types:** [<test type>]  <!-- [] when none -->
 
 ## Targets
 
@@ -31,10 +35,10 @@ waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reaso
 
 ### NFR-1
 
-- **Measure:** <measure>     # latency | throughput | memory | CPU | availability
-- **State:** <state>         # exact | estimated | unknown | not applicable | not testable here
-- **Target:** <what is measured; the number when exact, the range when estimated>
-- **Test types:** [<test type>]
+- **Measures:** <what it measures, such as p95 latency of an endpoint>
+- **State:** <state>  <!-- exact | estimated | unknown | not applicable | not testable here -->
+- **Number or range:** <the number when exact, the range when estimated, none otherwise>
+- **Test types:** [<test type>]  <!-- [] when none -->
 
 ## Gaps
 
@@ -44,7 +48,7 @@ waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reaso
 
 ## Out of scope
 
-- <what the story does not do>: <reason>
+- <what the story does not do>
 
 ## Tasks
 

@@ -13,7 +13,7 @@ status: draft               # draft | approved | rejected
 ### TD-1
 
 - **Element:** <what it is and does>
-- **Serves:** [<AC or NFR ID>]  # one or more
+- **Serves:** [<AC or NFR ID>]
 
 ## Test data
 

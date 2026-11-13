@@ -20,16 +20,16 @@ status: draft               # draft | approved | rejected
 ### AC-1
 
 - **Criterion:** <a testable statement>
-- **Test types:** [<test type>]  # from the process setting test-types; [] is a gap
+- **Test types:** [<test type>]  <!-- from the process setting test-types; [] when none -->
 
 ## Non-functional targets
 
 ### NFR-1
 
-- **Measure:** <measure>     # latency | throughput | memory | CPU | availability
-- **State:** <state>         # exact | estimated | unknown | not applicable | not testable here
-- **Target:** <what is measured; the number when exact, the range when estimated>
-- **Test types:** [<test type>]  # [] when not applicable or not testable here
+- **Measures:** <what it measures, such as p95 latency of an endpoint>
+- **State:** <state>  <!-- exact | estimated | unknown | not applicable | not testable here -->
+- **Number or range:** <the number when exact, the range when estimated, none otherwise>
+- **Test types:** [<test type>]  <!-- [] when none -->
 
 ## Gaps
 
