@@ -15,7 +15,7 @@
 
 ### OP-1
 
-- **Unproven:** <what is unproven; the requirement ID and test type when it stands in for a test>
+- **Unproven:** <what is unproven, with its requirement ID and test type if it stands in for a test>
 - **Proof:** <where and when the proof will come from>
 - **Owner:** <who owns it>
 
@@ -25,19 +25,19 @@
 
 ### Skills run
 
-#### <skill name>
+#### <skill name>  <!-- in the order run -->
 
 - **Version:** <skill version>
 - **SKILL.md:** <hash of the release SKILL.md>
-- **Rules text:** <status>  <!-- verified | not verified -->
+- **Rules text:** not verified  <!-- only when the rules text was written by reading -->
 
 ```text
-<the read-back block of its rules text, quoted exactly>
+<each read-back block of its rules text, markers included, in file order, quoted exactly>
 ```
 
 ### Changes applied
 
-- <rule ID> · <rule title, quoted exactly>
+- <the ID as the rules text writes it> · <its title, quoted exactly>
 
 ### Rules applied
 
