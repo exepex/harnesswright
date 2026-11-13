@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
   rulebook-version: "0.3.2"
-  content-hash: "e323b17b52f31fdee93f0e43ecd1000bc608ada1eebffb6d53000079622294e7"
+  content-hash: "9432d12cb075ef52f74ec06042e08180803cf4a85dcfc1130fc0f394394217e4"
   size-floors: "4881"
-  size-rest: "16901"
+  size-rest: "17048"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.2. Do not edit. -->
 
@@ -256,8 +256,9 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
      from the frontmatter of `SKILL_DIR/SKILL.md` and the hash of that file, `not verified` on **Rules text** when
      you wrote the rules texts by reading, and the read-back block of each rules text you read, in the stack order
-     of `rules.md`; each line of the rules texts' "Changes to rules that reach this run", by ID and title; the
-     rules you applied; the waivers from the story and from `rules.md`.
+     of `rules.md`; the ID and title of every line of their "Changes to rules that reach this run" and of every
+     decision point a layer binds (each not `from default`); the rules you applied; every waiver of the story's
+     `waivers` and every one `rules.md` marks `applied`. The script checks changes and waivers both ways.
    - `log`: each other skill run and the rules it applied, as the log records them. When the log does not record
      them, write no entry for them; add to **Not verified**: "Skills run before the claims writer: not verified:
      `<run folder>/log.md` does not record them." Never copy them from memory.

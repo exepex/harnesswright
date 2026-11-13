@@ -146,8 +146,9 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
      from the frontmatter of `SKILL_DIR/SKILL.md` and the hash of that file, `not verified` on **Rules text** when
      you wrote the rules texts by reading, and the read-back block of each rules text you read, in the stack order
-     of `rules.md`; each line of the rules texts' "Changes to rules that reach this run", by ID and title; the
-     rules you applied; the waivers from the story and from `rules.md`.
+     of `rules.md`; the ID and title of every line of their "Changes to rules that reach this run" and of every
+     decision point a layer binds (each not `from default`); the rules you applied; every waiver of the story's
+     `waivers` and every one `rules.md` marks `applied`. The script checks changes and waivers both ways.
    - `log`: each other skill run and the rules it applied, as the log records them. When the log does not record
      them, write no entry for them; add to **Not verified**: "Skills run before the claims writer: not verified:
      `<run folder>/log.md` does not record them." Never copy them from memory.

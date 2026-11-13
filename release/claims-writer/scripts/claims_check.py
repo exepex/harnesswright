@@ -60,8 +60,7 @@ REFERENCE = re.compile(r"`([^`:\n]+):([0-9]+)(?:-([0-9]+))?`")  # any file name;
 OP = re.compile(r"\b(OP-[0-9]+)\b")
 
 
-class InputError(Exception):
-    pass
+InputError = claims_standards.InputError
 
 
 def line_count(path):

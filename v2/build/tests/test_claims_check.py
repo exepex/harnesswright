@@ -22,12 +22,28 @@ SKILL = ROOT / "release" / "claims-writer"  # the built skill: its SKILL.md is w
 claims_check.claims_standards.SKILL_DIR = SKILL
 SKILL_HASH = hashlib.sha256((SKILL / "SKILL.md").read_bytes()).hexdigest()
 VERSION = (ROOT / "v2" / "VERSION").read_text(encoding="utf-8").strip()
-RULES_MD = "# Resolved standards\n\n## Stack: core\n\n## Stack: java\n"
+RULES_MD = """# Resolved standards
+
+## Stack: core
+
+### Waivers
+
+| Rule | Reason | Until | Approved by | Status |
+|---|---|---|---|---|
+| CORE-ERR-01 | legacy \\| old format | 2027-03-01 | a, b | applied |
+| TEAM-LOG-01 | old | 2026-01-01 | a, b | expired |
+
+## Stack: java
+"""
 BLOCK = "<!-- read-back -->\nStack: {}. Rules in this text: {}. Last rule: {}.\n<!-- end read-back -->"
 CORE = BLOCK.format("core", 0, "none")
 JAVA = BLOCK.format("java", 1, "APP-JAVA-01 · Use records")
 TEXT = ("# Rules text: claims-writer\n\n## Stack: {}\n\n### Changes to rules that reach this run\n\n{}\n\n"
-        "### Decision points\n\nNone.\n\n{}\n")
+        "### Decision points\n\n{}\n\n{}\n")
+CORE_TEXT = TEXT.format("core", "- CORE-WORK-01 · Fresh evidence: tightened by APP-JAVA-01\n- CORE-ERR-01 · Error "
+                        "format: waived until 2027-03-01: legacy", "- CORE-DP-01 · Style: `a` (from default)", CORE)
+JAVA_TEXT = TEXT.format("java", "- JAVA-TEST-01 · Tests: replaced by APP-JAVA-01",
+                        "- JAVA-DP-01 · Boilerplate: `records` (from acme company)", JAVA)
 
 STORY = """---
 id: S01
@@ -35,7 +51,11 @@ plan: none
 covers: [AC-1, AC-2, NFR-1, NFR-2, TD-1]   # a TD and an NFR not testable here are not requirements
 tests: {AC-1: [unit], AC-2: [unit, api], NFR-1: [performance]}
 targets: {NFR-1: exact, NFR-2: not testable here}
-waivers: []
+waivers:
+  - rule: APP-JAVA-02
+    reason: the old client
+    until: 2027-01-01
+    approved by: a, b
 ---
 
 ## What
@@ -118,6 +138,9 @@ JAVA
 ### Changes applied
 
 - CORE-WORK-01 · Fresh evidence
+- CORE-ERR-01 · Error format
+- JAVA-TEST-01 · Tests
+- JAVA-DP-01 · Boilerplate
 
 ### Rules applied
 
@@ -126,7 +149,8 @@ JAVA
 
 ### Waivers used
 
-None.
+- CORE-ERR-01 (this run)
+- APP-JAVA-02 (this run)
 
 ## Out of scope
 
@@ -151,19 +175,34 @@ FAILS = [  # (old text, new text, the fail line it must print)
     ("- **rules.md:** ", "- **rules.md:** 0", "the hash is not the SHA-256 of `.harness/runs/r1/rules.md`"),
     ("- **Version:** " + VERSION, "- **Version:** 9.9.9", "claims-writer: Version must be"),
     ("- **SKILL.md:** " + SKILL_HASH, "- **SKILL.md:** 0", "claims-writer: SKILL.md must be"),
-    ("- **Source:** this run", "- **Source:** log", "claims-writer: Source must be `this run`"),
+    ("- **Source:** this run", "- **Source:** log", "claims-writer: Source must be this run"),
     ("- **Source:** log", "- **Source:** this run", "implementer: Source is `log`"),
     ("#### claims-writer", "#### claims-writer-x", "no entry for claims-writer"),
     ("SKILL.md:** " + SKILL_HASH + "\n", "SKILL.md:** " + SKILL_HASH + "\n- **Rules text:** not verified\n",
-     "Rules text is `not verified` only when rules.md says so"),
+     "Rules text is `not verified` only when rules.md has a line"),
     ("Rules in this text: 1.", "Rules in this text: 2.", "not the read-back block of one of claims-writer's"),
     ("```text\n" + CORE + "\n```\n\n```text\n" + JAVA, "```text\n" + JAVA + "\n```\n\n```text\n" + CORE,
      "the read-back blocks are not in the stack order of rules.md"),
     ("- **SKILL.md:** " + SKILL_HASH + "\n\n```text\n" + CORE + "\n```\n\n```text\n" + JAVA + "\n```\n",
      "- **SKILL.md:** " + SKILL_HASH + "\n", "claims-writer quotes no read-back block"),
-    ("- CORE-WORK-01 · Fresh evidence", "- CORE-WORK-02 · Fresh evidence", "not the ID and title of a change line"),
+    ("- CORE-WORK-01 · Fresh evidence", "- CORE-WORK-02 · Fresh evidence",
+     "CORE-WORK-02 · Fresh evidence is not in the changes applied"),
     ("- APP-JAVA-01 (log)", "- APP-NOPE-01 (log)", "APP-NOPE-01 is in no rule source of this run"),
-    ("### Waivers used\n\nNone.", "### Waivers used\n\nNone.\n- APP-JAVA-01 (log)", "Waivers used: write `None.`"),
+    ("### Waivers used\n\n", "### Waivers used\n\nNone.\n", "Waivers used: write `None.`"),
+    ("- JAVA-DP-01 · Boilerplate\n", "", "Changes applied: JAVA-DP-01 · Boilerplate is missing"),
+    ("- JAVA-DP-01 · Boilerplate\n", "- CORE-DP-01 · Style\n", "CORE-DP-01 · Style is not in the changes applied"),
+    ("- JAVA-DP-01 · Boilerplate\n", "- CORE-ERR-01 · Error format\n", "CORE-ERR-01 · Error format is listed twice"),
+    ("- APP-JAVA-02 (this run)", "- TEAM-LOG-01 (this run)", "TEAM-LOG-01 is not in the waivers used"),
+    ("- APP-JAVA-02 (this run)", "- APP-JAVA-02 (log)", "Waivers used: APP-JAVA-02 is missing"),
+    ("#### implementer", "#### claims-writer", "claims-writer has a second entry under Skills run"),
+    ("- **Source:** this run\n- **Version:** " + VERSION, "- **Version:** " + VERSION + "\n- **Source:** this run",
+     "claims-writer must have Source, Version and SKILL.md, then Rules text"),
+    ("- **Source:** this run\n", "- **Source:** this run\n- **Source:** this run\n", "Source appears twice"),
+    ("- **rules.md:** ", "- rules.md: ", "it starts with one line, `- **rules.md:** <hash"),
+    ("### Rules applied", "### Skills run", "Standards headings are Skills run"),
+    ("```text\n" + JAVA, "```text\n" + CORE, "not the read-back block of one of claims-writer's"),
+    ("- **Source:** log\n", "- **Source:** log\n- CORE-WORK-01 (this run)\n", "not a line Skills run allows"),
+    ("- CORE-WORK-01 (this run)", "- CORE-WORK-0 (this run)", "CORE-WORK-0 is in no rule source of this run"),
     ("### Waivers used", "### Waivers", "Standards: the headings must be"),
     ("#### implementer\n", "#### implementer\n\n- **Owner:** x\n", "not a line the contract allows in Standards"),
     ("### AC-1\n", "### AC-1\n\nAC-1: validation added.\n", "not a line the contract allows in Requirements"),
@@ -211,6 +250,8 @@ PASSES = [  # (old text, new text): each still passes
     ("- **Status:** met\n", "- **Status:** `met`\n"),
     ("exit code 0.\n", "exit code 0.\n  - exit code: 0\n"),  # an indented bullet under Evidence
     ("- **Status:** not verified", "- **Status:** met"),  # with the open proof item replaced below
+    ("- **Version:** " + VERSION, "- **Version:** `" + VERSION + "`"),
+    ("- JAVA-DP-01 · Boilerplate\n", ""),  # with the java block removed below: its changes are not wanted
 ]
 
 
@@ -222,9 +263,9 @@ class ClaimsCheckTest(unittest.TestCase):
                            ("tests/test_pricing.py", "1\n2\n3\n4\n5\n"), (".harness/runs/r1/stories/S01.md", STORY)):
             self.write(path, text)  # brackets in a name, a last line with no newline, an empty file
         self.write(".harness/runs/r1/rules.md", RULES_MD)
-        self.write(".harness/runs/r1/rules-text-claims-writer.core.md", TEXT.format(
-            "core", "- CORE-WORK-01 · Fresh evidence: tightened by APP-JAVA-01", CORE))
-        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", TEXT.format("java", "None.", JAVA))
+        self.write(".harness/runs/r1/rules-text-claims-writer.core.md", CORE_TEXT)
+        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", JAVA_TEXT)
+        self.write(".harness/runs/r1/log.md", "# Run log\n")
         self.claims = CLAIMS
 
     def write(self, path, text):
@@ -258,16 +299,65 @@ class ClaimsCheckTest(unittest.TestCase):
             with self.subTest(new=new):
                 self.assertIn(old, CLAIMS)
                 self.claims = CLAIMS.replace(old, new)
+                if old == "- JAVA-DP-01 · Boilerplate\n":
+                    self.claims = self.claims.replace("\n```text\n" + JAVA + "\n```\n", "").replace(
+                        "- JAVA-TEST-01 · Tests\n", "")
                 if new == "- **Status:** met":
                     self.claims = self.claims.replace(OP_BLOCK, "None.\n\n").replace("OP-1", "`src/pricing.py:1`")
                 code, out = self.run_check()
                 self.assertEqual(code, 0, out)
 
     def test_standards_follow_rules_md(self):
+        self.write(".harness/runs/r1/rules.md", RULES_MD.replace("old format", "the format is not verified: legacy"))
+        self.assertNotIn("Rules text", self.run_check()[1])  # a phrase in a table is not the by-reading line
+        by_reading = "# Resolved standards\n\nnot verified: no profile\n"
+        self.write(".harness/runs/r1/rules.md", by_reading)
+        self.assertIn("claims-writer: Rules text must be not verified", self.run_check()[1])
+        sha = lambda text: hashlib.sha256(text.encode()).hexdigest()  # noqa: E731
+        self.claims = CLAIMS.replace(sha(RULES_MD), sha(by_reading)).replace("- CORE-ERR-01 (this run)\n", "")
+        self.claims = self.claims.replace(SKILL_HASH + "\n", SKILL_HASH + "\n- **Rules text:** not verified\n")
+        self.assertEqual(self.run_check()[0], 0, self.run_check()[1])  # written by reading, as step 1.3 says
         (self.repo / ".harness/runs/r1/rules.md").unlink()
-        self.assertIn("rules.md` does not exist; step 1 writes it", self.run_check()[1])
-        self.write(".harness/runs/r1/rules.md", RULES_MD + "\nnot verified: no profile\n")  # written by reading
-        self.assertIn("claims-writer: Rules text must be `not verified`", self.run_check()[1])
+        self.assertIn("rules.md` does not exist; step 1 writes it in the run folder", self.run_check()[1])
+
+    def test_a_log_entry_needs_the_log_and_a_wrong_block_fails_alone(self):
+        (self.repo / ".harness/runs/r1/log.md").unlink()
+        out = self.run_check()[1]
+        self.assertEqual(out.count("is written only when `.harness/runs/r1/log.md` records it"), 2, out)
+        self.write(".harness/runs/r1/log.md", "# Run log\n")
+        self.claims = CLAIMS.replace("Rules in this text: 1.", "Rules in this text: 2.")
+        out = self.run_check()[1]
+        self.assertEqual(out.count("fail: "), 1, out)  # the java changes still listed are not faults of their own
+        (self.repo / ".harness/runs/r1/rules-text-claims-writer.java.md").write_bytes(b"\xff")
+        self.assertEqual(self.run_check()[0], 2)  # a run file that cannot be read stops the check
+
+    def test_the_files_the_resolver_writes(self):
+        import test_runfiles  # its application: java stack, a tightening, overrides, a binding, waivers
+        app = test_runfiles.RulesTextTest("test_a_rules_text_holds_what_reaches_the_run")
+        app.setUp()
+        self.addCleanup(app.doCleanups)
+        rules_md, texts, _ = app.outputs()
+        text = texts[app.repo / test_runfiles.TEXT]
+        self.write(".harness/runs/r1/rules.md", rules_md)
+        (self.repo / ".harness/runs/r1/rules-text-claims-writer.core.md").unlink()
+        self.write(".harness/runs/r1/rules-text-claims-writer.java.md", text)
+        block = text[text.index("<!-- read-back -->"):].rstrip("\n")
+        changes = ("- CORE-WORK-01 · Report only what you verified\n- JAVA-TEST-01 · Title of JAVA-TEST-01\n"
+                   "- COMP-ACME-CODE-01 · Title of COMP-ACME-CODE-01\n"
+                   "- COMP-ACME-ERR-01 · Title of COMP-ACME-ERR-01\n"
+                   "- JAVA-DP-BOILERPLATE · How boilerplate is written\n")
+        standards = (f"- **rules.md:** {hashlib.sha256(rules_md.encode()).hexdigest()}\n\n### Skills run\n\n"
+                     f"#### claims-writer\n\n- **Source:** this run\n- **Version:** {VERSION}\n"
+                     f"- **SKILL.md:** {SKILL_HASH}\n\n```text\n{block}\n```\n\n"
+                     f"### Changes applied\n\n{changes}\n### Rules applied\n\n- APP-TEST-01 (this run)\n\n"
+                     "### Waivers used\n\n- COMP-ACME-ERR-01 (this run)\n- APP-JAVA-02 (this run)\n\n")
+        self.claims = CLAIMS[:CLAIMS.index("- **rules.md:** ")] + standards + CLAIMS[CLAIMS.index("## Out of scope"):]
+        self.assertEqual(self.run_check()[0], 0, self.run_check()[1])
+        self.claims = self.claims.replace(changes, "None.\n")
+        out = self.run_check()[1]
+        self.assertIn("Changes applied: JAVA-DP-BOILERPLATE · How boilerplate is written is missing", out)
+        self.claims = self.claims.replace("COMP-ACME-ERR-01 (this run)", "TEAM-ACME-LOG-01 (this run)")
+        self.assertIn("TEAM-ACME-LOG-01 is not in the waivers used", self.run_check()[1])  # its waiver expired
 
     def test_the_story_frontmatter(self):
         self.write(".harness/runs/r1/stories/S01.md", STORY.replace("NFR-1, NFR-2, TD-1]", "NFR-2, TD-1]"))

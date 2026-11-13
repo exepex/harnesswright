@@ -1,18 +1,20 @@
 """The Standards section of a claims file, checked against the run's own files (doc 06, "Claims").
 
 Standard library only. claims_check.py calls check() with the section's lines, each already matched to one of SHAPES.
-One rule: only what the claims writer read or ran itself is `this run`, and each such value must equal the file it
-comes from, character for character:
+One rule: every `this run` value equals what the run's files give, character for character, and every list equals its
+source both ways: nothing left out and nothing added.
 - `rules.md`: the SHA-256 of <run folder>/rules.md;
 - Skills run: one entry for this skill, Source `this run`, with the `rulebook-version` and the SHA-256 of
-  SKILL_DIR/SKILL.md, `Rules text: not verified` exactly when rules.md holds `not verified:`, and one or more
-  read-back blocks, each the block of one of this skill's rules texts in the run folder, in the stack order of
-  rules.md. Every other entry is Source `log`: such entries are not checked until the run log records skill runs;
-- Changes applied: each line is the ID and title that start a line under "Changes to rules that reach this run" in
-  a rules text it quoted;
-- Rules applied and Waivers used: `<ID> (this run | log)`, each ID one that SKILL.md, rules.md, a rules text or the
-  story names.
-Changes applied, Rules applied and Waivers used each hold `None.` alone, or lines and no `None.`.
+  SKILL_DIR/SKILL.md, `Rules text: not verified` exactly when rules.md holds a line `not verified: <reason>`, and one
+  or more read-back blocks, each the block of one of this skill's rules texts in the run folder, in the stack order
+  of rules.md;
+- Changes applied: the ID and title of each line under "Changes to rules that reach this run" and of each decision
+  point a layer binds (not `from default`), in the rules texts quoted;
+- Waivers used: each waiver of the story's `waivers` and each that rules.md marks `applied`;
+- Rules applied: each ID one that SKILL.md, rules.md, a rules text or the story names (what the agent applied is
+  not in a file, so this list is checked one way only).
+A `log` entry or line is checked only once the run log records skill runs; until then <run folder>/log.md must exist
+for one to be written. Changes applied, Rules applied and Waivers used each hold `None.` alone, or lines and no `None.`.
 """
 
 import re
@@ -25,16 +27,34 @@ import runfiles
 SKILL_DIR = Path(__file__).resolve().parent.parent
 HEADINGS = ("Skills run", "Changes applied", "Rules applied", "Waivers used")
 FIELDS = ("Source", "Version", "SKILL.md", "Rules text")
+RULE_ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
 SHAPES = [
     ("hash", re.compile(r"- \*\*rules\.md:\*\* (\S+)")),
     ("heading", re.compile(r"### (\S.*)")),
     ("skill", re.compile(r"#### ([a-z0-9]+(?:-[a-z0-9]+)*)")),
     ("field", re.compile(r"- \*\*(Source|Version|SKILL\.md|Rules text):\*\* (\S.*)")),
-    ("rule", re.compile(r"- ([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+) \((this run|log)\)")),
+    ("rule", re.compile(rf"- ({RULE_ID}) \((this run|log)\)")),
     ("change", re.compile(r"- (\S+ · \S.*)")),
     ("none", re.compile(r"None\.")),
 ]
 STACK = re.compile(r"## Stack: (\S+)", re.MULTILINE)
+NOT_VERIFIED = re.compile(r"^not verified: \S", re.MULTILINE)
+HEAD = re.compile(r"- (\S+ · .+?): (?:replaced by |waived until |tightened by |`)")
+STORY_WAIVER = re.compile(rf" *- rule: *({RULE_ID}) *(?:#.*)?")
+APPLIED = re.compile(rf"\| ({RULE_ID}) \|.*\| applied \|")
+
+
+class InputError(Exception):
+    """A run file the check cannot read: claims_check stops with exit 2."""
+
+
+def load(path, what):
+    """A file's bytes and text."""
+    try:
+        data = path.read_bytes()
+        return data, data.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise InputError(f"{what} {path}: cannot be read ({type(error).__name__})") from None
 
 
 def read_back(text):
@@ -42,6 +62,33 @@ def read_back(text):
     start = text.rfind(copyform.READ_BACK)
     end = text.find(copyform.READ_BACK_END, start)
     return text[start:end + len(copyform.READ_BACK_END)] if start >= 0 and end >= 0 else None
+
+
+def section(text, heading):
+    """The lines under each `### ` heading of a file with this title, each up to the next heading."""
+    found, inside = [], False
+    for line in text.split("\n"):
+        if line.startswith("#"):
+            inside = line == heading
+        elif inside:
+            found.append(line)
+    return found
+
+
+def changes(text):
+    """The ID and title of each change and each bound decision point of a rules text."""
+    lines = section(text, runfiles.MARKS) + [line for line in section(text, runfiles.POINTS)
+                                             if not line.endswith("(from default)")]
+    return [m.group(1) for line in lines if (m := HEAD.match(line))]
+
+
+def waivers(rules_text, story):
+    """The waivers a run uses: the story's and those rules.md marks `applied`."""
+    lines = story.split("\n")
+    front = lines[1:lines.index("---", 1)] if lines[0] == "---" and "---" in lines[1:] else []
+    found = [m.group(1) for line in front if (m := STORY_WAIVER.fullmatch(line))]
+    found += [m.group(1) for line in section(rules_text, "### Waivers") if (m := APPLIED.fullmatch(line))]
+    return found
 
 
 def groups(lines, fails):
@@ -71,7 +118,9 @@ def skills(lines, fails):
         elif entry is None or name not in ("field", "block"):
             fails.append(f"line {number}: not a line Skills run allows here")
         elif name == "field":
-            entry[1][match.group(1)] = match.group(2)
+            if match.group(1) in entry[1]:
+                fails.append(f"line {number}: {match.group(1)} appears twice in one entry")
+            entry[1][match.group(1)] = match.group(2).strip("`")
         else:
             entry[2].append((number, match))
     for key, (number, fields, _) in found.items():
@@ -88,69 +137,91 @@ def items(lines, heading, shape, fails):
     return [(number, match) for number, name, match in lines if name == shape]
 
 
+def equal(heading, listed, wanted, fails, extras=True):
+    """A list equals its source: each wanted item listed once, and (with extras) nothing else."""
+    seen = []
+    for number, value in listed:
+        if value in seen:
+            fails.append(f"line {number}: {value} is listed twice")
+        elif value not in wanted and extras:
+            fails.append(f"line {number}: {value} is not in the {heading.lower()} the run's files give")
+        seen.append(value)
+    fails += [f"{heading}: {value} is missing" for value in dict.fromkeys(wanted) if value not in seen]
+
+
 def check(repo, run, lines, story, fails, notes, skill_dir=None):
     """Check the Standards lines of a claims file whose run folder is `run` (a path from the project root)."""
     skill_dir = Path(skill_dir or SKILL_DIR)
     skill_md = skill_dir / "SKILL.md"
+    skill_bytes, skill_text = load(skill_md, "SKILL.md")
     meta, _ = rulebook.read_frontmatter(skill_md)
     own, version = meta["name"], meta.get("metadata", {}).get("rulebook-version")
     rules_md = repo / run / "rules.md"
     if not rules_md.is_file():
-        fails.append(f"Standards: `{run}/rules.md` does not exist; step 1 writes it")
+        fails.append(f"Standards: `{run}/rules.md` does not exist; step 1 writes it in the run folder, and the "
+                     "claims file is `<run folder>/claims/<story ID>.md`")
         return
-    rules_text = rules_md.read_text(encoding="utf-8")
+    rules_bytes, rules_text = load(rules_md, "rules.md")
     found = groups(lines, fails)
     head = found[""]
     if [name for _, name, _ in head] != ["hash"]:
         fails.append("Standards: it starts with one line, `- **rules.md:** <hash of rules.md>`")
-    elif head[0][2].group(1) != runfiles.sha(rules_md.read_bytes()):
+    elif head[0][2].group(1) != runfiles.sha(rules_bytes):
         fails.append(f"line {head[0][0]}: the hash is not the SHA-256 of `{run}/rules.md`")
-    order = STACK.findall(rules_text)
     texts = {}
     for path in sorted((repo / run).glob(f"rules-text-{own}.*.md")):
-        text = path.read_text(encoding="utf-8")
+        text = load(path, "rules text")[1]
         texts[path.name[len(f"rules-text-{own}."):-3]] = (text, read_back(text))
     entries = skills(found.get("Skills run", []), fails)
-    quoted = check_own(entries.get(own), own, version, skill_md, texts, order, rules_text, fails)
+    known = check_own(entries.get(own), own, version, runfiles.sha(skill_bytes), texts, rules_text, fails)
+    logged = [n for key, (n, fields, _) in entries.items() if key != own] + [
+        n for h in ("Rules applied", "Waivers used") for n, _, m in found.get(h, []) if m.group(0).endswith("(log)")]
     for key, (number, fields, _) in entries.items():
         if key != own and fields.get("Source") != "log":
             fails.append(f"line {number}: {key}: Source is `log`; only this skill's own run is `this run`")
-    if any(key != own for key in entries):
+    if logged and not (repo / run / "log.md").is_file():
+        fails += [f"line {n}: a `log` entry is written only when `{run}/log.md` records it" for n in logged]
+    elif logged:
         notes.append("Standards: entries from the run log; the log does not record skill runs yet")
-    marks = [line for stack in quoted for line in texts[stack][0].split("\n") if line.startswith("- ")]
-    for number, match in items(found.get("Changes applied", []), "Changes applied", "change", fails):
-        if not any(line.startswith(f"- {match.group(1)}:") for line in marks):
-            fails.append(f"line {number}: not the ID and title of a change line in a rules text you quoted")
-    visible = "\n".join([skill_md.read_text(encoding="utf-8"), rules_text, story] + [t for t, _ in texts.values()])
-    for heading in ("Rules applied", "Waivers used"):
-        for number, match in items(found.get(heading, []), heading, "rule", fails):
-            if not re.search(rf"(?<![\w-]){re.escape(match.group(1))}(?![\w-])", visible):
-                fails.append(f"line {number}: {match.group(1)} is in no rule source of this run")
+    wanted = [c for stack in known["quoted"] for c in changes(texts[stack][0])]
+    listed = [(n, m.group(1)) for n, m in items(found.get("Changes applied", []), "Changes applied", "change", fails)]
+    equal("Changes applied", listed, wanted, fails, extras=known["complete"])
+    visible = "\n".join([skill_text, rules_text, story] + [t for t, _ in texts.values()])
+    for number, match in items(found.get("Rules applied", []), "Rules applied", "rule", fails):
+        if not re.search(rf"(?<![\w-]){re.escape(match.group(1))}(?![\w-])", visible):
+            fails.append(f"line {number}: {match.group(1)} is in no rule source of this run")
+    used = items(found.get("Waivers used", []), "Waivers used", "rule", fails)
+    equal("Waivers used", [(n, m.group(1)) for n, m in used if m.group(2) == "this run"],
+          waivers(rules_text, story), fails)
 
 
-def check_own(entry, own, version, skill_md, texts, order, rules_text, fails):
-    """This skill's own entry; returns the stacks whose read-back blocks it quotes."""
+def check_own(entry, own, version, skill_hash, texts, rules_text, fails):
+    """This skill's own entry; returns the stacks whose read-back blocks it quotes, and whether every block matched."""
     if entry is None:
         fails.append(f"Skills run: no entry for {own}, this skill's own run")
-        return []
+        return {"quoted": [], "complete": False}
     number, fields, blocks = entry
-    wanted = {"Source": "this run", "Version": version, "SKILL.md": runfiles.sha(skill_md.read_bytes())}
-    if "not verified:" in rules_text:
+    wanted = {"Source": "this run", "Version": version, "SKILL.md": skill_hash}
+    by_reading = bool(NOT_VERIFIED.search(rules_text))
+    if by_reading:
         wanted["Rules text"] = "not verified"
-    fails += [f"line {number}: {own}: {key} must be `{value}`" for key, value in wanted.items()
+    fails += [f"line {number}: {own}: {key} must be {value}" for key, value in wanted.items()
               if fields.get(key) != value]
-    if "Rules text" in fields and "Rules text" not in wanted:
-        fails.append(f"line {number}: {own}: Rules text is `not verified` only when rules.md says so")
-    stacks = []
+    if "Rules text" in fields and not by_reading:
+        fails.append(f"line {number}: {own}: Rules text is `not verified` only when rules.md has a line "
+                     "`not verified: <reason>`")
+    stacks, complete = [], bool(blocks)
     for line, block in blocks:
         stack = next((s for s, (_, quote) in texts.items() if quote == block), None)
         if stack is None or stack in stacks:
             fails.append(f"line {line}: not the read-back block of one of {own}'s rules texts, quoted once exactly")
+            complete = False
         else:
             stacks.append(stack)
     if not blocks:
         fails.append(f"line {number}: {own} quotes no read-back block")
+    order = STACK.findall(rules_text)
     rank = [order.index(s) if s in order else len(order) for s in stacks]
     if rank != sorted(rank):
         fails.append(f"line {number}: {own}: the read-back blocks are not in the stack order of rules.md")
-    return stacks
+    return {"quoted": stacks, "complete": complete}
