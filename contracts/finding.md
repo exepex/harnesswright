@@ -1,0 +1,21 @@
+---
+id: F-<NNN>
+stage: <stage>
+author: <agent>
+severity: <severity>        # blocker | major | minor | note
+status: <status>            # confirmed | plausible | refuted
+rule: <rule ID>             # the rule it breaks, if any; none otherwise
+location: <path:line>       # or none
+---
+
+## What is wrong
+
+<what is wrong>
+
+## Evidence
+
+<the evidence>
+
+## Smallest fix
+
+<the smallest fix>

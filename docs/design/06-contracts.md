@@ -18,8 +18,8 @@ Each run has a folder, `.harness/runs/<run-id>/`, on the change's branch:
 ├── decisions/
 ├── stories/S01.md, S02.md, …
 ├── claims/S01.md, …
-├── findings/<stage>/<agent>.md
-├── votes/<stage>.md
+├── findings/<stage>/<agent>/F-007.md, …
+├── votes/<stage>/<voter>.md
 ├── verdicts/S01.md, …, feature.md
 └── log.md
 ```
