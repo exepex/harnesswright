@@ -194,7 +194,7 @@ Every action the host blocks is logged the same way on every host as `blocked`, 
 expectations like any other behaviour. A run is voided only for a harness fault: a failed audit, a canary or
 fingerprint hit, a host crash, or a host version that changed during the round. A voided slot gets at most one
 remake. If that is voided too, the slot stays empty and the label is `inconclusive`, with the reason. The label
-reports the void rate per arm, and rates that differ between arms stop the round.
+reports the void rate per arm with its counts; rates that differ between arms are reported, never a stop.
 
 ## Evidence: one record for every host
 
