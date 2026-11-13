@@ -66,7 +66,9 @@ A round moves through fixed gates. Any gate that fails stops the round with its 
 
 ## Worlds: what a run is given
 
-Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` and `case.json`.
+Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` and `case.json`. The skill is read
+from `release/NAME/` when the release manifest lists it, and from `skills/NAME/` otherwise: a release skill is the
+candidate, so it wins over an older skill of the same name.
 
 - **`world/` is the whole project the agent works in, written without the skill.** It holds every file the run
   sees, including instruction files such as `AGENTS.md` and `CLAUDE.md` when the case wants them.
@@ -74,10 +76,11 @@ Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` 
   the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
   trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
   outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
-  world. A document declared as copied names a source outside `skills/` and `evals/`, since neither is project
-  text. The copy is the source as git tracks it, with the table rows that name a skill removed, since the arm's
-  index rows replace them. Every world path, and every text the run sees, follows the same one rule as
-  `case.json`: ASCII path parts, and plain text with no control characters.
+  world. A document declared as copied names a file at the repository root, such as `AGENTS.md`: every folder
+  holds skill text, its sources, the measuring kit or harnesswright's own formats, none of them project text. The
+  copy is the source as git tracks it, with the table rows that name a skill removed, since the arm's index rows
+  replace them. Every world path, and every text the run sees, follows the same one rule as `case.json`: ASCII path
+  parts, and plain text with no control characters.
 - **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. A skill brings only

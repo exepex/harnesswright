@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 
 import manifest
 from cases import REPO, CaseError, is_path, sha256_bytes
-from skills import skill_files, skill_names, structure
+from skills import folders, library, skill_files, structure
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
 GIT_ENV = {"GIT_AUTHOR_NAME": "Project Author", "GIT_AUTHOR_EMAIL": "author@example.invalid",
@@ -60,16 +60,20 @@ def names(words):
 
 def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
     """The skills one arm of `case` installs, in order, checked. Raise CaseError when the plan is unsound."""
-    skills_root = Path(skills_root) if skills_root else REPO / "skills"
+    known = library(skills_root) if skills_root else folders(REPO)
     if case.kind == "trigger":
         # Trigger worlds install the full skill set, as in real use.
-        every = set(skill_names(skills_root)) - {case.skill}
+        every = set(known) - {case.skill}
         if set(case.siblings) != every:
             raise CaseError(f"{case.id}: a trigger case installs every other skill as a sibling: missing "
                             f"{sorted(every - set(case.siblings))}, unknown {sorted(set(case.siblings) - every)}")
-    wanted = [(name, skills_root / name, f"skills/{name}") for name in case.siblings]
+    missing = [name for name in case.siblings + ([] if skill_dir or not with_skill else [case.skill])
+               if name not in known]
+    if missing:
+        raise CaseError(f"{case.id}: no skill named {missing[0]!r} in the repository")
+    wanted = [(name, known[name], f"skills/{name}") for name in case.siblings]
     if with_skill:
-        wanted.append((case.skill, Path(skill_dir) if skill_dir else skills_root / case.skill, case.skill_rel))
+        wanted.append((case.skill, Path(skill_dir) if skill_dir else known[case.skill], case.skill_rel))
     world = manifest.manifest(case.world)
     if case.index and world.get(case.index["file"], "").split(" ")[0] != "file":
         raise CaseError(f"{case.id}: the index file {case.index['file']} must be a regular file in the world")
@@ -185,8 +189,9 @@ class Arm:
 
 def build(case, adapter, out, skills_root=None, with_skill=False, skill_dir=None):
     """Build one arm of `case` for the host of `adapter` in the empty folder `out`: the without-skill arm, or with
-    `with_skill` the with-skill arm. `skill_dir` overrides the folder of the skill under test, such as a candidate
-    version."""
+    `with_skill` the with-skill arm. `skills_root` is the skills, a folder of them or {name: folder} (`skills.library`),
+    by default the repository's (`skills.folders`). `skill_dir` overrides the folder of the skill under test, such as
+    a candidate version."""
     out = _empty(out)
     # A written world never holds git metadata, whose hooks would run when the history is built, nor a symlink
     # that leads out of it, which would point the arm back at the source or the machine.

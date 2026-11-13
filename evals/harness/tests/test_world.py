@@ -229,6 +229,22 @@ class Plans(TempCase):
         self.assertEqual([i.name for i in self.plan(dict(trigger, siblings=["note-taker"]))],
                          ["note-taker", "haiku-writer"])
 
+    def test_the_skills_may_be_a_list_of_folders(self):
+        """A list from `skills.folders` places each skill where it lives, such as a release skill."""
+        moved = self.tmp / "release" / "note-taker"
+        shutil.copytree(self.skill("note-taker"), moved)
+        self.track(moved.parent)
+        self.skill()
+        case = self.case({"README.md": "x\n", "AGENTS.md": AGENTS},
+                         {"index": INDEX, "kind": "trigger", "should_trigger": True, "split": "train",
+                          "siblings": ["note-taker"]})
+        known = {"haiku-writer": self.tmp / "skills" / "haiku-writer", "note-taker": moved}
+        self.assertEqual([i.source for i in world.plan(case, Adapter, True, known)],
+                         [moved, self.tmp / "skills" / "haiku-writer"])
+        task = self.case({"README.md": "x\n"}, {"siblings": ["note-taker"]})
+        with self.assertRaisesRegex(cases.CaseError, "no skill named 'note-taker'"):
+            world.plan(task, Adapter, False, {"haiku-writer": known["haiku-writer"]})
+
     def test_the_frontmatter_name_must_match_the_skill(self):
         self.skill("note-taker")
         (self.tmp / "skills/note-taker/SKILL.md").write_text("---\nname: other\ndescription: x\n---\n")

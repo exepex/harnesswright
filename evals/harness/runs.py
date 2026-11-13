@@ -34,6 +34,7 @@ import host
 import kit
 import manifest
 import rounds
+import skills
 import world
 from cases import REPO
 
@@ -114,8 +115,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     if version != planned["version"]:
         return _void(path, run_key, voids, f"the host's version {version} is not the manifest's "
                                            f"{planned['version']}")
-    skills_root = Path(repo) / "skills"
-    skill_dir = skills_root / case.skill
+    skills_root = skills.folders(repo)
+    skill_dir = skills_root.get(case.skill)
     with tempfile.TemporaryDirectory(prefix="r-") as scratch:
         scratch = Path(scratch)
         base = world.build(case, adapter, scratch / "a", skills_root)

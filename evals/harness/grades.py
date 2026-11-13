@@ -63,7 +63,7 @@ def grade_gate(r):
             with tempfile.TemporaryDirectory(prefix="hw-g-") as out:
                 record, blobs = goldens.bundle(golden, case, r.modules[top], out, r.hosts[top]["drift"],
                                                r.record["hosts"][top]["version"]["version"], r.model(top),
-                                               r.repo / "skills")
+                                               r.skills)
             bundle = checks.Bundle(record, blobs.__getitem__)
             verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                         if "check" in e else None for e in case.expectations]
