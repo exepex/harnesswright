@@ -7,14 +7,18 @@ Run from the project root, the folder that holds .harness/:
 Standard library only, no network, deterministic. Every line of the claims file must be a shape the contract allows
 in its section (one table of shapes, SHAPES), or the check fails on it. Then it checks:
 - the seven sections, in order, and the request quoted with `>`;
-- one entry per requirement the story covers (its frontmatter `covers`), each with Status, Done, Evidence and Test
-  types in that order, and a Status of `met`, `not met` or `not verified`;
-- each test type the story's `tests` asks for, with a test (`path:line`) or an `OP-n` that Open proof items defines,
-  and no `met` while an `OP-n` stands in for a test;
+- one entry per requirement the story covers (doc 06: each covered AC, and each covered NFR its `targets` does not
+  mark `not applicable` or `not testable here`), each with Status, Done, Evidence and Test types once, in that
+  order, and a Status of `met`, `not met` or `not verified`;
+- Open proof items, Out of scope and Not verified hold `None.` alone, or items and no `None.`;
+- each test type the story's `tests` asks for, with a test (a `path:line` that exists) or an `OP-n` that Open proof
+  items defines, and no `met` while an `OP-n` stands in for a test;
 - each open proof item numbered in order, with Unproven, Proof and Owner;
 - each file under Files changed: its true line count (as `wc -l`), or that it is gone when marked deleted; with
-  --base, the list equals what git reports as changed since REF, plus untracked files, outside .harness/runs/;
-- each `path:line` outside the request and outside code blocks: the file exists and has that line.
+  --base, the list equals what git reports as changed since REF (a rename as a deletion and a new file), plus
+  untracked files, outside .harness/runs/;
+- each `path:line` outside the request and outside code blocks, when it holds a `/` or names a file at the root:
+  the file exists and has that line.
 It does not check Standards yet; it says so.
 
 The story is --story, else <run folder>/stories/<claims file name>. Exit 0: no failure; each "not checked:" line names
@@ -102,11 +106,22 @@ def sections(text, fails):
     return found
 
 
+def lists(found, fails):
+    """Open proof items, Out of scope and Not verified hold `None.` alone, or one or more items and no `None.`;
+    Requirements holds one or more entries."""
+    for section in ("Requirements", "Open proof items", "Out of scope", "Not verified"):
+        names = [name for _, name, _ in found.get(section, [])]
+        if section in found and (not names or "none" in names and len(names) > 1):
+            fails.append(f"{section}: write `None.` alone when there is nothing, else its entries without `None.`")
+
+
 def entries(lines, section, fails):
     """The entries of Requirements or Open proof items: {ID: (line, {field: text})}, fields in the contract's order.
     Test types go to the field "types" as {type: text}. A continuation line adds to the field or type above it."""
     found, fields, last, wanted = {}, None, None, FIELDS[section]
     for number, name, match in lines:
+        if name == "none":
+            continue  # a lone None. is checked with the other lists, in lists()
         if name == "entry":
             if match.group(1) in found:
                 fails.append(f"line {number}: {match.group(1)} has a second entry")
@@ -115,14 +130,14 @@ def entries(lines, section, fails):
         elif fields is None:
             fails.append(f"line {number}: {section} has a line before its first entry")
         elif name == "field":
+            if match.group(1) in fields:
+                fails.append(f"line {number}: {match.group(1)} appears twice in one entry")
             fields[match.group(1)] = match.group(2) or ""
             last = (fields, match.group(1))
-        elif name == "type" and "Test types" in fields and list(fields)[-1] in ("Test types", "types"):
+        elif name == "type" and list(fields)[-1:] in (["Test types"], ["types"]):
             last = (fields.setdefault("types", {}), match.group(1))
             last[0][last[1]] = match.group(2)
-        elif name == "type":
-            fails.append(f"line {number}: a test type outside **Test types**")
-        elif last:
+        elif last:  # a continuation line, or an indented bullet under Done or Evidence
             last[0][last[1]] = (last[0][last[1]] + " " + match.group(0).strip()).strip()
     for key, (number, fields) in found.items():
         if [k for k in fields if k != "types"] != list(wanted):
@@ -133,26 +148,34 @@ def entries(lines, section, fails):
 
 
 def story_lists(text):
-    """The story's `covers` (a list) and `tests` (requirement ID to list of test types), from its frontmatter. None
-    when the story has no frontmatter. Both must be written in flow form, as the story contract shows them."""
+    """The requirements the story covers, and `tests` (requirement ID to list of test types), from its frontmatter.
+    None when the story has no frontmatter. A requirement is a covered AC, or a covered NFR whose state in `targets`
+    is not `not applicable` or `not testable here` (doc 06); a TD is a design element, not a requirement. `covers`,
+    `tests` and `targets` must be written in flow form, as the story contract shows them."""
     lines = text.split("\n")
     if lines[0] != "---" or "---" not in lines[1:]:
         return None
     values = {}
     for line in lines[1:lines.index("---", 1)]:
-        if m := re.fullmatch(r"(covers|tests): *([^#]*?) *(?:#.*)?", line):
+        if m := re.fullmatch(r"(covers|tests|targets): *([^#]*?) *(?:#.*)?", line):
             values[m.group(1)] = m.group(2)
     item = r"[^\s,:\[\]{}]+"
     covers = re.fullmatch(rf"\[ *((?:{item}(?: *, *{item})*)?) *\]", values.get("covers", ""))
     pair = rf"{item}: *\[ *(?:{item}(?: *, *{item})*)? *\]"
     tests = re.fullmatch(rf"\{{ *((?:{pair}(?: *, *{pair})*)?) *\}}", values.get("tests", ""))
-    if not covers or not tests:
-        raise InputError("story: `covers` and `tests` must be written in flow form, as in contracts/story.md")
+    state = rf"{item}: *(?:exact|estimated|unknown|not applicable|not testable here)"
+    targets = re.fullmatch(rf"\{{ *((?:{state}(?: *, *{state})*)?) *\}}", values.get("targets", "{}"))
+    if not covers or not tests or not targets:
+        raise InputError("story: `covers`, `tests` and `targets` must be written in flow form, as in "
+                         "contracts/story.md")
     split = lambda s: [v for v in re.split(r" *, *", s.strip()) if v]  # noqa: E731
-    return split(covers.group(1)), {k: split(v) for k, v in re.findall(rf"({item}): *\[([^\]]*)\]", tests.group(1))}
+    states = dict(re.findall(rf"({item}): *([a-z ]*[a-z])", targets.group(1)))
+    wanted = [key for key in split(covers.group(1)) if key.startswith("AC-") or key.startswith("NFR-")
+              and states.get(key) not in ("not applicable", "not testable here")]
+    return wanted, {k: split(v) for k, v in re.findall(rf"({item}): *\[([^\]]*)\]", tests.group(1))}
 
 
-def check_requirements(found, story, fails, notes):
+def check_requirements(repo, found, story, fails, notes):
     ops = entries(found.get("Open proof items", []), "Open proof items", fails)
     numbers = [int(key[3:]) for key in ops]
     if numbers != list(range(1, len(numbers) + 1)):
@@ -163,7 +186,7 @@ def check_requirements(found, story, fails, notes):
         tests = {}
     else:
         covers, tests = story
-        fails += [f"{key}: the story covers it, but it has no entry" for key in covers if key not in reqs]
+        fails += [f"{key}: a requirement the story covers, but it has no entry" for key in covers if key not in reqs]
         fails += [f"line {reqs[key][0]}: {key} is not a requirement the story covers"
                   for key in reqs if key not in covers]
     for key, (number, fields) in reqs.items():
@@ -180,8 +203,8 @@ def check_requirements(found, story, fails, notes):
                 fails.append(f"line {number}: {key} has no {kind} test, nor the OP-n that stands in for it")
             elif any(op not in ops for op in OP.findall(text)):
                 fails.append(f"line {number}: {key}, {kind}: names an OP-n that Open proof items does not define")
-            elif not standing and not REFERENCE.search(text):
-                fails.append(f"line {number}: {key}, {kind}: give the test with `path:line`, or an OP-n")
+            elif not standing and not any(points(repo, *ref) for ref in REFERENCE.findall(text)):
+                fails.append(f"line {number}: {key}, {kind}: give the test with a `path:line` that exists, or an OP-n")
             elif standing and status == "met":
                 fails.append(f"line {number}: {key} is `met`, but {standing[0]} stands in for its {kind} test")
 
@@ -189,7 +212,7 @@ def check_requirements(found, story, fails, notes):
 def changed(repo, base):
     """What git reports as changed since base, plus untracked files, outside the run folders; None without git."""
     listed = set()
-    for args in (["diff", "--name-only", "--relative", "-z", base, "--"], ["ls-files", "-z", "--others",
+    for args in (["diff", "--name-only", "--no-renames", "--relative", "-z", base, "--"], ["ls-files", "-z", "--others",
                                                                          "--exclude-standard"]):
         try:
             done = subprocess.run(["git", *args], cwd=repo, capture_output=True)
@@ -225,9 +248,15 @@ def check_files(lines, repo, base, fails, notes):
     fails += [f"`{p}` is listed, but it did not change since {base}" for p in sorted(listed - real)]
 
 
+def points(repo, path, first, last):
+    """Whether `path:first-last` names lines of a file that exists."""
+    target = repo / path
+    return target.is_file() and 1 <= int(first) <= int(last or first) <= max(line_count(target), 1)
+
+
 def check_references(text, repo, fails):
-    """Every `path:line` outside the request and outside code blocks names a line that exists. A name with no
-    extension that is no file (`localhost:8080`) is not a path."""
+    """Every `path:line` outside the request, Files changed and code blocks names lines that exist. It is a path when
+    it holds a `/` or names a file at the root; anything else (`localhost:8080`, `api.example.com:443`) is not."""
     fence, section = None, None
     for number, line in enumerate(text.split("\n"), 1):
         opened = FENCE.match(line)
@@ -238,14 +267,8 @@ def check_references(text, repo, fails):
         if section in (None, "Request", "Files changed"):
             continue
         for path, first, last in REFERENCE.findall(line):
-            target = repo / path
-            if not target.is_file():
-                if "." in Path(path).name:
-                    fails.append(f"line {number}: `{path}:{first}`: no such file")
-                continue
-            lines = max(line_count(target), 1)
-            if not 1 <= int(first) <= int(last or first) <= lines:
-                fails.append(f"line {number}: `{path}:{first}{'-' + last if last else ''}`: the file has {lines} lines")
+            if ("/" in path or (repo / path).is_file()) and not points(repo, path, first, last):
+                fails.append(f"line {number}: `{path}:{first}{'-' + last if last else ''}`: no such file or line")
 
 
 def check(repo, claims, story_path, base):
@@ -257,7 +280,8 @@ def check(repo, claims, story_path, base):
     found = sections(text, fails)
     if found.get("Request") == []:
         fails.append("Request: the story is not quoted with `>`")
-    check_requirements(found, story, fails, notes)
+    lists(found, fails)
+    check_requirements(repo, found, story, fails, notes)
     check_files(found.get("Files changed", []), repo, base, fails, notes)
     check_references(text, repo, fails)
     return fails, notes

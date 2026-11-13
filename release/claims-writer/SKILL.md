@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
   rulebook-version: "0.3.1"
-  content-hash: "15d54d5b8d323a975fd8a4e7de3839dcdc2f4ef6ac633ece28740ea94337aa63"
+  content-hash: "bd7ba5a28c5b2a7972f7c3fef631686b1d92e098ec70047107cbf0f3b23630ee"
   size-floors: "4881"
-  size-rest: "16564"
+  size-rest: "17016"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
 
@@ -185,8 +185,9 @@ decides what to do: the standards reader's result stands, unless it could not ru
      run must not pass. Stop, and report the command's output.
 3. By reading: write only the files that are missing, and keep a `rules.md` that exists. A new `rules.md` holds the
    run ID, the date and the line `not verified: <the reason>`. Write one rules text for each language the profile
-   names, or one named `core` when there is none, holding the rules you can read from the release's `rules/core/`
-   and `rules/<language>/` folders and the layer folders the profile lists, and `None.` when there are none. End
+   names, or one named `core` when there is none, holding the rules you can read from the `rules/core/` and
+   `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
+   there are none (always, when there is no profile). End
    each with its read-back block:
    the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the
    line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
@@ -200,8 +201,9 @@ Check: the run folder holds `rules.md` and the rules texts you read, and you kno
 
 ### 2. Find the story and the change
 
-1. Read the story in full. List each requirement it covers (`AC-n`, `NFR-n`) and, from `tests`, the test types each
-   one needs. For a planned story, read each covered target in the functional plan: what it measures and its number
+1. Read the story in full. List each requirement it covers, and from `tests` the test types each one needs. A
+   requirement is a covered `AC-n`, or a covered `NFR-n` whose state in `targets` is not `not applicable` or `not
+   testable here` (a `TD-n` is a design element, not a requirement). For a planned story, read each covered target in the functional plan: what it measures and its number
    or range.
 2. Keep the list of changed files from step 1.
 
@@ -284,7 +286,11 @@ against in step 1; leave it out when there is no git. The script writes nothing.
 python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --story <story file> --base <base>
 ```
 
-- Exit 0: add each `not checked:` line it prints to **Not verified**, as "Claims check: <what was not checked>".
+Before it, remove the files your commands in step 4 created that the project does not ignore, such as caches; they
+are not part of the change.
+
+- Exit 0: add each `not checked:` line it prints, except the Standards line, to **Not verified**, as "Claims check:
+  <what was not checked>".
 - Exit 1: each `fail:` line is a fault in the claims file. Fix the claims file, never code or tests, and run the
   check again until it exits 0.
 - Exit 2: it names an input it cannot read. Fix the path you gave, or, when the input itself is at fault, check by
@@ -295,7 +301,8 @@ python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --stor
   script not run: <the reason>. Line counts, `path:line` references and the layout were checked by reading only."
 
 The script does not check Standards. Open `rules.md` and each rules text you quoted, and confirm the hash and that
-each read-back block and change line is quoted character for character. Replace a `None.` in **Not verified** when
+each read-back block and change line is quoted character for character. If you cannot, add the Standards line to
+**Not verified** too. Replace a `None.` in **Not verified** when
 you add an entry to it.
 
 Check: the last run of the check exits 0, or the by-reading checks are done; **Not verified** has each entry above.
