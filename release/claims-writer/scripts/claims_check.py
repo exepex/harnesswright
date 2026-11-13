@@ -159,20 +159,19 @@ def story_lists(text):
     for line in lines[1:lines.index("---", 1)]:
         if m := re.fullmatch(r"(covers|tests|targets): *([^#]*?) *(?:#.*)?", line):
             values[m.group(1)] = m.group(2)
-    item = r"[^\s,:\[\]{}]+"
-    covers = re.fullmatch(rf"\[ *((?:{item}(?: *, *{item})*)?) *\]", values.get("covers", ""))
-    pair = rf"{item}: *\[ *(?:{item}(?: *, *{item})*)? *\]"
+    key, item = r"[A-Z][A-Z0-9]*-[0-9]+", r"[a-z0-9][a-z0-9-]*"  # an ID and a test type, unquoted, as the contract
+    covers = re.fullmatch(rf"\[ *((?:{key}(?: *, *{key})*)?) *\]", values.get("covers", ""))
+    pair = rf"{key}: *\[ *(?:{item}(?: *, *{item})*)? *\]"
     tests = re.fullmatch(rf"\{{ *((?:{pair}(?: *, *{pair})*)?) *\}}", values.get("tests", ""))
-    state = rf"{item}: *(?:exact|estimated|unknown|not applicable|not testable here)"
+    state = rf"{key}: *(?:exact|estimated|unknown|not applicable|not testable here)"
     targets = re.fullmatch(rf"\{{ *((?:{state}(?: *, *{state})*)?) *\}}", values.get("targets", "{}"))
     if not covers or not tests or not targets:
-        raise InputError("story: `covers`, `tests` and `targets` must be written in flow form, as in "
-                         "contracts/story.md")
+        raise InputError("story: `covers`, `tests` and `targets` must be in the flow form of contracts/story.md")
     split = lambda s: [v for v in re.split(r" *, *", s.strip()) if v]  # noqa: E731
-    states = dict(re.findall(rf"({item}): *([a-z ]*[a-z])", targets.group(1)))
+    states = dict(re.findall(rf"({key}): *([a-z ]*[a-z])", targets.group(1)))
     wanted = [key for key in split(covers.group(1)) if key.startswith("AC-") or key.startswith("NFR-")
               and states.get(key) not in ("not applicable", "not testable here")]
-    return wanted, {k: split(v) for k, v in re.findall(rf"({item}): *\[([^\]]*)\]", tests.group(1))}
+    return wanted, {k: split(v) for k, v in re.findall(rf"({key}): *\[([^\]]*)\]", tests.group(1))}
 
 
 def check_requirements(repo, found, story, fails, notes):
