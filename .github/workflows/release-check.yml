@@ -1,0 +1,50 @@
+# The release check (reviews/release-design/final-design.md section 5; build order B0.2). On every pull request and
+# every push to main it runs the build tests, then check_rules.py and check_release.py: release/ must equal a rebuild
+# of its sources, and every rule, template and copied block must pass. "release-check" is the one required check.
+name: release-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}  # every commit of main keeps its verdict
+
+jobs:
+  release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: "3.13"
+      - name: Build tests
+        run: python3 -B -m unittest discover -s v2/build/tests
+      - name: Files this change touches, and the base manifest
+        if: ${{ !cancelled() }}  # every check reports, even after an earlier one fails
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt"
+          git show "$BASE:release/manifest.json" > "$RUNNER_TEMP/base.json" 2>/dev/null \
+            || echo '{"rulebook-version": "none", "skills": {}}' > "$RUNNER_TEMP/base.json"  # a base before release/
+      - name: Check rules, roles and templates
+        if: ${{ !cancelled() }}  # every check reports, even after an earlier one fails
+        run: python3 -B v2/build/check_rules.py --changed "$RUNNER_TEMP/changed.txt"
+      - name: Check the release and summarise each skill
+        if: ${{ !cancelled() }}  # every check reports, even after an earlier one fails
+        run: |
+          set -o pipefail
+          echo '### Release summary per skill' >> "$GITHUB_STEP_SUMMARY"
+          python3 -B v2/build/check_release.py --base "$RUNNER_TEMP/base.json" > "$RUNNER_TEMP/summary.txt"
+          if [ -s "$RUNNER_TEMP/summary.txt" ]; then cat "$RUNNER_TEMP/summary.txt"; else echo "No skill changed."; fi \
+            | tee -a "$GITHUB_STEP_SUMMARY"

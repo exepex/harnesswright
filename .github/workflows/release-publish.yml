@@ -1,0 +1,55 @@
+# Publish a release (reviews/release-design/final-design.md section 5; build order B0.2). Only a tag v<version> on a
+# commit of main publishes, and only after the same checks as release-check pass on that commit, so a red main
+# cannot be tagged out. This is the one workflow with contents: write.
+name: release-publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+jobs:
+  release-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: "3.13"
+      - name: The tag names v2/VERSION and a commit of main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="$(cat v2/VERSION)"
+          test "$TAG" = "v$VERSION" || { echo "tag $TAG is not v$VERSION from v2/VERSION"; exit 1; }
+          git merge-base --is-ancestor HEAD origin/main || { echo "tag $TAG is not on main"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build tests
+        run: python3 -B -m unittest discover -s v2/build/tests
+      - name: Check rules, roles and templates, with the files changed since the last release
+        run: |
+          PREVIOUS="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          if [ -n "$PREVIOUS" ]; then BASE="$PREVIOUS"; else BASE="$(git rev-list --max-parents=0 HEAD | tail -1)"; fi
+          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt"
+          python3 -B v2/build/check_rules.py --changed "$RUNNER_TEMP/changed.txt"
+      - name: Check the release
+        run: python3 -B v2/build/check_release.py
+      - name: Zip release/ and publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git archive --format=zip --prefix="harnesswright-skills-$VERSION/" --mtime="$(git log -1 --format=%cI)" \
+            -o "harnesswright-skills-$VERSION.zip" HEAD:release  # the commit's time, so a commit gives one zip
+          gh release create "$TAG" "harnesswright-skills-$VERSION.zip" --verify-tag --title "$TAG" \
+            --notes "harnesswright skills $VERSION: the release/ folder of $GITHUB_SHA."
