@@ -45,7 +45,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          git archive --format=zip --prefix="harnesswright-skills-$VERSION/" \
-            -o "harnesswright-skills-$VERSION.zip" HEAD:release
+          git archive --format=zip --prefix="harnesswright-skills-$VERSION/" --mtime="$(git log -1 --format=%cI)" \
+            -o "harnesswright-skills-$VERSION.zip" HEAD:release  # the commit's time, so a commit gives one zip
           gh release create "$TAG" "harnesswright-skills-$VERSION.zip" --verify-tag --title "$TAG" \
             --notes "harnesswright skills $VERSION: the release/ folder of $GITHUB_SHA."

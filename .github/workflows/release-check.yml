@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: release-check-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}  # every commit of main keeps its verdict
 
 jobs:
   release-check:
@@ -35,7 +35,8 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt"
-          git show "$BASE:release/manifest.json" > "$RUNNER_TEMP/base.json"
+          git show "$BASE:release/manifest.json" > "$RUNNER_TEMP/base.json" 2>/dev/null \
+            || echo '{"rulebook-version": "none", "skills": {}}' > "$RUNNER_TEMP/base.json"  # a base before release/
       - name: Check rules, roles and templates
         if: ${{ !cancelled() }}  # every check reports, even after an earlier one fails
         run: python3 -B v2/build/check_rules.py --changed "$RUNNER_TEMP/changed.txt"
@@ -44,4 +45,6 @@ jobs:
         run: |
           set -o pipefail
           echo '### Release summary per skill' >> "$GITHUB_STEP_SUMMARY"
-          python3 -B v2/build/check_release.py --base "$RUNNER_TEMP/base.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 -B v2/build/check_release.py --base "$RUNNER_TEMP/base.json" > "$RUNNER_TEMP/summary.txt"
+          if [ -s "$RUNNER_TEMP/summary.txt" ]; then cat "$RUNNER_TEMP/summary.txt"; else echo "No skill changed."; fi \
+            | tee -a "$GITHUB_STEP_SUMMARY"
