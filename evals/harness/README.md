@@ -351,8 +351,10 @@ of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
 
 Each page is graded by a panel (`grader.panel`), by one rule: a question's answer is the one two graders gave. Two
 graders grade the page, on two different hosts when both are available. A question they answered two ways goes to
-one fresh grader on the reference host, Claude Code. A question with no two answers the same, as when a grader was
-ungraded, stays unanswered, so the run is `ungraded` on it: one grader never decides a question alone. How many
+one fresh grader on the reference host, Claude Code. An ungraded grader is replaced once by a fresh grader of its
+own host, which answers every question, so the two sheets still come from both hosts. A question with no two answers
+the same, as when that grader is ungraded too, stays unanswered, so the run is `ungraded` on it: one grader never
+decides a question alone. How many
 questions the two graders answered the same is reported, never used as a gate.
 
 A golden is a hand-made run of a case with a settled answer for each expectation,
@@ -423,7 +425,7 @@ as `seen`, scrubbed the same way, so the judges can check each catch.
 | `inferred` | a command that reads a world file in an unusual way, one that only names it | The stored log holds that command, ended well, and every read of the file is tagged inferred, with at least one when the command read it. It needs a case of kind `task`, where every host may run commands |
 | `sheet` | each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every bad word), misquoted (every way), quoting nothing or with another field (the file too), and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
 | `golden` | graders that answer `yes` to everything or `no` to everything, one question of one golden wrong (each in turn), or no answer on one golden (each in turn); goldens that settle a question one way only (each question, each way) | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
-| `tie` | two graders that split on one question (each in turn) or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, none is asked and nothing is answered |
+| `tie` | two graders that split on one question (each in turn) or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, the same holds for the sheet of a fresh grader of that host, which is asked every question, and with no stand-in sheet either, nothing is answered and none asked |
 | `view` | the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, after a slash and in backticks, with the run's folders and a command's output, in a record's arm and host reports (exposure, requests, failure), final message, every kind of log entry (with a command's inferred entries), or files and changes (each overlay path with its folders, the folders above it, its files and writes; a link to one; lines in a world file and its write) | Neither the view (its record and every blob) nor the page names any of them, the clean ones name none, and both equal those of a control: the record without the plant's overlay actions and naming lines |
 | `folder` | a grader that writes its page, its questions, a new file and another grader's folder beside it, or reads canaries beside it, in a decoy home and in the repository, by path and by command | In every try the jail stops each one: the page, the folder and the folder beside it stay as they were, the harness can write none of them and finds no planted path from inside the grader's jail, no canary reaches what it left, and the sheet is accepted |
 
