@@ -24,8 +24,10 @@ canaries and credentials of every containment its gates made, taken while its ho
   graders (`grading.questions`). A check that breaks stops the round.
 - `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each page's
   grading written to the attempt's own folder (`grades.grade_gate`).
+- `label`: the labels of 10 · Skills for each skill on each host, computed from the store alone and written to
+  `labels/<attempt>.json` (`labels.label_gate`).
 
-The label and store gates follow in later steps. Every gate runs again when a round is run again,
+The store gate follows in a later step. Every gate runs again when a round is run again,
 as each proves the kit and the hosts as they are now; only runs are kept (`runs.run`).
 
 Run from the repository root:
@@ -50,6 +52,7 @@ import grader
 import grades
 import grading
 import kit
+import labels
 import lint
 import probes
 import rounds
@@ -227,7 +230,7 @@ def check_gate(r):
 
 
 GATES = (("kit check", kit_check), ("lint", lint_gate), ("probe", probe_gate), ("faults", faults_gate),
-         ("run", run_gate), ("check", check_gate), ("grade", grades.grade_gate))
+         ("run", run_gate), ("check", check_gate), ("grade", grades.grade_gate), ("label", labels.label_gate))
 
 
 def read(store, name, repo=REPO):

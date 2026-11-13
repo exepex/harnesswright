@@ -43,6 +43,7 @@ allowed connections.
 | `gates.py` | `round run`: a planned round through its gates in order, the first that fails stopping it, each outcome in the attempt record |
 | `grades.py` | The grade gate: what no check decided, answered by blind panels with the goldens mixed in, trusted only where the goldens were |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
+| `labels.py` | The label gate: each skill's label on each host, by the thresholds of 10 · Skills, from what the round stored |
 | `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
 
 ## Commands
@@ -452,49 +453,4 @@ is how the round is run, not something the harness can prove.
 
 ## Rounds
 
-A round starts from a plan file: the round's name, the skills with the cases to run, the hosts (each adapter once,
-with the model it runs, always named, as not every host reports its model and a default changes) and the runs per
-case, arm and host. `rounds.read_plan` checks it against one schema, `rounds.PLAN`, and refuses any other field or
-shape. `python3 evals/harness/rounds.py plan PLAN.json --store DIR` writes the round's manifest to
-`DIR/<round>/manifest.json`, outside the working tree: the plan and its hash, the commit, the kit's hash, the hash
-of every skill an arm installs (the skills under test and every sibling) with its upstream source and the hash of
-its stored copy (`evals/skills/NAME/upstream/`), each case's hash (its `case.json` and world), each adapter's
-tracked files, and each host's program, hash and version as the host's own jail finds it. A round is planned from a
-clean tree, so its commit holds every input it hashes. A round's manifest is written once: the same manifest again
-is kept, and any other is refused, so a changed input is a new round.
-
-Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
-everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
-the manifest, the arm, the number, the run's own settings (the drift record, which decides what evidence counts as
-the agent's, and the time budget, since a run that timed out is scored), and the runner code that affects a run
-(`runs.RUNNER`: the jail, the gate, the host contract, the world builder, the evidence and `runs.py` itself). The
-jail's settings are not in the key: the jail is audited on every run, and one that fails its audit stops the round.
-`runs.run` makes a run only from the repository at the round's commit, clean, so it builds exactly the inputs the
-manifest hashed. It keeps a run whose folder, `<store>/<round>/runs/<key>/`, holds a bundle that loads, so a resumed
-round remakes only missing or voided runs. Otherwise it builds and proves both arms, runs the chosen arm in its
-jail, collects its evidence and stores the bundle, written beside its name and moved into place. A run is void, with
-`void.json` listing why, only for a harness fault: the host failed, or its version is not the manifest's. What the
-agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
-stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
-its audit, or a canary in any output, raises, and the round stops.
-
-`python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
-(`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs, the
-checks and the grades. Each gate reads only the manifest and what the gates before it found, and the first that
-fails stops the round with its reason. A host that fails a probe is `not run` for the round; the round stops only
-when no host passed. The drift record of the first attempt a host passed is kept as the round's
-(`<store>/<round>/drift/<host>.json`) and used by every later attempt, so run keys stay the same from one attempt to
-the next. Tools that are not the round's stop the round. Every fault of the catalogue is planted on each host that
-passed, at a place the round's seed chooses, and every one must be caught. The runs follow `gates.order`: for each
-number, each case in turn, its two arms one after the other, the arm that goes first alternating. The host's version
-is measured just before each run, so a host that changed during the round voids its runs. The check gate decides
-every expectation that has a check on the bundle of each kept or made run, with the check library of the round's
-commit, and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided
-goes on to the graders. The grade gate grades every run's and golden's page in one blind order (`grades.py`). A
-run's answer counts only where the goldens got their settled answers. Each graded page leaves one record in the
-attempt's own folder (`<store>/<round>/grades/<attempt>/`). A check that breaks, a grader that breaks its jail or a
-golden that cannot be built stops the round. Each gate's outcome, that of the gate that stopped the round too, is
-written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
-Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
-every containment its gates made, taken while its home is still there. Every gate, grading too, as goldens
-calibrate only their own attempt's graders, runs again when the round runs again; only runs are kept.
+How a round is planned, run, checked, graded and labelled is in [ROUNDS.md](ROUNDS.md).

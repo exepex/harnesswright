@@ -48,7 +48,9 @@ def pond(page):
     return "yes" if "silent pond" in page else "no"
 
 
-class Graded(Gated):
+class Pages(Gated):
+    """A round of one case with two goldens, its runs stored as a round stores them."""
+
     def setUp(self):
         super().setUp()
         shutil.copytree(checks.LIBRARY, self.repo / "evals" / "checks",
@@ -89,6 +91,8 @@ class Graded(Gated):
         [attempt] = (self.store / "r1" / "grades").iterdir()
         return json.loads((attempt / kind / f"{key}.json").read_text())
 
+
+class Graded(Pages):
     def test_what_no_check_decided_is_answered_where_the_goldens_were_and_kept_beside_the_bundle(self):
         calls = []
         outcome = self.graded([POND, HELLO], answering(pond, calls))
