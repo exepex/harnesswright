@@ -1,17 +1,15 @@
 """The standards reader's command: resolve an application's rule layers (plan/b01-plan.md part e).
 
-Standard library only. Shipped in each release skill's scripts/ beside rulebook.py, reach.py, copyform.py and
-repoprofile.py, and imports only them. It reads the team settings with repoprofile.py, then every layer the run
-uses, and stops on any break of docs/design/03-standards.md "Resolving the rules for an application" and
-docs/design/07-repo-profile.md, naming the file and line or the layer and folder (HW-AG-09). Part e1a reads and
-checks these inputs; parts e1b and e2 combine them and write rules.md and the rules texts.
+Standard library only. Shipped in each release skill's scripts/ beside rulebook.py, reach.py, copyform.py,
+repoprofile.py and runfiles.py, and imports only them. It reads the team settings with repoprofile.py, then every
+layer the run uses, and stops on any break of docs/design/03-standards.md "Resolving the rules for an application"
+and docs/design/07-repo-profile.md, naming the file and line or the layer and folder (HW-AG-09). Part e1a reads and
+checks these inputs; parts e1b and e2 combine them, and runfiles.py writes rules.md and the rules texts.
 
 Run: python3 resolve.py --repo REPO --run RUN-ID --date YYYY-MM-DD
 """
 
 import argparse
-import hashlib
-import os
 import json
 import re
 import sys
@@ -19,13 +17,14 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import reach
 import rulebook
+import runfiles
 from repoprofile import PROFILE, RulebookError, ResolveError, read_layer_yaml, read_profile
 from rulebook import DP_ID, EVERY_ROLE, fail
 
 LEVELS = ("COMP", "DEPT", "TEAM")  # company, department, team: layers 3 to 5, most general first
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-RULES_MD = ".harness/runs/{run}/rules.md"
 # A change relation is allowed only between these kinds (plan/b01-plan.md "Change relations").
 WAIVABLE = ("principle", "idiom", "choice")
 RELATIONS = {"Tightens": ({"floor"}, {"floor"}), "Binds": ({"choice"}, {"decision point"}),
@@ -52,6 +51,8 @@ class Inputs:
     expired: list  # the same, `until` before the run date
     limit: int
     files: list = field(default_factory=list)  # every file read, in reading order
+    manifest: dict = field(default_factory=dict)  # the release manifest: its version and each skill's entry
+    jobs: dict = field(default_factory=dict)  # the release roles file's Jobs table
 
 
 
@@ -86,6 +87,23 @@ def add_source(sources, name, prefixes, folder, owner, files):
     return sources[-1]
 
 
+ENTRY = {"job": str, "rest": bool, "roles": list, "areas": list, "copied-ids": list}  # what resolve reads of a skill
+
+
+def read_manifest(path):
+    """The release manifest: its version, and per skill the entry keys resolve reads, each of its shape."""
+    try:
+        manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+        ok = isinstance(manifest["rulebook-version"], str) and isinstance(manifest["skills"], dict) and all(
+            isinstance(e, dict) and all(isinstance(e.get(k), t) for k, t in ENTRY.items())
+            for e in manifest["skills"].values())
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, KeyError):
+        ok = False
+    if not ok:
+        raise ResolveError(f"release: {path} is missing or cannot be read as a release manifest")
+    return manifest
+
+
 def load(repo, today):
     """Read and check every input of a run; any break of the plan's stops raises ResolveError."""
     repo = Path(repo)
@@ -93,17 +111,19 @@ def load(repo, today):
     profile, files = read_profile(path), [path]
     release = repo / profile["folder"]
     manifest_path = release / "manifest.json"
-    try:
-        found = json.loads(manifest_path.read_text(encoding="utf-8")).get("rulebook-version")
-    except (OSError, UnicodeDecodeError, ValueError, AttributeError):
-        raise ResolveError(f"release: {manifest_path} is missing or cannot be read") from None
+    manifest = read_manifest(manifest_path)
     files += [manifest_path, release / "roles.md"]
-    if found != profile["version"]:
-        raise ResolveError(f"release ({release}): version {found} is not the profile's {profile['version']}")
+    if manifest["rulebook-version"] != profile["version"]:
+        raise ResolveError(f"release ({release}): version {manifest['rulebook-version']} is not the profile's "
+                           f"{profile['version']}")
     try:
-        roles = set(rulebook.read_roles(release / "roles.md")["roles"])
+        table = rulebook.read_roles(release / "roles.md")
     except (OSError, UnicodeDecodeError):
         raise ResolveError(f"release: {release / 'roles.md'} is missing or cannot be read") from None
+    roles = set(table["roles"])
+    unknown = [n for n, e in manifest["skills"].items() if e["job"] not in table["jobs"]]
+    if unknown:
+        raise ResolveError(f"release: {manifest_path} names skills of jobs roles.md does not list: {unknown}")
     sources = []
     add_source(sources, "CORE", ("CORE",), release / "rules" / "core", "harnesswright", files)
     for index, (language, number) in enumerate(zip(profile["languages"], profile["language lines"])):
@@ -125,7 +145,7 @@ def load(repo, today):
         add_source(sources, "application", ("APP",), repo / profile["repository"], "the application owner", files)
     check_rules(sources, roles)
     inputs = Inputs(profile["version"], release, sources, roles, check_decisions(path, profile, sources), [], [],
-                    profile["limit"], files)
+                    profile["limit"], files, manifest, table["jobs"])
     check_waivers(path, profile, sources, today, inputs)
     return inputs
 
@@ -230,6 +250,12 @@ class Resolved:
     points: dict = field(default_factory=dict)  # decision point ID -> (option, where it comes from)
     waivers: list = field(default_factory=list)  # the waivers and expired waivers of rules in this stack
 
+    def last(self, rule_id):
+        """The rule that replaces rule_id in the end, following a chain of replacements."""
+        while rule_id in self.replaced:
+            rule_id = self.replaced[rule_id]
+        return rule_id
+
 
 def combine(inputs):
     """Resolve each stack (one per language) on its own."""
@@ -292,69 +318,25 @@ def combine_stack(inputs, name, sources):
     return done
 
 
-def last(done, rule_id):
-    """The rule that replaces rule_id in the end, following a chain of replacements."""
-    while rule_id in done.replaced:
-        rule_id = done.replaced[rule_id]
-    return rule_id
-
-
-def cell(text):
-    return str(text).replace("|", "\\|")
-
-
-def row(*cells):
-    return "| " + " | ".join(cell(c) for c in cells) + " |"
-
-
-def stack_md(inputs, done):
-    """One stack's sections of rules.md."""
-    applied = {w["rule"]: w for w in done.waivers if w not in inputs.expired}
-    lines = ["", f"## Stack: {done.stack}", "", "### Rules", "", "| ID | Layer | Kind | Changes | Waiver |",
-             "|---|---|---|---|---|"]
-    for rule_id, (rule, layer, change) in done.rules.items():
-        waiver = applied.get(rule_id)
-        lines.append(row(rule_id, layer, rule.kind, change, f"waived until {waiver['until']}" if waiver else ""))
-    lines += ["", "### Decision points", "", "| Point | Option | From |", "|---|---|---|"]
-    lines += [row(point, option, source) for point, (option, source) in done.points.items()]
-    lines += ["", "### Waivers", "", "| Rule | Reason | Until | Approved by | Status |", "|---|---|---|---|---|"]
-    for waiver in done.waivers:
-        status = ("expired" if waiver in inputs.expired else
-                  f"replaced by {last(done, waiver['rule'])}" if waiver["rule"] in done.replaced else "applied")
-        lines.append(row(waiver["rule"], waiver["reason"], waiver["until"], waiver["approved by"], status))
-    lines += ["", "### Replaced", "", "| Rule | Replaced by |", "|---|---|"]
-    return lines + [row(rule_id, by) for rule_id, by in done.replaced.items()]
-
-
-def rules_md(repo, run, today, inputs, stacks_done):
-    """The resolved standards file: no rule text, only IDs, layers, kinds, changes, waivers and file hashes, with
-    one section per stack."""
-    lines = ["# Resolved standards", "", f"- **Run:** {run}", f"- **Date:** {today.isoformat()}",
-             f"- **Release:** {inputs.version}"]
-    for done in stacks_done:
-        lines += stack_md(inputs, done)
-    lines += ["", "## Files read", "", "| SHA-256 | File |", "|---|---|"]
-    for path in inputs.files:
-        name = Path(os.path.relpath(Path(path).resolve(), Path(repo).resolve())).as_posix()
-        lines.append(row(hashlib.sha256(Path(path).read_bytes()).hexdigest(), name))
-    return "\n".join(lines) + "\n"
-
-
-def write_rules_md(repo, run, text):
-    """Write rules.md once per run. If the run already has one, the new text must be the same bytes."""
-    path = Path(repo) / RULES_MD.format(run=run)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open("xb") as file:  # created here or not at all, so a second resolve never overwrites it
-            file.write(text.encode("utf-8"))
-    except FileExistsError:
-        if path.read_bytes() != text.encode("utf-8"):
-            raise ResolveError(f"{path} already exists and differs from this resolve: an input changed during "
-                               "the run; start a new run") from None
-    return path
+def run_files(repo, run, today, inputs):
+    """What the run writes: rules.md, each skill's rules text (path -> text), and the skills parked over the
+    ceiling (skill -> size, owner of its largest layer, sizes per layer and area)."""
+    stacks_done = combine(inputs)
+    held = [[r for s in sources for r in active(s) if r.id in done.rules or r.id in done.replaced]  # a rule that
+            for (_, sources), done in zip(stacks(inputs.sources), stacks_done)]  # changes another stack's is not here
+    texts, parked = {}, {}
+    for name in sorted(inputs.manifest["skills"]):
+        text, full = runfiles.rules_text(name, inputs, list(zip(held, stacks_done)))
+        if reach.size(text) > inputs.limit:
+            parked[name] = (reach.size(text), *runfiles.largest_owner(full, inputs))
+        else:
+            texts[Path(repo) / runfiles.RULES_TEXT.format(run=run, skill=name)] = text
+    summary = {name: (size, owner) for name, (size, owner, _) in parked.items()}
+    return runfiles.rules_md(repo, run, today, inputs, stacks_done, texts, summary), texts, parked
 
 
 def main(argv=None):
+    """Exit 0 when every rules text is written, 3 when a skill is parked over the ceiling, 1 when the run stops."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True)
     parser.add_argument("--run", required=True)
@@ -364,12 +346,20 @@ def main(argv=None):
         if not RUN_ID.fullmatch(args.run):
             raise ResolveError(f"run id {args.run!r} must be letters, digits, '.', '_' or '-'")
         inputs = load(args.repo, args.date)
-        path = write_rules_md(args.repo, args.run, rules_md(args.repo, args.run, args.date, inputs, combine(inputs)))
+        text, texts, parked = run_files(args.repo, args.run, args.date, inputs)
+        path = runfiles.write_once(Path(args.repo) / runfiles.RULES_MD.format(run=args.run), text)
+        for rules_text_path, rules_text in texts.items():
+            runfiles.write_once(rules_text_path, rules_text)
     except RulebookError as error:
         print(f"resolve stopped: {error}", file=sys.stderr)
         return 1
-    print(f"resolve: wrote {path}; the rules texts are not built yet (B0.1 part e2)", file=sys.stderr)
-    return 2
+    print(f"resolve: wrote {path} and {len(texts)} rules texts", file=sys.stderr)
+    for name, (size, owner, sizes) in parked.items():
+        print(f"resolve: parked {name}: its rules text is {size} characters, over the limit of {inputs.limit}; "
+              f"it goes to {owner}. Sizes per layer and area:", file=sys.stderr)
+        for (layer, area), count in sorted(sizes.items()):
+            print(f"  {layer} {area}: {count}", file=sys.stderr)
+    return 3 if parked else 0
 
 
 if __name__ == "__main__":

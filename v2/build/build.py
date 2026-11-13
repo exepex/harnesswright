@@ -31,7 +31,7 @@ import copyform
 import reach
 import rulebook
 
-SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "repoprofile.py", "resolve.py")
+SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "repoprofile.py", "resolve.py", "runfiles.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 # An ID inside a word, a file name or a path is not a citation: no letter, digit, "-", "/" or "." before it, and no

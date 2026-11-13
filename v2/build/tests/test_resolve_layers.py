@@ -329,7 +329,7 @@ class LayersTest(Application):
         err = io.StringIO()
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])
-        self.assertEqual((code, "rules texts are not built yet" in err.getvalue()), (2, True))
+        self.assertEqual((code, "and 0 rules texts" in err.getvalue()), (0, True))
         self.edit(".harness/profile.yaml", '"0.1.0"', '"9.9.9"')
         with redirect_stderr(err):
             code = resolve.main(["--repo", str(self.repo), "--run", "r1", "--date", "2026-11-12"])

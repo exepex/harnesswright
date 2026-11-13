@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from rulebook import EVERY_ROLE, NAME, ROLE, RulebookError, split_list
 
 REST = "rest"
+CEILING = 30000  # characters: floors, rest and a rules text each stay at or under it (check_release.py keeps its own)
 AREA = re.compile(NAME)
 
 

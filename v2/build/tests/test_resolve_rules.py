@@ -25,7 +25,7 @@ class RulesTest(Application):
 
     def text(self):
         inputs = resolve.load(self.repo, TODAY)
-        return resolve.rules_md(self.repo, "r1", TODAY, inputs, resolve.combine(inputs))
+        return resolve.run_files(self.repo, "r1", TODAY, inputs)[0]
 
     def main(self, run="r1"):
         err = io.StringIO()
@@ -204,17 +204,17 @@ class RulesTest(Application):
                       self.text())
 
     def test_rules_md_is_written_once_per_run(self):
-        self.assertEqual(self.main()[0], 2)
+        self.assertEqual(self.main()[0], 0)
         path = self.repo / ".harness/runs/r1/rules.md"
         written = path.read_bytes()
         self.assertEqual(written, self.text().encode("utf-8"))
-        self.assertEqual(self.main(), (2, self.main()[1]))
+        self.assertEqual(self.main(), (0, self.main()[1]))
         self.assertEqual(path.read_bytes(), written)
         self.edit("../acme/team/log.md", "Title of TEAM-ACME-LOG-01", "A new title")
         code, err = self.main()
         self.assertEqual((code, "already exists and differs from this resolve" in err), (1, True))
         self.assertEqual(path.read_bytes(), written)
-        self.assertEqual(self.main("r2")[0], 2)
+        self.assertEqual(self.main("r2")[0], 0)
         self.assertNotEqual((self.repo / ".harness/runs/r2/rules.md").read_bytes(), written)
         code, err = self.main("../escape")
         self.assertEqual((code, "run id '../escape' must be" in err), (1, True))

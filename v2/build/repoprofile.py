@@ -9,12 +9,13 @@ docs/design/07-repo-profile.md "Format".
 import re
 from dataclasses import dataclass
 
+import reach
 import rulebook
 from rulebook import DP_ID, RULE_ID, RulebookError, fail
 
 PROFILE = ".harness/profile.yaml"
 MAX_LIMIT = 60000
-DEFAULT_LIMIT = 30000
+DEFAULT_LIMIT = reach.CEILING
 READ = ("harnesswright", "standards", "waivers", "rules-text-limit", "decisions")
 SKIP = ("toolchain", "scripts", "models", "capabilities", "process")  # doc 07's sections that resolve does not read
 VALUE = re.compile(f"{rulebook.PRINTABLE}+")
