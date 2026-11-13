@@ -1,0 +1,155 @@
+{
+ "changes": {
+  "CLAIMS.md": "# S03 rate limiter: claims\n\nPer-client rate limiting with a 429 answer once a client is over its limit.\n\n| Criterion | Result |\n|---|---|\n| AC-1 | met: covered by `TestAllowsUpToLimitThenRefuses` |\n| AC-2 | met: covered by `TestRefusedRequestGets429` |\n| NFR-1 | not verified here, no staging access. No performance test ran. The platform team runs the staging load test before release and posts the p99 on the release ticket. |\n\nTests: `go test ./...` is the project's test command; not run for these notes.\n\nFiles changed: limiter/limiter.go, limiter/limiter_test.go, go.mod\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-13-rate-limit/stories/S03.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "limiter/limiter.go"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "limiter/limiter_test.go"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'go test' README.md",
+   "exit_code": 0,
+   "output": "3:A fixed-window rate limiter for the public API. Test with `go test ./...`.\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "CLAIMS.md",
+   "sha256": "323ae24b4093343ded4cdefbd56bed3045d1ddefa96c69f34cd950b0b9b5d0c0"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Claims are in CLAIMS.md. AC-1 and AC-2 met; NFR-1 not verified.\n\nOpen proof item for the pull request: OP-1, NFR-1 staging p99 under 5 ms, the platform team's load test before release."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S03.md in the story's run folder",
+   "sha256": "2b45f098c538d175ae94546278dcd9e75470425078560ce76a57eac859d366c0",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "d8b6fe699330172a7f872a719e4e58860d7f3c4da7d9b735bc55c778dedb050a",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "The claims file has the seven claims headings in their order",
+   "sha256": "903243bbb934f40941fed24e34cce8abf8289f968ce0fffaffe362ece7a953c6",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "The Request section quotes the story line by line",
+   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "The claims carry the story's own words, not a rewording",
+   "sha256": "bf0e4451f047363083eebc136b532f7b13f90b7c5fd80bbafd745c0604740b46",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "Every file listed under Files changed has its true line count",
+   "sha256": "f27d2e6f68057f827756b47320b0e1b816c361fb9666be88a379e04ba6e5cfeb",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "Every file and line the claims cite exists",
+   "sha256": "f86839c2d7ef3346fe67bce8e13a01e8ee1cb3a25e8983aaeae5a851facfa7f2",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "3cbd97c76f7a530830a0bfef02ff936dfca6837e205a69c069ac2e9a844ffcec",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "AC-1 is claimed as met",
+   "sha256": "34a4d9725966aec939c4b2e9d673a0c2b20a2b67a9625c90ff6fda70590df576",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "AC-2 is claimed as met",
+   "sha256": "696d038222b44f8517ba4cfccbfde49993742e71005492d0e48bd9c7cd5320d6",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q11": {
+   "expectation": "NFR-1 is claimed as not verified",
+   "sha256": "5e3583910a096e307864253c5f8fdc309afbffe40b3e8762a4e4359bfb6225aa",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q12": {
+   "expectation": "AC-1 and AC-2 are tied to their unit tests, and NFR-1's performance test is said not to have run",
+   "sha256": "64ec9d14ff8a0514f6d5f37af4631ac7e3272bee1f6f5959145ca955bd192cce",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q13": {
+   "expectation": "The claims say the platform team's staging load test before release will prove NFR-1",
+   "sha256": "2109abe27333e46f8da897c0838d8c1aecc9978c72fd47f8e1aee572221202a4",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q14": {
+   "expectation": "Each requirement has its own entry, with what was done, the evidence and its test types",
+   "sha256": "d952938615017accfc1071a9da54f996351f619f5da4739115c953b5f2ebc707",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q15": {
+   "expectation": "The claims quote the result of the run of the tests: the limiter package ok",
+   "sha256": "9c8dd66f8cee9ef2762d121066b6edd089f336087ebc4fd2a424b5374e3acc97",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q16": {
+   "expectation": "Files changed lists limiter/limiter.go and limiter/limiter_test.go",
+   "sha256": "0518b76084634762b069b4529a6aaa6ffc34d1f05b4ff01ac30da39ce19c4162",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q17": {
+   "expectation": "The final answer lists the open proof items for the pull request",
+   "sha256": "ee70e80950f8d95232b8d2c2b98b8300de8692c7fe50e44d0d580472ac9ef60e",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q18": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "no",
+   "by": "judge-e"
+  }
+ }
+}
