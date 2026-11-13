@@ -251,9 +251,10 @@ class Checked(Gated):
         steps = (("run", self.ran(["made", "void", "kept", "empty"])), ("check", gates.check_gate))
         found = self.go(steps)["gates"][1]["outcome"]
         self.assertEqual([f["key"] for f in found], ["k1", "k3"])  # a void or empty run has nothing to check
-        self.assertEqual(found[0], {"key": "k1", "pass": 1, "fail": 1, "undecidable": 0, "asked": ["q2"]})
+        self.assertEqual(found[0], {"key": "k1", "pass": 1, "fail": 1, "undecidable": 0, "asked": ["q2", "q4"]})
         verdicts = json.loads((self.store / "r1" / "runs" / "k1" / "checks.json").read_text())["verdicts"]
-        self.assertEqual([v and v["outcome"] for v in verdicts], ["pass", None, "fail"])
+        # the done question, last, has no check
+        self.assertEqual([v and v["outcome"] for v in verdicts], ["pass", None, "fail", None])
         self.assertEqual(verdicts[2]["check"], "file_state")
         self.assertFalse((self.store / "r1" / "runs" / "k2" / "checks.json").exists())
 

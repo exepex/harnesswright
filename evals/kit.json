@@ -6,7 +6,7 @@
     "power table": ["evals/harness/powers.py"],
     "probes": ["evals/harness/probes.py"],
     "goldens": ["evals/goldens"],
-    "grader prompt": ["evals/grading/prompt.md"],
+    "grader prompt": ["evals/grading/prompt.md", "evals/grading/done.json"],
     "fault catalogue": ["evals/faults", "evals/harness/faults.py", "evals/harness/host_faults.py"]
   }
 }

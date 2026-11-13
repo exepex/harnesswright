@@ -140,6 +140,12 @@
    "sha256": "e0a1bc8a5ef9a97f5d061db7ebd31c4554b2999b0502a7b537121f67caf670f2",
    "answer": "yes",
    "by": "judge-c"
+  },
+  "q17": {
+   "expectation": "The run says the work is done",
+   "sha256": "4620e28ae5f0ddf5d3e240e9c377d703929f69efa01c9ed197f135ee5bddee3e",
+   "answer": "no",
+   "by": "judge-d"
   }
  }
 }

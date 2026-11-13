@@ -10,8 +10,10 @@ from test_grades import HELLO, POND, Pages, answering, pond, wrote
 from test_prices import PRICES
 from test_runs import DRIFT
 
+import cases
 import evidence
 import gates
+import grader
 import goldens
 import grades
 import labels
@@ -24,6 +26,18 @@ EXPECTATIONS = [  # a format check, a contract question for the graders, and a c
     {"text": "The notes are kept", "source": CONTRACT, "judged": JUDGED,
      "check": {"name": "file_state", "args": {"path": "README.md", "state": "unchanged"}}},
 ]
+
+
+DRAFT = "A first draft\n"
+
+
+def done_or_pond(adapter, page, asked, model=None, timeout=None, **containment):
+    """A stand-in grader: q4, the done question, is yes unless the page is a draft; every other question is yes
+    only for the haiku."""
+    quote = page.splitlines()[0]
+    answers = [{"id": q["id"], "answer": ("no" if DRAFT.strip() in page else "yes") if q["id"] == "q4"
+                else pond(page), "evidence": quote} for q in asked]
+    return grader.Graded({"answers": answers}, [], [[]])
 
 
 def case(kind="task", expectations=EXPECTATIONS, **fields):
@@ -120,11 +134,15 @@ class Gate(Pages):
         super().setUp()
         (self.case_dir / "case.json").write_text(json.dumps({"prompt": "Write a haiku.", "kind": "task",
                                                              "expectations": EXPECTATIONS}))
-        for name, poem, answer in (("yes", POND, "yes"), ("no", HELLO, "no")):
+        # q2 asks for the haiku, and q4, the done question, whether the run says it is done: the "no" golden wrote
+        # the wrong poem and says it is done, a false done; the "draft" golden says it is not done
+        for name, poem, answer, done in (("yes", POND, "yes", "yes"), ("no", HELLO, "no", "yes"),
+                                         ("draft", DRAFT, "no", "no")):
             data = wrote(poem)
             data["settled"] = {f"q{n}": {"expectation": e["text"], "sha256": goldens.fingerprint(e), "answer": a,
                                          "by": "judge-a"}
-                               for n, (e, a) in enumerate(zip(EXPECTATIONS, ["yes", answer, "yes"]), start=1)}
+                               for n, (e, a) in enumerate(zip([*EXPECTATIONS, cases.done()],
+                                                              ["yes", answer, "yes", done]), start=1)}
             self.golden(name, data)
         (self.repo / "evals" / "results").mkdir(parents=True, exist_ok=True)
         (self.repo / "evals" / "results" / "prices.json").write_text(json.dumps(PRICES))
@@ -154,7 +172,7 @@ class Gate(Pages):
         probe, run = self.stored([("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3)
         steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
                  ("label", labels.label_gate))
-        outcome = self.go(steps, grade=answering(pond))["gates"][-1]["outcome"]
+        outcome = self.go(steps, grade=done_or_pond)["gates"][-1]["outcome"]
         self.assertEqual(outcome, {"haiku-writer": {"fakehost": "incomplete"}})  # the case has no trigger case
         [path] = (self.store / "r1" / "labels").iterdir()
         found = json.loads(path.read_text())
@@ -166,7 +184,11 @@ class Gate(Pages):
         self.assertEqual(path.stem, found["attempt"])
         self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
                          (PRICES["date"], None, 3))  # no fault gate here
-        self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 2, "asked": 2})  # q2 of both goldens
+        self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 6, "asked": 6})  # q2 and q4 of 3 goldens
+        # every run without the skill wrote the wrong poem and said it was done; every run with it was right
+        self.assertEqual(entry["false_done"], {
+            "with_skill": {"rate": 0.0, "false_done": 0, "decided": 3, "undecided": 0},
+            "without_skill": {"rate": 1.0, "false_done": 3, "decided": 3, "undecided": 0}})
         self.assertEqual({arm: (c["runs"], c["money"], c["uncounted"]) for arm, c in entry["cost"].items()},
                          {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
 
@@ -182,6 +204,8 @@ class Gate(Pages):
         self.assertIn("c1, with_skill, run 1: not scored (expectation 2 has no trusted answer)", gaps)
         self.assertIn("c1, with_skill: 0 scored run(s), 3 needed", gaps)
         self.assertTrue(any(gap.startswith("haiku-writer/c1 q2: goldens missed") for gap in gaps))
+        self.assertEqual(found["skills"]["haiku-writer"]["fakehost"]["false_done"], {
+            "with_skill": {"rate": None, "false_done": 0, "decided": 0, "undecided": 1}})  # neither is trusted
 
 
 if __name__ == "__main__":

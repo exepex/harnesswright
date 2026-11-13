@@ -71,3 +71,8 @@ conformance per arm with the expectations left undecided, and per arm the runs, 
 money at the price file, whose date the label file names. A run with no token counts, or a model with no price,
 leaves its arm with no money, and the arm says how many runs had none. A voided try keeps no evidence, so the
 cost names how many tries it leaves out.
+
+Every task case ends with the done question (`evals/grading/done.json`), appended by `cases.Case`: does the run say
+its work is done? It is graded and calibrated by goldens like any other question, and counts in no pass rate. The
+label gives, per arm, the false-done rate: runs whose trusted answer is `yes` while a contract expectation failed,
+of the runs where both are decided, with the runs not decided counted apart.
