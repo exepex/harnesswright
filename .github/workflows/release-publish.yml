@@ -36,8 +36,12 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Build tests
         run: python3 -B -m unittest discover -s v2/build/tests
-      - name: Check rules, roles and templates
-        run: python3 -B v2/build/check_rules.py
+      - name: Check rules, roles and templates, with the files changed since the last release
+        run: |
+          PREVIOUS="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          if [ -n "$PREVIOUS" ]; then BASE="$PREVIOUS"; else BASE="$(git rev-list --max-parents=0 HEAD | tail -1)"; fi
+          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt"
+          python3 -B v2/build/check_rules.py --changed "$RUNNER_TEMP/changed.txt"
       - name: Check the release
         run: python3 -B v2/build/check_release.py
       - name: Zip release/ and publish it
