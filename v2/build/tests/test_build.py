@@ -20,6 +20,13 @@ import build  # noqa: E402
 import rulebook  # noqa: E402
 
 JOB_ROW = "| demo | skill designer | demo-skill | demo-skill |\n"
+JOBS = "| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n"
+
+
+def roles_without_jobs():
+    """The real roles file with an empty Jobs table, so a test's skills are the only ones."""
+    text = (ROOT / "v2" / "roles.md").read_text(encoding="utf-8")
+    return text[:text.index(JOBS) + len(JOBS)]
 
 
 class BuildTest(unittest.TestCase):
@@ -31,8 +38,7 @@ class BuildTest(unittest.TestCase):
         self.root = Path(folder.name)
         shutil.copytree(ROOT / "v2" / "rules" / "core", self.root / "v2" / "rules" / "core")
         (self.root / "v2" / "VERSION").write_text("0.1.0\n", encoding="utf-8")
-        roles = (ROOT / "v2" / "roles.md").read_text(encoding="utf-8")
-        (self.root / "v2" / "roles.md").write_text(roles + JOB_ROW, encoding="utf-8")
+        (self.root / "v2" / "roles.md").write_text(roles_without_jobs() + JOB_ROW, encoding="utf-8")
         self.skill = self.root / "v2" / "skills" / "demo-skill"
         shutil.copytree(FIXTURE, self.skill)
         self.core = rulebook.read_layer(ROOT / "v2" / "rules" / "core").rules
@@ -191,8 +197,7 @@ class BuildTest(unittest.TestCase):
 
     def test_empty_roster(self):
         shutil.rmtree(self.skill)
-        roles = (ROOT / "v2" / "roles.md").read_text(encoding="utf-8")
-        (self.root / "v2" / "roles.md").write_text(roles, encoding="utf-8")
+        (self.root / "v2" / "roles.md").write_text(roles_without_jobs(), encoding="utf-8")
         files = build.build(self.root)
         self.assertEqual(files["manifest.json"], '{\n  "rulebook-version": "0.1.0",\n  "skills": {}\n}\n')
         self.assertEqual(sorted(p for p in files if not build.is_copy(p)), ["manifest.json"])

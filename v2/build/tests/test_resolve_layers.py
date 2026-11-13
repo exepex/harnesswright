@@ -6,7 +6,6 @@ test breaks one thing and asserts the message that names it.
 """
 
 import io
-import re
 import shutil
 import tempfile
 import unittest
@@ -66,9 +65,13 @@ class Application(unittest.TestCase):
         self.repo = self.tmp / "app"
         release = self.repo / ".agents/harnesswright"
         shutil.copytree(ROOT / "release", release)
-        manifest = release / "manifest.json"  # the fixture pins 0.1.0 whatever v2/VERSION says now
-        manifest.write_text(re.sub(r'"rulebook-version": "[^"]+"', '"rulebook-version": "0.1.0"',
-                                   manifest.read_text(encoding="utf-8")), encoding="utf-8")
+        # The fixture is the release at 0.1.0 with no skills, whatever v2/VERSION and v2/skills hold now.
+        for skill in [p for p in release.iterdir() if p.is_dir() and p.name != "rules"]:
+            shutil.rmtree(skill)
+        (release / "manifest.json").write_text('{"rulebook-version": "0.1.0", "skills": {}}\n', encoding="utf-8")
+        roles = (release / "roles.md").read_text(encoding="utf-8")
+        jobs = "| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n"
+        (release / "roles.md").write_text(roles[:roles.index(jobs) + len(jobs)], encoding="utf-8")
         self.files = {
             ".agents/harnesswright/rules/java/dp.md": area("JAVA-DP", POINT),
             ".agents/harnesswright/rules/java/test.md": area("JAVA-TEST", rule("JAVA-TEST-01", "idiom")),

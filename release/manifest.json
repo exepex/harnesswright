@@ -1,4 +1,28 @@
 {
-  "rulebook-version": "0.2.0",
-  "skills": {}
+  "rulebook-version": "0.3.0",
+  "skills": {
+    "claims-writer": {
+      "areas": [],
+      "content-hash": "27c80631376b0a1fadf71ec0b9776210529ad66bd100a709383d7f581230a4a3",
+      "copied-ids": [
+        "CORE-SKILL-25",
+        "CORE-WORK-01",
+        "CORE-WORK-02",
+        "CORE-WORK-03",
+        "CORE-WORK-04",
+        "CORE-WORK-05",
+        "CORE-WORK-06",
+        "CORE-WORK-07",
+        "CORE-WORK-08"
+      ],
+      "job": "claims",
+      "rest": true,
+      "roles": [
+        "claims writer"
+      ],
+      "rulebook-version": "0.3.0",
+      "size-floors": 4881,
+      "size-rest": 15271
+    }
+  }
 }

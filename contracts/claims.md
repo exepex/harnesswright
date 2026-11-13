@@ -6,6 +6,7 @@
 
 ### <requirement ID>
 
+- **Status:** <met | not met | not verified>
 - **Done:** <what was done, with `path:line`>
 - **Evidence:** <test names with `path:line`; the command run and the output lines that prove it>
 - **Test types:**
@@ -27,6 +28,7 @@
 
 #### <skill name>  <!-- in the order run -->
 
+- **Source:** <this run | log>
 - **Version:** <skill version>
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
@@ -42,11 +44,11 @@
 
 ### Rules applied
 
-- <rule ID>
+- <rule ID> (<this run | log>)
 
 ### Waivers used
 
-- <rule ID>
+- <rule ID> (<this run | log>)
 
 ## Out of scope
 
@@ -54,7 +56,7 @@
 
 ## Files changed
 
-- `<path>` (<N> lines)
+- `<path>` (<N> lines)  <!-- or (deleted) for a deleted file -->
 
 ## Not verified
 
