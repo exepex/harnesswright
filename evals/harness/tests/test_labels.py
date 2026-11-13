@@ -164,9 +164,10 @@ class Gate(Pages):
         self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
             "test trigger cases: none", "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
-        self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]),
-                         (PRICES["date"], None, {"with_skill": 0.0, "without_skill": 0.0}))  # no fault gate here
-        self.assertEqual({arm: (c["runs"], c["money"], c["unpriced"]) for arm, c in entry["cost"].items()},
+        self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
+                         (PRICES["date"], None, 3))  # no fault gate here
+        self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 2, "asked": 2})  # q2 of both goldens
+        self.assertEqual({arm: (c["runs"], c["money"], c["uncounted"]) for arm, c in entry["cost"].items()},
                          {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):

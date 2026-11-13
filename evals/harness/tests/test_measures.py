@@ -40,9 +40,14 @@ class Measures(TempCase):
             sheet.write_text(json.dumps({"answers": answers}))
             self.graded.append({"key": key, "agreed": agreed[0], "asked": agreed[1]})
 
-    def measure(self, faults=None, goldens=None):
+    def golden(self, skill, case_id, name, asked, answers, settled):
+        sheet = self.tmp / "grades" / "a1" / "goldens" / skill / case_id / f"{name}.json"
+        sheet.parent.mkdir(parents=True, exist_ok=True)
+        sheet.write_text(json.dumps({"asked": asked, "answers": answers, "settled": settled}))
+
+    def measure(self, faults=None):
         gates = {"run": {"passed": True, "outcome": self.made},
-                 "grade": {"passed": True, "outcome": {"goldens": goldens or {}, "runs": self.graded}}}
+                 "grade": {"passed": True, "outcome": {"goldens": {}, "runs": self.graded}}}
         if faults is not None:
             gates["faults"] = {"passed": True, "outcome": faults}
         cases = {("haiku-writer", "t"): case(expectations=EXPECTATIONS),
@@ -59,16 +64,25 @@ class Measures(TempCase):
         self.run_("k4", "without_skill", verdicts=[verdict("undecidable", inferred=True), None, verdict("fail")],
                   answers={"q1": "no", "q2": "no"}, agreed=(2, 2))
         self.run_("k5", "with_skill", case_id="g")  # a trigger run counts in the void rate and the cost only
-        found = self.measure(faults={"h": [{"caught": True}, {"caught": True}], "other": [{"caught": True}]},
-                             goldens={"haiku-writer/t": {"q2": None, "q3": "the no golden was answered yes"},
-                                      "other-skill/t": {"q2": "planted"}})
-        self.assertEqual(found["void_rate"], {"with_skill": 0.25, "without_skill": 0.6667})  # 1 of 4, 2 of 3
-        self.assertEqual(found["grader_agreement"], 0.8)  # 4 of 5
-        self.assertEqual(found["golden_accuracy"], 0.5)
+        self.run_("k6", "without_skill", verdicts=[verdict("undecidable", inferred=True), None, None], answers={})
+        # goldens: right, right, then one answered wrong and one left unanswered; another skill's never counts
+        self.golden("haiku-writer", "t", "yes", ["q2"], {"q2": "yes"}, {"q2": "yes", "q3": "yes"})
+        self.golden("haiku-writer", "t", "no", ["q2", "q3", "q1"], {"q2": "no", "q3": "yes"},
+                    {"q1": "no", "q2": "no", "q3": "no"})
+        self.golden("other-skill", "t", "yes", ["q2"], {"q2": "no"}, {"q2": "yes"})
+        found = self.measure(faults={"h": [{"caught": True}, {"caught": True}], "other": [{"caught": True}]})
+        self.assertEqual(found["void_rate"], {"with_skill": {"rate": 0.25, "voids": 1, "tries": 4},
+                                              "without_skill": {"rate": 0.5, "voids": 2, "tries": 4}})
+        self.assertEqual(found["grader_agreement"], {"rate": 0.8, "agreed": 4, "asked": 5})
+        self.assertEqual(found["golden_accuracy"], {"rate": 0.5, "right": 2, "asked": 4})
         self.assertEqual(found["faults"], {"caught": 2, "planted": 2})
-        self.assertEqual(found["inferred_evidence"], {"with_skill": 1, "without_skill": 1})
-        # format: a check pass, a check fail; and a trusted "no" where an inferred check decided nothing
-        self.assertEqual(found["format_conformance"], {"with_skill": 0.5, "without_skill": 0.0})
+        self.assertEqual(found["inferred_evidence"], {"with_skill": 1, "without_skill": 2})
+        # format: a check pass, a check fail; a trusted "no" where an inferred check decided nothing; and one with
+        # neither a check verdict nor a trusted answer, named as undecided
+        self.assertEqual(found["format_conformance"], {
+            "with_skill": {"rate": 0.5, "passed": 1, "decided": 2, "undecided": 0},
+            "without_skill": {"rate": 0.0, "passed": 0, "decided": 1, "undecided": 1}})
+        self.assertEqual(found["cost"]["with_skill"]["voided"], 1)  # a voided try keeps no evidence to cost
 
     def test_cost_sums_each_arm_and_gives_no_money_when_one_run_has_none(self):
         priced = {"seconds": 12.5, "tokens": {"model-a": counts(1_000_000, output=10_000)}}
@@ -77,14 +91,19 @@ class Measures(TempCase):
         self.run_("k3", "without_skill", record={"seconds": None, "tokens": None}, verdicts=[None] * 3, answers={})
         self.run_("k4", "without_skill", record=priced, verdicts=[None] * 3, answers={})
         found = self.measure()
+        self.run_("k5", "without_skill", record={"seconds": 1, "tokens": {"model-z": counts(10)}}, verdicts=[None] * 3,
+                  answers={})
+        found = self.measure()
         self.assertEqual(found["cost"]["with_skill"], {
-            "runs": 2, "seconds": 25.0, "untimed": 0, "unpriced": 0, "money": 4.2,
+            "runs": 2, "seconds": 25.0, "untimed": 0, "uncounted": 0, "unpriced": 0, "voided": 0, "money": 4.2,
             "tokens": {"model-a": counts(2_000_000, output=20_000)}})
-        self.assertEqual(found["cost"]["without_skill"]["money"], None)  # one run had no counts: never a guess
-        self.assertEqual((found["cost"]["without_skill"]["unpriced"], found["cost"]["without_skill"]["untimed"]),
-                         (1, 1))
+        without = found["cost"]["without_skill"]
+        self.assertIsNone(without["money"])  # one run had no counts, one a model with no price: never a guess
+        self.assertEqual((without["runs"], without["untimed"], without["uncounted"], without["unpriced"]),
+                         (3, 1, 1, 1))
         self.assertIsNone(found["faults"])  # no fault gate in this attempt
-        self.assertEqual((found["grader_agreement"], found["golden_accuracy"]), (None, None))
+        self.assertEqual((found["grader_agreement"]["rate"], found["golden_accuracy"]), (None, {
+            "rate": None, "right": 0, "asked": 0}))
 
 
 if __name__ == "__main__":
