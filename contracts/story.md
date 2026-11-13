@@ -40,7 +40,7 @@ waivers: []                 # story-scoped waivers, each {rule: <rule ID>, reaso
 
 <!-- only when plan is none -->
 
-- <AC or NFR ID>: <reason>
+- <NFR ID>: <reason>
 
 ## Out of scope
 
