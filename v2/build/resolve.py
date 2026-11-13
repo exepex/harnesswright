@@ -121,9 +121,12 @@ def load(repo, today):
     except (OSError, UnicodeDecodeError):
         raise ResolveError(f"release: {release / 'roles.md'} is missing or cannot be read") from None
     roles = set(table["roles"])
-    unknown = [n for n, e in manifest["skills"].items() if e["job"] not in table["jobs"]]
-    if unknown:
-        raise ResolveError(f"release: {manifest_path} names skills of jobs roles.md does not list: {unknown}")
+    for job in sorted(set(table["jobs"]) | {e["job"] for e in manifest["skills"].values()}):
+        listed = table["jobs"].get(job, {}).get("Skills in order", [])
+        named = sorted(n for n, e in manifest["skills"].items() if e["job"] == job)
+        if sorted(listed) != named:  # one list of a job's skills, so each skill's job and `rest` areas are known
+            raise ResolveError(f"release: job {job} lists skills {listed} in roles.md, but {manifest_path} gives "
+                               f"it {named}")
     sources = []
     add_source(sources, "CORE", ("CORE",), release / "rules" / "core", "harnesswright", files)
     for index, (language, number) in enumerate(zip(profile["languages"], profile["language lines"])):

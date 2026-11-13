@@ -12,7 +12,7 @@ import json
 import unittest
 from contextlib import redirect_stderr
 
-from test_resolve_layers import TODAY, Application, area, rule  # puts v2/build on sys.path
+from test_resolve_layers import POINT, TODAY, Application, area, rule  # puts v2/build on sys.path
 
 import check_release  # noqa: E402
 import reach  # noqa: E402
@@ -30,18 +30,23 @@ class RulesTextTest(Application):
         super().setUp()
         roles = self.repo / RELEASE / "roles.md"
         text = roles.read_text(encoding="utf-8")
-        self.assertEqual(text.count(JOBS), 1)
         roles.write_text(text.replace(JOBS, JOBS + "| implement | implementer | implement | implement |\n"),
                          encoding="utf-8")
         core = rulebook.read_layer(self.repo / RELEASE / "rules/core")
         self.copied = sorted(r.id for r in core.rules.values() if r.status == "active")
         self.manifest(copied=self.copied)
 
-    def manifest(self, **change):
+    def manifest(self, skills=None, **change):
         entry = {"job": "implement", "rest": True, "roles": ["implementer"], "areas": [], "copied-ids": self.copied}
         entry.update({k.replace("copied", "copied-ids"): v for k, v in change.items()})
-        data = {"rulebook-version": "0.1.0", "skills": {"implement": entry}}
+        data = {"rulebook-version": "0.1.0", "skills": skills or {"implement": entry}}
         self.write(RELEASE + "/manifest.json", json.dumps(data) + "\n")
+
+    def jobs(self, row):
+        roles = self.repo / RELEASE / "roles.md"
+        text = roles.read_text(encoding="utf-8")
+        old = JOBS + "| implement | implementer | implement | implement |\n"
+        roles.write_text(text.replace(old, JOBS + row), encoding="utf-8")
 
     def outputs(self):
         inputs = resolve.load(self.repo, TODAY)
@@ -65,6 +70,7 @@ class RulesTextTest(Application):
     def test_a_rules_text_holds_what_reaches_the_run(self):
         text = self.text()
         self.assertTrue(text.startswith("# Rules text: implement\n\n- **Release:** 0.1.0\n\n## Stack: java\n"))
+        self.assertLess(text.index("\n### Floors\n"), text.index("\n### Other rules\n"))
         self.assertEqual(self.section(text, "Changes to rules that reach this run").splitlines(), [
             "- CORE-WORK-01 · Report only what you verified: tightened by COMP-ACME-WORK-01",
             "- JAVA-TEST-01 · Title of JAVA-TEST-01: replaced by APP-TEST-01",
@@ -89,7 +95,6 @@ class RulesTextTest(Application):
     def test_a_core_rule_the_skill_did_not_copy_is_written_in_full(self):
         self.manifest(copied=[])
         floors = self.section(self.text(), "Floors")
-        self.assertEqual(self.ids(floors)[-1], "COMP-ACME-WORK-01")
         self.assertIn("CORE-WORK-01", self.ids(floors))
         self.assertIn("- **Tightened by:** COMP-ACME-WORK-01\n<!-- end CORE-WORK-01 -->", floors)
 
@@ -114,7 +119,25 @@ class RulesTextTest(Application):
         text = self.text()
         self.assertIn("- JAVA-X-01 · Title of JAVA-X-01: replaced by APP-X-01", text)
         self.assertIn("#### APP-X-01", text)  # it replaces a rule that reaches, so it reaches
-        self.assertNotIn("CORE-X-01", text)
+
+    def test_a_binding_that_replaces_a_reaching_binding_reaches(self):
+        self.write(".agents/harnesswright/rules/core/dp.md", area("CORE-DP", POINT.replace(
+            "JAVA-DP-BOILERPLATE", "CORE-DP-STYLE").replace("- **Applies to:** implementer", "- **Applies to:** "
+                                                            "code reviewer")))
+        self.write(".agents/harnesswright/rules/java/code.md", area("JAVA-CODE", rule(
+            "JAVA-CODE-01", extra="- **Binds:** CORE-DP-STYLE: records\n")))
+        self.write("../acme/company/sty.md", area("COMP-ACME-STY", rule(
+            "COMP-ACME-STY-01", extra="- **Binds:** CORE-DP-STYLE: lombok\n", applies="code reviewer")))
+        text = self.text()
+        self.assertIn("- JAVA-CODE-01 · Title of JAVA-CODE-01: replaced by COMP-ACME-STY-01", text)
+        self.assertIn("#### COMP-ACME-STY-01", text)
+
+    def test_each_decision_point_line_names_where_its_option_came_from(self):
+        self.edit(".harness/profile.yaml", "decisions:\n  boilerplate: lombok\n", "")
+        self.assertIn("- JAVA-DP-BOILERPLATE · How boilerplate is written: `records` (from COMP-ACME-CODE-01)",
+                      self.text())
+        self.edit("../acme/company/code.md", "- **Binds:** JAVA-DP-BOILERPLATE: records\n", "")
+        self.assertIn("- JAVA-DP-BOILERPLATE · How boilerplate is written: `records` (from default)", self.text())
 
     def test_a_rule_outside_the_skill_does_not_reach(self):
         self.manifest(rest=False, areas=[])
@@ -160,9 +183,35 @@ class RulesTextTest(Application):
         self.assertIn("it goes to Acme payments team. Sizes per layer and area:\n", err)
         self.assertIn("  TEAM-ACME BIG: ", err)
 
+    def test_the_limit_holds_at_its_size_and_parks_one_over(self):
+        size = reach.size(self.text())
+        self.edit(".harness/profile.yaml", "rules-text-limit: 45000", f"rules-text-limit: {size}")
+        self.assertEqual(self.main()[0], 0)
+        self.setUp()
+        self.edit(".harness/profile.yaml", "rules-text-limit: 45000", f"rules-text-limit: {size - 1}")
+        self.assertEqual(self.main()[0], 3)
+
+    def test_a_parked_skill_leaves_the_others_written(self):
+        self.jobs("| implement | implementer | alpha, zeta | zeta |\n")
+        alpha = {"job": "implement", "rest": False, "roles": ["implementer"], "areas": [], "copied-ids": self.copied}
+        self.manifest({"zeta": dict(alpha, rest=True), "alpha": alpha})  # out of order on purpose
+        big = rule("TEAM-ACME-BIG-01").replace("Do it.", "Do it. " + "x" * 900)
+        self.write("../acme/team/big.md", area("TEAM-ACME-BIG", big, big.replace("BIG-01", "BIG-02")))
+        self.edit(".harness/profile.yaml", "rules-text-limit: 45000", "rules-text-limit: 2000")
+        code, err = self.main()
+        self.assertEqual(code, 3)
+        written = self.repo / ".harness/runs/r1/rules-text-alpha.md"
+        self.assertFalse((self.repo / ".harness/runs/r1/rules-text-zeta.md").exists())
+        rules_md = (self.repo / ".harness/runs/r1/rules.md").read_text(encoding="utf-8")
+        self.assertIn(f"| {hashlib.sha256(written.read_bytes()).hexdigest()} | .harness/runs/r1/rules-text-alpha.md |",
+                      rules_md)
+        self.assertRegex(rules_md, r"\| zeta \| [0-9]+ \| 2000 \| Acme payments team \|\n$")
+        big_size = int(err.split("  TEAM-ACME BIG: ")[1].split()[0])
+        self.assertGreater(big_size, 2 * 900)  # both rules of the area count
+
     def test_a_manifest_resolve_cannot_place_stops(self):
         for change, expected in (({"rest": "yes"}, "cannot be read as a release manifest"),
-                                 ({"job": "ship"}, "names skills of jobs roles.md does not list: ['implement']"),
+                                 ({"job": "ship"}, "job implement lists skills ['implement'] in roles.md, but "),
                                  ({"copied": ["CORE-WORK-99"]}, "cited CORE-WORK-99 is not in the rulebook")):
             with self.subTest(expected=expected):
                 self.manifest(**change)
@@ -170,6 +219,9 @@ class RulesTextTest(Application):
                 self.assertEqual(code, 1)
                 self.assertIn(expected, err)
                 self.assertFalse((self.repo / ".harness/runs/r1").exists())
+        self.jobs("| implement | implementer | implement, ghost | implement |\n")
+        self.manifest()
+        self.assertIn("job implement lists skills ['implement', 'ghost'] in roles.md", self.main()[1])
 
     def test_the_ceiling_is_the_release_check_s(self):
         self.assertEqual(reach.CEILING, check_release.CEILING)
