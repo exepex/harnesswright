@@ -28,8 +28,9 @@ case.json fields:
     that check's own list.
 - `commits`: git history to build, `[{"message": "...", "paths": ["a.txt"]}]`, with fixed authors and dates.
 - `copies`: documents copied from this repository, `[{"world": "AGENTS.md", "source": "AGENTS.md",
-  "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is never under
-  `skills/` or `evals/`: a skill's text or the measuring kit is not project text.
+  "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is a file at the
+  repository root, such as `AGENTS.md`: a project document. Every folder holds skill text, its sources, the
+  measuring kit or harnesswright's own design and formats, which a project using a skill does not have.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -64,7 +65,6 @@ NOT_PARTS = (".", "..", ".git")
 COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
 CHECK_NAME = re.compile(r"[a-z][a-z0-9_]*")
 ROW_FIELDS = ("name", "path", "description")
-NOT_PROJECT_TEXT = ("skills", "evals")
 
 
 class CaseError(ValueError):
@@ -106,7 +106,7 @@ def is_command(value):
 
 
 def is_source(value):
-    return is_path(value) and value.split("/")[0] not in NOT_PROJECT_TEXT
+    return is_path(value) and "/" not in value  # a file at the repository root, the only project text allowed
 
 
 def is_row(value):
@@ -180,7 +180,7 @@ SCHEMA = {
                 "a list of {message, paths}: non-empty text and a list of paths in the world"),
     "copies": (list_of(record(world=is_path, source=is_source, source_sha256=lambda v: isinstance(v, str)
                               and SHA256.fullmatch(v) is not None)),
-               "a list of {world, source, source_sha256}: two paths, the source outside skills/ and evals/, "
+               "a list of {world, source, source_sha256}: two paths, the source a file at the repository root, "
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
 }

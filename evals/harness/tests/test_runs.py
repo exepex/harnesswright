@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import unittest
+from unittest import mock
 
 from helpers import TempCase
 from test_gate import Upstream
@@ -15,6 +16,7 @@ import contain
 import evidence
 import rounds
 import runs
+import world
 from cases import Case
 
 JAIL = contain.available()
@@ -133,6 +135,20 @@ class Runs(Round):
         self.assertEqual(self.run_one(record), {**made, "status": "kept"})
         folder = self.store / "r1" / "runs" / made["key"]
         self.assertEqual(sorted(p.name for p in folder.iterdir()), ["bundle"])
+
+    def test_a_release_skill_is_the_one_planned_hashed_and_installed(self):
+        release = self.repo / "release" / "haiku-writer"
+        release.mkdir(parents=True)
+        release.joinpath("SKILL.md").write_text("---\nname: haiku-writer\ndescription: Writes a haiku, built for "
+                                                "release.\nmetadata:\n  rulebook-version: \"0.1.0\"\n---\n")
+        (self.repo / "release" / "manifest.json").write_text('{"skills": {"haiku-writer": {}}}\n')
+        record = self.plan()
+        self.assertEqual(record["skills"]["haiku-writer"]["sha256"], rounds.tracked_digest(release))
+        with mock.patch.object(world, "build", wraps=world.build) as build:
+            self.assertEqual(self.run_one(record)["status"], "made")
+        self.assertEqual({str(c.args[5]) for c in build.call_args_list if len(c.args) > 5}, {str(release)})
+        with self.assertRaisesRegex(rounds.RoundError, "no skill named 'limerick-writer'"):
+            rounds.skill(self.repo, "limerick-writer")
 
     def test_each_arm_and_number_is_its_own_run(self):
         record = self.plan()

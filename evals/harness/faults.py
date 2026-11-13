@@ -55,8 +55,8 @@ class Setup:
     def __init__(self, adapter, case, skills_root, root, drift, skill_dir=None, prompts=None, model=None,
                  host_version="unknown", timeout=900, repo=REPO, **containment):
         self.adapter, self.case, self.drift, self.model = adapter, case, drift, model
-        self.skills_root, self.root = Path(skills_root), Path(root)
-        self.skill_dir = Path(skill_dir) if skill_dir else self.skills_root / case.skill
+        self.skills_root, self.root = skills.library(skills_root), Path(root)  # {name: folder}
+        self.skill_dir = Path(skill_dir) if skill_dir else self.skills_root.get(case.skill)
         self.prompts, self.host_version, self.timeout, self.repo = prompts or {}, host_version, timeout, repo
         self.containment = containment
         self.bundles = []  # every bundle a fault run stored, for the judges to read
