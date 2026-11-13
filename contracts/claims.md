@@ -31,13 +31,14 @@
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
 
+<!-- one fence per read-back block, in file order -->
 ```text
-<each read-back block of its rules text, markers included, in file order, quoted exactly>
+<a read-back block of its rules text, markers included, quoted exactly>
 ```
 
 ### Changes applied
 
-- <the ID as the rules text writes it> · <its title, quoted exactly>
+- <the ID and title that start the change's line in the rules text, quoted exactly>  <!-- once per change -->
 
 ### Rules applied
 

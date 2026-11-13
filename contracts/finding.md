@@ -1,7 +1,7 @@
 ---
 id: F-<NNN>
 stage: <stage>
-author: <role>
+author: <agent>
 severity: <severity>        # blocker | major | minor | note
 status: <status>            # confirmed | plausible | refuted
 rule: <rule ID>             # the rule it breaks, if any; none otherwise

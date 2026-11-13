@@ -9,7 +9,7 @@ blockers: [<finding ID>]    # confirmed blockers; [] when none
 
 ## Claims
 
-### <claim>  <!-- a requirement ID, an OP-n or a claims section -->
+### <claim>  <!-- a requirement ID, an OP-n (S02 OP-1 in a feature verdict) or a claims section -->
 
 - **Result:** <result>  <!-- checked | refuted -->
 - **Evidence:** <what the judge ran or read, and what it showed>
@@ -29,13 +29,14 @@ blockers: [<finding ID>]    # confirmed blockers; [] when none
 - **SKILL.md:** <hash of the release SKILL.md>
 - **Rules text:** not verified  <!-- only when the rules text was written by reading -->
 
+<!-- one fence per read-back block, in file order -->
 ```text
-<each read-back block of its rules text, markers included, in file order, quoted exactly>
+<a read-back block of its rules text, markers included, quoted exactly>
 ```
 
 ### Changes applied
 
-- <the ID as the rules text writes it> · <its title, quoted exactly>
+- <the ID and title that start the change's line in the rules text, quoted exactly>  <!-- once per change -->
 
 ## To pass
 
