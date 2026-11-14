@@ -91,9 +91,9 @@
   },
   "q4": {
    "expectation": "The Request section quotes the story line by line",
-   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "sha256": "c957c30ac5c6087584cdaed87af02d48c138031287c1d2c59dc2ea0d4f581a91",
    "answer": "yes",
-   "by": "judge-e"
+   "by": "judge-b"
   },
   "q5": {
    "expectation": "The claims carry the story's own words, not a rewording",
@@ -163,9 +163,9 @@
   },
   "q16": {
    "expectation": "Files changed lists limiter/limiter.go and limiter/limiter_test.go",
-   "sha256": "0518b76084634762b069b4529a6aaa6ffc34d1f05b4ff01ac30da39ce19c4162",
+   "sha256": "d787be253980a37bc110eadf18e0b53d8760d3d2b1c434577d5f7c99b5d88a74",
    "answer": "yes",
-   "by": "judge-e"
+   "by": "judge-b"
   },
   "q17": {
    "expectation": "The final answer lists the open proof items for the pull request",

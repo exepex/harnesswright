@@ -58,9 +58,9 @@
   },
   "q4": {
    "expectation": "The Request section quotes the story line by line",
-   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "sha256": "c957c30ac5c6087584cdaed87af02d48c138031287c1d2c59dc2ea0d4f581a91",
    "answer": "yes",
-   "by": "judge-c"
+   "by": "judge-b"
   },
   "q5": {
    "expectation": "The claims carry the story's own words, not a rewording",
@@ -130,9 +130,9 @@
   },
   "q16": {
    "expectation": "Files changed lists limiter/limiter.go and limiter/limiter_test.go",
-   "sha256": "e0a1bc8a5ef9a97f5d061db7ebd31c4554b2999b0502a7b537121f67caf670f2",
+   "sha256": "0e62550e594b96583f914afcea0b6a9ab47f50aa9c37e61fd3f2987bd02432d7",
    "answer": "yes",
-   "by": "judge-c"
+   "by": "judge-b"
   },
   "q17": {
    "expectation": "The run says the work is done",
