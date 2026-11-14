@@ -107,6 +107,10 @@ class Graded(Pages):
         self.assertEqual((self.grades("k1")["agreed"], self.grades("k1")["asked"]), (2, ["q2", "q4"]))
         self.assertEqual([(g["host"], g["model"]) for g in self.grades("k1")["graders"]],
                          [("fakehost", "named-model")] * 2)  # no tie, so no tie-breaker
+        self.assertEqual({name: len(self.grades("k1")[name]) for name in ("page", "questions")},
+                         {"page": 64, "questions": 64})  # what was graded, so a rebuilt page can be matched to it
+        self.assertEqual(self.grades("k1")["graders"][0]["costs"], [])
+        self.assertEqual(self.grades("k1")["case"], "haiku-writer/c1")
         golden = self.grades("haiku-writer/c1/no", "goldens")  # every graded page leaves the same record
         self.assertEqual((golden["asked"], golden["answers"], golden["settled"]),
                          (["q2", "q4"], {"q2": "no", "q4": "no"}, {"q2": "no", "q4": "no"}))

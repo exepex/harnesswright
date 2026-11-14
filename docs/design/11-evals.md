@@ -258,6 +258,23 @@ failing example.
 A fingerprint run found in a without-skill run's evidence voids that run. The round stops when the audit or a
 canary also fired; otherwise the run is listed for a judge to read.
 
+### Cross-model grading
+
+A measurement, not a gate: it gives no label. It asks whether graders of different model families grade the same
+pages the same way. It takes one finished round and a list of grader routes, each an adapter and a model.
+
+- **Same kit, same pages.** It refuses a round whose manifest kit hash is not the approved kit. It rebuilds every
+  page the round graded, run and golden, from the stored bundles, and grades a page only when the page and its
+  questions hash to what the round's grade record kept.
+- **Each route proves itself first.** Every route passes the probes and the grader faults under that kit before
+  it grades, as the round's hosts did; one that fails stops the pass.
+- **Every route grades every page fresh,** through the same grader runs as a round, with the same prompt, quote
+  check and tries: two graders a page, never read from the round's panel. Each grader's sheets, tries, seconds and
+  token counts are kept, apart from the round's grades and labels, which it never changes.
+- **The report** gives each model's golden accuracy and the agreement of its two graders, and each pair of
+  models' agreement with counts and Cohen's kappa, and lists every disagreement. The goldens alone are ground
+  truth; agreement with the round's panel is concordance, not accuracy.
+
 ## Judges own the measuring kit and the faults
 
 The **measuring kit** is everything that decides a label besides the agent: the checks and their answer keys, the
