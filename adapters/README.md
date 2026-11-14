@@ -9,7 +9,7 @@ team's or its runtime's job ([07 · Repository profile](../docs/design/07-repo-p
 |---|---|---|
 | Claude Code (reference host) | [claude-code/](claude-code/README.md) | Adapter built, unit-tested and run live |
 | OpenAI Codex | [codex/](codex/README.md) | Adapter built, unit-tested and run live in the phase-2 sample-skill work |
-| goose (open host, many vendors through OpenRouter) | goose/ | Planned (owner's ask, 2026-11-14): one route, `OPENROUTER_API_KEY` and `openrouter.ai` only, for cross-model grading. Chosen in [open-host-choice.md](open-host-choice.md). |
+| goose (open host, many vendors through OpenRouter) | [goose/](goose/) | In progress (owner's ask, 2026-11-14): command and powers built, event readers next; one route, `OPENROUTER_API_KEY` and `openrouter.ai` only, for cross-model grading. Chosen in [open-host-choice.md](open-host-choice.md). |
 | Other hosts | — | None planned. harnesswright picks no runtime; a host is added with one adapter when the owner asks. |
 
 ## The eval adapter interface
