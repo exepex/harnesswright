@@ -6,6 +6,7 @@ that response reported."""
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -90,31 +91,45 @@ def _path(folder, path):
     return os.path.normpath(os.path.join(folder, path)) if folder else os.path.normpath(path)
 
 
+# The argument that names each tool's target, by goose's own parameter names (`developer/edit.rs`, `tree.rs`,
+# `image.rs`, `summon.rs`, `ops_skills.rs`).
+TARGET = {"shell": "command", "write": "path", "edit": "path", "tree": "path", "read_image": "source",
+          "load": "source", "load_skill": "name", "delegate": "instructions"}
+SKILL_FILE = re.compile(r"(?:^|[\s'\"`/=])skills/([^/\s'\"`]+)/SKILL\.md(?=$|[\s'\"`;&|)])")
+
+
 def _entries(name, arguments, response, folder):
     """The log entries of one tool call by `name` with `arguments`, given its `response` (None when it has none)."""
     worked, text, structured = _result(response) if response is not None else (False, "", {})
+    target = arguments.get(TARGET.get(name, ""))
+    target = target if isinstance(target, str) else ""
     if name == "shell":
         code = structured.get("exit_code")
+        code = code if isinstance(code, int) and not isinstance(code, bool) else None
         output = "\n".join(str(structured[key]) for key in ("stdout", "stderr") if structured.get(key)) or text
-        return [{"kind": "command", "source": "observed", "command": str(arguments.get("command", "")),
-                 "exit_code": code if isinstance(code, int) and not isinstance(code, bool) else None,
-                 "output": output}]
+        found = [{"kind": "command", "source": "observed", "command": target, "exit_code": code, "output": output}]
+        # A command that worked and names a skill's SKILL.md may have read it: an inferred load, as on other hosts.
+        return found + [{"kind": "skill", "source": "inferred", "name": skill}
+                        for skill in dict.fromkeys(SKILL_FILE.findall(target)) if code == 0]
     if name in ("write", "edit"):
-        path = _path(folder, str(arguments.get("path", "")))
+        path = _path(folder, target)
         if not worked:
             return [{"kind": "failed", "source": "observed", "action": f"{name}: {path}", "path": path,
                      "reason": text}]
         content = arguments.get("content") if name == "write" else None
         digest = hashlib.sha256(content.encode()).hexdigest() if isinstance(content, str) else None
         return [{"kind": "write", "source": "observed", "path": path, "sha256": digest}]
-    if name in ("tree", "read_image"):
-        return [{"kind": "read", "source": "observed", "path": _path(folder, str(arguments.get("path") or "."))}]
-    if name == "load" and arguments.get("source"):
-        return [{"kind": "read", "source": "observed", "path": str(arguments["source"])}]
+    if name == "tree" or name == "read_image" and "://" not in target:
+        return [{"kind": "read", "source": "observed", "path": _path(folder, target or ".")}]
+    if name == "load" and target:  # a recipe or agent goose finds by name; the log keeps the name it was given
+        return [{"kind": "read", "source": "observed", "path": target}]
     if name == "load_skill" and worked:
-        return [{"kind": "skill", "source": "observed", "name": str(arguments.get("name", ""))}]
+        skill, _, file = target.partition("/")  # `<skill>/<path>` loads one of the skill's own files
+        if file:
+            return [{"kind": "read", "source": "observed", "path": _path(folder, f".agents/skills/{skill}/{file}")}]
+        return [{"kind": "skill", "source": "observed", "name": skill}]
     if name == "delegate":
-        task = arguments.get("instructions") or arguments.get("source") or arguments.get("resume") or ""
+        task = target or arguments.get("source") or arguments.get("resume") or ""
         return [{"kind": "agent", "source": "observed", "task": str(task)}]
     return []  # a tool that only waits or hands back an answer, or one goose would not run (exposure)
 
@@ -127,10 +142,12 @@ def action_log(stdout, home):
         store = read(home)
     except Unreadable:
         return []
-    responses = {(session, part.get("id")): part for session, role, parts in store["messages"] for part in parts
-                 if part.get("type") == "toolResponse"}
-    log = []
+    log, waiting = [], {}  # each call waiting for its response, by (session, call id)
     for session, role, parts in store["messages"]:
+        for part in parts if role != "assistant" else []:  # a response answers the latest call of its id
+            if part.get("type") == "toolResponse" and (session, part.get("id")) in waiting:
+                name, arguments, at = waiting.pop((session, part.get("id")))
+                log[at:at + 1] = [_entries(name, arguments, part, store["sessions"].get(session))]
         if role != "assistant":
             continue
         text = "".join(str(part.get("text", "")) for part in parts if part.get("type") == "text")
@@ -141,6 +158,6 @@ def action_log(stdout, home):
             value = call.get("value") if isinstance(call, dict) and call.get("status") == "success" else None
             if isinstance(value, dict) and isinstance(value.get("name"), str):
                 arguments = value.get("arguments") if isinstance(value.get("arguments"), dict) else {}
-                log += _entries(value["name"], arguments, responses.get((session, part.get("id"))),
-                                store["sessions"].get(session))
-    return log
+                waiting[(session, part.get("id"))] = (value["name"], arguments, len(log))
+                log.append(_entries(value["name"], arguments, None, store["sessions"].get(session)))
+    return [item for entries in log for item in (entries if isinstance(entries, list) else [entries])]

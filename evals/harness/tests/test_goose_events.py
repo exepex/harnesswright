@@ -138,6 +138,27 @@ class Captured(TempCase):
         self.assertEqual([item["path"] for item in log], ["/run/project/sub/out.txt", "/run/project/out.txt"])
         self.assertEqual([item["kind"] for item in log], ["write", "failed"])  # the second has no answer
 
+    def test_each_tool_s_target_is_read_from_goose_s_own_argument_name(self):
+        calls = [("load_skill", {"name": "tidy/references/a.md"}), ("load_skill", {"name": "tidy"}),
+                 ("read_image", {"source": "shot.png"}), ("read_image", {"source": "https://example.com/a.png"}),
+                 ("shell", {"command": "cat skills/tidy/SKILL.md && cat .agents/skills/other/SKILL.md"}),
+                 ("shell", {"command": "cat .agents/skills/tidy/SKILL.md.bak"})]
+        answer = {"status": "success", "value": {"content": [], "structuredContent": {"exit_code": 0}}}
+        messages = []
+        for number, (name, arguments) in enumerate(calls):
+            call = {"type": "toolRequest", "id": "same" if number < 2 else str(number),
+                    "toolCall": {"status": "success", "value": {"name": name, "arguments": arguments}}}
+            messages += [["s1", "assistant", json.dumps([call])],
+                         ["s1", "user", json.dumps([{"type": "toolResponse", "id": call["id"], "toolResult": answer}])]]
+        write_store(self.tmp, {"sessions": [["s1", "/run/project"]], "messages": messages, "usage": []})
+        log = GOOSE.action_log("", self.tmp)
+        self.assertEqual([(item["kind"], item.get("path") or item.get("name") or item.get("command")) for item in log], [
+            ("read", "/run/project/.agents/skills/tidy/references/a.md"), ("skill", "tidy"),
+            ("read", "/run/project/shot.png"), ("command", calls[4][1]["command"]), ("skill", "tidy"),
+            ("skill", "other"), ("command", calls[5][1]["command"])])
+        self.assertEqual([item["source"] for item in log if item["kind"] == "skill"],
+                         ["observed", "inferred", "inferred"])  # a reused call id is answered by its own response
+
 
 if __name__ == "__main__":
     unittest.main()

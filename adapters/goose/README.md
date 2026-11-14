@@ -13,7 +13,7 @@ event readers. Its readers are unit-tested on real runs captured through `host.r
 | Extensions | `developer` (shell and files) and `summon` (`delegate` starts a sub-agent; `load` reads a recipe or agent file). `--no-profile` turns off every other one |
 | Bundled skills | Off, through the patched build below (`GOOSE_BUILTIN_SKILLS=false`) |
 | Request logs | All kept, each under its own name and never renamed, through the patched build below (`GOOSE_REQUEST_LOGS_KEEP_ALL=true`) |
-| Action log, final message | goose's session store, `~/.local/share/goose/sessions/sessions.db`, read from a copy: every message of every session, sub-agents included, in the order goose stored them. Each tool call becomes one entry, with what its response says; a write or edit whose response is an error is reported as failed, for the harness to settle |
+| Action log, final message | goose's session store, `~/.local/share/goose/sessions/sessions.db`, read from a copy: every message of every session, sub-agents included, in the order goose stored them. Each tool call becomes one entry, its target read from goose's own argument name, with what its response says; a write or edit whose response is an error is reported as failed, for the harness to settle. `load_skill` of `<skill>/<path>` reads one of the skill's files, and a shell command that worked and names a `skills/<name>/SKILL.md` adds an inferred load, as on the other hosts |
 | Tokens | The store's usage row for each model response, summed by the model the response reported. A row missing a count leaves the run's counts unknown |
 | Prompt | Standard input (`-i -`) |
 | Skill location | `<world>/.agents/skills/<name>/SKILL.md` |
