@@ -2,8 +2,8 @@
 
 goose discovers skills in `.agents/skills/`, as Codex does, and lists them in its system prompt. It loads a skill
 through its one `load_skill` tool. The build this adapter runs is goose at the pinned release with one patch
-(`builtin-skills.patch`), which lets a run turn off the two skills goose bundles, so a run exposes only the skills
-its world holds (README).
+(`goose.patch`) that adds two switches: one turns off the two skills goose bundles, so a run exposes only the skills
+its world holds, and one keeps every request goose logs, so the exposure is read from all of them (README).
 
 This is the first part of the adapter: its command and its powers. Its action log is empty and it reports no token
 counts. It reads what the host exposed from the requests goose logs in the run's home, as those are what the model
@@ -21,10 +21,12 @@ ENV_KEYS = ("OPENROUTER_API_KEY",)
 CREDENTIAL_FILES = ()
 MODEL_HOSTS = ("openrouter.ai",)
 # Fixed for every run. Headless goose refuses to run unless it may use every tool it has without asking; the jail
-# enforces the power table instead. Its bundled skills are off (the patch reads this switch), its secrets are read
+# enforces the power table instead. Its bundled skills are off and it keeps every request log (the patch's two
+# switches), its secrets are read
 # from the environment rather than a keyring, and it sends no telemetry and names no session.
-RUN_ENV = {"GOOSE_MODE": "auto", "GOOSE_BUILTIN_SKILLS": "false", "GOOSE_DISABLE_KEYRING": "1",
-           "GOOSE_TELEMETRY_OFF": "1", "GOOSE_DISABLE_SESSION_NAMING": "true"}
+LOGS_KEPT = 10000  # far more requests than any run makes; a run that reaches it gives no report (`exposure`)
+RUN_ENV = {"GOOSE_MODE": "auto", "GOOSE_BUILTIN_SKILLS": "false", "GOOSE_REQUEST_LOGS_TO_KEEP": str(LOGS_KEPT),
+           "GOOSE_DISABLE_KEYRING": "1", "GOOSE_TELEMETRY_OFF": "1", "GOOSE_DISABLE_SESSION_NAMING": "true"}
 # Every tool a run may have, by the name goose gives the model. The developer extension gives the first five. The
 # summon extension gives `delegate`, which starts a sub-agent in the same jail, and `load`, which reads a recipe or
 # agent file into the context. goose itself gives `load_skill`, and `enable_tools`, which only makes extension tools
@@ -42,15 +44,22 @@ def skill_dir(world, name):
     return Path(world) / ".agents" / "skills" / name
 
 
+# Every prompt goose lets a file in its config folder's `prompts/` replace (`prompt_template.rs`).
+PROMPTS = ("system.md", "tiny_model_system.md", "subagent_system.md", "compaction.md", "compaction_summary.md",
+           "session_name.md", "permission_judge.md", "apps_create.md", "apps_iterate.md")
+
+
 def memory_files(home, world):
     """Where goose reads instructions outside the world, for a home and a world: its global hints and AGENTS.md in
-    its config folder (`$XDG_CONFIG_HOME/goose`, which the jail sets to the home's `.config`), the system prompts
-    there that replace its own (`prompts/`), the AGENTS.md in `~/.agents`, and the same hint files in the folder
-    above the world, as goose reads every folder from the git root down to the folder it runs in."""
-    config, above = Path(home) / ".config" / "goose", Path(world).parent
-    return [config / ".goosehints", config / "AGENTS.md", config / "prompts" / "system.md",
-            config / "prompts" / "tiny_model_system.md", Path(home) / ".agents" / "AGENTS.md",
-            above / ".goosehints", above / "AGENTS.md"]
+    its config folder (`$XDG_CONFIG_HOME/goose`, which the jail sets to the home's `.config`), each prompt file there
+    that replaces one of its own, the AGENTS.md in `~/.agents`, a file in each home folder the summon extension lists
+    agents from (`summon.rs`), and the hint files in the folder above the world, as goose reads every folder from the
+    git root down to the folder it runs in."""
+    home, config, above = Path(home), Path(home) / ".config" / "goose", Path(world).parent
+    agents = [home / ".goose" / "agents", home / ".agents" / "agents", config / "agents", home / ".claude" / "agents"]
+    return ([config / ".goosehints", config / "AGENTS.md"] + [config / "prompts" / name for name in PROMPTS]
+            + [home / ".agents" / "AGENTS.md"] + [folder / "hw-probe.md" for folder in agents]
+            + [above / ".goosehints", above / "AGENTS.md"])
 
 
 def environment(env):
@@ -133,7 +142,7 @@ def exposure(stdout, home):
     another form, as no report is never 'nothing'. A skill row that does not parse is kept whole, so it is never a
     declared skill and stops the round."""
     requests, skills, tools = request_logs(home), set(), set()
-    if not requests:
+    if not requests or len(requests) >= LOGS_KEPT:  # none, or perhaps not all of them
         return None
     for request in requests:
         if not isinstance(request, dict) or not isinstance(request.get("messages"), list):
@@ -157,20 +166,24 @@ def _text(content):
 
 
 def _skill_rows(text):
-    """The skills of each `# Skills` part. One allow list of lines: the heading, blank lines before the rows, goose's
-    opening sentence, and rows `- name: description`; the part ends at the first blank line after a row. Any other
-    line of the part, such as a description that runs onto a second line, is kept whole, so it is never a declared
-    skill and stops the round."""
-    skills, state = set(), None  # None outside a part; "head" before its rows; "rows" among them
-    for line in text.splitlines():
-        if state is None:
-            state = "head" if line.strip() == SKILLS_HEADING else None
-        elif not line.strip():
-            state = None if state == "rows" else state
-        elif state == "head" and line.strip() == SKILLS_OPENING:
+    """The skills of each skill part of a system prompt. One rule: a part starts at goose's `# Skills` heading followed
+    by its opening sentence, and ends only where goose starts its next part, a blank line followed by a heading, or at
+    the end of the prompt. Every other line in the part counts: a row `- name: description` is a skill, a blank line
+    is nothing, and any other line, such as a description that runs onto more lines, is kept whole, so it is never a
+    declared skill and stops the round."""
+    skills, lines = set(), text.splitlines()
+    for at, line in enumerate(lines):
+        rest = [other for other in lines[at + 1:] if other.strip()]
+        if line.strip() != SKILLS_HEADING or not rest or rest[0].strip() != SKILLS_OPENING:
             continue
-        else:
-            state = "rows"
-            name, colon, _ = line[2:].partition(": ") if line.startswith("- ") else ("", "", "")
-            skills.add(name if colon and name and " " not in name else line)
+        blank = False
+        for row in lines[lines.index(rest[0], at + 1) + 1:]:
+            if not row.strip():
+                blank = True
+                continue
+            if blank and row.startswith("#"):
+                break
+            blank = False
+            name, colon, _ = row[2:].partition(": ") if row.startswith("- ") else ("", "", "")
+            skills.add(name if colon and name else row)
     return skills

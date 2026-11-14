@@ -1,0 +1,32 @@
+diff --git a/crates/goose/src/providers/utils.rs b/crates/goose/src/providers/utils.rs
+index 0d8e14f..11b706a 100644
+--- a/crates/goose/src/providers/utils.rs
++++ b/crates/goose/src/providers/utils.rs
+@@ -53,7 +53,12 @@ static INIT_LOGGER: OnceLock<Result<()>> = OnceLock::new();
+ 
+ pub fn init_goose_request_log() -> Result<()> {
+     INIT_LOGGER
+-        .get_or_init(|| Ok(install_logger(RequestLog::new(LOGS_TO_KEEP)?)?))
++        .get_or_init(|| {
++            let keep = crate::config::Config::global()
++                .get_param::<usize>("GOOSE_REQUEST_LOGS_TO_KEEP")
++                .unwrap_or(LOGS_TO_KEEP);
++            Ok(install_logger(RequestLog::new(keep)?)?)
++        })
+         .as_ref()
+         .map_err(|e| anyhow::anyhow!("failed to set up logger: {}", e))?;
+     Ok(())
+diff --git a/crates/goose/src/skills/mod.rs b/crates/goose/src/skills/mod.rs
+index ee04b9c..0049dd3 100644
+--- a/crates/goose/src/skills/mod.rs
++++ b/crates/goose/src/skills/mod.rs
+@@ -450,6 +450,9 @@ fn discover_skills_with_config(working_dir: Option<&Path>, config: &Config) -> V
+         });
+     let mut sources = goose_agent::skills::discover_skills(roots);
+     let mut seen: HashSet<_> = sources.iter().map(|source| source.name.clone()).collect();
++    if !config.get_param::<bool>("GOOSE_BUILTIN_SKILLS").unwrap_or(true) {
++        return sources;
++    }
+ 
+     for content in builtin::get_all() {
+         if let Some(source) = parse_skill_content(content, &PathBuf::new(), true, true) {

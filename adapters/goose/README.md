@@ -12,23 +12,26 @@ serves only to capture real event logs as fixtures, and never runs probes, fault
 | Sandbox | goose has none. The jail enforces the power table, and `GOOSE_MODE=auto` lets headless goose use its tools without asking |
 | Extensions | `developer` (shell and files) and `summon` (`delegate` starts a sub-agent; `load` reads a recipe or agent file). `--no-profile` turns off every other one |
 | Bundled skills | Off, through the patched build below (`GOOSE_BUILTIN_SKILLS=false`) |
+| Request logs | All kept, through the patched build below (`GOOSE_REQUEST_LOGS_TO_KEEP=10000`) |
 | Prompt | Standard input (`-i -`) |
 | Skill location | `<world>/.agents/skills/<name>/SKILL.md` |
-| Exposure | Every tool and every `# Skills` row in the requests goose logs to `~/.local/state/goose/logs/llm_request.<n>.jsonl`. goose keeps the last 10, so a skill shown only in an earlier request and then removed from the world would be missed |
+| Exposure | Every tool and every skill of every request goose logs to `~/.local/state/goose/logs/llm_request.<n>.jsonl`, sub-agents' included. A skill part starts at goose's `# Skills` heading and opening sentence and ends at a blank line followed by a heading; every other line in it is a skill row or is kept whole, which stops the round. A run with 10,000 logs may have lost one, so it gives no report |
 | Failed when | An `error` event, an exit code other than 0, a timeout, or no `complete` event |
 
 ## The build
 
 goose 1.59.1 always adds two skills of its own, goose-doc-guide and web-search, and has no setting that turns them
 off. The harness stops any run that exposes a skill its case does not declare, so the adapter runs goose built from
-source with one patch, `builtin-skills.patch`. The patch adds one switch, `GOOSE_BUILTIN_SKILLS`, at the one place
-goose adds them (`discover_skills_with_config`). Upstream behaviour is unchanged when the switch is not set. The owner
-chose this on 2026-11-14.
+source with one patch, `goose.patch`. The patch adds one switch, `GOOSE_BUILTIN_SKILLS`, at the one place goose adds
+them (`discover_skills_with_config`). The owner chose this on 2026-11-14. goose also keeps only its last 10 request
+logs, which would leave a long run's earlier requests, sub-agents' among them, unchecked, so the patch adds a second
+switch, `GOOSE_REQUEST_LOGS_TO_KEEP`, where goose sets that number (`init_goose_request_log`). Upstream behaviour is
+unchanged when neither switch is set.
 
 ```sh
 git clone --depth 1 --branch v1.59.1 https://github.com/block/goose && cd goose
 git rev-parse HEAD          # must print e62a656f460d6399b34c747014d810727ff70b05
-git apply /path/to/harnesswright/adapters/goose/builtin-skills.patch
+git apply /path/to/harnesswright/adapters/goose/goose.patch
 cargo build --release --locked -p goose-cli      # the toolchain is pinned in rust-toolchain.toml
 install -D -m 755 target/release/goose /opt/goose-1.59.1-hw/bin/goose
 ln -sf /opt/goose-1.59.1-hw/bin/goose /usr/local/bin/goose
@@ -48,14 +51,21 @@ Read in `block/goose` at tag v1.59.1 (Apache-2.0):
   `message`, `notification`, `error` and `complete` events, and `complete` only when the run ends without error.
 - `crates/goose/src/agents/platform_extensions/developer/mod.rs`: the developer tools `write`, `edit`, `shell`, `tree`
   and `read_image`, named without a prefix (`platform_extensions/mod.rs`). `summon.rs`: `delegate` and `load`;
-  `load` reads recipes and agents from the config folder and `~/.agents`, which the run's fresh home leaves empty.
+  `load` and `delegate` read recipes and agents from folders in the home and the world, and the system prompt lists
+  each agent found. The memory places name one file in each home agents folder; goose skips an agent file without
+  frontmatter, so those decoys show only that the run cannot see such a folder. The recipe folders are not listed,
+  as a recipe is YAML. The run's fresh home leaves all of them empty.
 - `crates/goose/src/agents/state_machine/ops_skills.rs`: `load_skill` is always offered, and the `# Skills` list
   includes the bundled skills; `skills/mod.rs` adds them in `discover_skills_with_config`.
 - `crates/goose/src/hints/load_hints.rs`: `.goosehints` and `AGENTS.md` in the config folder and `~/.agents`, and in
   each folder from the git root down to the working folder. `prompt_template.rs`: a file in the config folder's
-  `prompts/` replaces goose's own prompt of that name.
-- `crates/goose/src/providers/utils.rs` and `goose-provider-types/src/request_log.rs`: each request is logged, the
-  last 10 kept, with the request on the first line.
+  `prompts/` replaces each of the nine prompts goose registers, and the memory places name all nine.
+- `crates/goose/src/agents/prompt_manager.rs` and `ops_toolcalling.rs`: goose joins the parts of its system prompt
+  with a blank line, and each part after the skills starts with a heading (`# Extensions`, `### Global Hints`,
+  `### Project Hints`). A skill description that holds a blank line followed by a heading line would end the part
+  early; no skill of this repository has one.
+- `crates/goose/src/providers/utils.rs` and `goose-provider-types/src/request_log.rs`: each request is logged, with
+  the request on the first line; the last 10 are kept unless the patch's switch sets another number.
 - `crates/goose/src/posthog.rs`: `GOOSE_TELEMETRY_OFF` turns telemetry off.
 
 Run here, with no model key:

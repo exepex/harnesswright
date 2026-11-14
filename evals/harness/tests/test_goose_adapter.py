@@ -49,10 +49,12 @@ class Command(unittest.TestCase):
 
     def test_memory_places_lie_outside_the_world(self):
         home, world = Path("/h"), Path("/p/w")
-        self.assertEqual([str(p) for p in GOOSE.memory_files(home, world)], [
-            "/h/.config/goose/.goosehints", "/h/.config/goose/AGENTS.md", "/h/.config/goose/prompts/system.md",
-            "/h/.config/goose/prompts/tiny_model_system.md", "/h/.agents/AGENTS.md",
-            "/p/.goosehints", "/p/AGENTS.md"])
+        places = [str(p) for p in GOOSE.memory_files(home, world)]
+        self.assertEqual(places[:2], ["/h/.config/goose/.goosehints", "/h/.config/goose/AGENTS.md"])
+        self.assertEqual(places[2:11], [f"/h/.config/goose/prompts/{name}" for name in GOOSE.PROMPTS])
+        self.assertEqual(places[11:], [
+            "/h/.agents/AGENTS.md", "/h/.goose/agents/hw-probe.md", "/h/.agents/agents/hw-probe.md",
+            "/h/.config/goose/agents/hw-probe.md", "/h/.claude/agents/hw-probe.md", "/p/.goosehints", "/p/AGENTS.md"])
         self.assertEqual(GOOSE.skill_dir("/w", "tidy"), Path("/w/.agents/skills/tidy"))
 
 
@@ -83,24 +85,38 @@ class Exposure(TempCase):
 
     def test_the_exposure_is_every_tool_and_skill_of_every_logged_request(self):
         self.log(0, request())
-        self.log(1, request(tools=("shell", "write"), system="# Skills\n\n- tidy: ok\n- other: two words\n\n# End"))
+        system = f"# Skills\n\n{OPENING}\n- tidy: ok\n- other: two words\n\n# End"
+        self.log(1, request(tools=("shell", "write"), system=system))
         self.assertEqual(GOOSE.exposure("", self.tmp),
                          {"skills": ["other", "tidy"], "tools": ["load_skill", "shell", "write"]})
 
     def test_rows_outside_a_skills_heading_are_not_skills(self):
-        self.log(0, request(system="# Rules\n- tidy: not a skill\n# Skills\n- real: yes"))
+        self.log(0, request(system=f"# Rules\n- tidy: not a skill\n# Skills\n\n{OPENING}\n- real: yes"))
         self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], ["real"])
 
     def test_a_row_that_does_not_parse_is_kept_whole_and_stops_the_round(self):
-        self.log(0, request(system="# Skills\n- not a skill row"))
+        self.log(0, request(system=f"# Skills\n\n{OPENING}\n- not a skill row"))
         exposure = GOOSE.exposure("", self.tmp)
         self.assertEqual(exposure["skills"], ["- not a skill row"])
         with self.assertRaises(host.HostError):
             host.check_exposure(GOOSE, exposure, [])
 
-    def test_a_description_on_a_second_line_is_kept_whole_and_hides_no_later_row(self):
-        self.log(0, request(system="# Skills\n- tidy: one\n# not a heading\n- other: two\n\n- later: not a row"))
-        self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], ["# not a heading", "other", "tidy"])
+    def test_a_description_on_more_lines_is_kept_whole_and_hides_no_later_row(self):
+        self.log(0, request(system=f"# Skills\n\n{OPENING}\n- tidy: one\n# not a heading\n- other: two\n\n"
+                                   "- later: after a blank line\n\n# Extensions\n- hidden: not a skill"))
+        self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], ["# not a heading", "later", "other", "tidy"])
+
+    def test_a_list_without_goose_s_opening_is_not_a_skill_part(self):
+        self.log(0, request(system="# Skills\n- tidy: not goose's list"))
+        self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], [])
+
+    def test_as_many_logs_as_goose_keeps_may_have_lost_one_so_give_no_report(self):
+        for number in range(3):
+            self.log(number, request())
+        self.assertIsNotNone(GOOSE.exposure("", self.tmp))
+        original, GOOSE.LOGS_KEPT = GOOSE.LOGS_KEPT, 3
+        self.addCleanup(setattr, GOOSE, "LOGS_KEPT", original)
+        self.assertIsNone(GOOSE.exposure("", self.tmp))
 
     def test_no_log_or_one_in_another_form_is_no_report(self):
         self.assertIsNone(GOOSE.exposure("", self.tmp))

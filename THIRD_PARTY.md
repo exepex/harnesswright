@@ -62,16 +62,17 @@ The rules in `v2/rules/` are written new. No text was copied. Each rule's Source
 | https://github.com/anthropics/claude-plugins-official | `a2e251d9b97b909bf728b3e84fc8d17e6aba0063` | `plugins/plugin-dev/skills/plugin-structure/`, `plugins/hookify/hooks/`, `plugins/feature-dev/commands/` | Apache-2.0 | written new |
 | https://github.com/anthropics/claude-code | `964d69565952a176ac1975ed218362991db71433` | `CHANGELOG.md` | all rights reserved | idea only, written new |
 
-## block/goose · builtin skills switch
+## block/goose · two build switches
 
 | Field | Value |
 |---|---|
 | Repository | https://github.com/block/goose |
 | Commit | `e62a656f460d6399b34c747014d810727ff70b05` (tag v1.59.1) |
-| Path | `crates/goose/src/skills/mod.rs` |
-| Licence | Apache-2.0. The patch holds six lines of goose's own code as context and adds three. |
+| Path | `crates/goose/src/skills/mod.rs`, `crates/goose/src/providers/utils.rs` |
+| Licence | Apache-2.0. The patch holds a few of goose's own lines as context. |
 | Sourcing | written new |
-| Used in | `adapters/goose/builtin-skills.patch` |
+| Used in | `adapters/goose/goose.patch` |
 
-The patch adds one switch, `GOOSE_BUILTIN_SKILLS`, that keeps goose's bundled skills out of a run. It is applied to a
-goose checkout to build the program the goose adapter runs; harnesswright ships no goose code.
+The patch adds two switches: `GOOSE_BUILTIN_SKILLS` keeps goose's bundled skills out of a run, and
+`GOOSE_REQUEST_LOGS_TO_KEEP` sets how many request logs goose keeps. It is applied to a goose checkout to build the
+program the goose adapter runs; harnesswright ships no goose code.
