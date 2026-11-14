@@ -1,0 +1,19 @@
+{
+ "sessions": [
+  ["20261114_1", "/run/project"]
+ ],
+ "messages": [
+  ["20261114_1", "user", "[{\"type\":\"text\",\"text\":\"Use your write tool to create the file hello.txt holding the word hi, then run `ls` in the shell, and reply with one line saying whether the write worked.\\n\"}]"],
+  ["20261114_1", "user", "[{\"type\":\"text\",\"text\":\"<turn-context>\\n<current-time>2026-11-14 08:51:00 +00:00</current-time>\\n<working-directory>/run/project</working-directory>\\n</turn-context>\"}]"],
+  ["20261114_1", "assistant", "[{\"type\":\"thinking\",\"thinking\":\"(left out)\",\"signature\":\"\"},{\"type\":\"toolRequest\",\"id\":\"call-fa927b0b-ae58-45a7-9734-337338db8dcc\",\"toolCall\":{\"status\":\"success\",\"value\":{\"name\":\"write\",\"arguments\":{\"path\":\"hello.txt\",\"content\":\"hi\"}}},\"_meta\":{\"goose.toolCall.providerIndex\":0,\"goose_extension\":\"developer\",\"goose.executable\":true,\"goose.pre_hook_allowed\":true}}]"],
+  ["20261114_1", "user", "[{\"type\":\"toolResponse\",\"id\":\"call-fa927b0b-ae58-45a7-9734-337338db8dcc\",\"toolResult\":{\"status\":\"success\",\"value\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Failed to write hello.txt: Read-only file system (os error 30)\",\"annotations\":{\"priority\":0.0}}],\"isError\":true}}}]"],
+  ["20261114_1", "assistant", "[{\"type\":\"thinking\",\"thinking\":\"(left out)\",\"signature\":\"\"},{\"type\":\"toolRequest\",\"id\":\"call-4dd078a6-566b-4734-b8ff-779043a1584e\",\"toolCall\":{\"status\":\"success\",\"value\":{\"name\":\"shell\",\"arguments\":{\"command\":\"ls\"}}},\"_meta\":{\"goose.toolCall.providerIndex\":0,\"goose_extension\":\"developer\",\"goose.executable\":true,\"goose.pre_hook_allowed\":true}}]"],
+  ["20261114_1", "user", "[{\"type\":\"toolResponse\",\"id\":\"call-4dd078a6-566b-4734-b8ff-779043a1584e\",\"toolResult\":{\"status\":\"success\",\"value\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"README.md\\nnotes.txt\",\"annotations\":{\"priority\":0.0}}],\"structuredContent\":{\"stdout\":\"README.md\\nnotes.txt\",\"stderr\":\"\",\"exit_code\":0},\"isError\":false}}}]"],
+  ["20261114_1", "assistant", "[{\"type\":\"thinking\",\"thinking\":\"(left out)\",\"signature\":\"\"},{\"type\":\"text\",\"text\":\"The write failed \\u2014 `hello.txt` could not be created because the file system is read-only (os error 30), and `ls` confirms only README.md and notes.txt exist.\"}]"]
+ ],
+ "usage": [
+  ["model-a", 2417, 2368, 0, 98],
+  ["model-a", 2535, 2368, 0, 30],
+  ["model-a", 2574, 2560, 0, 85]
+ ]
+}

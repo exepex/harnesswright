@@ -74,5 +74,5 @@ The rules in `v2/rules/` are written new. No text was copied. Each rule's Source
 | Used in | `adapters/goose/goose.patch` |
 
 The patch adds two switches: `GOOSE_BUILTIN_SKILLS` keeps goose's bundled skills out of a run, and
-`GOOSE_REQUEST_LOGS_TO_KEEP` sets how many request logs goose keeps. It is applied to a goose checkout to build the
+`GOOSE_REQUEST_LOGS_KEEP_ALL` keeps every request log under the name goose gives it at the start, never renamed. It is applied to a goose checkout to build the
 program the goose adapter runs; harnesswright ships no goose code.

@@ -1,9 +1,9 @@
 # goose adapter
 
 This adapter runs evals through the goose command line in headless mode, `goose run`, on one route: OpenRouter. It
-exists for cross-model grading (part O0 of the open host plan). This is part O1a: the command and the powers. It reads
-no events yet: its action log is empty and it reports no token counts. Until part O1b adds the event readers, it
-serves only to capture real event logs as fixtures, and never runs probes, faults, rounds or a regrade.
+exists for cross-model grading (the open host plan). Parts O1a and O1b are built: the command, the powers and the
+event readers. Its readers are unit-tested on real runs captured through `host.run` in the jail and the gate
+(`evals/harness/tests/goose/`). The six probes have not run live yet (part O2).
 
 | Item | Value |
 |---|---|
@@ -12,10 +12,12 @@ serves only to capture real event logs as fixtures, and never runs probes, fault
 | Sandbox | goose has none. The jail enforces the power table, and `GOOSE_MODE=auto` lets headless goose use its tools without asking |
 | Extensions | `developer` (shell and files) and `summon` (`delegate` starts a sub-agent; `load` reads a recipe or agent file). `--no-profile` turns off every other one |
 | Bundled skills | Off, through the patched build below (`GOOSE_BUILTIN_SKILLS=false`) |
-| Request logs | All kept, through the patched build below (`GOOSE_REQUEST_LOGS_TO_KEEP=10000`) |
+| Request logs | All kept, each under its own name and never renamed, through the patched build below (`GOOSE_REQUEST_LOGS_KEEP_ALL=true`) |
+| Action log, final message | goose's session store, `~/.local/share/goose/sessions/sessions.db`, read from a copy: every message of every session, sub-agents included, in the order goose stored them. Each tool call becomes one entry, with what its response says; a write or edit whose response is an error is reported as failed, for the harness to settle |
+| Tokens | The store's usage row for each model response, summed by the model the response reported. A row missing a count leaves the run's counts unknown |
 | Prompt | Standard input (`-i -`) |
 | Skill location | `<world>/.agents/skills/<name>/SKILL.md` |
-| Exposure | Every tool and every skill of every request goose logs to `~/.local/state/goose/logs/llm_request.<n>.jsonl`, sub-agents' included. A skill part starts at goose's `# Skills` heading and opening sentence and ends at a blank line followed by a heading; every other line in it is a skill row or is kept whole, which stops the round. A run with 10,000 logs may have lost one, so it gives no report |
+| Exposure | Every tool and every skill of every request goose logs to `~/.local/state/goose/logs/llm_request.<id>.jsonl`, sub-agents' included, and only when the logs are whole: the logs holding a response's usage number the store's usage rows, one for each response. A lost or extra log gives no report. A skill part starts at goose's `# Skills` heading and opening sentence and ends at a blank line followed by a heading; every other line in it is a skill row or is kept whole, which stops the round |
 | Failed when | An `error` event, an exit code other than 0, a timeout, or no `complete` event |
 
 ## The build
@@ -24,9 +26,12 @@ goose 1.59.1 always adds two skills of its own, goose-doc-guide and web-search, 
 off. The harness stops any run that exposes a skill its case does not declare, so the adapter runs goose built from
 source with one patch, `goose.patch`. The patch adds one switch, `GOOSE_BUILTIN_SKILLS`, at the one place goose adds
 them (`discover_skills_with_config`). The owner chose this on 2026-11-14. goose also keeps only its last 10 request
-logs, which would leave a long run's earlier requests, sub-agents' among them, unchecked, so the patch adds a second
-switch, `GOOSE_REQUEST_LOGS_TO_KEEP`, where goose sets that number (`init_goose_request_log`). Upstream behaviour is
-unchanged when neither switch is set.
+logs, and keeps them by renaming each one up a number when a request ends. Two requests that end together, such as
+two sub-agents, can rename onto the same name, so one log is lost. The patch adds a second switch,
+`GOOSE_REQUEST_LOGS_KEEP_ALL`, where goose sets that number (`init_goose_request_log`): each log then keeps the name
+goose gave it at the start, which no other request shares, and nothing is renamed (`FileLogHandle::finish`). A build
+without that switch is found by the count of logs (Exposure). Upstream behaviour is unchanged when neither switch is
+set.
 
 ```sh
 git clone --depth 1 --branch v1.59.1 https://github.com/block/goose && cd goose
@@ -65,7 +70,12 @@ Read in `block/goose` at tag v1.59.1 (Apache-2.0):
   `### Project Hints`). A skill description that holds a blank line followed by a heading line would end the part
   early; no skill of this repository has one.
 - `crates/goose/src/providers/utils.rs` and `goose-provider-types/src/request_log.rs`: each request is logged, with
-  the request on the first line; the last 10 are kept unless the patch's switch sets another number.
+  the request on the first line and, when the model answered, a line holding the response's usage; the last 10 are
+  kept, by renaming, unless the patch's switch keeps them all.
+- `crates/goose/src/session/session_manager.rs` and `agents/state_machine/usage.rs`: goose keeps its sessions in
+  SQLite even with `--no-session`, each sub-agent as its own session with its working folder, and writes one
+  `usage_ledger` row for each model response, under the model the response reported
+  (`goose-provider-types/src/formats/openai.rs`, `chunk.model`).
 - `crates/goose/src/posthog.rs`: `GOOSE_TELEMETRY_OFF` turns telemetry off.
 
 Run here, with no model key:
@@ -75,10 +85,16 @@ Run here, with no model key:
 - In the harness jail, the program is found as version 1.59.1. A run with no key fails with exit code 1, and the
   gate's log shows one request at start-up, to `models.dev` (goose's model catalogue), refused with 403.
 
+Run here, with the owner's OpenRouter key, through `host.run` in the jail and the gate (one model, about two cents
+in all; `evals/harness/tests/goose/README.md`):
+
+- Runs succeed with `models.dev` refused at start-up: goose logs a warning and goes on.
+- A task run with a skill, shell commands (one failing), a write, an edit, a tree and a sub-agent; two sub-agents
+  started in one turn; a trigger run whose write the jail refused; and a run with an unknown model, which ends with an
+  `error` event. In each, the store's usage rows sum to the totals of goose's own `complete` event.
+- A sub-agent gets one more tool, `recipe__final_output`, which hands its answer back. It is on the tool list.
+
 ## Not verified yet
 
-- No live run: this container has no OpenRouter key. Part O1b captures real event logs through `host.run`, and part
-  O2 runs the six probes live.
-- Whether goose works as well with `models.dev` refused at start-up. It fetches the catalogue with a 15 second
-  timeout (`goose-provider-types/src/canonical/registry.rs`). The probes in O2 show whether runs succeed without it.
+- The six probes and the harness faults, live (part O2).
 - Whether `enable_tools` is ever offered: it only shows extension tools, and a run has none.

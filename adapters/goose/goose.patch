@@ -1,21 +1,32 @@
 diff --git a/crates/goose/src/providers/utils.rs b/crates/goose/src/providers/utils.rs
-index 0d8e14f..11b706a 100644
+index 0d8e14f..01e0390 100644
 --- a/crates/goose/src/providers/utils.rs
 +++ b/crates/goose/src/providers/utils.rs
-@@ -53,7 +53,12 @@ static INIT_LOGGER: OnceLock<Result<()>> = OnceLock::new();
+@@ -53,7 +53,13 @@ static INIT_LOGGER: OnceLock<Result<()>> = OnceLock::new();
  
  pub fn init_goose_request_log() -> Result<()> {
      INIT_LOGGER
 -        .get_or_init(|| Ok(install_logger(RequestLog::new(LOGS_TO_KEEP)?)?))
 +        .get_or_init(|| {
-+            let keep = crate::config::Config::global()
-+                .get_param::<usize>("GOOSE_REQUEST_LOGS_TO_KEEP")
-+                .unwrap_or(LOGS_TO_KEEP);
++            let keep_all = crate::config::Config::global()
++                .get_param::<bool>("GOOSE_REQUEST_LOGS_KEEP_ALL")
++                .unwrap_or(false);
++            let keep = if keep_all { usize::MAX } else { LOGS_TO_KEEP };
 +            Ok(install_logger(RequestLog::new(keep)?)?)
 +        })
          .as_ref()
          .map_err(|e| anyhow::anyhow!("failed to set up logger: {}", e))?;
      Ok(())
+@@ -117,6 +123,9 @@ impl FileLogHandle {
+     fn finish(&mut self) -> Result<()> {
+         if let Some(mut writer) = self.writer.take() {
+             writer.flush()?;
++            if self.logs_to_keep == usize::MAX {
++                return Ok(());
++            }
+             let logs_dir = Paths::in_state_dir("logs");
+             let log_path = |i| logs_dir.join(format!("llm_request.{}.jsonl", i));
+ 
 diff --git a/crates/goose/src/skills/mod.rs b/crates/goose/src/skills/mod.rs
 index ee04b9c..0049dd3 100644
 --- a/crates/goose/src/skills/mod.rs
