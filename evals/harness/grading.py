@@ -14,7 +14,10 @@ against that view.
 - `check(grading, ids, page)`: the problems of one grading file, none when it is accepted. A file is accepted
   only when it holds `answers` and nothing else, each answer is `{"id", "answer", "evidence"}` and nothing else,
   every id is answered exactly once and no other id is answered, each answer is `yes` or `no`, and each evidence
-  is a quote found word for word in the page, with runs of white space read as one space.
+  is a quote found word for word in the page. A quote is checked by its words (`words`): its runs of letters and
+  digits, case kept, must appear in order and next to each other among the page's words. Everything else, white
+  space, punctuation and Markdown marks, only separates words, so a grader is held to what the page says, never to
+  how it typed a dash or dropped a `**`.
 
 Standard library only.
 """
@@ -29,7 +32,7 @@ KEYS = Path(__file__).resolve().parents[1] / "grading" / "keys"
 ANSWERS = ("yes", "no")
 ANSWER_FIELDS = ("id", "answer", "evidence")
 JUDGED_FIELDS = ("question", "pass", "fail", "examples")
-SPACE = re.compile(r"\s+")
+WORD = re.compile(r"[^\W_]+")
 UNSHOWN = ("kind", "source", "sha256")
 
 
@@ -95,7 +98,7 @@ def check(grading, ids, page_text):
     if not isinstance(grading, dict) or set(grading) != {"answers"} or not isinstance(grading["answers"], list):
         return ['a grading file holds "answers", a list, and nothing else']
     problems, seen = [], []
-    shown = _flat(page_text)
+    shown = _joined(words(page_text))
     for number, answer in enumerate(grading["answers"], start=1):
         if not isinstance(answer, dict) or set(answer) != set(ANSWER_FIELDS) \
                 or not all(isinstance(answer[name], str) for name in ANSWER_FIELDS):
@@ -108,10 +111,10 @@ def check(grading, ids, page_text):
         seen.append(answer["id"])
         if answer["answer"] not in ANSWERS:
             problems.append(f"answer {number}: {answer['answer']!r} is not yes or no")
-        quote = _flat(answer["evidence"])
+        quote = words(answer["evidence"])
         if not quote:
             problems.append(f"answer {number}: the evidence quotes nothing")
-        elif quote not in shown:
+        elif _joined(quote) not in shown:
             problems.append(f"answer {number}: the evidence is not found word for word in the page")
     missing = [question for question in ids if question not in seen]
     if missing:
@@ -119,8 +122,15 @@ def check(grading, ids, page_text):
     return problems
 
 
-def _flat(value):
-    return SPACE.sub(" ", value).strip()
+def words(text):
+    """The words of `text`, in order: its runs of letters and digits, case kept. The one reading of a quote and of the
+    page it must be found in."""
+    return WORD.findall(text)
+
+
+def _joined(found):
+    """`found` words as one text that holds another such text only where its words are a run of these words."""
+    return " " + " ".join(found) + " "
 
 
 def keys(folder=KEYS):
