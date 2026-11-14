@@ -1,7 +1,8 @@
 # Research note: open hosts
 
-This is a research note, not a commitment. harnesswright picks no runtime or host, and no adapter for an open host
-is planned until the owner asks for one. The note compares open hosts that read Agent Skills and can run models
+This is a research note. harnesswright picks no runtime or host. On 2026-11-14 the owner asked for an open host so
+that graders of several model families can be compared, and a goose adapter is now planned, reaching every model
+through one OpenRouter key. The note compares open hosts that read Agent Skills and can run models
 from many vendors (Gemini, GPT, Grok, Kimi, DeepSeek, Qwen, Mistral, Llama and others).
 
 ## Finding: goose fit best

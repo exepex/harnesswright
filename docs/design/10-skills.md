@@ -107,7 +107,8 @@ consuming repository can override or loosen them, and they change only through a
 
 Anything host-specific lives in `adapters/<host>/`, never in a skill: where the host loads skills from, how roles become
 that host's agent definitions, how sub-agents are started, which model each model class maps to, and how evals run.
-The adapters today are Claude Code (the reference host) and OpenAI Codex. harnesswright picks no runtime: any host
+The adapters today are Claude Code (the reference host) and OpenAI Codex. A goose adapter is planned, so that
+graders of several model families can be compared through one OpenRouter route. harnesswright picks no runtime: any host
 or system can use the skills, and a host is added one adapter at a time, with the same evals, when the owner asks.
 
 ### Portability evals
