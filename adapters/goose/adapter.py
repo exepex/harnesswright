@@ -3,16 +3,23 @@
 goose discovers skills in `.agents/skills/`, as Codex does, and lists them in its system prompt. It loads a skill
 through its one `load_skill` tool. The build this adapter runs is goose at the pinned release with one patch
 (`goose.patch`) that adds two switches: one turns off the two skills goose bundles, so a run exposes only the skills
-its world holds, and one keeps every request goose logs, so the exposure is read from all of them (README).
+its world holds, and one keeps every request goose logs under its own name, so the exposure is read from all of them
+(README).
 
-This is the first part of the adapter: its command and its powers. Its action log is empty and it reports no token
-counts. It reads what the host exposed from the requests goose logs in the run's home, as those are what the model
-was sent. The event readers come in the next part, and until then the adapter serves only to capture real event
-logs as fixtures.
+Two records in the run's home are read, each for what it alone holds. goose's session store (`sessions.py`) holds
+every message of every session, sub-agents included, in order, and one usage row for each model response: the action
+log and the token counts come from there. The requests goose logs hold what each model call was sent, its tools and
+its system prompt: the exposure comes from there, and only when every model response in the store has its request
+logged.
 """
 
+import importlib.util
 import json
 from pathlib import Path
+
+_SPEC = importlib.util.spec_from_file_location("goose_sessions", Path(__file__).with_name("sessions.py"))
+sessions = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(sessions)
 
 NAME = "goose"
 CLI = "goose"
@@ -21,18 +28,18 @@ ENV_KEYS = ("OPENROUTER_API_KEY",)
 CREDENTIAL_FILES = ()
 MODEL_HOSTS = ("openrouter.ai",)
 # Fixed for every run. Headless goose refuses to run unless it may use every tool it has without asking; the jail
-# enforces the power table instead. Its bundled skills are off and it keeps every request log (the patch's two
-# switches), its secrets are read
-# from the environment rather than a keyring, and it sends no telemetry and names no session.
-LOGS_KEPT = 10000  # far more requests than any run makes; a run that reaches it gives no report (`exposure`)
-RUN_ENV = {"GOOSE_MODE": "auto", "GOOSE_BUILTIN_SKILLS": "false", "GOOSE_REQUEST_LOGS_TO_KEEP": str(LOGS_KEPT),
+# enforces the power table instead. Its bundled skills are off and it keeps every request log under its own name,
+# never rotated (the patch's two switches), its secrets are read from the environment rather than a keyring, and it
+# sends no telemetry and names no session.
+RUN_ENV = {"GOOSE_MODE": "auto", "GOOSE_BUILTIN_SKILLS": "false", "GOOSE_REQUEST_LOGS_KEEP_ALL": "true",
            "GOOSE_DISABLE_KEYRING": "1", "GOOSE_TELEMETRY_OFF": "1", "GOOSE_DISABLE_SESSION_NAMING": "true"}
 # Every tool a run may have, by the name goose gives the model. The developer extension gives the first five. The
 # summon extension gives `delegate`, which starts a sub-agent in the same jail, and `load`, which reads a recipe or
 # agent file into the context. goose itself gives `load_skill`, and `enable_tools`, which only makes extension tools
-# visible, and a run has none.
+# visible, and a run has none. A sub-agent also gets `recipe__final_output`, which only hands its answer back.
 TOOLS = {"shell": "command", "write": "write", "edit": "write", "tree": "read", "read_image": "read",
-         "delegate": "agent", "load": "read", "load_skill": "skill", "enable_tools": "wait"}
+         "delegate": "agent", "load": "read", "load_skill": "skill", "enable_tools": "wait",
+         "recipe__final_output": "wait"}
 EXTENSIONS = "developer,summon"  # the extensions a run turns on (`--no-profile` turns off the rest)
 SKILLS_HEADING = "# Skills"  # how goose opens its list of skills (`agents/state_machine/ops_skills.rs`)
 SKILLS_OPENING = ("You have these skills at your disposal. Load one when it can help with the task or when the user "
@@ -53,12 +60,14 @@ def memory_files(home, world):
     """Where goose reads instructions outside the world, for a home and a world: its global hints and AGENTS.md in
     its config folder (`$XDG_CONFIG_HOME/goose`, which the jail sets to the home's `.config`), each prompt file there
     that replaces one of its own, the AGENTS.md in `~/.agents`, a file in each home folder the summon extension lists
-    agents from (`summon.rs`), and the hint files in the folder above the world, as goose reads every folder from the
-    git root down to the folder it runs in."""
+    agents and recipes from (`summon.rs`), and the hint files in the folder above the world, as goose reads every
+    folder from the git root down to the folder it runs in."""
     home, config, above = Path(home), Path(home) / ".config" / "goose", Path(world).parent
     agents = [home / ".goose" / "agents", home / ".agents" / "agents", config / "agents", home / ".claude" / "agents"]
+    recipes = [home / ".goose" / "recipes", config / "recipes", home / ".agents" / "recipes"]
     return ([config / ".goosehints", config / "AGENTS.md"] + [config / "prompts" / name for name in PROMPTS]
             + [home / ".agents" / "AGENTS.md"] + [folder / "hw-probe.md" for folder in agents]
+            + [folder / "hw-probe.yaml" for folder in recipes]
             + [above / ".goosehints", above / "AGENTS.md"])
 
 
@@ -114,37 +123,42 @@ def run_failure(stdout, returncode, timed_out):
     return None
 
 
-def action_log(stdout, home):
-    return []  # read from the events in the next part
-
-
-def tokens(stdout, home):
-    return None  # read from the events in the next part
+action_log = sessions.action_log  # (stdout, home): read from the session store, as the token counts are
+tokens = sessions.tokens
 
 
 def request_logs(home):
-    """The requests goose logged in the run's home: the first line of each log is the model's settings and the
-    request it was sent, in the OpenAI chat format."""
+    """The requests goose logged in the run's home, each as (request, answered): the first line of a log is the
+    model's settings and the request it was sent, in the OpenAI chat format, and a request the model answered ends
+    with a line holding the response's usage."""
     folder = Path(home) / ".local" / "state" / "goose" / "logs"
     found = []
     for path in sorted(folder.glob("llm_request.*.jsonl")) if folder.is_dir() else []:
-        first = path.read_text(errors="replace").split("\n", 1)[0]
-        try:
-            record = json.loads(first)
-        except json.JSONDecodeError:
-            record = None
-        found.append(record.get("input") if isinstance(record, dict) else None)
+        records = []
+        for line in path.read_text(errors="replace").splitlines():
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                records.append(None)
+        first = records[0] if records else None
+        found.append((first.get("input") if isinstance(first, dict) else None,
+                      any(isinstance(record, dict) and isinstance(record.get("usage"), dict) for record in records)))
     return found
 
 
 def exposure(stdout, home):
-    """Every tool and every skill any logged request showed the model. None when goose logged no request, or one in
-    another form, as no report is never 'nothing'. A skill row that does not parse is kept whole, so it is never a
-    declared skill and stops the round."""
-    requests, skills, tools = request_logs(home), set(), set()
-    if not requests or len(requests) >= LOGS_KEPT:  # none, or perhaps not all of them
+    """Every tool and every skill any logged request showed the model. One rule makes it whole: every model response
+    has its request logged, so the answered logs number the session store's usage rows, one for each response. None
+    when they do not, when goose logged no request, or when one is in another form, as no report is never 'nothing'.
+    A skill row that does not parse is kept whole, so it is never a declared skill and stops the round."""
+    logged, skills, tools = request_logs(home), set(), set()
+    try:
+        responses = len(sessions.read(home)["usage"])
+    except sessions.Unreadable:
         return None
-    for request in requests:
+    if not logged or sum(answered for _, answered in logged) != responses:
+        return None
+    for request, _ in logged:
         if not isinstance(request, dict) or not isinstance(request.get("messages"), list):
             return None
         for tool in request.get("tools") or []:

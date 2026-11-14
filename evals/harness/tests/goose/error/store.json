@@ -1,0 +1,13 @@
+{
+ "sessions": [
+  ["20261114_1", "/run/project"]
+ ],
+ "messages": [
+  ["20261114_1", "user", "[{\"type\":\"text\",\"text\":\"Reply with the single word ready. Use no tools.\\n\"}]"],
+  ["20261114_1", "user", "[{\"type\":\"text\",\"text\":\"<turn-context>\\n<current-time>2026-11-14 08:51:00 +00:00</current-time>\\n<working-directory>/run/project</working-directory>\\n</turn-context>\"}]"],
+  ["20261114_1", "assistant", "[{\"type\":\"error\",\"kind\":\"other\",\"message\":\"Ran into this error: Request failed: Bad request (400): model-x is not a valid model ID. Available models for this provider: (list left out)\\n\\nPlease retry if you think this is a transient or recoverable error.\"}]"]
+ ],
+ "usage": [
+  
+ ]
+}

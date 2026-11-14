@@ -7,6 +7,7 @@ from pathlib import Path
 
 from helpers import TempCase
 from test_adapters import adapter
+from test_goose_events import write_store
 
 import host
 import powers
@@ -54,7 +55,9 @@ class Command(unittest.TestCase):
         self.assertEqual(places[2:11], [f"/h/.config/goose/prompts/{name}" for name in GOOSE.PROMPTS])
         self.assertEqual(places[11:], [
             "/h/.agents/AGENTS.md", "/h/.goose/agents/hw-probe.md", "/h/.agents/agents/hw-probe.md",
-            "/h/.config/goose/agents/hw-probe.md", "/h/.claude/agents/hw-probe.md", "/p/.goosehints", "/p/AGENTS.md"])
+            "/h/.config/goose/agents/hw-probe.md", "/h/.claude/agents/hw-probe.md", "/h/.goose/recipes/hw-probe.yaml",
+            "/h/.config/goose/recipes/hw-probe.yaml", "/h/.agents/recipes/hw-probe.yaml", "/p/.goosehints",
+            "/p/AGENTS.md"])
         self.assertEqual(GOOSE.skill_dir("/w", "tidy"), Path("/w/.agents/skills/tidy"))
 
 
@@ -71,17 +74,24 @@ class Failure(unittest.TestCase):
         self.assertEqual(GOOSE.run_failure("", None, True), "timed out")
         self.assertEqual(GOOSE.run_failure("not json", 2, False), "exit code 2")
 
-    def test_the_first_part_reads_no_actions_and_no_tokens(self):
-        self.assertEqual(GOOSE.action_log("", "/h"), [])
-        self.assertIsNone(GOOSE.tokens("", "/h"))
-
 
 class Exposure(TempCase):
+    """Each logged request here was answered, and the session store holds one usage row for each."""
+
+    def setUp(self):
+        super().setUp()
+        self.answered = 0
+
     def log(self, number, *records):
         folder = self.tmp / ".local" / "state" / "goose" / "logs"
         folder.mkdir(parents=True, exist_ok=True)
-        lines = [json.dumps(record) for record in records] + [json.dumps({"data": {}, "usage": None})]
-        (folder / f"llm_request.{number}.jsonl").write_text("\n".join(lines) + "\n")
+        lines = [json.dumps(record) for record in records] + [json.dumps({"data": None, "usage": {"input_tokens": 1}})]
+        path = folder / f"llm_request.{number}.jsonl"
+        self.answered += not path.exists()
+        path.write_text("\n".join(lines) + "\n")
+        store = self.tmp / ".local" / "share" / "goose" / "sessions" / "sessions.db"
+        store.unlink(missing_ok=True)
+        write_store(self.tmp, {"sessions": [], "messages": [], "usage": [["model-a", 1, 0, 0, 1]] * self.answered})
 
     def test_the_exposure_is_every_tool_and_skill_of_every_logged_request(self):
         self.log(0, request())
@@ -109,14 +119,6 @@ class Exposure(TempCase):
     def test_a_list_without_goose_s_opening_is_not_a_skill_part(self):
         self.log(0, request(system="# Skills\n- tidy: not goose's list"))
         self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], [])
-
-    def test_as_many_logs_as_goose_keeps_may_have_lost_one_so_give_no_report(self):
-        for number in range(3):
-            self.log(number, request())
-        self.assertIsNotNone(GOOSE.exposure("", self.tmp))
-        original, GOOSE.LOGS_KEPT = GOOSE.LOGS_KEPT, 3
-        self.addCleanup(setattr, GOOSE, "LOGS_KEPT", original)
-        self.assertIsNone(GOOSE.exposure("", self.tmp))
 
     def test_no_log_or_one_in_another_form_is_no_report(self):
         self.assertIsNone(GOOSE.exposure("", self.tmp))

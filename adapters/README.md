@@ -9,7 +9,7 @@ team's or its runtime's job ([07 · Repository profile](../docs/design/07-repo-p
 |---|---|---|
 | Claude Code (reference host) | [claude-code/](claude-code/README.md) | Adapter built, unit-tested and run live |
 | OpenAI Codex | [codex/](codex/README.md) | Adapter built, unit-tested and run live in the phase-2 sample-skill work |
-| goose (open host, many vendors through OpenRouter) | [goose/](goose/) | In progress (owner's ask, 2026-11-14): command and powers built, event readers next; one route, `OPENROUTER_API_KEY` and `openrouter.ai` only, for cross-model grading. Chosen in [open-host-choice.md](open-host-choice.md). |
+| goose (open host, many vendors through OpenRouter) | [goose/](goose/) | In progress (owner's ask, 2026-11-14): command, powers and event readers built, unit-tested on runs captured live; probes next; one route, `OPENROUTER_API_KEY` and `openrouter.ai` only, for cross-model grading. Chosen in [open-host-choice.md](open-host-choice.md). |
 | Other hosts | — | None planned. harnesswright picks no runtime; a host is added with one adapter when the owner asks. |
 
 ## The eval adapter interface
@@ -56,7 +56,8 @@ runs hosts without a jail. Each adapter keeps both interfaces until the phase 2 
 reads the host's own token counts by model: Claude Code's from the last result event's `modelUsage`, else its
 `usage`; Codex's from the usage record each model response leaves in its thread's session file, each response
 counted once, sub-agents and forks included, read in `codex/sessions.py`, since every loader loads only `adapter.py`
-by path.
+by path; goose's from the usage row its session store keeps for each model response, under the model the response
+reported, read in `goose/sessions.py`.
 
 - **Codex** runs with `--dangerously-bypass-approvals-and-sandbox`, `-c skills.bundled.enabled=false`, and image
   viewing, goals and web search off. Its `functions.exec` tool runs code that calls nested tools, so each nested
