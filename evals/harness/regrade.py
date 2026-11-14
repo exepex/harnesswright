@@ -13,14 +13,10 @@ passes every probe and the grader faults (`grader_faults.py`), as a round's host
   records name the pages, `grades/<attempt>/runs/<key>.json` and `.../goldens/<skill>/<case>/<golden>.json`.
 - Each route grades every page twice, two fresh graders, in the blind order of the pass's seed. Nothing of the
   round's panel is read.
-- It writes `<store>/<round>/regrade/<pass>/`: `regrade.json` (the round, the source attempt, the commit, the kit,
-  the seed, the prompt's hash, the price file's date and the routes), `pages.json` (each page's place, hashes, kind,
-  case, the host, model and arm that made it, and a golden's settled answers: for the report, never for a grader),
-  and a folder per route with its probe and fault results (`proved.json`) and one record per page
-  (`pages/<place>.json`, by the page's place in the blind order: each grader's sheet, failed tries, seconds and
-  token counts by model, and its logs). `regrade.json` also keeps each route's adapter hash, host version and pinned
-  upstream, and the time the pass finished, which stays empty when it stopped. Everything passes the scrub of every
-  containment the pass made.
+- It writes `<store>/<round>/regrade/<pass>/` (doc 11, Cross-model grading): `regrade.json`, the pass and its
+  routes, with a finish time that stays empty when the pass stopped; `pages.json`, each page by its place in the
+  blind order, for the report, never for a grader; and per route `proved.json` and `pages/<place>.json`, each
+  grader's sheet, tries, costs and logs. Everything passes the scrub of every containment the pass made.
 
 Run from the repository root, at the round's commit:
 
@@ -108,7 +104,8 @@ def pages(r, attempt, outcome):
     """{name: page} for every page the source attempt graded: its `text`, the questions `asked`, its `kind` (run or
     golden), `case`, the `host`, `model` and `arm` that made it, and a golden's `settled` answers. Each is rebuilt as
     the grade gate built it and must hash as its grade record says, or the pass stops. The run records must be
-    exactly the runs the attempt's grade gate names (`outcome`)."""
+    exactly the runs the attempt's grade gate names (`outcome`), and the golden records exactly the goldens it graded:
+    each golden of the round's cases with a question no check decided."""
     graded, found = r.folder / "grades" / attempt, {}
     named = sorted(run["key"] for run in outcome["runs"])
     if sorted(path.stem for path in (graded / "runs").glob("*.json")) != named:
@@ -128,20 +125,29 @@ def pages(r, attempt, outcome):
                             "asked": grading.questions(r.cases[(skill, case_id)].expectations, verdicts)}
     top = grades.reference(r.hosts)
     library = checks.library(r.repo / "evals" / "checks")
-    for path in sorted((graded / "goldens").glob("*/*/*.json")):
-        skill, case_id, name = path.parent.parent.name, path.parent.name, path.stem
-        case = r.cases[(skill, case_id)]
-        [golden] = [g for g in goldens.load(case, r.repo / "evals" / "goldens" / skill / case_id) if g.name == name]
-        with tempfile.TemporaryDirectory(prefix="hw-g-") as out:
-            record, blobs = goldens.bundle(golden, case, r.modules[top], out, r.hosts[top]["drift"],
-                                           r.record["hosts"][top]["version"]["version"], r.model(top), r.skills)
-        bundle = checks.Bundle(record, blobs.__getitem__)
-        verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
-                    if "check" in e else None for e in case.expectations]
-        found[f"golden {skill}/{case_id}/{name}"] = {
-            "text": grades.text(record, blobs.__getitem__), "kept": json.loads(path.read_text()), "kind": "golden",
-            "case": f"{skill}/{case_id}", "host": top, "model": r.model(top), "arm": "golden",
-            "settled": golden.settled, "asked": grading.questions(case.expectations, verdicts)}
+    expected = set()  # the golden records the grade gate wrote: one for each golden with a question to grade
+    for (skill, case_id), case in r.cases.items():
+        for golden in goldens.load(case, r.repo / "evals" / "goldens" / skill / case_id):
+            with tempfile.TemporaryDirectory(prefix="hw-g-") as out:
+                record, blobs = goldens.bundle(golden, case, r.modules[top], out, r.hosts[top]["drift"],
+                                               r.record["hosts"][top]["version"]["version"], r.model(top), r.skills)
+            bundle = checks.Bundle(record, blobs.__getitem__)
+            verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
+                        if "check" in e else None for e in case.expectations]
+            asked = grading.questions(case.expectations, verdicts)
+            if not asked:
+                continue
+            path = graded / "goldens" / skill / case_id / f"{golden.name}.json"
+            expected.add(path)
+            name = f"golden {skill}/{case_id}/{golden.name}"
+            if not path.is_file():
+                raise RegradeError(f"{name}: the grade gate graded it, and its grade record is not in the store")
+            found[name] = {
+                "text": grades.text(record, blobs.__getitem__), "kept": json.loads(path.read_text()),
+                "kind": "golden", "case": f"{skill}/{case_id}", "host": top, "model": r.model(top), "arm": "golden",
+                "settled": golden.settled, "asked": asked}
+    if set((graded / "goldens").glob("*/*/*.json")) != expected:
+        raise RegradeError(f"attempt {attempt}: its golden grade records are not the goldens its grade gate graded")
     for name, page in found.items():
         if not {"page", "questions"} <= set(page["kept"]):
             raise RegradeError(f"{name}: graded before grade records kept page hashes; regrade a newer round")
@@ -208,6 +214,7 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
     passed = (outcome.get("probe") or {}).get("passed") or []  # the hosts the source attempt ran, as it built goldens
     r.hosts = {host: {"drift": json.loads((r.folder / "drift" / f"{host}.json").read_text())} for host in passed}
     found = {page: built for page, built in pages(r, attempt, outcome["grade"]).items() if built["kind"] in kinds}
+    modules = {one: rounds.adapter(one[0], adapters) for one in routes}
     started = datetime.datetime.now(datetime.timezone.utc)
     (r.folder / "regrade").mkdir(parents=True, exist_ok=True)
     out = Path(tempfile.mkdtemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", dir=r.folder / "regrade"))
@@ -216,7 +223,6 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
     order = [(page, f"{number:04d}") for number, (page, _) in
              enumerate(grader.blind({page: found[page]["text"] for page in found}, r.seed), start=1)]
     ids = dict(order)
-    modules = {one: rounds.adapter(one[0], adapters) for one in routes}
     head = {"round": r.record["round"], "source": attempt, "commit": r.record["commit"], "kit": r.record["kit"],
             "seed": r.seed, "started": started.isoformat(timespec="seconds"), "finished": None,
             "pages": list(kinds), "graders": times, "tries": grader.TRIES, "timeout": r.timeout,
@@ -225,10 +231,6 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
                         "upstream": one[1].partition("@")[2] or None,  # the pinned one, when the route names it
                         "adapter_sha256": rounds.tracked_digest(Path(adapters) / one[0])} for one in routes]}
     r.write(out / "regrade.json", head)
-    r.write(out / "pages.json", {ids[page]: {
-        **grader.digest(found[page]["text"], found[page]["asked"]), "name": page,
-        **{k: found[page][k] for k in ("kind", "case", "host", "model", "arm")},
-        "asked": [q["id"] for q in found[page]["asked"]], "settled": found[page].get("settled")} for page in found})
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
     failed = []
     for one, entry in zip(routes, head["routes"]):
@@ -238,6 +240,10 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
         r.write(out / entry["folder"] / "proved.json", proved)
         if proved["not run"] or not proved["faults"] or not all(f["caught"] for f in proved["faults"]):
             failed.append(f"{one[0]}={one[1]}")
+    r.write(out / "pages.json", {ids[page]: {
+        **grader.digest(found[page]["text"], found[page]["asked"]), "name": page,
+        **{k: found[page][k] for k in ("kind", "case", "host", "model", "arm")},
+        "asked": [q["id"] for q in found[page]["asked"]], "settled": found[page].get("settled")} for page in found})
     r.write(out / "regrade.json", head)
     if failed:
         raise RegradeError(f"routes failed their probes or grader faults: {', '.join(failed)}; see {out}")

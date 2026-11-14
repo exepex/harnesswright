@@ -101,8 +101,8 @@ passed every probe in both modes. OpenRouter's record of each response (`/api/v1
 upstream for every one of them, and the prices in `evals/results/prices.json` give what each route's probes cost,
 about 4 to 14 cents. The open-weight model the owner named failed the powers probe in both modes: it listed and read
 the probe script before running it, so the probe found more commands than it asked for. A larger open-weight model
-of the same family, at the same upstream, passed every probe and takes its place (the owner agreed on
-2026-11-14). No probe starts a sub-agent, so the pin on a sub-agent's requests is read from goose's source only.
+of the same family, at the same upstream, passed every probe and takes its place, waiting on the owner's yes. No
+probe starts a sub-agent, so the pin on a sub-agent's requests is read from goose's source only.
 
 ## Not verified yet
 

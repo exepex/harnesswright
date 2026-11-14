@@ -112,16 +112,26 @@ class Regrade(Pages):
                 self.run_it()
             path.write_text(data)
 
-    def test_records_from_before_page_hashes_or_not_the_gate_s_runs_are_refused(self):
+    def test_records_from_before_page_hashes_or_not_the_gate_s_pages_are_refused(self):
         self.source()
         [path, other] = self.records()
-        data = json.loads(path.read_text())
+        data, data_other = json.loads(path.read_text()), other.read_text()
         path.write_text(json.dumps({k: v for k, v in data.items() if k != "page"}))
         with self.assertRaisesRegex(regrade.RegradeError, "graded before grade records kept page hashes"):
             self.run_it()
         path.write_text(json.dumps(data))
         other.unlink()  # a record the grade gate named is missing
         with self.assertRaisesRegex(regrade.RegradeError, "not the runs its grade gate graded"):
+            self.run_it()
+        other.write_text(data_other)
+        golden = [p for p in self.records("goldens") if p.stem == "no"][0]
+        kept = golden.read_text()
+        golden.unlink()  # a golden the grade gate graded has lost its record
+        with self.assertRaisesRegex(regrade.RegradeError, "golden haiku-writer/c1/no: the grade gate graded it"):
+            self.run_it()
+        golden.write_text(kept)
+        (golden.parent / "stray.json").write_text(kept)  # a record of no golden the gate graded
+        with self.assertRaisesRegex(regrade.RegradeError, "not the goldens its grade gate graded"):
             self.run_it()
 
     def test_another_commit_kit_case_or_adapter_is_refused(self):
