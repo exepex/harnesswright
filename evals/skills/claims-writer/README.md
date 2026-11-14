@@ -1,6 +1,6 @@
 # Evals for claims-writer
 
-Trigger and task evals for [skills/claims-writer](../../../skills/claims-writer/SKILL.md), in the formats of
+Trigger and task evals for [release/claims-writer](../../../release/claims-writer/SKILL.md), in the formats of
 [eval-formats.md](../../../skills/skill-designer/references/eval-formats.md).
 
 `files/` holds three small projects, each with a finished story in its run folder. They are eval fixtures written
@@ -35,7 +35,5 @@ skill until it is replaced.
 
 `checks/` holds the script checks. `claims_valid.py` runs the skill's own `claims_check.py check` on the claims
 file a run wrote. `code_unchanged.py` confirms that writing claims changed no project file and added none.
-
-`tests/` holds unit tests of `claims_check.py`: `python3 -m unittest discover -s evals/skills/claims-writer/tests`.
 
 Results per host are in `evals/results/claims-writer.json`.
