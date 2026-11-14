@@ -38,5 +38,5 @@ read, not run. No host was installed.
 
 - No live run: goose is not installed here, and no model credentials for it exist in this container.
 - The exact `stream-json` event that carries a `load_skill` call has not been read yet. It must be confirmed from
-  the source, and by a live run, if an adapter is ever built.
+  the source, and by a live run, when the adapter is built (part O1b).
 - Paid services: goose and its local runners are free. A hosted model needs the owner's own account and key.

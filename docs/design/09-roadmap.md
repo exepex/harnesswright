@@ -49,4 +49,4 @@ trailofbits/skills.
 | 4 | How is orchestration (sub-agents, parallel work) provided on each host? | Through host adapters, decided in phase 6; steps that need no independence keep a single-agent fallback, and independent steps never run in the implementer's session (`HW-PORT-03`) |
 | 5 | Where do company, department and team layers live once they exist: in this repository, or in their own? | Decided 2026-11-04: in their own folders, outside harnesswright: the profile names each one with a pinned version ([07](07-repo-profile.md)) |
 | 6 | Should a small format check (frontmatter, links, file sizes) run in CI or as a local pre-commit hook? | Neither until the owner asks; checked by agents and review |
-| 7 | Which further hosts get an adapter? | None until the owner asks. harnesswright picks no runtime, and any host that reads Agent Skills can be added with one adapter |
+| 7 | Which further hosts get an adapter? | goose, at the owner's ask of 2026-11-14, for cross-model grading. Others only when the owner asks: harnesswright picks no runtime, and any host that reads Agent Skills can be added with one adapter |
