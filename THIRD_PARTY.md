@@ -37,17 +37,15 @@ eval scripts call the Claude Code command line directly (`claude -p` in `scripts
 | Repository | https://github.com/obra/superpowers |
 | Commit | `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b` |
 | Path | `skills/verification-before-completion` |
-| Licence | MIT, Copyright (c) 2025 Jesse Vincent. Full text kept in `skills/claims-writer/LICENSE-MIT.txt`, `v2/skills/claims-writer/LICENSE-MIT.txt` and `release/claims-writer/LICENSE-MIT.txt`. |
+| Licence | MIT, Copyright (c) 2025 Jesse Vincent. Full text kept in `v2/skills/claims-writer/LICENSE-MIT.txt` and `release/claims-writer/LICENSE-MIT.txt`. |
 | Sourcing | adapted |
-| Used in | `skills/claims-writer/`, `v2/skills/claims-writer/` and the release skill built from it, `release/claims-writer/` |
+| Used in | `v2/skills/claims-writer/` and the release skill built from it, `release/claims-writer/` |
 
 ### What was taken and what changed
 
 | harnesswright file | Source file | Changes |
 |---|---|---|
-| `skills/claims-writer/SKILL.md` | `SKILL.md` | Kept the core idea (no completion claim without fresh evidence), the gate of identify, run, read and verify before claiming, and the table of what proves a claim and what is not enough, reworded. Changed the output to the claims contract of [06 · Contracts](docs/design/06-contracts.md). Added purpose and limits, inputs, numbered steps with checks, failure handling, examples, a bundled check script and a fallback for when scripts are forbidden or cannot run (`HW-PORT-08`). The bug-fix row no longer asks to revert the fix in the working tree. Removed the rationalisation and red-flag lists and the emphatic wording, in favour of reasons. |
-| `skills/claims-writer/LICENSE-MIT.txt` | `LICENSE` | Unchanged. |
-| `v2/skills/claims-writer/SKILL.tmpl.md`, built into `release/claims-writer/SKILL.md` | `SKILL.md` | The same idea, gate and evidence table as `skills/claims-writer/SKILL.md`, rewritten as a template that cites rule IDs (CORE-WORK-01 to 03) instead of stating them, and that writes the claims contract of `contracts/claims.md`: a status per requirement, test types, open proof items and the Standards section with its sources. |
+| `v2/skills/claims-writer/SKILL.tmpl.md`, built into `release/claims-writer/SKILL.md` | `SKILL.md` | Kept the core idea (no completion claim without fresh evidence), the gate of identify, run, read and verify before claiming, and the table of what proves a claim and what is not enough, reworded. The table drops the source's lint, regression red-green and agent-completed rows, and adds rows for a behaviour that exists and for a covered test type. Written as a template that cites rule IDs (CORE-WORK-01 to 03) instead of stating them. The output is the claims contract of `contracts/claims.md`: a status per requirement, test types, open proof items and the Standards section with its sources. Added purpose and limits, inputs, numbered steps with checks, failure handling, examples, bundled check scripts and a fallback for when scripts are forbidden or cannot run (`HW-PORT-08`). Removed the rationalisation and red-flag lists and the emphatic wording, in favour of reasons. |
 | `v2/skills/claims-writer/LICENSE-MIT.txt`, copied to `release/claims-writer/LICENSE-MIT.txt` | `LICENSE` | Unchanged. |
 
 Not taken: the rest of the repository. Its other skills were read only to choose a candidate.
