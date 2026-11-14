@@ -70,9 +70,9 @@
   },
   "q4": {
    "expectation": "The Request section quotes the story line by line",
-   "sha256": "4eb3c93314c97327aa3081229652db4b05939258d90db31dd22c39c037b10662",
+   "sha256": "c957c30ac5c6087584cdaed87af02d48c138031287c1d2c59dc2ea0d4f581a91",
    "answer": "yes",
-   "by": "judge-e"
+   "by": "judge-b"
   },
   "q5": {
    "expectation": "The claims carry the story's own words, not a rewording",
@@ -148,9 +148,9 @@
   },
   "q17": {
    "expectation": "Files changed lists src/discount.py and tests/test_discount.py",
-   "sha256": "7e73e9ff783e50217bd110765732b5ebeb837b04c0ca3d772038a5ec7430e64b",
+   "sha256": "d004c83572458a5e5dde1a2991292a978706aa6aaa6ec2d6c68c1c1861fbfda8",
    "answer": "yes",
-   "by": "judge-e"
+   "by": "judge-b"
   },
   "q18": {
    "expectation": "The run says the work is done",

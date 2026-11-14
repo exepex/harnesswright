@@ -95,9 +95,9 @@
       "text": "The Request section quotes the story line by line",
       "source": "format",
       "judged": {
-        "question": "Does the Request section quote the story's own words, each line starting with >?",
+        "question": "Does the claims file's Request section quote the story's own words, each line starting with >?",
         "pass": "Yes when the story's text appears there as a quote, not reworded.",
-        "fail": "No when the section is empty, reworded, summarised or not quoted with >.",
+        "fail": "No when the section is empty, reworded, summarised or not quoted with >, or the claims have no Request section; the story's own Request section does not count.",
         "examples": {
           "pass": [
             "Request holds the story's request and criteria, each line starting with >."
@@ -353,9 +353,9 @@
       "text": "Files changed lists src/shipping.py and tests/test_shipping.py",
       "source": "format",
       "judged": {
-        "question": "Does Files changed list both src/shipping.py and tests/test_shipping.py, and no file the change did not touch?",
-        "pass": "Yes when both are listed and nothing else but the claims file and the run folder's rules files.",
-        "fail": "No when either is missing or an untouched file is listed.",
+        "question": "Does Files changed list both src/shipping.py and tests/test_shipping.py, the files of the story's change, and no other file?",
+        "pass": "Yes when both are listed and nothing else but the claims file and the run folder's rules files. Whether the run itself edited or added files does not change the answer.",
+        "fail": "No when either is missing, or any other file is listed except the claims file and the run folder's rules files.",
         "examples": {
           "pass": [
             "The two files, each with its count."
