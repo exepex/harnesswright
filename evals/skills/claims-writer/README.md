@@ -1,6 +1,6 @@
 # Evals for claims-writer
 
-Trigger and task evals for [skills/claims-writer](../../../skills/claims-writer/SKILL.md), in the formats of
+Trigger and task evals for [release/claims-writer](../../../release/claims-writer/SKILL.md), in the formats of
 [eval-formats.md](../../../skills/skill-designer/references/eval-formats.md).
 
 `files/` holds three small projects, each with a finished story in its run folder. They are eval fixtures written
@@ -30,12 +30,11 @@ contract's format (`covers`, `tests`):
   performance test becomes an open proof item; the project README says who runs the staging load test and when.
 
 Their contract expectations cite the story or the README and accept any wording of the outcome; the skill's own
-words are format expectations. Rounds of the new skill list only these cases; the three above stay for the old
-skill until it is replaced.
+words are format expectations. Rounds of the new skill list only these cases. The three above, `tasks.json`
+and `checks/claims_valid.py` were written for the old `skills/claims-writer/`. Once that folder is removed they
+no longer run, and they leave with the old runner in R5.
 
-`checks/` holds the script checks. `claims_valid.py` runs the skill's own `claims_check.py check` on the claims
+`checks/` holds the script checks. `claims_valid.py` ran the old skill's `claims_check.py check` on the claims
 file a run wrote. `code_unchanged.py` confirms that writing claims changed no project file and added none.
-
-`tests/` holds unit tests of `claims_check.py`: `python3 -m unittest discover -s evals/skills/claims-writer/tests`.
 
 Results per host are in `evals/results/claims-writer.json`.
