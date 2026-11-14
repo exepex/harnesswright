@@ -21,6 +21,10 @@ is named, and so is a reference result that is not settled, and either keeps the
   scored runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is that of the `test`
   split, the `train` split being for tuning a description.
 - A planned run is not scored when it is void or empty, or its outcome is not decided. Each is named (`unsettled`).
+- A skill the plan gives a previous version (`runs.PREVIOUS`) must be at least as good as it on the same task
+  cases: its pass rate not below the previous version's, and its false-done rate not above it (plan decision 2,
+  eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
+  decided run in either arm, keep the label at most `inconclusive`.
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
   - `incomplete` when the host was not run, or the skill has no task case or no test trigger case, with every
     doubt below named too;
@@ -28,7 +32,7 @@ is named, and so is a reference result that is not settled, and either keeps the
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
     not run, or it is itself in doubt), or the skill shows no lift over the baseline;
   - `unsupported` when the task pass rate, the gap to the reference host or the trigger accuracy misses its
-    threshold, with each gap named;
+    threshold, or the skill is worse than its previous version, with each gap named;
   - `verified` otherwise.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub.
 
@@ -42,6 +46,7 @@ import evidence
 import grades
 import measures
 import prices
+from runs import PREVIOUS
 
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0}
 EPSILON = 1e-9
@@ -81,9 +86,10 @@ def rate(passed):
     return round(sum(passed) / len(passed), 4) if passed else None
 
 
-def summary(cases, scored):
+def summary(cases, scored, previous=False):
     """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
-    by (case id, arm), True or False."""
+    by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
+    too."""
     tasks = [i for i, case in cases.items() if case.kind == "task"]
     triggers = [i for i, case in cases.items() if case.kind == "trigger" and case.split == "test"]
     with_skill = [o for i in tasks for o in scored.get((i, "with_skill"), [])]
@@ -93,10 +99,13 @@ def summary(cases, scored):
         right = scored.get((i, "with_skill"), [])  # each run: did it do what the case says
         if right:  # the skill loaded in at least half the runs of a should-trigger case, in fewer of a should-not
             passing.append(2 * sum(right) >= len(right) if cases[i].should_trigger else 2 * sum(right) > len(right))
-    runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in ("with_skill", "without_skill")}
+    task_arms = ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
+    runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in task_arms}
     runs.update({f"{i}, with_skill": len(scored.get((i, "with_skill"), [])) for i in triggers})
     task_rate, baseline = rate(with_skill), rate(without)
-    return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline,
+    earlier = {"previous_pass_rate": rate([o for i in tasks for o in scored.get((i, PREVIOUS), [])])} \
+        if previous else {}
+    return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
             "trigger_accuracy": rate(passing), "task_cases": len(tasks), "trigger_cases": len(triggers),
             "runs": runs}
@@ -115,11 +124,30 @@ def doubts(measures, unsettled, thresholds=THRESHOLDS):
             if count < least] + list(unsettled)
 
 
-def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS):
+def versus(measures, false_done):
+    """(gaps, doubts) of one skill against its previous version, when `measures` (`summary`) has one:
+    `false_done` holds the false-done tally of each arm (`labels`)."""
+    if "previous_pass_rate" not in measures:
+        return [], []
+    gaps, doubted, now, before = [], [], measures["task_pass_rate"], measures["previous_pass_rate"]
+    if None not in (now, before) and now < before - EPSILON:
+        gaps.append(f"task pass rate {now:.0%} below the previous version's {before:.0%}")
+    tallies = [false_done.get(arm, {"false_done": 0, "decided": 0}) for arm in ("with_skill", PREVIOUS)]
+    if any(not t["decided"] for t in tallies):
+        doubted.append("false-done rate: no decided run in the with-skill or the previous version's arm")
+    elif tallies[0]["false_done"] / tallies[0]["decided"] > tallies[1]["false_done"] / tallies[1]["decided"] + EPSILON:
+        gaps.append(f"false-done rate {tallies[0]['false_done']} of {tallies[0]['decided']} above the previous "
+                    f"version's {tallies[1]['false_done']} of {tallies[1]['decided']}")
+    return gaps, doubted
+
+
+def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS, false_done=None):
     """{"label", "gaps"} of one skill on one host from its `measures` (`summary`) and `unsettled`, the named reasons
     its result is in doubt (runs not scored, goldens missed). For a host other than the reference host, `reference`
-    is the reference host's measures when its result is settled, and `reference_doubt` says why it is not."""
-    doubted = doubts(measures, unsettled, thresholds) + ([reference_doubt] if reference_doubt else [])
+    is the reference host's measures when its result is settled, and `reference_doubt` says why it is not.
+    `false_done` is the false-done tally of each arm, for the comparison with a previous version (`versus`)."""
+    earlier, earlier_doubts = versus(measures, false_done or {})
+    doubted = doubts(measures, unsettled, thresholds) + ([reference_doubt] if reference_doubt else []) + earlier_doubts
     if missing(measures):
         return {"label": "incomplete", "gaps": missing(measures) + doubted}
     gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
@@ -130,6 +158,7 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
         gaps.append(f"task pass rate {reference['task_pass_rate'] - task_rate:.0%} below the reference host")
     if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
         gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
+    gaps += earlier
     if doubted:
         return {"label": "inconclusive", "gaps": doubted + gaps}
     if gaps:
@@ -192,7 +221,8 @@ def labels(folder, attempt, record, cases, price_file):
         own = {i: case for (s, i), case in cases.items() if s == skill}
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
-        measured = {host: summary(own, scored.get((host, skill), {})) for host in passed}
+        measured = {host: summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}))
+                    for host in passed}
         doubted = {host: unsettled.get((host, skill), []) + [f"{name}: goldens missed ({why})"
                                                              for name, why in sorted(unreliable.items())]
                    for host in passed}
@@ -216,7 +246,8 @@ def labels(folder, attempt, record, cases, price_file):
                              false_done={arm: measures.share(tally["false_done"], tally["decided"], **tally)
                                          for arm, tally in sorted(false_done.get((host, skill), {}).items())},
                              **decide(measured[host], doubted[host], reference if other else None,
-                                      reference_doubt if other else None))
+                                      reference_doubt if other else None,
+                                      false_done=false_done.get((host, skill), {})))
             found["skills"][skill][host] = entry
     return found
 

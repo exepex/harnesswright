@@ -87,6 +87,43 @@ def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, 
     return labels.summary(cases, scored)
 
 
+def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
+    """The measures of a skill whose round ran a previous version, and the false-done tally of each arm."""
+    cases = {"t": case(), "g": case("trigger", should_trigger=True, split="test")}
+    scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [False] * 3,
+              ("t", "previous_version"): [bool(o) for o in before], ("g", "with_skill"): [True] * 3}
+    tally = {arm: {"false_done": f, "decided": d, "undecided": 0}
+             for arm, (f, d) in (("with_skill", done), ("previous_version", done_before))}
+    return labels.summary(cases, scored, previous=True), tally
+
+
+class Previous(unittest.TestCase):
+    def test_a_skill_at_least_as_good_as_its_previous_version_is_verified(self):
+        found, tally = against()
+        self.assertEqual((found["previous_pass_rate"], found["runs"]["t, previous_version"]), (0.6667, 3))
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
+        found, tally = against(before=(1, 1, 1))  # equal is at least as good
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
+
+    def test_a_skill_worse_than_its_previous_version_is_unsupported_with_each_gap_named(self):
+        found, tally = against(task=(1,) * 9 + (0,), before=(1,) * 10, done=(1, 10), done_before=(0, 10))
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "unsupported", "gaps": [
+            "task pass rate 90% below the previous version's 100%",
+            "false-done rate 1 of 10 above the previous version's 0 of 10"]})
+
+    def test_too_few_previous_runs_or_no_decided_false_done_keep_the_label_inconclusive(self):
+        found, tally = against(before=(1, 1))
+        self.assertEqual(labels.decide(found, [], false_done=tally),
+                         {"label": "inconclusive", "gaps": ["t, previous_version: 2 scored run(s), 3 needed"]})
+        found, tally = against(done_before=(0, 0))
+        self.assertEqual(labels.decide(found, [], false_done=tally)["gaps"],
+                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
+
+    def test_a_round_with_no_previous_version_is_decided_as_before(self):
+        self.assertNotIn("previous_pass_rate", measured())
+        self.assertNotIn("t, previous_version", measured()["runs"])
+
+
 class Decide(unittest.TestCase):
     def test_enough_runs_meeting_every_threshold_with_lift_are_verified(self):
         found = measured(train=[False] * 3)  # the train split is for tuning: it does not count
