@@ -16,7 +16,9 @@ is kept, and any other is refused, so a changed input is a new round.
 A plan may also name, under `previous`, the full commit of a skill's previous version. Its task cases then run in
 a third arm, `previous_version` (`runs.arms`), which installs the skill as that commit holds it, the folder
 `skills.folders` reads there. `rounds.previous` is the one reader of it: it checks the commit out in a scratch
-worktree, removed afterwards, and hashes the skill's tracked files. The manifest records the commit, the path and
+worktree with no hooks, removed afterwards, reads the skill as the version under test is read, and hashes its
+tracked files. The lint gate lints that arm with the previous version's text too, and a plan whose previous
+version names a skill it runs no task case of is refused. The manifest records the commit, the path and
 the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
 the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
 

@@ -149,23 +149,31 @@ def skill(repo, name):
 @contextlib.contextmanager
 def previous(repo, name, at, sha256=None):
     """The folder of the skill `name` as commit `at` holds it, the one `skills.folders` reads there, in a scratch
-    worktree of `repo` that is removed afterwards. With `sha256`, its tracked files must hash to it, as the manifest
-    recorded; the one place a previous version is read, at plan time and for every run."""
+    worktree of `repo` that is removed afterwards. It is read as the version under test is (`skills.skill_files`),
+    so a version a run could not install is refused here. With `sha256`, its tracked files must hash to it, as the
+    manifest recorded. The one place a previous version is read: at plan time, by the lint gate and for every run."""
     if not COMMIT.fullmatch(at or ""):
         raise RoundError(f"{at!r}: a previous version is named by its full commit")
     with tempfile.TemporaryDirectory(prefix="hw-previous-") as scratch:
         tree = Path(scratch) / "tree"
-        _git(repo, "worktree", "add", "--detach", "--quiet", str(tree), f"{at}^{{commit}}")
+        # No hooks: the repository's own post-checkout hook would run outside any jail and could change the tree.
+        _git(repo, "-c", f"core.hooksPath={os.devnull}", "worktree", "add", "--detach", "--quiet", str(tree),
+             f"{at}^{{commit}}")
         try:
             known = skills.folders(tree)
             if name not in known:
                 raise RoundError(f"commit {at} holds no skill named {name!r}")
+            try:
+                skills.skill_files(known[name], name)
+            except CaseError as error:
+                raise RoundError(f"{name} at {at}: {error}") from None
             found = tracked_digest(known[name])
             if sha256 is not None and found != sha256:
                 raise RoundError(f"{name} at {at} hashes to {found}, not the manifest's {sha256}")
             yield known[name], {"commit": at, "path": known[name].relative_to(tree).as_posix(), "sha256": found}
-        finally:
-            _git(repo, "worktree", "remove", "--force", str(tree))
+        finally:  # removed even when the read failed; a removal that fails never hides why the read did
+            _git(repo, "worktree", "remove", "--force", str(tree), check=False)
+            _git(repo, "worktree", "prune", check=False)
 
 
 def host_version(module, **containment):
@@ -180,11 +188,11 @@ def host_version(module, **containment):
     return found
 
 
-def _git(repo, *args):
+def _git(repo, *args, check=True):
     done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True,
                           env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.devnull,
                                "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
-    if done.returncode != 0:
+    if done.returncode != 0 and check:
         raise RoundError(f"{repo}: git {args[0]} failed: {done.stderr.strip()}")
     return done.stdout
 
@@ -204,18 +212,20 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
     and `at` the commit (`commit`); `containment` passes on to `version`."""
     data = read_plan(path)
     try:
-        found, installed = {"cases": {}}, set(data["skills"])
+        found, installed, known_cases = {"cases": {}}, set(data["skills"]), {}
         for name, ids in data["skills"].items():
             root = Path(repo) / "evals" / "skills" / name / "cases"
             absent = [i for i in ids if not (root / i).is_dir() or (root / i).is_symlink()]
             if absent:
                 raise RoundError(f"{path}: {name} has no cases {absent}")
-            known = {i: cases.Case(root / i, name) for i in ids}  # only the cases the plan names are read
+            known = known_cases[name] = {i: cases.Case(root / i, name) for i in ids}  # only the cases it names
             found["cases"][name] = {i: known[i].sha256 for i in ids}
             installed.update(sibling for i in ids for sibling in known[i].siblings or ())
         found["skills"] = {name: skill(repo, name) for name in sorted(installed)}  # every skill an arm installs
         found["previous"] = {}
         for name, earlier in sorted(data.get("previous", {}).items()):
+            if not any(case.kind == "task" for case in known_cases[name].values()):
+                raise RoundError(f"{path}: previous names {name}, which the plan runs no task case of")
             with previous(repo, name, earlier) as (_, kept):
                 if kept["sha256"] == found["skills"][name]["sha256"]:
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")

@@ -124,6 +124,19 @@ class Gates(Gated):
         with self.assertRaisesRegex(rounds.RoundError, r"stopped at the lint gate: fakehost, haiku-writer/c1: "):
             self.go(gates.GATES[1:2])
 
+    def test_lint_reads_the_previous_version_too_and_stops_a_world_that_holds_its_text(self):
+        skill = self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        line = "Count the syllables of every line twice before you answer, five then seven then five."
+        skill.write_text(skill.read_text() + f"\n{line}\n")
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        skill.write_text(skill.read_text().replace(line, "Keep it short."))
+        (self.case_dir / "world" / "README.md").write_text(f"# Notes app\n\n{line}\n")
+        rounds.write(self.plan(previous={"haiku-writer": old}), self.store, self.repo)
+        with self.assertRaisesRegex(rounds.RoundError,
+                                    r"stopped at the lint gate: fakehost, haiku-writer/c1, previous_version: "):
+            self.go(gates.GATES[1:2])
+
     def test_what_a_probe_gives_is_kept_only_scrubbed(self):
         self.planned()
         secret, token = "sk-" + "s" * 30, "hw-canary-" + "t" * 20

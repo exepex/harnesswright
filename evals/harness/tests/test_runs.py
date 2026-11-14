@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from helpers import TempCase
@@ -221,8 +222,19 @@ class Runs(Round):
         self.assertEqual(kept["path"], "skills/haiku-writer")
         self.assertNotEqual(kept["sha256"], record["skills"]["haiku-writer"]["sha256"])
         self.assertEqual(runs.arms(record, Case(self.case_dir, "haiku-writer")), (*runs.ARMS, runs.PREVIOUS))
-        made = self.run_one(record, runs.PREVIOUS)
+        installed = []
+
+        def build(case, adapter, out, skills_root=None, with_skill=False, skill_dir=None):
+            if with_skill:  # the text the arm installs, read while the previous version's worktree is there
+                installed.append((Path(skill_dir) / "SKILL.md").read_text())
+            return real(case, adapter, out, skills_root, with_skill, skill_dir)
+
+        real = world.build
+        with mock.patch.object(world, "build", side_effect=build):
+            made = self.run_one(record, runs.PREVIOUS)
         self.assertEqual(made["status"], "made")
+        self.assertEqual(installed, ["---\nname: haiku-writer\ndescription: Writes a haiku. Use when asked for a "
+                                     "haiku.\n---\n\n# Haiku writer\n"])  # the old text, never the candidate's
         bundle, _ = evidence.load(made["bundle"])
         self.assertEqual(bundle["arm"], runs.PREVIOUS)
         self.assertNotIn(made["key"], {self.run_one(record, arm)["key"] for arm in runs.ARMS})
@@ -235,6 +247,32 @@ class Runs(Round):
             self.plan(previous={"haiku-writer": same})
         with self.assertRaisesRegex(rounds.RoundError, "failed"):
             self.plan(previous={"haiku-writer": "f" * 40})
+        with self.assertRaisesRegex(rounds.RoundError, "holds no skill named 'limerick-writer'"):
+            with rounds.previous(self.repo, "limerick-writer", same):
+                pass
+
+    def test_a_previous_version_a_run_could_not_install_is_refused_when_planned(self):
+        skill = self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        good = skill.read_text()
+        self.plan()
+        skill.write_text(good.replace("description: Writes", "description: \"Writes"))
+        self.git("commit", "-qam", "a version no run could install")
+        broken = self.git("rev-parse", "HEAD")
+        skill.write_text(good)
+        with self.assertRaisesRegex(rounds.RoundError, "haiku-writer at .*frontmatter"):
+            self.plan(previous={"haiku-writer": broken})
+        self.assertEqual(len(self.git("worktree", "list").splitlines()), 1)  # removed after a failed read too
+
+    def test_reading_a_previous_version_runs_none_of_the_repositorys_hooks(self):
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        hook = self.repo / ".git" / "hooks" / "post-checkout"
+        hook.parent.mkdir(exist_ok=True)
+        hook.write_text(f"#!/bin/sh\ntouch {self.tmp / 'hook-ran'}\n")
+        hook.chmod(0o755)
+        with rounds.previous(self.repo, "haiku-writer", old):
+            pass
+        self.assertFalse((self.tmp / "hook-ran").exists())
 
     def test_a_previous_version_whose_files_changed_is_refused_for_every_run(self):
         self.plan()

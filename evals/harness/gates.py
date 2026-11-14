@@ -37,6 +37,7 @@ Run from the repository root:
 Standard library only.
 """
 
+import contextlib
 import datetime
 import json
 import os
@@ -127,13 +128,21 @@ def lint_gate(r):
     problems = []
     for host, module in r.modules.items():
         for (skill, case_id), case in r.cases.items():
-            with tempfile.TemporaryDirectory(prefix="hw-lint-") as out:
-                try:
-                    found = lint.lint_case(case, module, out, r.skills, None, upstream[skill], measuring,
-                                           r.repo, data)
-                except CaseError as error:
-                    found = [str(error)]
-            problems += [f"{host}, {skill}/{case_id}: {problem}" for problem in found]
+            # Each arm that installs a version of the skill is linted with that version's text.
+            for arm in runs.arms(r.record, case)[1:]:
+                with tempfile.TemporaryDirectory(prefix="hw-lint-") as out, contextlib.ExitStack() as stack:
+                    try:
+                        skill_dir = None
+                        if arm == runs.PREVIOUS:
+                            kept = r.record["previous"][skill]
+                            skill_dir, _ = stack.enter_context(rounds.previous(r.repo, skill, kept["commit"],
+                                                                               kept["sha256"]))
+                        found = lint.lint_case(case, module, out, r.skills, skill_dir, upstream[skill], measuring,
+                                               r.repo, data)
+                    except (CaseError, rounds.RoundError) as error:
+                        found = [str(error)]
+                problems += [f"{host}, {skill}/{case_id}, {arm}: {problem}" if arm == runs.PREVIOUS
+                             else f"{host}, {skill}/{case_id}: {problem}" for problem in found]
     if problems:
         raise Stop("; ".join(problems), {"problems": problems})
     return {"cases": len(r.cases), "hosts": len(r.modules)}
