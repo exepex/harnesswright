@@ -123,21 +123,23 @@ def kit_check(r):
 
 
 def lint_gate(r):
-    upstream = {skill: lint.texts(r.repo / "evals" / "skills" / skill / "upstream") for skill in r.record["cases"]}
     measuring, data = lint.eval_texts(r.repo)
     problems = []
     for host, module in r.modules.items():
         for (skill, case_id), case in r.cases.items():
-            # Each arm that installs a version of the skill is linted with that version's text.
+            # Each arm that installs a version of the skill is linted with that version's text and the upstream
+            # copy recorded in the same tree, the round's checkout or the previous version's commit.
             for arm in runs.arms(r.record, case)[1:]:
                 with tempfile.TemporaryDirectory(prefix="hw-lint-") as out, contextlib.ExitStack() as stack:
                     try:
-                        skill_dir = None
+                        skill_dir, tree = None, r.repo
                         if arm == runs.PREVIOUS:
                             kept = r.record["previous"][skill]
-                            skill_dir, _ = stack.enter_context(rounds.previous(r.repo, skill, kept["commit"],
-                                                                               kept["sha256"]))
-                        found = lint.lint_case(case, module, out, r.skills, skill_dir, upstream[skill], measuring,
+                            skill_dir, read = stack.enter_context(rounds.previous(r.repo, skill, kept["commit"],
+                                                                                  kept["sha256"]))
+                            tree = skill_dir.parents[len(Path(read["path"]).parts) - 1]
+                        upstream = lint.texts(tree / "evals" / "skills" / skill / "upstream")
+                        found = lint.lint_case(case, module, out, r.skills, skill_dir, upstream, measuring,
                                                r.repo, data)
                     except (CaseError, rounds.RoundError) as error:
                         found = [str(error)]
