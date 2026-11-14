@@ -117,11 +117,13 @@ def missing(measures):
                                                 ("test trigger cases", measures["trigger_cases"])) if not count]
 
 
-def doubts(measures, unsettled, thresholds=THRESHOLDS):
-    """Why a result is not settled: each case and arm with too few scored runs, and each `unsettled` reason."""
+def doubts(measures, unsettled, false_done, thresholds=THRESHOLDS):
+    """Why a result is not settled, the one list both a label and the reference host's settlement rest on: each
+    case and arm with too few scored runs, each `unsettled` reason, and each doubt against the previous version
+    (`versus`, from the `false_done` tally of each arm)."""
     least = thresholds["min_runs"]
     return [f"{slot}: {count} scored run(s), {least} needed" for slot, count in sorted(measures["runs"].items())
-            if count < least] + list(unsettled)
+            if count < least] + list(unsettled) + versus(measures, false_done)[1]
 
 
 def versus(measures, false_done):
@@ -146,8 +148,8 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     its result is in doubt (runs not scored, goldens missed). For a host other than the reference host, `reference`
     is the reference host's measures when its result is settled, and `reference_doubt` says why it is not.
     `false_done` is the false-done tally of each arm, for the comparison with a previous version (`versus`)."""
-    earlier, earlier_doubts = versus(measures, false_done or {})
-    doubted = doubts(measures, unsettled, thresholds) + ([reference_doubt] if reference_doubt else []) + earlier_doubts
+    earlier = versus(measures, false_done or {})[0]
+    doubted = doubts(measures, unsettled, false_done or {}, thresholds) + ([reference_doubt] if reference_doubt else [])
     if missing(measures):
         return {"label": "incomplete", "gaps": missing(measures) + doubted}
     gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
@@ -229,7 +231,8 @@ def labels(folder, attempt, record, cases, price_file):
         reference, reference_doubt = None, f"the reference host {grades.REFERENCE} was not run"
         if grades.REFERENCE in measured:
             reference_doubt = None
-            if missing(measured[grades.REFERENCE]) or doubts(measured[grades.REFERENCE], doubted[grades.REFERENCE]):
+            if missing(measured[grades.REFERENCE]) or doubts(measured[grades.REFERENCE], doubted[grades.REFERENCE],
+                                                             false_done.get((grades.REFERENCE, skill), {})):
                 reference_doubt = f"the reference host {grades.REFERENCE}'s result is not settled"
             else:
                 reference = measured[grades.REFERENCE]

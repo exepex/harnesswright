@@ -119,6 +119,11 @@ class Previous(unittest.TestCase):
         self.assertEqual(labels.decide(found, [], false_done=tally)["gaps"],
                          ["false-done rate: no decided run in the with-skill or the previous version's arm"])
 
+    def test_a_previous_version_doubt_unsettles_the_reference_host_too(self):
+        found, tally = against(done_before=(0, 0))  # the one list `labels` settles the reference host on
+        self.assertEqual(labels.doubts(found, [], tally),
+                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
+
     def test_a_round_with_no_previous_version_is_decided_as_before(self):
         self.assertNotIn("previous_pass_rate", measured())
         self.assertNotIn("t, previous_version", measured()["runs"])

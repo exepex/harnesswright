@@ -173,7 +173,6 @@ def previous(repo, name, at, sha256=None):
             yield known[name], {"commit": at, "path": known[name].relative_to(tree).as_posix(), "sha256": found}
         finally:  # removed even when the read failed; a removal that fails never hides why the read did
             _git(repo, "worktree", "remove", "--force", str(tree), check=False)
-            _git(repo, "worktree", "prune", check=False)
 
 
 def host_version(module, **containment):
