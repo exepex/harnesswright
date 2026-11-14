@@ -75,12 +75,23 @@ def environment(env):
     return dict(env)
 
 
+# A model given as `<model>@<upstream>` runs only at that OpenRouter upstream (a provider slug), with no fallback:
+# goose adds `OPENROUTER_PARAMETERS` to the body of every request it sends OpenRouter (`openrouter.rs`).
+ROUTE = "@"
+
+
 def jail_command(mode, world, model):
     """The command for one run, with the prompt on stdin (`-i -`). goose has no sandbox of its own to turn off, and
     runs in the folder the jail starts in, the world."""
     command = [CLI, "run", "-i", "-", "--output-format", "stream-json", "--no-session", "--no-profile",
                "--with-builtin", EXTENSIONS, "--provider", "openrouter"]
-    return command + (["--model", model] if model else [])
+    if not model:
+        return command
+    model, _, upstream = model.partition(ROUTE)
+    if not upstream:
+        return command + ["--model", model]
+    pin = {"provider": {"only": [upstream], "allow_fallbacks": False}}  # one upstream, never another
+    return ["env", f"OPENROUTER_PARAMETERS={json.dumps(pin)}"] + command + ["--model", model]
 
 
 def _without_extensions(command):

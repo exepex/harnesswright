@@ -3,12 +3,13 @@
 This adapter runs evals through the goose command line in headless mode, `goose run`, on one route: OpenRouter. It
 exists for cross-model grading (the open host plan). Parts O1a and O1b are built: the command, the powers and the
 event readers. Its readers are unit-tested on real runs captured through `host.run` in the jail and the gate
-(`evals/harness/tests/goose/`). The six probes have not run live yet (part O2).
+(`evals/harness/tests/goose/`). The six probes pass live on each chosen route (part O2, below).
 
 | Item | Value |
 |---|---|
 | Command | `goose run -i - --output-format stream-json --no-session --no-profile --with-builtin developer,summon --provider openrouter [--model <model>]` |
 | Route | It passes one key, `OPENROUTER_API_KEY`, and the gate allows one host, `openrouter.ai` |
+| Upstream | A model given as `<model>@<upstream>` runs only at that OpenRouter upstream, a provider slug, with fallbacks off: the command sets `OPENROUTER_PARAMETERS`, which goose adds to every request it sends (`goose-providers/src/openrouter.rs`). A model with no `@` goes wherever OpenRouter routes it |
 | Sandbox | goose has none. The jail enforces the power table, and `GOOSE_MODE=auto` lets headless goose use its tools without asking |
 | Extensions | `developer` (shell and files) and `summon` (`delegate` starts a sub-agent; `load` reads a recipe or agent file). `--no-profile` turns off every other one |
 | Bundled skills | Off, through the patched build below (`GOOSE_BUILTIN_SKILLS=false`) |
@@ -94,7 +95,14 @@ in all; `evals/harness/tests/goose/README.md`):
   `error` event. In each, the store's usage rows sum to the totals of goose's own `complete` event.
 - A sub-agent gets one more tool, `recipe__final_output`, which hands its answer back. It is on the tool list.
 
+Run here, with the owner's OpenRouter key, the six probes through `probes.probe_host` on each grader route the owner
+chose (2026-11-14), each a model at its maker's own upstream, pinned with `@`. Five routes passed every probe in both
+modes. OpenRouter's record of each response (`/api/v1/generation`) named the pinned upstream for every one of them,
+and the prices in `evals/results/prices.json` give what each route's probes cost, about 4 to 14 cents. One smaller
+model failed the powers probe in both modes: it listed and read the probe script before running it, so the probe
+found more commands than it asked for. That model is not used.
+
 ## Not verified yet
 
-- The six probes and the harness faults, live (part O2).
+- The harness faults, live (they run per route in O3a, before grading).
 - Whether `enable_tools` is ever offered: it only shows extension tools, and a run has none.

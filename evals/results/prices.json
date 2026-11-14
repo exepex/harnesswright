@@ -1,19 +1,27 @@
 {
-  "date": "2026-11-12",
+  "date": "2026-11-14",
   "currency": "USD",
   "per": 1000000,
   "sources": [
     "https://platform.claude.com/docs/en/about-claude/pricing",
-    "https://developers.openai.com/api/docs/pricing.md"
+    "https://developers.openai.com/api/docs/pricing.md",
+    "https://openrouter.ai/api/v1/models"
   ],
   "notes": [
     "input is the price of input neither read from nor written to the cache; a run's input at that price is its input count less its cache reads and cache writes.",
     "Every price assumes the host signed in with an API key and was billed at these API rates. A run does not record how its host signed in, and the harness also passes on a subscription or ChatGPT sign-in; such a round's money is not what it paid, and the round must say so.",
     "claude-sonnet-5-5: a cache write is priced at the 5-minute rate, which holds only for an API key sign-in; Claude Code's counts do not tell a 5-minute write from a 1-hour one, and a subscription sign-in writes for 1 hour (4 dollars), so its cache writes would be priced low.",
-    "gpt-6.1-sol: short-context prices (272K input tokens a request or fewer), as a run's counts are summed over its requests; a cache write is priced at the 30-minute rate, as Codex asks for no longer cache (12-hour: 5 dollars)."
+    "gpt-6.1-sol: short-context prices (272K input tokens a request or fewer), as a run's counts are summed over its requests; a cache write is priced at the 30-minute rate, as Codex asks for no longer cache (12-hour: 5 dollars).",
+    "OpenRouter routes (goose adapter, `<model>@<upstream>`): each price is the list price of the one upstream the route pins, read from that model's endpoints (`/api/v1/models/<model>/endpoints`), and holds only for that upstream. A run's counts carry the model, not the upstream, so a model graded through another upstream needs its own price here.",
+    "z-ai/glm-5.3 and moonshotai/kimi-k3: their upstreams list no cache write price, so a cache write is priced as input. On 2026-11-14 these prices gave what OpenRouter charged for the live probes of every route, to the hundred-thousandth of a dollar. The Claude and OpenAI prices above were read again that day and had not changed."
   ],
   "models": {
     "claude-sonnet-5-5": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0},
-    "gpt-6.1-sol": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0}
+    "gpt-6.1-sol": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0},
+    "anthropic/claude-sonnet-5.5": {"input": 2.0, "cache read": 0.1, "cache write": 2.5, "output": 10.0},
+    "google/gemini-4-carbon": {"input": 2.0, "cache read": 0.1, "cache write": 0.1875, "output": 10.0},
+    "qwen/qwen3.8-2.4t-a95b": {"input": 2.0, "cache read": 0.25, "cache write": 2.5, "output": 6.0},
+    "moonshotai/kimi-k3": {"input": 3.0, "cache read": 0.3, "cache write": 3.0, "output": 15.0},
+    "z-ai/glm-5.3": {"input": 1.4, "cache read": 0.26, "cache write": 1.4, "output": 4.4}
   }
 }
