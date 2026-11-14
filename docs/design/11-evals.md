@@ -276,9 +276,14 @@ pages the same way. It takes one finished round and a list of grader routes, eac
   finish time stopped part way and is not read. It leaves out what hosts do not report: the upstream that served a
   try and the provider's settings. The model reported shows only as the keys of a try's token counts. The operator
   may grade one kind of page or give one grader a page, to stay in budget; the pass says which.
-- **The report** gives each model's golden accuracy and the agreement of its two graders, and each pair of
-  models' agreement with counts and Cohen's kappa, and lists every disagreement. The goldens alone are ground
-  truth; agreement with the round's panel is concordance, not accuracy.
+- **The report** (`compare.py`) reads one finished pass. A route's answer to a question is the one answer all its
+  graders gave; when they gave two it is split, and when one gave none it is ungraded, both counted apart and
+  never read as yes or no. Per route it gives golden accuracy, the agreement of its graders when it had two a
+  page, the questions a golden miss leaves untrusted for it (by the golden gate's rule), every sheet it could not
+  give with each try's reason, and its cost. Per pair of routes it gives agreement with counts and Cohen's kappa,
+  each kind of page apart, and lists every disagreement. A run made by a host of a route's own model family, as
+  the operator names it, is counted apart for that pair. The goldens alone are ground truth; agreement with the
+  round's panel is concordance, not accuracy.
 
 ## Judges own the measuring kit and the faults
 

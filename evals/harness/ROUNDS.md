@@ -92,3 +92,12 @@ round's grade record says. Each route passes every probe and the grader faults b
 route grades every page with two fresh graders, and the pass is written to `<store>/<round>/regrade/<pass>/`,
 apart from the round's grades and labels. `--pages` and `--graders` grade fewer pages, or with one grader, to
 stay in budget; `regrade.json` records the choice, and its `finished` time stays empty when the pass stopped.
+
+Then report the pass. `--family` names a host whose runs a route's own model family made, so that pair's agreement
+leaves those runs out and counts them apart:
+
+```sh
+python3 evals/harness/compare.py STORE/ROUND/regrade/PASS [--family HOST ADAPTER=MODEL ...]
+```
+
+It refuses a pass with no finish time, and writes `report.json` beside the pass.

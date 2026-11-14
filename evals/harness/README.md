@@ -46,6 +46,7 @@ allowed connections.
 | `labels.py` | The label gate: each skill's label on each host, by the thresholds of 10 · Skills, from what the round stored |
 | `measures.py` | The label file's other measures: void rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
 | `regrade.py` | Cross-model grading: every page of a finished round graded again by each grader route, after it passed its probes and grader faults, apart from the round's grades |
+| `compare.py` | The cross-model comparison report of one finished regrade pass: per route golden accuracy, grader agreement, untrusted questions, refused sheets and cost; per pair agreement, Cohen's kappa and every disagreement |
 | `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
 
 ## Commands
