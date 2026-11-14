@@ -14,7 +14,10 @@ import powers
 GOOSE = adapter("goose")
 
 
-def request(tools=("shell", "load_skill"), system="You are goose.\n\n# Skills\n\nYou have these skills:\n- tidy: ok"):
+OPENING = GOOSE.SKILLS_OPENING
+
+
+def request(tools=("shell", "load_skill"), system=f"You are goose.\n\n# Skills\n\n{OPENING}\n- tidy: ok\n\n# Hints"):
     """A logged request as goose writes it: its first line holds the model's settings and the request."""
     return {"model_config": {"model_name": "model-a"},
             "input": {"messages": [{"role": "system", "content": system}, {"role": "user", "content": "hi"}],
@@ -30,7 +33,7 @@ class Command(unittest.TestCase):
     def test_the_command_reads_stdin_keeps_no_session_and_turns_on_one_extension(self):
         self.assertEqual(GOOSE.jail_command("trigger", "/w", None), [
             "goose", "run", "-i", "-", "--output-format", "stream-json", "--no-session", "--no-profile",
-            "--with-builtin", "developer", "--provider", "openrouter"])
+            "--with-builtin", "developer,summon", "--provider", "openrouter"])
         self.assertEqual(GOOSE.jail_command("task", "/w", "m")[-2:], ["--model", "m"])
 
     def test_every_run_has_auto_mode_and_the_bundled_skills_off(self):
@@ -47,7 +50,8 @@ class Command(unittest.TestCase):
     def test_memory_places_lie_outside_the_world(self):
         home, world = Path("/h"), Path("/p/w")
         self.assertEqual([str(p) for p in GOOSE.memory_files(home, world)], [
-            "/h/.config/goose/.goosehints", "/h/.config/goose/AGENTS.md", "/h/.agents/AGENTS.md",
+            "/h/.config/goose/.goosehints", "/h/.config/goose/AGENTS.md", "/h/.config/goose/prompts/system.md",
+            "/h/.config/goose/prompts/tiny_model_system.md", "/h/.agents/AGENTS.md",
             "/p/.goosehints", "/p/AGENTS.md"])
         self.assertEqual(GOOSE.skill_dir("/w", "tidy"), Path("/w/.agents/skills/tidy"))
 
@@ -94,9 +98,15 @@ class Exposure(TempCase):
         with self.assertRaises(host.HostError):
             host.check_exposure(GOOSE, exposure, [])
 
+    def test_a_description_on_a_second_line_is_kept_whole_and_hides_no_later_row(self):
+        self.log(0, request(system="# Skills\n- tidy: one\n# not a heading\n- other: two\n\n- later: not a row"))
+        self.assertEqual(GOOSE.exposure("", self.tmp)["skills"], ["# not a heading", "other", "tidy"])
+
     def test_no_log_or_one_in_another_form_is_no_report(self):
         self.assertIsNone(GOOSE.exposure("", self.tmp))
         self.log(0, {"input": {"tools": []}})
+        self.assertIsNone(GOOSE.exposure("", self.tmp))
+        self.log(0, {"input": {"messages": [], "tools": [{"function": "shell"}]}})
         self.assertIsNone(GOOSE.exposure("", self.tmp))
 
     def test_a_tool_off_the_list_stops_the_round(self):

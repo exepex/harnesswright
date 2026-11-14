@@ -7,14 +7,14 @@ serves only to capture real event logs as fixtures, and never runs probes, fault
 
 | Item | Value |
 |---|---|
-| Command | `goose run -i - --output-format stream-json --no-session --no-profile --with-builtin developer --provider openrouter [--model <model>]` |
+| Command | `goose run -i - --output-format stream-json --no-session --no-profile --with-builtin developer,summon --provider openrouter [--model <model>]` |
 | Route | It passes one key, `OPENROUTER_API_KEY`, and the gate allows one host, `openrouter.ai` |
 | Sandbox | goose has none. The jail enforces the power table, and `GOOSE_MODE=auto` lets headless goose use its tools without asking |
-| Extensions | Only `developer` (`--no-profile` turns off every other one) |
+| Extensions | `developer` (shell and files) and `summon` (`delegate` starts a sub-agent; `load` reads a recipe or agent file). `--no-profile` turns off every other one |
 | Bundled skills | Off, through the patched build below (`GOOSE_BUILTIN_SKILLS=false`) |
 | Prompt | Standard input (`-i -`) |
 | Skill location | `<world>/.agents/skills/<name>/SKILL.md` |
-| Exposure | Every tool and every `# Skills` row in the requests goose logs to `~/.local/state/goose/logs/llm_request.<n>.jsonl` |
+| Exposure | Every tool and every `# Skills` row in the requests goose logs to `~/.local/state/goose/logs/llm_request.<n>.jsonl`. goose keeps the last 10, so a skill shown only in an earlier request and then removed from the world would be missed |
 | Failed when | An `error` event, an exit code other than 0, a timeout, or no `complete` event |
 
 ## The build
@@ -47,11 +47,13 @@ Read in `block/goose` at tag v1.59.1 (Apache-2.0):
 - `crates/goose-cli/src/session/mod.rs`: headless runs refuse the Approve and SmartApprove modes; stream-json prints
   `message`, `notification`, `error` and `complete` events, and `complete` only when the run ends without error.
 - `crates/goose/src/agents/platform_extensions/developer/mod.rs`: the developer tools `write`, `edit`, `shell`, `tree`
-  and `read_image`, named without a prefix (`platform_extensions/mod.rs`).
+  and `read_image`, named without a prefix (`platform_extensions/mod.rs`). `summon.rs`: `delegate` and `load`;
+  `load` reads recipes and agents from the config folder and `~/.agents`, which the run's fresh home leaves empty.
 - `crates/goose/src/agents/state_machine/ops_skills.rs`: `load_skill` is always offered, and the `# Skills` list
   includes the bundled skills; `skills/mod.rs` adds them in `discover_skills_with_config`.
 - `crates/goose/src/hints/load_hints.rs`: `.goosehints` and `AGENTS.md` in the config folder and `~/.agents`, and in
-  each folder from the git root down to the working folder.
+  each folder from the git root down to the working folder. `prompt_template.rs`: a file in the config folder's
+  `prompts/` replaces goose's own prompt of that name.
 - `crates/goose/src/providers/utils.rs` and `goose-provider-types/src/request_log.rs`: each request is logged, the
   last 10 kept, with the request on the first line.
 - `crates/goose/src/posthog.rs`: `GOOSE_TELEMETRY_OFF` turns telemetry off.

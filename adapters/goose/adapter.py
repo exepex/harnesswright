@@ -25,13 +25,16 @@ MODEL_HOSTS = ("openrouter.ai",)
 # from the environment rather than a keyring, and it sends no telemetry and names no session.
 RUN_ENV = {"GOOSE_MODE": "auto", "GOOSE_BUILTIN_SKILLS": "false", "GOOSE_DISABLE_KEYRING": "1",
            "GOOSE_TELEMETRY_OFF": "1", "GOOSE_DISABLE_SESSION_NAMING": "true"}
-# Every tool a run may have, by the name goose gives the model. The developer extension, the only one a run turns
-# on, gives the first five; goose itself gives `load_skill`, and `enable_tools`, which only makes extension tools
+# Every tool a run may have, by the name goose gives the model. The developer extension gives the first five. The
+# summon extension gives `delegate`, which starts a sub-agent in the same jail, and `load`, which reads a recipe or
+# agent file into the context. goose itself gives `load_skill`, and `enable_tools`, which only makes extension tools
 # visible, and a run has none.
 TOOLS = {"shell": "command", "write": "write", "edit": "write", "tree": "read", "read_image": "read",
-         "load_skill": "skill", "enable_tools": "wait"}
-EXTENSIONS = "developer"  # the one extension a run turns on (`--no-profile` turns off the rest)
-SKILLS_HEADING = "# Skills"
+         "delegate": "agent", "load": "read", "load_skill": "skill", "enable_tools": "wait"}
+EXTENSIONS = "developer,summon"  # the extensions a run turns on (`--no-profile` turns off the rest)
+SKILLS_HEADING = "# Skills"  # how goose opens its list of skills (`agents/state_machine/ops_skills.rs`)
+SKILLS_OPENING = ("You have these skills at your disposal. Load one when it can help with the task or when the user "
+                  "asks for it:")
 
 
 def skill_dir(world, name):
@@ -41,11 +44,12 @@ def skill_dir(world, name):
 
 def memory_files(home, world):
     """Where goose reads instructions outside the world, for a home and a world: its global hints and AGENTS.md in
-    its config folder (`$XDG_CONFIG_HOME/goose`, which the jail sets to the home's `.config`), the AGENTS.md in
-    `~/.agents`, and the same files in the folder above the world, as goose reads every folder from the git root
-    down to the folder it runs in."""
+    its config folder (`$XDG_CONFIG_HOME/goose`, which the jail sets to the home's `.config`), the system prompts
+    there that replace its own (`prompts/`), the AGENTS.md in `~/.agents`, and the same hint files in the folder
+    above the world, as goose reads every folder from the git root down to the folder it runs in."""
     config, above = Path(home) / ".config" / "goose", Path(world).parent
-    return [config / ".goosehints", config / "AGENTS.md", Path(home) / ".agents" / "AGENTS.md",
+    return [config / ".goosehints", config / "AGENTS.md", config / "prompts" / "system.md",
+            config / "prompts" / "tiny_model_system.md", Path(home) / ".agents" / "AGENTS.md",
             above / ".goosehints", above / "AGENTS.md"]
 
 
@@ -67,7 +71,7 @@ def _without_extensions(command):
 
 
 # The host faults the harness plants (host.PLANTED): the bundled skills turned back on for the one run, and the
-# developer extension, which holds the shell, left out.
+# extensions left out, so the shell is gone.
 PLANTS = {"bundled skills": lambda command: ["env", "GOOSE_BUILTIN_SKILLS=true"] + command,
           "no commands": _without_extensions}
 
@@ -135,7 +139,8 @@ def exposure(stdout, home):
         if not isinstance(request, dict) or not isinstance(request.get("messages"), list):
             return None
         for tool in request.get("tools") or []:
-            name = tool.get("function", {}).get("name") if isinstance(tool, dict) else None
+            function = tool.get("function") if isinstance(tool, dict) else None
+            name = function.get("name") if isinstance(function, dict) else None
             if not isinstance(name, str):
                 return None
             tools.add(name)
@@ -152,12 +157,20 @@ def _text(content):
 
 
 def _skill_rows(text):
-    """The skills under each `# Skills` heading: each row `- name: description` up to the next heading."""
-    skills, inside = set(), False
+    """The skills of each `# Skills` part. One allow list of lines: the heading, blank lines before the rows, goose's
+    opening sentence, and rows `- name: description`; the part ends at the first blank line after a row. Any other
+    line of the part, such as a description that runs onto a second line, is kept whole, so it is never a declared
+    skill and stops the round."""
+    skills, state = set(), None  # None outside a part; "head" before its rows; "rows" among them
     for line in text.splitlines():
-        if line.startswith("#"):
-            inside = line.strip() == SKILLS_HEADING
-        elif inside and line.startswith("- "):
-            name, colon, _ = line[2:].partition(": ")
+        if state is None:
+            state = "head" if line.strip() == SKILLS_HEADING else None
+        elif not line.strip():
+            state = None if state == "rows" else state
+        elif state == "head" and line.strip() == SKILLS_OPENING:
+            continue
+        else:
+            state = "rows"
+            name, colon, _ = line[2:].partition(": ") if line.startswith("- ") else ("", "", "")
             skills.add(name if colon and name and " " not in name else line)
     return skills
