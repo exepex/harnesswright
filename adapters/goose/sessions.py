@@ -6,7 +6,6 @@ that response reported."""
 import hashlib
 import json
 import os
-import re
 import shutil
 import sqlite3
 import tempfile
@@ -95,7 +94,6 @@ def _path(folder, path):
 # `image.rs`, `summon.rs`, `ops_skills.rs`).
 TARGET = {"shell": "command", "write": "path", "edit": "path", "tree": "path", "read_image": "source",
           "load": "source", "load_skill": "name", "delegate": "instructions"}
-SKILL_FILE = re.compile(r"(?:^|[\s'\"`/=])skills/([^/\s'\"`]+)/SKILL\.md(?=$|[\s'\"`;&|)])")
 
 
 def _entries(name, arguments, response, folder):
@@ -107,10 +105,9 @@ def _entries(name, arguments, response, folder):
         code = structured.get("exit_code")
         code = code if isinstance(code, int) and not isinstance(code, bool) else None
         output = "\n".join(str(structured[key]) for key in ("stdout", "stderr") if structured.get(key)) or text
-        found = [{"kind": "command", "source": "observed", "command": target, "exit_code": code, "output": output}]
-        # A command that worked and names a skill's SKILL.md may have read it: an inferred load, as on other hosts.
-        return found + [{"kind": "skill", "source": "inferred", "name": skill}
-                        for skill in dict.fromkeys(SKILL_FILE.findall(target)) if code == 0]
+        # A skill load is only ever observed: goose loads a skill through `load_skill` alone. A command that names a
+        # skill's file is a command, and the harness infers the read of each world file it names (`host.named`).
+        return [{"kind": "command", "source": "observed", "command": target, "exit_code": code, "output": output}]
     if name in ("write", "edit"):
         path = _path(folder, target)
         if not worked:

@@ -154,10 +154,9 @@ class Captured(TempCase):
         log = GOOSE.action_log("", self.tmp)
         self.assertEqual([(item["kind"], item.get("path") or item.get("name") or item.get("command")) for item in log], [
             ("read", "/run/project/.agents/skills/tidy/references/a.md"), ("skill", "tidy"),
-            ("read", "/run/project/shot.png"), ("command", calls[4][1]["command"]), ("skill", "tidy"),
-            ("skill", "other"), ("command", calls[5][1]["command"])])
-        self.assertEqual([item["source"] for item in log if item["kind"] == "skill"],
-                         ["observed", "inferred", "inferred"])  # a reused call id is answered by its own response
+            ("read", "/run/project/shot.png"), ("command", calls[4][1]["command"]),
+            ("command", calls[5][1]["command"])])  # a command that reads a SKILL.md is no skill load
+        self.assertEqual([item["kind"] for item in log[:2]], ["read", "skill"])  # a reused id: its own response
 
 
 if __name__ == "__main__":
