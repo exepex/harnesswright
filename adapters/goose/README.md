@@ -3,7 +3,7 @@
 This adapter runs evals through the goose command line in headless mode, `goose run`, on one route: OpenRouter. It
 exists for cross-model grading (the open host plan). Parts O1a and O1b are built: the command, the powers and the
 event readers. Its readers are unit-tested on real runs captured through `host.run` in the jail and the gate
-(`evals/harness/tests/goose/`). The six probes pass live on each chosen route (part O2, below).
+(`evals/harness/tests/goose/`). The six probes pass live on five grader routes (part O2, below).
 
 | Item | Value |
 |---|---|
@@ -95,12 +95,14 @@ in all; `evals/harness/tests/goose/README.md`):
   `error` event. In each, the store's usage rows sum to the totals of goose's own `complete` event.
 - A sub-agent gets one more tool, `recipe__final_output`, which hands its answer back. It is on the tool list.
 
-Run here, with the owner's OpenRouter key, the six probes through `probes.probe_host` on each grader route the owner
-chose (2026-11-14), each a model at its maker's own upstream, pinned with `@`. Five routes passed every probe in both
-modes. OpenRouter's record of each response (`/api/v1/generation`) named the pinned upstream for every one of them,
-and the prices in `evals/results/prices.json` give what each route's probes cost, about 4 to 14 cents. One smaller
-model failed the powers probe in both modes: it listed and read the probe script before running it, so the probe
-found more commands than it asked for. That model is not used.
+Run here, with the owner's OpenRouter key, the six probes through `probes.probe_host` on each grader route, each a
+model at its maker's own upstream, pinned with `@` (the owner chose makers' upstreams on 2026-11-14). Five routes
+passed every probe in both modes. OpenRouter's record of each response (`/api/v1/generation`) named the pinned
+upstream for every one of them, and the prices in `evals/results/prices.json` give what each route's probes cost,
+about 4 to 14 cents. The open-weight model the owner named failed the powers probe in both modes: it listed and read
+the probe script before running it, so the probe found more commands than it asked for. A larger open-weight model
+of the same family, at the same upstream, passed every probe and takes its place, waiting on the owner's yes. No
+probe starts a sub-agent, so the pin on a sub-agent's requests is read from goose's source only.
 
 ## Not verified yet
 

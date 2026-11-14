@@ -43,6 +43,9 @@ class Command(unittest.TestCase):
         self.assertEqual(command[:2], ["env", 'OPENROUTER_PARAMETERS={"provider": {"only": ["up/fp8"], '
                                               '"allow_fallbacks": false}}'])
         self.assertEqual(command[2:-2], GOOSE.jail_command("task", "/w", None))
+        for route in ("maker/m@", "@up"):
+            with self.subTest(route=route), self.assertRaises(ValueError):
+                GOOSE.jail_command("task", "/w", route)
 
     def test_every_run_has_auto_mode_and_the_bundled_skills_off(self):
         self.assertEqual(GOOSE.RUN_ENV["GOOSE_MODE"], "auto")

@@ -87,9 +87,11 @@ def jail_command(mode, world, model):
                "--with-builtin", EXTENSIONS, "--provider", "openrouter"]
     if not model:
         return command
-    model, _, upstream = model.partition(ROUTE)
-    if not upstream:
+    model, at, upstream = model.partition(ROUTE)
+    if not at:
         return command + ["--model", model]
+    if not (model and upstream):
+        raise ValueError(f"a route is <model>{ROUTE}<upstream>: {model}{at}{upstream}")
     pin = {"provider": {"only": [upstream], "allow_fallbacks": False}}  # one upstream, never another
     return ["env", f"OPENROUTER_PARAMETERS={json.dumps(pin)}"] + command + ["--model", model]
 
