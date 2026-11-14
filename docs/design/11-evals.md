@@ -271,6 +271,11 @@ pages the same way. It takes one finished round and a list of grader routes, eac
 - **Every route grades every page fresh,** through the same grader runs as a round, with the same prompt, quote
   check and tries: two graders a page, never read from the round's panel. Each grader's sheets, tries, seconds and
   token counts are kept, apart from the round's grades and labels, which it never changes.
+- **What a pass keeps and leaves out.** It keeps each route's adapter hash, host version and pinned upstream, the
+  kit (the round's, which the pass refuses to differ from), each grader's logs, and a finish time; a pass with no
+  finish time stopped part way and is not read. It leaves out what hosts do not report: the upstream that served a
+  try and the provider's settings. The model reported shows only as the keys of a try's token counts. The operator
+  may grade one kind of page or give one grader a page, to stay in budget; the pass says which.
 - **The report** gives each model's golden accuracy and the agreement of its two graders, and each pair of
   models' agreement with counts and Cohen's kappa, and lists every disagreement. The goldens alone are ground
   truth; agreement with the round's panel is concordance, not accuracy.
