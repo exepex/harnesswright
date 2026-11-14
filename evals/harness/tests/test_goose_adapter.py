@@ -37,6 +37,16 @@ class Command(unittest.TestCase):
             "--with-builtin", "developer,summon", "--provider", "openrouter"])
         self.assertEqual(GOOSE.jail_command("task", "/w", "m")[-2:], ["--model", "m"])
 
+    def test_a_route_pins_one_upstream_with_no_fallback(self):
+        command = GOOSE.jail_command("task", "/w", "maker/m@up/fp8")
+        self.assertEqual(command[-2:], ["--model", "maker/m"])
+        self.assertEqual(command[:2], ["env", 'OPENROUTER_PARAMETERS={"provider": {"only": ["up/fp8"], '
+                                              '"allow_fallbacks": false}}'])
+        self.assertEqual(command[2:-2], GOOSE.jail_command("task", "/w", None))
+        for route in ("maker/m@", "@up"):
+            with self.subTest(route=route), self.assertRaises(ValueError):
+                GOOSE.jail_command("task", "/w", route)
+
     def test_every_run_has_auto_mode_and_the_bundled_skills_off(self):
         self.assertEqual(GOOSE.RUN_ENV["GOOSE_MODE"], "auto")
         self.assertEqual(GOOSE.RUN_ENV["GOOSE_BUILTIN_SKILLS"], "false")
