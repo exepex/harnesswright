@@ -4,6 +4,7 @@ import json
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 from test_gates import JUDGED
 from test_grades import HELLO, POND, Pages, answering, pond, wrote
@@ -233,6 +234,26 @@ class Gate(Pages):
             "without_skill": {"rate": 1.0, "false_done": 3, "decided": 3, "undecided": 0}})
         self.assertEqual({arm: (c["runs"], c["money"], c["uncounted"]) for arm, c in entry["cost"].items()},
                          {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
+
+    def test_a_round_with_a_previous_version_compares_the_two_arms_in_its_label(self):
+        self.planned()
+        probe, run = self.stored([("with_skill", POND)] * 2 + [("with_skill", HELLO)]
+                                 + [("previous_version", POND)] * 3 + [("without_skill", HELLO)] * 3)
+
+        def run_previous(r):  # as a plan with `previous` records it
+            r.record["previous"] = {"haiku-writer": "0" * 40}
+            return run(r)
+        steps = (("probe", probe), ("run", run_previous), ("check", gates.check_gate),
+                 ("grade", grades.grade_gate), ("label", labels.label_gate))
+        with mock.patch.object(labels, "missing", lambda found: []):  # the fixture has no trigger case
+            self.go(steps, grade=done_or_pond)
+        [path] = (self.store / "r1" / "labels").iterdir()
+        entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
+        self.assertEqual((entry["task_pass_rate"], entry["previous_pass_rate"]), (0.6667, 1.0))
+        self.assertEqual((entry["label"], entry["gaps"]), ("inconclusive", [
+            "the reference host claude-code was not run", "task pass rate 67% below 90%",
+            "task pass rate 67% below the previous version's 100%",
+            "false-done rate 1 of 3 above the previous version's 0 of 3"]))
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()
