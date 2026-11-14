@@ -9,6 +9,7 @@ from test_grades import HELLO, POND, Pages, answering, pond
 from test_prices import PRICES
 from test_runs import DRIFT
 
+import compare
 import gates
 import grades
 import kit
@@ -99,6 +100,15 @@ class Regrade(Pages):
             self.assertEqual(calls, [])
         for out in (self.store / "r1" / "regrade").iterdir():
             self.assertIsNone(json.loads((out / "regrade.json").read_text())["finished"])
+
+    def test_a_goldens_only_pass_with_one_grader_is_reported_by_the_comparison_report(self):
+        self.source()
+        out = self.run_it(kinds=("golden",), times=1)
+        found = compare.report(out, repo=self.repo)
+        [route] = found["routes"].values()
+        self.assertEqual((route["golden accuracy"]["right"], route["golden accuracy"]["asked"]), (4, 4))
+        self.assertIsNone(route["graders agree"])
+        self.assertEqual((found["pass"]["pages graded"], found["pairs"]), ({"golden": 2}, []))
 
     def test_a_page_or_questions_that_are_not_the_ones_the_round_graded_stop_the_pass(self):
         self.source()

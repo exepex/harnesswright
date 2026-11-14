@@ -15,6 +15,8 @@ A, B = "goose=model-a", "goose=model-b"
 SETTLED = {"g-yes": {"q1": "yes", "q2": "yes"}, "g-no": {"q1": "no", "q2": "no"}}
 PAGES = {"0001": ("golden", "golden s/c1/g-yes", ["q1", "q2"]), "0002": ("golden", "golden s/c1/g-no", ["q1", "q2"]),
          "0003": ("run", "k1", ["q1"])}
+PROVED = {"not run": [], "drift": {}, "version": "goose 1", "faults": [{"id": "folder", "place": "writes",
+                                                                    "caught": True, "reason": None}]}
 PAID = {"seconds": 1.5, "tokens": {"model-a": counts(1_000_000)}}
 
 
@@ -47,12 +49,15 @@ class Report(TempCase):
         routes = []
         for key, graded in GRADED.items():
             adapter, model = key.split("=")
-            routes.append({"adapter": adapter, "model": model, "folder": model, "version": "goose 1"})
+            routes.append({"adapter": adapter, "model": model, "folder": model, "version": "goose 1", "upstream": None,
+                           "adapter_sha256": "a" * 64})
             (self.out / model / "pages").mkdir(parents=True)
+            (self.out / model / "proved.json").write_text(json.dumps(PROVED))
             for place, graders in graded.items():
                 (self.out / model / "pages" / f"{place}.json").write_text(json.dumps({"graders": graders}))
         self.head = {"round": "r1", "source": "a1", "commit": "c", "kit": "k", "seed": 3, "pages": ["run", "golden"],
-                     "graders": 2, "prices": PRICES["date"], "finished": "2026-11-14T15:00:00+00:00", "routes": routes}
+                     "graders": 2, "prices": PRICES["date"], "prompt": "p",
+                     "finished": "2026-11-14T15:00:00+00:00", "routes": routes}
         self.write_head()
         (self.out / "pages.json").write_text(json.dumps({place: {
             "kind": kind, "name": name, "case": "s/c1", "asked": asked, "host": "claude-code", "model": "m",
@@ -93,23 +98,37 @@ class Report(TempCase):
             "tries": 6, "seconds": 9.0, "money": 12.0, "uncounted": 0})
         self.assertEqual({k: b["cost"][k] for k in ("tries", "untimed", "money", "uncounted")}, {
             "tries": 6, "untimed": 1, "money": 10.0, "uncounted": 1})
-        self.assertEqual((found["pass"]["graders"], found["limits"]), (2, list(compare.LIMITS)))
+        self.assertEqual((found["pass"]["graders"], found["pass"]["pages graded"]), (2, {"run": 1, "golden": 2}))
+        self.assertEqual((a["proved"]["faults"], a["adapter_sha256"]), (PROVED["faults"], "a" * 64))
+
+    def test_every_report_states_the_plan_s_limits_that_hold(self):
+        limits = " ".join(self.report()["limits"])
+        for words in ("Only the goldens are ground truth", "Host and model are mixed", "No judge approves an adapter",
+                      "upstream", "samples are small", "own model family"):
+            self.assertIn(words, limits)
 
     def test_each_pair_s_agreement_kappa_and_disagreements_with_own_family_runs_apart(self):
         [pair] = self.report()["pairs"]
         self.assertEqual(pair["routes"], [A, B])
-        self.assertEqual(pair["agreement"], {
+        self.assertEqual(pair["others"]["agreement"], {
             "golden": {"rate": 0.5, "agreed": 1, "answered": 2, "kappa": 0.0},  # an ungraded answer is not compared
             "run": {"rate": 0.0, "agreed": 0, "answered": 1, "kappa": 0.0}})
-        self.assertEqual([(d["page"], d["question"], d[A], d[B], d.get("settled")) for d in pair["disagreements"]],
+        self.assertEqual([(d["page"], d["question"], d[A], d[B], d.get("settled"))
+                          for d in pair["others"]["disagreements"]],
                          [("0001", "q2", "yes", "no", "yes"), ("0003", "q1", "yes", "no", None)])
-        [pair] = self.report({A: ["claude-code"]})["pairs"]
-        self.assertEqual((pair["same family apart"], sorted(pair["agreement"]), len(pair["disagreements"])),
-                         (1, ["golden"], 1))
+        self.assertEqual(pair["own family"], {"agreement": {}, "disagreements": []})
+        [pair] = self.report({A: ["claude-code"]})["pairs"]  # the run is model-a's family's: reported apart, whole
+        self.assertEqual(sorted(pair["others"]["agreement"]), ["golden"])
+        self.assertEqual(self.report({A: ["claude-code"]})["pass"]["family"], {A: ["claude-code"]})
+        self.assertEqual(pair["own family"]["agreement"], {"run": {"rate": 0.0, "agreed": 0, "answered": 1,
+                                                                   "kappa": 0.0}})
+        self.assertEqual([(d["page"], d["question"]) for d in pair["own family"]["disagreements"]], [("0003", "q1")])
 
     def test_one_grader_a_page_gives_no_grader_agreement(self):
         self.write_head(graders=1)
-        self.assertIsNone(self.report()["routes"][A]["graders agree"])
+        found = self.report()
+        self.assertIsNone(found["routes"][A]["graders agree"])
+        self.assertEqual(found["pass"]["one grader"], compare.ONE)
 
     def test_a_pass_that_stopped_or_does_not_match_is_refused(self):
         for changes, words in (({"finished": None}, "no finish time"), ({"prices": "2020-01-01"}, "price file")):
@@ -127,12 +146,16 @@ class Report(TempCase):
         with redirect_stdout(io.StringIO()) as said:
             self.assertEqual(compare.main([str(self.out), "--family", "claude-code", A], self.repo), 0)
         written = json.loads((self.out / "report.json").read_text())
-        self.assertEqual(written["pairs"][0]["same family apart"], 1)
+        self.assertEqual(len(written["pairs"][0]["own family"]["disagreements"]), 1)
         self.assertIn("goose=model-a: golden accuracy 3/4", said.getvalue())
-        self.write_head(finished=None)
-        with redirect_stderr(io.StringIO()) as said:
-            self.assertEqual(compare.main([str(self.out)], self.repo), 1)
-        self.assertIn("compare: ", said.getvalue())
+        prices = self.repo / "evals" / "results" / "prices.json"
+        for broken in (lambda: self.write_head(finished=None), lambda: prices.write_text("{}"),
+                       lambda: (self.out / "pages.json").unlink()):
+            broken()
+            with self.subTest(), redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(compare.main([str(self.out)], self.repo), 1)  # a line, never a traceback
+            self.assertIn("compare: ", said.getvalue())
+
 
 
 if __name__ == "__main__":

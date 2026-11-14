@@ -8,10 +8,11 @@ sheet) it is `ungraded`; both are counted apart and never read as yes or no. Eve
 - Per route: golden accuracy (right of asked, split and ungraded named); the share of questions its graders agree
   on, when it had two a page; the questions a golden miss leaves untrusted for it, by the golden gate's own rule
   (`goldens.gate`); every sheet it could not give, with each try's reason; seconds, tokens and money by the price
-  file the pass names.
+  file the pass names; its adapter hash, host version, pinned upstream and the probes and faults it passed.
 - Per pair of routes: agreement on the questions both answered, as counts and Cohen's kappa, each kind of page
-  apart, and every disagreement with its page, case, question and both answers. A run page made by a host of a
-  route's own family (`family`, named by the operator) is counted apart for that pair, never in its agreement.
+  apart, and every disagreement with its page, case, question and both answers. Run pages made by a host of a
+  route's own family (`family`, named by the operator) are reported apart for that pair, with the same figures.
+- Per pass: what it graded, and the limits of the plan that hold for every report (`LIMITS`).
 
 It reads only the pass folder, `<store>/<round>/regrade/<pass>/`, and refuses a pass with no finish time, which
 stopped part way. It writes `report.json` there. All it holds comes from the pass's own files, each of which passed
@@ -42,13 +43,18 @@ from host import TOKENS  # noqa: E402
 from measures import share  # noqa: E402
 
 SPLIT, UNGRADED = "split", "ungraded"
-LIMITS = (  # what every report states, so that no figure is read for more than it shows
+ONE = "Each route gave one grader a page: every answer is one grader's, nothing can split, and no agreement of a " \
+      "route's own graders is measured."
+LIMITS = (  # every limit of the plan that still holds, stated in every report so no figure is read for more
     "Only the goldens are ground truth. Golden accuracy leans toward the model families that settled and tuned the "
     "questions; agreement with the round's panel is concordance, not accuracy.",
     "Host and model are mixed: a model in one host is not the same as that model in its own host. A route to a "
     "family the round's hosts already have shows the host's own effect.",
-    "The samples are small, one pass of a few pages a case: read every figure with its counts.",
-    "A route's runs of its own model family count apart only where the operator named that family.")
+    "No judge approves an adapter by hash: the round's manifest pins its hosts' adapters, and the pass records each "
+    "route's adapter hash and host version.",
+    "A route that names no upstream is not pinned to one, and hosts do not report the upstream that served a try.",
+    "The samples are small, one pass of the pages each case has: read every figure with its counts.",
+    "Runs of a route's own model family are reported apart only where the operator named that family.")
 
 
 class CompareError(rounds.RoundError):
@@ -75,7 +81,7 @@ def kappa(pairs):
 
 
 def read(out):
-    """(head, pages, {route key: (route entry, {place: graders})}) of the finished pass in folder `out`."""
+    """(head, pages, {route key: (route entry, {place: graders}, its proof)}) of the finished pass in `out`."""
     out = Path(out)
     head = json.loads((out / "regrade.json").read_text())
     if not head.get("finished"):
@@ -87,7 +93,8 @@ def read(out):
         graded = {path.stem: json.loads(path.read_text())["graders"] for path in sorted(folder.glob("*.json"))}
         if set(graded) != set(pages):
             raise CompareError(f"route {entry['adapter']}={entry['model']}: it did not grade every page of the pass")
-        routes[f"{entry['adapter']}={entry['model']}"] = (entry, graded)
+        proved = json.loads((out / entry["folder"] / "proved.json").read_text())
+        routes[f"{entry['adapter']}={entry['model']}"] = (entry, graded, proved)
     return head, pages, routes
 
 
@@ -102,16 +109,20 @@ def report(out, family=None, repo=REPO):
     if price_file["date"] != head["prices"]:
         raise CompareError(f"the price file is dated {price_file['date']}, the pass {head['prices']}")
     answers = {key: {place: {id_: answer(graded[place], id_) for id_ in page["asked"]}
-                     for place, page in pages.items()} for key, (_, graded) in routes.items()}
+                     for place, page in pages.items()} for key, (_, graded, _) in routes.items()}
     found = {"limits": list(LIMITS),
-             "pass": {k: head[k] for k in ("round", "source", "commit", "kit", "seed", "pages", "graders", "prices")},
-             "routes": {key: _route(entry, graded, pages, answers[key], head["graders"], price_file)
-                        for key, (entry, graded) in routes.items()},
+             "pass": {**{k: head[k] for k in ("round", "source", "commit", "kit", "seed", "pages", "graders", "prices",
+                                              "prompt")},
+                      "pages graded": {kind: sum(p["kind"] == kind for p in pages.values()) for kind in head["pages"]},
+                      "family": {key: sorted(hosts) for key, hosts in sorted(family.items())},
+                      **({"one grader": ONE} if head["graders"] == 1 else {})},
+             "routes": {key: _route(entry, graded, proved, pages, answers[key], head["graders"], price_file)
+                        for key, (entry, graded, proved) in routes.items()},
              "pairs": [_pair(a, b, pages, answers, family) for a, b in itertools.combinations(sorted(routes), 2)]}
     return found
 
 
-def _route(entry, graded, pages, answers, graders, price_file):
+def _route(entry, graded, proved, pages, answers, graders, price_file):
     right = asked = splits = ungraded = 0
     agree = both = 0
     by_case = {}
@@ -135,11 +146,12 @@ def _route(entry, graded, pages, answers, graders, price_file):
         gate = goldens.gate(SimpleNamespace(expectations=[None] * size), made, {
             name: (page["asked"], {i: a for i, a in given.items() if a in grading.ANSWERS})
             for name, (page, given) in found.items()})
-        asked_ids = {id_ for page, _ in found.values() for id_ in page["asked"]}
+        asked_ids = {id_ for page in pages.values() if page["case"] == case for id_ in page["asked"]}  # runs too
         untrusted.update({f"{case}/{id_}": why for id_, why in gate.items() if why and id_ in asked_ids})
     refused = [{"page": place, "grader": number, "tries": g["tries"]} for place, gs in sorted(graded.items())
                for number, g in enumerate(gs, start=1) if g["sheet"] is None]
-    return {"adapter": entry["adapter"], "model": entry["model"], "version": entry.get("version"),
+    return {**{k: entry.get(k) for k in ("adapter", "model", "version", "upstream", "adapter_sha256")},
+            "proved": {"not run": proved["not run"], "faults": proved["faults"]},
             "golden accuracy": share(right, asked, right=right, asked=asked, split=splits, ungraded=ungraded),
             "graders agree": share(agree, both, agreed=agree, answered=both) if graders > 1 else None,
             "untrusted": untrusted, "refused": refused, "cost": _cost(graded, price_file)}
@@ -168,24 +180,24 @@ def _cost(graded, price_file):
 
 
 def _pair(a, b, pages, answers, family):
-    kinds, apart, disagree = {}, 0, []
+    """Two routes' agreement on the questions both answered yes or no, and every disagreement: the runs of either
+    route's own model family apart from the rest, each kind of page apart."""
+    groups = {"others": {}, "own family": {}}
     for place, page in sorted(pages.items()):
         own = page["kind"] == "run" and page["host"] in family.get(a, []) + family.get(b, [])
+        group = groups["own family" if own else "others"]
         for id_ in page["asked"]:
             one, other = answers[a][place][id_], answers[b][place][id_]
-            if one not in grading.ANSWERS or other not in grading.ANSWERS:
-                continue
-            if own:
-                apart += 1
-                continue
-            kinds.setdefault(page["kind"], []).append((one, other))
-            if one != other:
-                disagree.append({"page": place, "name": page["name"], "case": page["case"], "question": id_,
-                                 a: one, b: other, **({"settled": page["settled"][id_]} if page["settled"] else {})})
-    return {"routes": [a, b], "same family apart": apart, "disagreements": disagree,
-            "agreement": {kind: {**share(sum(x == y for x, y in found), len(found),
-                                         agreed=sum(x == y for x, y in found), answered=len(found)),
-                                 "kappa": kappa(found)} for kind, found in sorted(kinds.items())}}
+            if one in grading.ANSWERS and other in grading.ANSWERS:
+                group.setdefault(page["kind"], []).append((one, other, place, page, id_))
+    return {"routes": [a, b], **{name: {
+        "agreement": {kind: {**share(sum(x == y for x, y, *_ in found), len(found),
+                                     agreed=sum(x == y for x, y, *_ in found), answered=len(found)),
+                             "kappa": kappa([(x, y) for x, y, *_ in found])} for kind, found in sorted(kinds.items())},
+        "disagreements": [{"page": place, "name": page["name"], "case": page["case"], "question": id_, a: x, b: y,
+                           **({"settled": page["settled"][id_]} if page["settled"] else {})}
+                          for found in kinds.values() for x, y, place, page, id_ in found if x != y]}
+        for name, kinds in groups.items()}}
 
 
 def main(argv=None, repo=REPO):
@@ -202,16 +214,18 @@ def main(argv=None, repo=REPO):
         fresh = Path(args.folder) / ".report.json"  # whole, as the store's files are written: beside it, then moved
         fresh.write_text(json.dumps(found, indent=1, sort_keys=True) + "\n")
         os.replace(fresh, fresh.with_name("report.json"))
-    except rounds.RoundError as error:
+    except (rounds.RoundError, prices.PriceError, OSError, ValueError, KeyError) as error:  # a pass it cannot read
         print(f"compare: {error}", file=sys.stderr)
         return 1
     for key, route in found["routes"].items():
         accuracy = route["golden accuracy"]
         print(f"{key}: golden accuracy {accuracy['right']}/{accuracy['asked']}, untrusted {len(route['untrusted'])}, "
-              f"refused {len(route['refused'])}, ${route['cost']['money']}")
+              f"refused {len(route['refused'])}, ${route['cost']['money']} (tries not priced: "
+              f"{route['cost']['unpriced'] + route['cost']['uncounted']})")
     for pair in found["pairs"]:
-        print(f"{' vs '.join(pair['routes'])}: {len(pair['disagreements'])} disagreements, "
-              + ", ".join(f"{kind} kappa {a['kappa']}" for kind, a in pair["agreement"].items()))
+        for name in ("others", "own family"):
+            print(f"{' vs '.join(pair['routes'])}, {name}: {len(pair[name]['disagreements'])} disagreements"
+                  + "".join(f", {kind} kappa {a['kappa']}" for kind, a in pair[name]["agreement"].items()))
     return 0
 
 

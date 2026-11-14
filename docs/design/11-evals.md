@@ -281,8 +281,9 @@ pages the same way. It takes one finished round and a list of grader routes, eac
   never read as yes or no. Per route it gives golden accuracy, the agreement of its graders when it had two a
   page, the questions a golden miss leaves untrusted for it (by the golden gate's rule), every sheet it could not
   give with each try's reason, and its cost. Per pair of routes it gives agreement with counts and Cohen's kappa,
-  each kind of page apart, and lists every disagreement. A run made by a host of a route's own model family, as
-  the operator names it, is counted apart for that pair. The goldens alone are ground truth; agreement with the
+  each kind of page apart, and lists every disagreement. Runs made by a host of a route's own model family, as
+  the operator names it, are reported apart for that pair, with the same figures. Every report states the limits
+  that hold for every pass. The goldens alone are ground truth; agreement with the
   round's panel is concordance, not accuracy.
 
 ## Judges own the measuring kit and the faults
