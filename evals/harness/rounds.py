@@ -14,6 +14,8 @@ Plan file fields (`PLAN`), each with the one shape it may take; anything else is
   that does not report the model it used (Codex does not) must have one named here, and a host's default model
   changes over time, so every plan pins the model each host runs.
 - `runs`: runs per case, per arm and per host, 1 to 20.
+- `previous` (optional): `{skill: commit}`, for a skill of `skills`, the full commit of its previous version. Its
+  task cases then run in a third arm, `previous_version`, with the skill as that commit holds it (`previous`).
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -30,7 +32,9 @@ Standard library only.
 """
 
 import argparse
+import contextlib
 import importlib.util
+import re
 import json
 import os
 import subprocess
@@ -53,6 +57,7 @@ sys.modules.setdefault("rounds", sys.modules[__name__])  # run as a script, `gat
 ADAPTERS = REPO / "adapters"
 MANIFEST = "manifest.json"
 RUNS = range(1, 21)
+COMMIT = re.compile(r"[0-9a-f]{40}")
 
 
 class RoundError(RuntimeError):
@@ -72,7 +77,10 @@ PLAN = {
     "hosts": lambda v: (isinstance(v, list) and v and all(_host(h) for h in v)
                         and len({h["adapter"] for h in v}) == len(v)),
     "runs": lambda v: type(v) is int and v in RUNS,
+    "previous": lambda v: (isinstance(v, dict) and v and all(
+        is_name(k) and isinstance(c, str) and COMMIT.fullmatch(c) for k, c in v.items())),
 }
+OPTIONAL = {"previous": {}}
 
 
 def read_plan(path):
@@ -84,13 +92,15 @@ def read_plan(path):
     if not isinstance(data, dict):
         raise RoundError(f"{path}: a plan is one JSON object")
     unknown = sorted(set(data) - set(PLAN))
-    missing = sorted(set(PLAN) - set(data))
+    missing = sorted(set(PLAN) - set(data) - set(OPTIONAL))
     if unknown or missing:
-        raise RoundError(f"{path}: a plan holds exactly the fields {sorted(PLAN)}; "
+        raise RoundError(f"{path}: a plan holds the fields {sorted(PLAN)}, {sorted(OPTIONAL)} optional; "
                          f"unknown {unknown}, missing {missing}")
-    wrong = [field for field, shape in PLAN.items() if not shape(data[field])]
+    wrong = [field for field, shape in PLAN.items() if field in data and not shape(data[field])]
     if wrong:
         raise RoundError(f"{path}: the fields {wrong} do not have their shapes (see rounds.py, PLAN)")
+    if not set(data.get("previous", {})) <= set(data["skills"]):
+        raise RoundError(f"{path}: previous names a skill the plan does not run")
     return data
 
 
@@ -134,6 +144,28 @@ def skill(repo, name):
     return {"sha256": tracked_digest(known[name]),
             "source": (meta.get("metadata") or {}).get("source"),
             "upstream": tracked_digest(upstream) if upstream.is_dir() and not upstream.is_symlink() else None}
+
+
+@contextlib.contextmanager
+def previous(repo, name, at, sha256=None):
+    """The folder of the skill `name` as commit `at` holds it, the one `skills.folders` reads there, in a scratch
+    worktree of `repo` that is removed afterwards. With `sha256`, its tracked files must hash to it, as the manifest
+    recorded; the one place a previous version is read, at plan time and for every run."""
+    if not COMMIT.fullmatch(at or ""):
+        raise RoundError(f"{at!r}: a previous version is named by its full commit")
+    with tempfile.TemporaryDirectory(prefix="hw-previous-") as scratch:
+        tree = Path(scratch) / "tree"
+        _git(repo, "worktree", "add", "--detach", "--quiet", str(tree), f"{at}^{{commit}}")
+        try:
+            known = skills.folders(tree)
+            if name not in known:
+                raise RoundError(f"commit {at} holds no skill named {name!r}")
+            found = tracked_digest(known[name])
+            if sha256 is not None and found != sha256:
+                raise RoundError(f"{name} at {at} hashes to {found}, not the manifest's {sha256}")
+            yield known[name], {"commit": at, "path": known[name].relative_to(tree).as_posix(), "sha256": found}
+        finally:
+            _git(repo, "worktree", "remove", "--force", str(tree))
 
 
 def host_version(module, **containment):
@@ -182,6 +214,12 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             found["cases"][name] = {i: known[i].sha256 for i in ids}
             installed.update(sibling for i in ids for sibling in known[i].siblings or ())
         found["skills"] = {name: skill(repo, name) for name in sorted(installed)}  # every skill an arm installs
+        found["previous"] = {}
+        for name, earlier in sorted(data.get("previous", {}).items()):
+            with previous(repo, name, earlier) as (_, kept):
+                if kept["sha256"] == found["skills"][name]["sha256"]:
+                    raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
+                found["previous"][name] = kept
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {
             "round": data["round"],

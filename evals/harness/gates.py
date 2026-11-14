@@ -60,7 +60,6 @@ import runs
 import scrub
 import skills
 from cases import REPO, Case, CaseError
-from runs import ARMS
 
 
 class Stop(rounds.RoundError):
@@ -192,20 +191,23 @@ def faults_gate(r):
     return found
 
 
-def order(record, hosts):
+def order(record, hosts, cases):
     """Every planned run of `hosts`, as (host, skill, case id, arm, number): for each number, each case in turn,
-    its two arms one after the other, the arm that goes first alternating from case to case and number to number."""
+    its arms (`runs.arms`, from `cases` by (skill, case id)) one after the other, the arm that goes first turning
+    from case to case and number to number."""
     planned = [(skill, i) for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])]
     for number in range(1, record["plan"]["runs"] + 1):
         for index, (skill, case_id) in enumerate(planned):
-            for arm in (ARMS if (number + index) % 2 else ARMS[::-1]):
+            arms = runs.arms(record, cases[(skill, case_id)])
+            turn = (number + index + 1) % len(arms)  # two arms: ARMS on odd sums, reversed on even ones
+            for arm in arms[turn:] + arms[:turn]:
                 for host in sorted(hosts):
                     yield host, skill, case_id, arm, number
 
 
 def run_gate(r):
     made = []
-    for host, skill, case_id, arm, number in order(r.record, r.hosts):
+    for host, skill, case_id, arm, number in order(r.record, r.hosts, r.cases):
         result = runs.run(r.record, r.store, r.cases[(skill, case_id)], arm, host, number, r.modules[host],
                           r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,

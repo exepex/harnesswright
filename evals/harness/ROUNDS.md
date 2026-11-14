@@ -13,6 +13,13 @@ tracked files, and each host's program, hash and version as the host's own jail 
 clean tree, so its commit holds every input it hashes. A round's manifest is written once: the same manifest again
 is kept, and any other is refused, so a changed input is a new round.
 
+A plan may also name, under `previous`, the full commit of a skill's previous version. Its task cases then run in
+a third arm, `previous_version` (`runs.arms`), which installs the skill as that commit holds it, the folder
+`skills.folders` reads there. `rounds.previous` is the one reader of it: it checks the commit out in a scratch
+worktree, removed afterwards, and hashes the skill's tracked files. The manifest records the commit, the path and
+the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
+the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
+
 Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
 everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
 the manifest, the arm, the number, the run's own settings (the drift record, which decides what evidence counts as
@@ -36,7 +43,7 @@ when no host passed. The drift record of the first attempt a host passed is kept
 (`<store>/<round>/drift/<host>.json`) and used by every later attempt, so run keys stay the same from one attempt to
 the next. Tools that are not the round's stop the round. Every fault of the catalogue is planted on each host that
 passed, at a place the round's seed chooses, and every one must be caught. The runs follow `gates.order`: for each
-number, each case in turn, its two arms one after the other, the arm that goes first alternating. The host's version
+number, each case in turn, its arms one after the other, the arm that goes first turning. The host's version
 is measured just before each run, so a host that changed during the round voids its runs. The check gate decides
 every expectation that has a check on the bundle of each kept or made run, with the check library of the round's
 commit, and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided

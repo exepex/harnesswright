@@ -51,15 +51,19 @@ class Round(TempCase):
     def prompt(self, text):
         (self.case_dir / "case.json").write_text(json.dumps({"prompt": text, "kind": "task"}))
 
-    def plan(self, runs_per_arm=2):
+    def git(self, *args):
         env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
         env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.invalid", GIT_COMMITTER_NAME="t",
                    GIT_COMMITTER_EMAIL="t@example.invalid")
+        return subprocess.run(["git", *args], cwd=self.repo, env=env, check=True, capture_output=True,
+                              text=True).stdout.strip()
+
+    def plan(self, runs_per_arm=2, **extra):
         for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "--allow-empty", "-m", "state"]):
-            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True, capture_output=True)
+            self.git(*args)
         path = self.tmp / "plan.json"
         path.write_text(json.dumps({"round": "r1", "skills": {"haiku-writer": ["c1"]}, "runs": runs_per_arm,
-                                    "hosts": [{"adapter": "fakehost", "model": "named-model"}]}))
+                                    "hosts": [{"adapter": "fakehost", "model": "named-model"}], **extra}))
         return rounds.plan(path, repo=self.repo, adapters=self.repo / "adapters", version=lambda m, **c: VERSION)
 
 
@@ -205,6 +209,45 @@ class Runs(Round):
         with self.assertRaisesRegex(runs.RunError, "outside the working tree"):
             self.run_one(record, version={**VERSION, "version": "fakehost 2.0"})
         self.assertFalse((self.repo / "void.json").exists())
+
+    def test_a_previous_version_is_its_own_arm_hashed_from_its_commit_and_installed(self):
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text(
+            "---\nname: haiku-writer\ndescription: Writes a better haiku. Use when asked for a haiku.\n---\n")
+        record = self.plan(previous={"haiku-writer": old})
+        with rounds.previous(self.repo, "haiku-writer", old) as (_, kept):
+            self.assertEqual(record["previous"], {"haiku-writer": kept})
+        self.assertEqual(kept["path"], "skills/haiku-writer")
+        self.assertNotEqual(kept["sha256"], record["skills"]["haiku-writer"]["sha256"])
+        self.assertEqual(runs.arms(record, Case(self.case_dir, "haiku-writer")), (*runs.ARMS, runs.PREVIOUS))
+        made = self.run_one(record, runs.PREVIOUS)
+        self.assertEqual(made["status"], "made")
+        bundle, _ = evidence.load(made["bundle"])
+        self.assertEqual(bundle["arm"], runs.PREVIOUS)
+        self.assertNotIn(made["key"], {self.run_one(record, arm)["key"] for arm in runs.ARMS})
+        self.assertEqual(len(self.git("worktree", "list").splitlines()), 1)  # each scratch worktree is removed
+
+    def test_a_previous_version_that_is_the_candidate_or_has_no_skill_is_refused(self):
+        self.plan()
+        same = self.git("rev-parse", "HEAD")
+        with self.assertRaisesRegex(rounds.RoundError, "the same as the version under test"):
+            self.plan(previous={"haiku-writer": same})
+        with self.assertRaisesRegex(rounds.RoundError, "failed"):
+            self.plan(previous={"haiku-writer": "f" * 40})
+
+    def test_a_previous_version_whose_files_changed_is_refused_for_every_run(self):
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text(
+            "---\nname: haiku-writer\ndescription: Writes a better haiku. Use when asked for a haiku.\n---\n")
+        record = self.plan(previous={"haiku-writer": old})
+        record["previous"]["haiku-writer"]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(runs.RunError, "not the manifest's"):
+            self.run_one(record, runs.PREVIOUS)
+        del record["previous"]
+        with self.assertRaises(runs.RunError):
+            self.run_one(record, runs.PREVIOUS)
 
     def test_a_store_inside_the_working_tree_is_refused(self):
         record = self.plan()
