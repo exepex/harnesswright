@@ -39,7 +39,7 @@ This skill does not:
 | The functional plan, when the story's `plan` is not `none`: what each covered target measures, and its number or range | Yes, for a planned story | `<run folder>/functional-plan.md`. Without it, the targets are `not verified`, with the reason. |
 | The change: the files it touched | Yes | With git, `git diff --name-only <base>` and `git status --short`. Without git, the files the request names; if none are named, ask which files changed. |
 | The commands that prove the work: build, test, lint | No | The `toolchain` in `.harness/profile.yaml`; else the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
-| The project's notes on where and when proof outside the change is made, and who owns it | No | Write `not named` for an owner nobody names, and say so in the report. Never invent an owner or a date. |
+| The project's notes on where and when proof outside the change is made, and who owns it | No | Read them before you write an open proof item: `README*`, `CONTRIBUTING*`, `AGENTS.md` and `CLAUDE.md` at the project root, read in full, and the Markdown files under `docs/`, searched for the test type and the place the proof needs, such as `load` or `staging`. Take the place, time and owner only from a line you read there, and cite it as `path:line`. When no line names one, write `not named`, followed by the files you read, and say so in the report. Never invent an owner or a date. |
 
 The run folder is the folder that holds the story's `stories/` folder. When the story is not in a run folder, use
 `.harness/runs/<YYYY-MM-DD>-<short-name>/`, with `S01` as the story ID when the story has none. Run every command
@@ -116,7 +116,7 @@ For each requirement and each test type it needs, write down the evidence that w
 
 Proof that cannot be made here, such as a load run on staging or tests in a repository you cannot reach, becomes an
 open proof item: what is unproven, with its requirement ID and test type, where and when the proof will come from,
-and who owns it.
+and who owns it, each read from the project's notes (see Inputs) with its `path:line`, or `not named`.
 
 Check: every requirement and test type has planned evidence or a planned open proof item.
 
@@ -142,7 +142,8 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
    - **Done**, **Evidence**, and under **Test types** each required type with its test, or the `OP-n` that stands
      in for it.
 3. **Open proof items:** `OP-1`, `OP-2`, … each with what is unproven, where and when the proof comes from, and its
-   owner. `None.` when there are none.
+   owner, as step 3 found them: each with the `path:line` it was read from, or `not named` and the files you read.
+   `None.` when there are none.
 4. **Standards:** only what you read or ran yourself is `this run`; anything else comes from the run log,
    `<run folder>/log.md`, and is written only when the log records it.
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
@@ -237,8 +238,9 @@ Bad: "AC-2: validation added, tests should pass." It has no status, file, test o
 the tests were not run.
 
 **An open proof item.** Good: "OP-1. Unproven: NFR-1, performance, p95 under 200 ms. Proof: the nightly load run
-on staging, after merge. Owner: the platform team, as `docs/testing.md` names." Bad: setting NFR-1 to `met`
-because the code looks fast.
+on staging, after merge, as `docs/testing.md:12` says. Owner: the platform team, `docs/testing.md:12`." Bad:
+setting NFR-1 to `met` because the code looks fast. Bad: "Owner: not named; the repository says nothing" without
+reading the project's notes, when its `README.md` names who runs that test.
 
 ## Reference files
 
