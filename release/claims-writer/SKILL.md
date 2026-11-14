@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
   rulebook-version: "0.3.3"
-  content-hash: "97d4d1573d4ae5c669b2199343e4866e45921f48e73dfad73502f03f7932c6c3"
+  content-hash: "06ba306f0dc4b315a9ae79018d974d0874fdd0246f177623a594937ebe301934"
   size-floors: "4881"
-  size-rest: "18344"
+  size-rest: "18447"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.3.3. Do not edit. -->
 
@@ -149,7 +149,7 @@ This skill does not:
 | The functional plan, when the story's `plan` is not `none`: what each covered target measures, and its number or range | Yes, for a planned story | `<run folder>/functional-plan.md`. Without it, the targets are `not verified`, with the reason. |
 | The change: the files it touched | Yes | With git, `git diff --name-only <base>` and `git status --short`. Without git, the files the request names; if none are named, ask which files changed. |
 | The commands that prove the work: build, test, lint | No | The `toolchain` in `.harness/profile.yaml`; else the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
-| Where and when proof outside the change is made, and who owns it | No | Take each from a line you read, never from memory: in the story, the functional plan, the request or any project file, cited as `path:line` (the request quoted). Before you write `not named`, look everywhere: read the story, the plan and the request; read in full every Markdown or text file at the project root and `CODEOWNERS`; search every other text file of the project, such as `docs/`, `doc/`, `.github/` and the READMEs beside the code and tests, for the proof's place and kind in several words (for performance: `load`, `benchmark`, `latency`, `staging`), and read each hit with the lines around it. Only then write `not named`, followed by the files read and the words searched, and say so in the report. Never invent an owner or a date. |
+| Where and when proof outside the change is made, and who owns it | No | Take each from a line you read, never from memory: in the story, the functional plan, the request or any project file, cited as `path:line` (the request quoted). Before you write `not named`, look everywhere: read the story, the plan and the request; read in full every Markdown or text file at the project root and `CODEOWNERS`; search every other text file of the project outside `.harness/runs/` and vendored or generated folders, such as `docs/`, `doc/`, `.github/` and the READMEs beside the code and tests, for the proof's place and kind in several words (for performance: `load`, `benchmark`, `latency`, `staging`), and read each hit with the lines around it. Only then write `not named`, followed by the files read and the words searched, and say so in the report. Never invent an owner or a date. |
 
 The run folder is the folder that holds the story's `stories/` folder. When the story is not in a run folder, use
 `.harness/runs/<YYYY-MM-DD>-<short-name>/`, with `S01` as the story ID when the story has none. Run every command
@@ -227,7 +227,7 @@ For each requirement and each test type it needs, write down the evidence that w
 Proof that cannot be made here, such as a load run on staging or tests in a repository you cannot reach, becomes an
 open proof item: what is unproven, with its requirement ID and test type, where and when the proof will come from,
 and who owns it, each taken as the Inputs row "Where and when proof outside the change is made" says, with its
-`path:line`, or `not named`.
+`path:line` or the quoted request, or `not named`.
 
 Check: every requirement and test type has planned evidence or a planned open proof item.
 
@@ -253,8 +253,8 @@ capability, not a shell heredoc or `echo`, so a quoting slip cannot create stray
    - **Done**, **Evidence**, and under **Test types** each required type with its test, or the `OP-n` that stands
      in for it.
 3. **Open proof items:** `OP-1`, `OP-2`, … each with what is unproven, where and when the proof comes from, and its
-   owner, each with the `path:line` it was read from, or `not named` with the files read and the words searched.
-   `None.` when there are none.
+   owner, each with the `path:line` it was read from or the quoted request, or `not named` with the files read and
+   the words searched. `None.` when there are none.
 4. **Standards:** only what you read or ran yourself is `this run`; anything else comes from the run log,
    `<run folder>/log.md`, and is written only when the log records it.
    - `this run`: the hash of `rules.md`; this skill's own entry under **Skills run**, with the `rulebook-version`
