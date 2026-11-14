@@ -143,7 +143,7 @@ def sheet(setup, fault, rng, place):
     words = line.split()
     misquotes = [quote for quote in (f"hw-{rng.getrandbits(32):08x} says so", line.swapcase(),
                                      " ".join(words[:-1] + ["hw-other"]), " ".join(reversed(words)))
-                 if grading._flat(quote) != grading._flat(line)]  # invented, in other case, a word changed, reversed
+                 if _words(quote) != _words(line)]  # invented, in other case, a word changed, reversed
     edits = {"not yes or no": [lambda one, word=word: {**one, "answer": word} for word in WORDS],
              "misquoted": [lambda one, quote=quote: {**one, "evidence": quote} for quote in misquotes],
              "no quote": [lambda one, empty=empty: {**one, "evidence": empty} for empty in ("", " ", "\n\t ")],
@@ -165,6 +165,11 @@ def sheet(setup, fault, rng, place):
         if not any(SHEET[place] in problem for problem in problems):
             return f"the sheet check did not refuse it as {SHEET[place]!r}: {problems}"
     return None
+
+
+def _words(text):
+    """The words of a quote as doc 11 reads them, worked out here and not by the check under test."""
+    return re.findall(r"[^\W_]+", text)
 
 
 def _gate(case, pages, answer, ungraded=None):

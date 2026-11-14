@@ -1,0 +1,8 @@
+{
+  "ids": ["q2", "q5"],
+  "outcome": "pass",
+  "grading": {"answers": [
+    {"id": "q2", "answer": "yes", "evidence": "AC-3: p99 latency in staging."},
+    {"id": "q5", "answer": "yes", "evidence": "AC-1 - the limit holds: go test -run TestLimit ./... passes."}
+  ]}
+}

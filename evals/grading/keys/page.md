@@ -19,6 +19,10 @@ I wrote the claims for S03. AC-3 is not verified: it needs a load test in stagin
 
 ## .harness/runs/2026-10-30-rate-limit/claims/S03.md
 
+## Met
+
+- **AC-1** — the limit holds: `go test -run "TestLimit" ./...` passes.
+
 ## Not verified
 
 - AC-3: p99 latency in staging. There is no staging access from here;

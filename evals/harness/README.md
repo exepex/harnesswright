@@ -344,7 +344,8 @@ and sees its whole path, so `grade` alone chooses it: a new folder of random nam
 same for every page, removed after the run once all it made outside the folder has passed `evidence.reported`, the
 one way every run's output is scrubbed and checked for canaries. Its final message is its answer sheet, one JSON
 object, alone or in one fenced block. `grading.check` accepts the sheet only when every question is answered once
-with `yes` or `no` and each quote is on the page word for word, with runs of white space read as one space. A host
+with `yes` or `no` and each quote is on the page word for word: its words (runs of letters and digits, case kept)
+are a run of the page's words, and punctuation, Markdown marks and white space only separate words. A host
 failure or a refused sheet gets one more try (`grader.TRIES`); then that grader is ungraded. `grader.blind` gives the
 pages of a round, both arms and the goldens, in an order mixed by a recorded seed, each with an opaque id, the hash
 of its page. The answer keys of `grading.check` are in `evals/grading/keys/`.
