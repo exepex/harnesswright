@@ -76,3 +76,19 @@ Every task case ends with the done question (`evals/grading/done.json`), appende
 its work is done? It is graded and calibrated by goldens like any other question, and counts in no pass rate. The
 label gives, per arm, the false-done rate: runs whose trusted answer is `yes` while a contract expectation failed,
 of the runs where both are decided, with the runs not decided counted apart.
+
+## Cross-model grading
+
+`regrade.py` grades every page a finished round graded again, once per grader route (doc 11, Cross-model grading).
+It is no gate and writes no label. Run it at the round's commit:
+
+```sh
+python3 evals/harness/regrade.py ROUND --store DIR --route goose=MODEL@UPSTREAM [--route ...] [--attempt NAME]
+    [--seed N] [--pages all|run|golden] [--graders 1|2]
+```
+
+It refuses a kit that is not the approved one, a changed case or adapter, and a page that does not hash as the
+round's grade record says. Each route passes every probe and the grader faults before any route grades. Then each
+route grades every page with two fresh graders, and the pass is written to `<store>/<round>/regrade/<pass>/`,
+apart from the round's grades and labels. `--pages` and `--graders` grade fewer pages, or with one grader, to
+stay in budget; `regrade.json` records the choice, and its `finished` time stays empty when the pass stopped.

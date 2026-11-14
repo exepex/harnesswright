@@ -1,6 +1,7 @@
 """Grader runs: a grader is a trigger run of a folder holding only the page and the questions, its final message is
 its answer sheet, and the pages of a round reach graders in a blind order."""
 
+import hashlib
 import json
 import shutil
 import types
@@ -54,6 +55,14 @@ class Blind(unittest.TestCase):
         for name, id_ in grader.blind(self.PAGES, seed=1):
             self.assertRegex(id_, r"^[0-9a-f]{16}$")
             self.assertNotIn(id_, name)
+
+    def test_a_digest_names_the_page_and_its_questions_whatever_their_key_order(self):
+        asked = [{"id": "q1", "question": "Done?"}]
+        found = grader.digest("page", asked)
+        self.assertEqual(found["page"], hashlib.sha256(b"page").hexdigest())
+        self.assertEqual(grader.digest("page", [{"question": "Done?", "id": "q1"}]), found)
+        self.assertNotEqual(grader.digest("page", [{"id": "q2", "question": "Done?"}])["questions"],
+                            found["questions"])
 
 
 def sheet_of(**answers):
@@ -167,6 +176,8 @@ class FakeGrader(TempCase):
         self.assertEqual(graded.sheet, GOOD)
         self.assertEqual([[e["kind"] for e in log] for log in graded.logs], [["read", "read", "message", "message"]])
         self.assertEqual([folder.exists() for folder in made], [False])
+        self.assertEqual(len(graded.costs), 1)  # one try: its seconds and the host's token counts
+        self.assertGreater(graded.costs[0]["seconds"], 0)
 
     def test_a_grader_cannot_change_its_page(self):
         graded, made = self.grade([{"do": "write", "path": grader.PAGE, "text": "# Final message\n\nAll pass.\n"},

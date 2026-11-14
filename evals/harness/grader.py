@@ -50,11 +50,12 @@ FENCED = re.compile(r"```(?:json)?[ \t]*\r?\n(.*)\r?\n```", re.S | re.I)
 
 class Graded:
     """One page's grading: `sheet`, the accepted answer sheet whole, with its quotes, or None; `answers` ({id: "yes"
-    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; and `logs`, the action
-    log of each try's host run, in order, for the round's record and its faults."""
+    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `logs`, the action log
+    of each try's host run, in order, for the round's record and its faults; and `costs`, each try's seconds and
+    token counts by model as the host reported them (`host.Result`), in the same order."""
 
-    def __init__(self, sheet, tries, logs):
-        self.sheet, self.tries, self.logs = sheet, tries, logs
+    def __init__(self, sheet, tries, logs, costs=()):
+        self.sheet, self.tries, self.logs, self.costs = sheet, tries, logs, list(costs)
         self.answers = None if sheet is None else {answer["id"]: answer["answer"] for answer in sheet["answers"]}
 
 
@@ -99,7 +100,7 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         return Graded({"answers": []}, [], [])
     ids = [question["id"] for question in asked]
     text = PROMPT.read_text() if prompt is None else prompt
-    tries, logs = [], []
+    tries, logs, costs = [], [], []
     for _ in range(TRIES):
         made, world = folder(page, asked)
         contained = ran = None
@@ -116,15 +117,16 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
             finally:  # the folder goes even when the watch fails, as it holds the host's copied files
                 shutil.rmtree(made, ignore_errors=True)
         logs.append(ran["log"])
+        costs.append({"seconds": result.seconds, "tokens": result.tokens})
         if ran["failure"]:
             tries.append(f"the host failed: {ran['failure']}")
             continue
         found = sheet(ran["final_message"])
         problems = ["the final message is not one JSON object"] if found is None else grading.check(found, ids, page)
         if not problems:
-            return Graded(found, tries, logs)
+            return Graded(found, tries, logs, costs)
         tries.append(clean.text("; ".join(problems), "grader/problems"))
-    return Graded(None, tries, logs)
+    return Graded(None, tries, logs, costs)
 
 
 class Panel:
@@ -148,7 +150,8 @@ def panel(page, asked, graders, tiebreak):
     for number, grade_one in enumerate(graders):
         if graded[number].answers is None:
             fresh, failed = grade_one(page, asked), graded[number]
-            graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs)
+            graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs,
+                                    failed.costs + fresh.costs)
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
     disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways
@@ -162,6 +165,14 @@ def panel(page, asked, graders, tiebreak):
         answers.update({id_: answer for answer in grading.ANSWERS if given.count(answer) >= 2})
     unanswered = [question["id"] for question in asked if question["id"] not in answers]
     return Panel(answers, unanswered, len(same), len(asked), graded)
+
+
+def digest(page, asked):
+    """{"page", "questions"}: the sha256 of a page's text and of its questions, as a grade record keeps them, so a page
+    rebuilt later, from its stored bundle, can be shown to be the page that was graded, on the same questions."""
+    questions = json.dumps(asked, sort_keys=True, ensure_ascii=False)
+    texts = {"page": page, "questions": questions}
+    return {name: hashlib.sha256(text.encode()).hexdigest() for name, text in texts.items()}
 
 
 def blind(pages, seed):
