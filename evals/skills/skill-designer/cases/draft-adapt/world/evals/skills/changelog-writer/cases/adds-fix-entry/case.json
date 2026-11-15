@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "PR #88 fixes the rounding bug in invoices and is about to merge. Add it to the changelog.",
+  "expectations": [
+    {
+      "judged": {
+        "question": "Is there one new line under Unreleased, in Fixed, naming the rounding fix and (#88)?",
+        "pass": "Yes if exactly that line was added.",
+        "fail": "No if the line is missing, in another section, or lacks (#88).",
+        "examples": {"fail": ["A line under Added."], "pass": ["- Invoice totals no longer round down by a cent (#88)."]}
+      },
+      "text": "One Fixed line for #88",
+      "source": "format"
+    }
+  ]
+}
