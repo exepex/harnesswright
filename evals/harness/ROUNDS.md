@@ -13,6 +13,15 @@ tracked files, and each host's program, hash and version as the host's own jail 
 clean tree, so its commit holds every input it hashes. A round's manifest is written once: the same manifest again
 is kept, and any other is refused, so a changed input is a new round.
 
+A plan may also name, under `previous`, the full commit of a skill's previous version. Its task cases then run in
+a third arm, `previous_version` (`runs.arms`), which installs the skill as that commit holds it, the folder
+`skills.folders` reads there. `rounds.previous` is the one reader of it: it checks the commit out in a scratch
+worktree with no hooks, removed afterwards, reads the skill as the version under test is read, and hashes its
+tracked files. The lint gate lints that arm with the previous version's text too, and a plan whose previous
+version names a skill it runs no task case of is refused. The manifest records the commit, the path and
+the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
+the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
+
 Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
 everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
 the manifest, the arm, the number, the run's own settings (the drift record, which decides what evidence counts as
@@ -36,7 +45,7 @@ when no host passed. The drift record of the first attempt a host passed is kept
 (`<store>/<round>/drift/<host>.json`) and used by every later attempt, so run keys stay the same from one attempt to
 the next. Tools that are not the round's stop the round. Every fault of the catalogue is planted on each host that
 passed, at a place the round's seed chooses, and every one must be caught. The runs follow `gates.order`: for each
-number, each case in turn, its two arms one after the other, the arm that goes first alternating. The host's version
+number, each case in turn, its arms one after the other, the arm that goes first turning. The host's version
 is measured just before each run, so a host that changed during the round voids its runs. The check gate decides
 every expectation that has a check on the bundle of each kept or made run, with the check library of the round's
 commit, and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided
@@ -62,7 +71,9 @@ loaded in at least half its runs if it should trigger, and in fewer than half if
 that of the `test` split. A host that was not run, or a skill with no task case or no test trigger case, is
 `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
 no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
-`unsupported`, each gap named. The label file goes to `<store>/<round>/labels/<attempt>.json`.
+`unsupported`, each gap named. A skill whose round ran its previous version must be at least as good as it on the
+same task cases: a pass rate below the previous version's, or a false-done rate above it, is `unsupported`, each
+named; too few scored runs in that arm, or no decided false-done answer in either arm, keep it `inconclusive`. The label file goes to `<store>/<round>/labels/<attempt>.json`.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
 with its counts: the void rate per arm, grader agreement, golden accuracy from the goldens' grade records, the

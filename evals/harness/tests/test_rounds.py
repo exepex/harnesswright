@@ -34,6 +34,10 @@ class Plans(TempCase):
     def test_a_plan_with_every_field_in_its_shape_is_read(self):
         self.assertEqual(rounds.read_plan(self.write_plan()), PLAN)
 
+    def test_a_plan_may_name_a_previous_version_by_its_full_commit(self):
+        data = {**PLAN, "previous": {"haiku-writer": "a" * 40}}
+        self.assertEqual(rounds.read_plan(self.write_plan(data)), data)
+
     def test_a_plan_holds_exactly_its_fields_each_in_its_shape(self):
         wrong = {
             "an unknown field": {**PLAN, "store": "/tmp/x"},
@@ -51,6 +55,9 @@ class Plans(TempCase):
             "a host with no model": {**PLAN, "hosts": [{"adapter": "fakehost"}]},
             "an empty model": {**PLAN, "hosts": [{"adapter": "fakehost", "model": " "}]},
             "an unknown host field": {**PLAN, "hosts": [{**PLAN["hosts"][0], "sandbox": "off"}]},
+            "an empty previous": {**PLAN, "previous": {}},
+            "a short previous commit": {**PLAN, "previous": {"haiku-writer": "abc1234"}},
+            "a previous for a skill not run": {**PLAN, "previous": {"limerick-writer": "a" * 40}},
         }
         for why, data in wrong.items():
             with self.subTest(why), self.assertRaises(rounds.RoundError):

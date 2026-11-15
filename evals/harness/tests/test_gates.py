@@ -22,7 +22,7 @@ import faults
 import gates
 import kit
 import rounds
-from runs import ARMS
+from runs import ARMS, PREVIOUS
 
 
 class Gated(Round):
@@ -48,13 +48,26 @@ class Gated(Round):
 class Order(unittest.TestCase):
     def test_every_planned_run_once_with_cases_and_arms_interleaved(self):
         record = {"cases": {"s": {"c1": "", "c2": ""}}, "plan": {"runs": 2}}
-        found = list(gates.order(record, ["h"]))
+        task = SimpleNamespace(kind="task", skill="s")
+        found = list(gates.order(record, ["h"], {("s", "c1"): task, ("s", "c2"): task}))
         self.assertEqual(len(found), len(set(found)))
         self.assertEqual(len(found), 8)
         pairs = [found[i:i + 2] for i in range(0, 8, 2)]
         self.assertTrue(all(a[2] == b[2] and a[4] == b[4] and a[3] != b[3] for a, b in pairs))  # one case's two arms
         self.assertEqual([a[3] for a, _ in pairs], [ARMS[0], ARMS[1], ARMS[1], ARMS[0]])  # the first arm alternates
         self.assertEqual([a[2] for a, _ in pairs], ["c1", "c2", "c1", "c2"])
+
+    def test_a_previous_version_adds_a_third_arm_to_task_cases_only_and_each_arm_goes_first_in_turn(self):
+        record = {"cases": {"s": {"c1": "", "t1": ""}}, "plan": {"runs": 3}, "previous": {"s": {}}}
+        cases = {("s", "c1"): SimpleNamespace(kind="task", skill="s"),
+                 ("s", "t1"): SimpleNamespace(kind="trigger", skill="s")}
+        found = list(gates.order(record, ["h"], cases))
+        self.assertEqual(len(found), len(set(found)))
+        task = [f for f in found if f[2] == "c1"]
+        self.assertEqual(len(task), 9)
+        self.assertEqual({f[3] for f in task}, {*ARMS, PREVIOUS})
+        self.assertEqual({f[3] for f in found if f[2] == "t1"}, set(ARMS))
+        self.assertEqual({task[i][3] for i in range(0, 9, 3)}, {*ARMS, PREVIOUS})  # each arm goes first once
 
 
 class Gates(Gated):
@@ -109,6 +122,35 @@ class Gates(Gated):
         shutil.rmtree(self.store)
         rounds.write(self.planned_again, self.store, self.repo)
         with self.assertRaisesRegex(rounds.RoundError, r"stopped at the lint gate: fakehost, haiku-writer/c1: "):
+            self.go(gates.GATES[1:2])
+
+    def test_lint_reads_the_previous_version_too_and_stops_a_world_that_holds_its_text(self):
+        skill = self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        line = "Count the syllables of every line twice before you answer, five then seven then five."
+        skill.write_text(skill.read_text() + f"\n{line}\n")
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        skill.write_text(skill.read_text().replace(line, "Keep it short."))
+        (self.case_dir / "world" / "README.md").write_text(f"# Notes app\n\n{line}\n")
+        rounds.write(self.plan(previous={"haiku-writer": old}), self.store, self.repo)
+        with self.assertRaisesRegex(rounds.RoundError,
+                                    r"stopped at the lint gate: fakehost, haiku-writer/c1, previous_version: "):
+            self.go(gates.GATES[1:2])
+
+    def test_the_previous_version_is_linted_with_the_upstream_copy_of_its_own_commit(self):
+        skill = self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        line = "Count the syllables of every line twice before you answer, five then seven then five."
+        skill.write_text(skill.read_text() + f"\n{line}\n")
+        self.plan()
+        old = self.git("rev-parse", "HEAD")
+        skill.write_text(skill.read_text().replace(line, "Keep it short."))
+        copy = self.repo / "evals" / "skills" / "haiku-writer" / "upstream" / "SKILL.md"
+        copy.parent.mkdir(parents=True)
+        copy.write_text(f"{line}\n")  # recorded only after the previous version: it exempts only the current one
+        (self.case_dir / "world" / "README.md").write_text(f"# Notes app\n\n{line}\n")
+        rounds.write(self.plan(previous={"haiku-writer": old}), self.store, self.repo)
+        with self.assertRaisesRegex(rounds.RoundError,
+                                    r"stopped at the lint gate: fakehost, haiku-writer/c1, previous_version: "):
             self.go(gates.GATES[1:2])
 
     def test_what_a_probe_gives_is_kept_only_scrubbed(self):

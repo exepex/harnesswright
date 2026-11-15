@@ -8,6 +8,8 @@ that affects a run (`RUNNER`). The jail's settings are not in the key: the jail 
 that fails its audit stops the round. A run whose key holds a bundle is kept, so a resumed round remakes only
 missing or voided runs, and a changed input gives a new key, never a changed run.
 
+- `arms(record, case)`: the arms a case runs in: without and with the skill, and for a task case of a skill the
+  plan gives a previous version, `previous_version`, which installs the skill as the manifest's commit holds it.
 - `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
@@ -28,6 +30,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import contextlib
+
 import contain
 import evidence
 import host
@@ -39,6 +43,7 @@ import world
 from cases import REPO
 
 ARMS = ("without_skill", "with_skill")
+PREVIOUS = "previous_version"
 HARNESS = Path(__file__).resolve().parent
 # The runner code that affects a run: its jail and gate, the host contract, the world builder and the evidence.
 RUNNER = ("audit.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "manifest.py", "powers.py",
@@ -57,11 +62,19 @@ def runner(folder=HARNESS):
     return manifest.digest({name: manifest.entry(Path(folder) / name) for name in RUNNER})
 
 
+def arms(record, case):
+    """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
+    a previous version. Trigger cases measure the description that triggers the skill under test only."""
+    later = (PREVIOUS,) if case.kind == "task" and case.skill in record.get("previous", {}) else ()
+    return ARMS + later
+
+
 def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None):
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
     and drift record, and `timeout`, its time budget in seconds (a run that timed out is scored). `code` is the
     runner's hash (`runner`)."""
-    if arm not in ARMS or skill not in record["cases"] or case_id not in record["cases"][skill]:
+    known = ARMS + ((PREVIOUS,) if skill in record.get("previous", {}) else ())
+    if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
     if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
         raise RunError(f"{host_name}, run {number}: not a run of round {record['round']}")
@@ -69,6 +82,8 @@ def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, 
               "arm": arm, "number": number, "drift": drift, "timeout": timeout,
               "adapter": record["adapters"][host_name], "host": record["hosts"][host_name],
               "runner": code or runner()}
+    if arm == PREVIOUS:
+        inputs["previous"] = record["previous"][skill]
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
 
 
@@ -115,14 +130,22 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     if version != planned["version"]:
         return _void(path, run_key, voids, f"the host's version {version} is not the manifest's "
                                            f"{planned['version']}")
+    if arm not in arms(record, case):
+        raise RunError(f"{case.skill}/{case.id}: the round does not run it in {arm}")
     skills_root = skills.folders(repo)
-    skill_dir = skills_root.get(case.skill)
-    with tempfile.TemporaryDirectory(prefix="r-") as scratch:
-        scratch = Path(scratch)
+    with contextlib.ExitStack() as stack:
+        skill_dir = skills_root.get(case.skill)
+        if arm == PREVIOUS:  # the previous version, read and hashed again through the one reader of it
+            kept = record["previous"][case.skill]
+            try:
+                skill_dir, _ = stack.enter_context(rounds.previous(repo, case.skill, kept["commit"], kept["sha256"]))
+            except rounds.RoundError as error:
+                raise RunError(str(error)) from None
+        scratch = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="r-")))
         base = world.build(case, adapter, scratch / "a", skills_root)
         other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
         world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
-        chosen = other if arm == "with_skill" else base
+        chosen = base if arm == "without_skill" else other
         contained = contain.Containment(adapter, case.kind, chosen.path, manifest.manifest(chosen.path),
                                         root=scratch / "run", **containment)
         result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],

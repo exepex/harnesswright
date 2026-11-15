@@ -37,6 +37,7 @@ Run from the repository root:
 Standard library only.
 """
 
+import contextlib
 import datetime
 import json
 import os
@@ -60,7 +61,6 @@ import runs
 import scrub
 import skills
 from cases import REPO, Case, CaseError
-from runs import ARMS
 
 
 class Stop(rounds.RoundError):
@@ -123,18 +123,28 @@ def kit_check(r):
 
 
 def lint_gate(r):
-    upstream = {skill: lint.texts(r.repo / "evals" / "skills" / skill / "upstream") for skill in r.record["cases"]}
     measuring, data = lint.eval_texts(r.repo)
     problems = []
     for host, module in r.modules.items():
         for (skill, case_id), case in r.cases.items():
-            with tempfile.TemporaryDirectory(prefix="hw-lint-") as out:
-                try:
-                    found = lint.lint_case(case, module, out, r.skills, None, upstream[skill], measuring,
-                                           r.repo, data)
-                except CaseError as error:
-                    found = [str(error)]
-            problems += [f"{host}, {skill}/{case_id}: {problem}" for problem in found]
+            # Each arm that installs a version of the skill is linted with that version's text and the upstream
+            # copy recorded in the same tree, the round's checkout or the previous version's commit.
+            for arm in runs.arms(r.record, case)[1:]:
+                with tempfile.TemporaryDirectory(prefix="hw-lint-") as out, contextlib.ExitStack() as stack:
+                    try:
+                        skill_dir, tree = None, r.repo
+                        if arm == runs.PREVIOUS:
+                            kept = r.record["previous"][skill]
+                            skill_dir, read = stack.enter_context(rounds.previous(r.repo, skill, kept["commit"],
+                                                                                  kept["sha256"]))
+                            tree = skill_dir.parents[len(Path(read["path"]).parts) - 1]
+                        upstream = lint.texts(tree / "evals" / "skills" / skill / "upstream")
+                        found = lint.lint_case(case, module, out, r.skills, skill_dir, upstream, measuring,
+                                               r.repo, data)
+                    except (CaseError, rounds.RoundError) as error:
+                        found = [str(error)]
+                problems += [f"{host}, {skill}/{case_id}, {arm}: {problem}" if arm == runs.PREVIOUS
+                             else f"{host}, {skill}/{case_id}: {problem}" for problem in found]
     if problems:
         raise Stop("; ".join(problems), {"problems": problems})
     return {"cases": len(r.cases), "hosts": len(r.modules)}
@@ -192,20 +202,23 @@ def faults_gate(r):
     return found
 
 
-def order(record, hosts):
+def order(record, hosts, cases):
     """Every planned run of `hosts`, as (host, skill, case id, arm, number): for each number, each case in turn,
-    its two arms one after the other, the arm that goes first alternating from case to case and number to number."""
+    its arms (`runs.arms`, from `cases` by (skill, case id)) one after the other, the arm that goes first turning
+    from case to case and number to number."""
     planned = [(skill, i) for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])]
     for number in range(1, record["plan"]["runs"] + 1):
         for index, (skill, case_id) in enumerate(planned):
-            for arm in (ARMS if (number + index) % 2 else ARMS[::-1]):
+            arms = runs.arms(record, cases[(skill, case_id)])
+            turn = (number + index + 1) % len(arms)  # two arms: ARMS on odd sums, reversed on even ones
+            for arm in arms[turn:] + arms[:turn]:
                 for host in sorted(hosts):
                     yield host, skill, case_id, arm, number
 
 
 def run_gate(r):
     made = []
-    for host, skill, case_id, arm, number in order(r.record, r.hosts):
+    for host, skill, case_id, arm, number in order(r.record, r.hosts, r.cases):
         result = runs.run(r.record, r.store, r.cases[(skill, case_id)], arm, host, number, r.modules[host],
                           r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,

@@ -4,6 +4,7 @@ import json
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 from test_gates import JUDGED
 from test_grades import HELLO, POND, Pages, answering, pond, wrote
@@ -85,6 +86,48 @@ def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, 
         cases["x"] = case("trigger", should_trigger=True, split="train")
         scored[("x", "with_skill")] = train
     return labels.summary(cases, scored)
+
+
+def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
+    """The measures of a skill whose round ran a previous version, and the false-done tally of each arm."""
+    cases = {"t": case(), "g": case("trigger", should_trigger=True, split="test")}
+    scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [False] * 3,
+              ("t", "previous_version"): [bool(o) for o in before], ("g", "with_skill"): [True] * 3}
+    tally = {arm: {"false_done": f, "decided": d, "undecided": 0}
+             for arm, (f, d) in (("with_skill", done), ("previous_version", done_before))}
+    return labels.summary(cases, scored, previous=True), tally
+
+
+class Previous(unittest.TestCase):
+    def test_a_skill_at_least_as_good_as_its_previous_version_is_verified(self):
+        found, tally = against()
+        self.assertEqual((found["previous_pass_rate"], found["runs"]["t, previous_version"]), (0.6667, 3))
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
+        found, tally = against(before=(1, 1, 1))  # equal is at least as good
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
+
+    def test_a_skill_worse_than_its_previous_version_is_unsupported_with_each_gap_named(self):
+        found, tally = against(task=(1,) * 9 + (0,), before=(1,) * 10, done=(1, 10), done_before=(0, 10))
+        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "unsupported", "gaps": [
+            "task pass rate 90% below the previous version's 100%",
+            "false-done rate 1 of 10 above the previous version's 0 of 10"]})
+
+    def test_too_few_previous_runs_or_no_decided_false_done_keep_the_label_inconclusive(self):
+        found, tally = against(before=(1, 1))
+        self.assertEqual(labels.decide(found, [], false_done=tally),
+                         {"label": "inconclusive", "gaps": ["t, previous_version: 2 scored run(s), 3 needed"]})
+        found, tally = against(done_before=(0, 0))
+        self.assertEqual(labels.decide(found, [], false_done=tally)["gaps"],
+                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
+
+    def test_a_previous_version_doubt_unsettles_the_reference_host_too(self):
+        found, tally = against(done_before=(0, 0))  # the one list `labels` settles the reference host on
+        self.assertEqual(labels.doubts(found, [], tally),
+                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
+
+    def test_a_round_with_no_previous_version_is_decided_as_before(self):
+        self.assertNotIn("previous_pass_rate", measured())
+        self.assertNotIn("t, previous_version", measured()["runs"])
 
 
 class Decide(unittest.TestCase):
@@ -191,6 +234,26 @@ class Gate(Pages):
             "without_skill": {"rate": 1.0, "false_done": 3, "decided": 3, "undecided": 0}})
         self.assertEqual({arm: (c["runs"], c["money"], c["uncounted"]) for arm, c in entry["cost"].items()},
                          {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
+
+    def test_a_round_with_a_previous_version_compares_the_two_arms_in_its_label(self):
+        self.planned()
+        probe, run = self.stored([("with_skill", POND)] * 2 + [("with_skill", HELLO)]
+                                 + [("previous_version", POND)] * 3 + [("without_skill", HELLO)] * 3)
+
+        def run_previous(r):  # as a plan with `previous` records it
+            r.record["previous"] = {"haiku-writer": "0" * 40}
+            return run(r)
+        steps = (("probe", probe), ("run", run_previous), ("check", gates.check_gate),
+                 ("grade", grades.grade_gate), ("label", labels.label_gate))
+        with mock.patch.object(labels, "missing", lambda found: []):  # the fixture has no trigger case
+            self.go(steps, grade=done_or_pond)
+        [path] = (self.store / "r1" / "labels").iterdir()
+        entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
+        self.assertEqual((entry["task_pass_rate"], entry["previous_pass_rate"]), (0.6667, 1.0))
+        self.assertEqual((entry["label"], entry["gaps"]), ("inconclusive", [
+            "the reference host claude-code was not run", "task pass rate 67% below 90%",
+            "task pass rate 67% below the previous version's 100%",
+            "false-done rate 1 of 3 above the previous version's 0 of 3"]))
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()
