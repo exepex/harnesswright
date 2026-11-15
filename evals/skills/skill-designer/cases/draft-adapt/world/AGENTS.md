@@ -22,13 +22,13 @@ application code.
 - Read every file of a borrowed skill before you use any of it. Never run a borrowed script before it is reviewed.
 - Copy text only when the source's licence allows it. With no licence, copy nothing: write the skill new.
 - For an adopted or adapted skill, record its repository, commit, path and licence in the template's `metadata`
-  and in `THIRD_PARTY.md`, and keep any notice its licence asks for.
+  and in `THIRD_PARTY.md`. Keep any notice its licence asks for in a file in the skill's own folder.
 
 ## Templates
 
 - The only frontmatter fields a template may have are `name`, `description`, `license`, `compatibility` and
   `metadata`. Its `metadata` holds `roles`, `areas` and, for a borrowed skill, `source`, `source-licence` and
-  `sourcing`.
+  `sourcing`, which is `adopted` or `adapted`.
 - A template tells the agent what to do in plain verbs. It names no tool that only one host has, and no model.
 - Each skill's job is listed in `v2/roles.md`, in its Jobs table.
 - After you change a template, run `python3 v2/build/build.py` and report what it printed.
