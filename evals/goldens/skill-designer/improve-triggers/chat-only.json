@@ -104,7 +104,7 @@
   },
   "q8": {
    "expectation": "The run changes only the template, the version and its report",
-   "sha256": "44a723606f779915a2aafc670d039760736ab58a74f632e62a62b7a58a8a3745",
+   "sha256": "82b21d331d81e20e839ee7b59df50384728ade1c9cacd3a0f5601e3a5af306dc",
    "answer": "yes",
    "by": "judge-h"
   },
@@ -128,7 +128,7 @@
   },
   "q12": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "2cf46c097f3c88d253edd4d873fc4ba5a433ba0657df44689d3b37203e120083",
+   "sha256": "38372ccefe1b22e9b8e04cf6ab4cef6a83246ba813cd2d87d0e57b77a3abceae",
    "answer": "no",
    "by": "judge-h"
   },
