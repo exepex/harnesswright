@@ -195,7 +195,7 @@
       "check": {
         "name": "changes_only_in",
         "args": {
-          "allowed": ["v2/skills/changelog-writer/*", "v2/roles.md", "THIRD_PARTY.md", "v2/VERSION", "evals/skills/changelog-writer/stage-2.md", ".harness/*"]
+          "allowed": ["v2/skills/changelog-writer/*", "v2/roles.md", "THIRD_PARTY.md", "v2/VERSION", "evals/skills/changelog-writer/stage-2.md", ".harness/runs/*"]
         }
       },
       "judged": {
@@ -274,7 +274,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/ need not be listed.",
+        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out.",
         "examples": {
           "pass": ["The template, its notice file, the roles row and the THIRD_PARTY.md row written, and all four listed."],
@@ -314,6 +314,7 @@
     "evals/skills/changelog-writer/cases/load-on-merge/case.json": ["evals"],
     "evals/skills/changelog-writer/cases/load-on-merge/world": ["evals"],
     "evals/skills/changelog-writer/cases/load-on-merge/world/README.md": ["evals"],
-    "<prompt>": ["evals", "goldens"]
+    "<prompt>": ["evals", "goldens"],
+    "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": ["evals"]
   }
 }
