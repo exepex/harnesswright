@@ -19,5 +19,7 @@ the template once goldens and a baseline round exist. Each world is a small tool
   report, and no template, goldens or round.
 - `evals-unlicensed` (stage 1): a good-looking skill from a repository with no licence, which ships a script.
   The run writes the skill new, copies no source text, reads the script and never runs it.
+- `draft-adapt` (stage 2): a changelog skill adapted from an MIT source, once its goldens and baseline exist.
+  The run writes the template for the implementer role, cites rule IDs only, records the source and tries the build.
 
 `tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
