@@ -17,5 +17,7 @@ the template once goldens and a baseline round exist. Each world is a small tool
 
 - `evals-new` (stage 1): a new commit-message skill with nothing to borrow. The run writes cases and a stage
   report, and no template, goldens or round.
+- `evals-unlicensed` (stage 1): a good-looking skill from a repository with no licence, which ships a script.
+  The run writes the skill new, copies no source text, reads the script and never runs it.
 
 `tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
