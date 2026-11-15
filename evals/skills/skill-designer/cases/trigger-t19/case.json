@@ -1,0 +1,14 @@
+{
+  "prompt": "add a .harness/profile.yaml for samples/java-shop with the layers core and java, and the toolchain commands for maven",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

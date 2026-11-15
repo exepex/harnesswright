@@ -1,0 +1,14 @@
+{
+  "prompt": "review the change in changes/triage.diff, which edits v2/rules/core/triage.md, and comment on anything that breaks docs/rule-format.md",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

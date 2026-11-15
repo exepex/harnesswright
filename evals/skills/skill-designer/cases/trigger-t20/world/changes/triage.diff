@@ -1,0 +1,8 @@
+--- a/v2/rules/core/triage.md
++++ b/v2/rules/core/triage.md
+@@ -8,0 +9,5 @@
++### CORE-TRIAGE-04 Pick one risk tier
++
++**Applies to:** triage
++
++Every change gets exactly one risk tier: low, medium or high.
