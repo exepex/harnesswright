@@ -9,3 +9,13 @@ not borrowed material: the licence holder, repositories and commits in them are 
 `files/commit-message-writer` is the drafted skill that task 4 asks the designer to judge itself.
 
 Results per host are in `evals/results/skill-designer.json`. Run them with the eval runner in `evals/runner/`.
+
+`cases/` holds the cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)) for the coming skill
+designer template. It runs in stages, and each case measures one: stage 1 writes a skill's cases, stage 2 drafts
+the template once goldens and a baseline round exist. Each world is a small toolkit with its own hand-written
+`AGENTS.md`, so the contract expectations cite that file:
+
+- `evals-new` (stage 1): a new commit-message skill with nothing to borrow. The run writes cases and a stage
+  report, and no template, goldens or round.
+
+`tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
