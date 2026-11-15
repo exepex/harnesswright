@@ -75,7 +75,7 @@
   },
   "q7": {
    "expectation": "The claims state results without hedging words",
-   "sha256": "4bea5cf8c18ff740170585dd6c03c8ebfbb8290ad3f786522669cb792ce5bd9c",
+   "sha256": "b17293f820f07d93d8b9e1ca46801cafed201b99a910ed200b6b33f507718fbd",
    "answer": "no",
    "by": "judge-f"
   },

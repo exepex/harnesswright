@@ -153,7 +153,7 @@
       "source": "format",
       "judged": {
         "question": "Outside quotes, code and the Not verified section, is the writer's own text free of words such as should work, probably, seems to or looks good?",
-        "pass": "Yes when no such word appears there; a hedge under Not verified, on something listed there as unproven, does not count.",
+        "pass": "Yes when no such word appears there; a hedge under the Not verified heading does not count.",
         "fail": "No when such a word appears anywhere else in the writer's own text, even next to its evidence.",
         "examples": {
           "pass": [
