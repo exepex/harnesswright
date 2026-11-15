@@ -1,0 +1,19 @@
+{
+  "prompt": "we keep explaining to the implementer how to write commit messages for this repo. can you turn that into a proper skill, with its evals, so every host picks it up",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "<prompt>": [
+      "evals"
+    ]
+  }
+}

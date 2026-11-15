@@ -1,0 +1,14 @@
+{
+  "prompt": "is the TDD skill in incoming/tdd/ good enough to adopt as it is, or should we adapt it? score it against docs/skill-checklist.md and then take whichever path is right",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "prompt": "turn the steps in docs/notes/profile-layers.md for resolving the profile layers into a reusable skill folder, with its template, references and evals",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "<prompt>": [
+      "evals"
+    ]
+  }
+}
