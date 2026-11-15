@@ -1,4 +1,5 @@
 # Team toolkit
 
 Skills our teams install in their repositories. Each skill is a template under `v2/skills/`, built into the
-release by the toolkit's maintainers. Evals for each skill live under `evals/skills/`.
+release by the toolkit's maintainers. Each skill's evals live under `evals/skills/<name>/cases/`. The two
+`release-notes` cases there are samples of each kind; its full set and goldens are kept by the eval owner.
