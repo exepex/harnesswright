@@ -83,7 +83,7 @@
       "judged": {
         "question": "Does every trigger case say whether it should load the skill and whether it is train or test, with half of the should-load cases and half of the others in test?",
         "pass": "Yes when every trigger case states both, and each kind is split in half, or as near half as an odd count allows.",
-        "fail": "No when a trigger case lacks either, or one kind has far more or fewer than half in test.",
+        "fail": "No when a trigger case lacks either, or either kind is not split in half, or as near half as an odd count allows.",
         "examples": {
           "pass": [
             "Ten should-load cases, five marked test; ten others, five marked test."
@@ -275,7 +275,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list.",
+        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out.",
         "examples": {
           "pass": [
