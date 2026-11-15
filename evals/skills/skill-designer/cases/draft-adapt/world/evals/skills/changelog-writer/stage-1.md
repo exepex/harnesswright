@@ -28,4 +28,4 @@ No round.
 
 ## Next
 
-Goldens: a separate author. Baseline round without the skill: the eval owner.
+Goldens are for another author to write. The eval owner runs the first round, with no skill loaded.
