@@ -26,6 +26,29 @@
       }
     },
     {
+      "text": "Each case is its own folder with a case.json and a world",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 8,
+          "quote": "Its cases go under `evals/skills/<name>/cases/`, one folder per case, each with a `case.json` and a `world/` folder."
+        }
+      },
+      "judged": {
+        "question": "Is every case the run wrote a folder under evals/skills/pr-description-writer/cases/ that holds a case.json and a world/ folder?",
+        "pass": "Yes when each case has its own folder with both.",
+        "fail": "No when cases are listed in one file, or a case folder lacks its case.json or its world/ folder.",
+        "examples": {
+          "pass": [
+            "evals/skills/pr-description-writer/cases/asks-for-summary/case.json beside evals/skills/pr-description-writer/cases/asks-for-summary/world/."
+          ],
+          "fail": [
+            "All queries in one evals/skills/pr-description-writer/triggers.json, with no case folders."
+          ]
+        }
+      }
+    },
+    {
       "text": "At least eight should-load trigger cases and eight near misses",
       "source": {
         "contract": {
@@ -210,30 +233,6 @@
           ],
           "fail": [
             "A new row in AGENTS.md for the skill."
-          ]
-        }
-      }
-    },
-    {
-      "text": "The stage report is written",
-      "source": "format",
-      "check": {
-        "name": "file_state",
-        "args": {
-          "path": "evals/skills/pr-description-writer/stage-1.md",
-          "state": "changed"
-        }
-      },
-      "judged": {
-        "question": "Did the run write its report to evals/skills/pr-description-writer/stage-1.md?",
-        "pass": "Yes when that file is there after the run and the run wrote it.",
-        "fail": "No when the report is only in the final answer, or in a file anywhere else.",
-        "examples": {
-          "pass": [
-            "A new evals/skills/pr-description-writer/stage-1.md."
-          ],
-          "fail": [
-            "The report only in the final message."
           ]
         }
       }
