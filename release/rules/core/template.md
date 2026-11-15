@@ -70,8 +70,8 @@ with the older rule it carries over.
 - **Why:** Hosts reject or treat differently anything outside the Agent Skills specification, and hosts load the
   release file, not the template.
 - **Check:** Read both frontmatters against this list, or run the frontmatter check script.
-- **Good:** `name: claims-writer` in `v2/skills/claims-writer/SKILL.tmpl.md` and `release/claims-writer/SKILL.md`.
-- **Bad:** `name: Claims Writer` with an `allowed-tools` field, or a template folder named `claims`.
+- **Good:** `name: invoice-writer` in `v2/skills/invoice-writer/SKILL.tmpl.md` and `release/invoice-writer/SKILL.md`.
+- **Bad:** `name: Invoice Writer` with an `allowed-tools` field, or a template folder named `invoices`.
 - **Eval:** a template whose `name` has capitals and does not match its folder, and one with an `allowed-tools`
   field, which the skill judge must flag.
 - **Source:**
@@ -95,7 +95,7 @@ with the older rule it carries over.
 - **Check:** Is the first step of the template the read of the rules texts, with which stacks to read and the
   missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each read-back
   block?
-- **Good:** "1. Read `rules-text-claims-writer.<stack>.md` beside `rules.md` for each stack whose code the story
+- **Good:** "1. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md` for each stack whose code the story
   touches (every stack's when it touches none), making it with the standards reader's command if it is missing.
   Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
   step: "Quote the read-back block of each rules text in the claims."
