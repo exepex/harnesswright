@@ -1,0 +1,17 @@
+{
+ "attempt": "20261114T160500-r8nd",
+ "commit": "b21f9aa",
+ "reference": "claude-code",
+ "round": "release-notes-2",
+ "skills": {
+  "release-notes": {
+   "claude-code": {
+    "label": "unsupported",
+    "pass_rate": 0.8333,
+    "baseline_pass_rate": 0.3333,
+    "trigger_accuracy": 0.85,
+    "gaps": ["trigger accuracy 0.85 is below 0.9"]
+   }
+  }
+ }
+}
