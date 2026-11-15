@@ -71,7 +71,7 @@
  "settled": {
   "q1": {
    "expectation": "Only the description changes",
-   "sha256": "0beb89db14bf175ff5007fe10bfcf67d76fadfbcf23f06d9c96e570b426c7a7f",
+   "sha256": "c6c4d71857eb3ff766961dfd97644ccc6dec531f18c4a17153569c6715f3660a",
    "answer": "yes",
    "by": "judge-h"
   },
