@@ -21,5 +21,7 @@ the template once goldens and a baseline round exist. Each world is a small tool
   The run writes the skill new, copies no source text, reads the script and never runs it.
 - `draft-adapt` (stage 2): a changelog skill adapted from an MIT source, once its goldens and baseline exist.
   The run writes the template for the implementer role, cites rule IDs only, records the source and tries the build.
+- `improve-triggers` (stage 3): a skill whose round came out unsupported because it missed three train cases.
+  The run changes only the description and the version, and asks for a round against the previous version.
 
 `tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
