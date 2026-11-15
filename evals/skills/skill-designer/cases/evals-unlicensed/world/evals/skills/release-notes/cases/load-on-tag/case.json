@@ -1,0 +1,6 @@
+{
+  "prompt": "we just cut v2.0.0, can you draft what changed for the announcement page",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test"
+}
