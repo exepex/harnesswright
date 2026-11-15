@@ -142,7 +142,7 @@
       "check": {
         "name": "changes_only_in",
         "args": {
-          "allowed": ["v2/skills/release-notes/SKILL.tmpl.md", "evals/skills/release-notes/stage-2.md", "v2/VERSION", ".harness/*"]
+          "allowed": ["v2/skills/release-notes/SKILL.tmpl.md", "evals/skills/release-notes/stage-2.md", "v2/VERSION", ".harness/runs/*"]
         }
       },
       "judged": {
@@ -221,7 +221,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/ need not be listed.",
+        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out.",
         "examples": {
           "pass": ["The template and v2/VERSION written, and both listed."],
@@ -274,6 +274,7 @@
     "evals/skills/release-notes/cases/load-on-tag": ["evals"],
     "evals/skills/release-notes/cases/load-on-tag/case.json": ["evals"],
     "evals/skills/release-notes/cases/load-on-tag/world": ["evals"],
-    "evals/skills/release-notes/cases/load-on-tag/world/README.md": ["evals"]
+    "evals/skills/release-notes/cases/load-on-tag/world/README.md": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": ["evals"]
   }
 }
