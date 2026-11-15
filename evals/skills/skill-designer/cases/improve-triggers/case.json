@@ -13,7 +13,7 @@
         }
       },
       "judged": {
-        "question": "Before the run, the release-notes template held: the fields name (release-notes), description, license (Apache-2.0) and metadata (sourcing new, areas rest, roles release manager); the title Release notes; and a Steps section of three numbered steps, each ending in a Check: list the pull requests merged after the last tag (CORE-WORK-01), put each in one group, Fixed, Changed or Added (CORE-SKILL-05), write the notes file of the version. Is the description the only part of the template after the run that differs from this?",
+        "question": "Before the run, the release-notes template held: the fields name (release-notes), description, license (Apache-2.0) and metadata (sourcing new, areas rest, roles release manager); the title Release notes; and a Steps section of three numbered steps, each ending in a Check, given here in other words, so compare by meaning: list the pull requests merged after the last tag (CORE-WORK-01), put each in one group, Fixed, Changed or Added (CORE-SKILL-05), write the notes file of the version, under docs/releases. Is the description the only part of the template after the run that differs from this?",
         "pass": "Yes when the description line changed and every other field, the title and the three steps with their IDs and checks are as listed, with nothing added or removed.",
         "fail": "No when the run changed the steps, the name, the metadata or any other part, or rewrote the template.",
         "examples": {
