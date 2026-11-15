@@ -1,0 +1,38 @@
+# The eval harness's own tests (evals/harness/tests), on every pull request and every push to main. The jail tests
+# need bubblewrap and socat, and Ubuntu 24.04 lets bubblewrap make its namespaces only once AppArmor's limit on
+# unprivileged user namespaces is lifted, so no test is skipped for want of a jail.
+name: eval-harness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-harness-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}  # every commit of main keeps its verdict
+
+jobs:
+  eval-harness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: "3.13"
+      - name: Install the jail
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq bubblewrap socat
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Harness tests
+        working-directory: evals/harness
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"  # stray bytecode would change the kit's files
+        run: python3 -m unittest discover -s tests
