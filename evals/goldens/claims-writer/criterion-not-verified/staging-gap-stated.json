@@ -83,9 +83,9 @@
   },
   "q7": {
    "expectation": "The claims state results without hedging words",
-   "sha256": "3990023ad36dc24b7fd02559b1b8fbc3b490d9b4a1ac8695ad3a5e90f8209405",
+   "sha256": "b17293f820f07d93d8b9e1ca46801cafed201b99a910ed200b6b33f507718fbd",
    "answer": "yes",
-   "by": "judge-c"
+   "by": "judge-f"
   },
   "q8": {
    "expectation": "Every file listed under Files changed has its true line count",
