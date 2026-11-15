@@ -55,7 +55,7 @@
         "pass": "Yes when none of the three prompts, nor five or more words in a row of one, is in the description.",
         "fail": "No when the description holds a prompt, or five or more words in a row of one.",
         "examples": {
-          "pass": ["...when its what's-new note for customers is due (four words of a prompt, not five)."],
+          "pass": ["...when asked to put together the changes of a version (four words in a row of the second prompt, not five)."],
           "fail": ["A description holding the first prompt's run of six words, from write up to customers."]
         }
       }
@@ -75,7 +75,7 @@
         "fail": "No when the do-not-use part is gone, or the wider description now also covers one of those near misses.",
         "examples": {
           "pass": ["Use for the notes or announcement of a released version. Do not use for a changelog entry or a commit message."],
-          "fail": ["Use whenever changes need writing up for anyone.", "A description with only when to use it."]
+          "fail": ["Use whenever changes need writing up for anyone.", "A description with only when to use it.", "Use for release notes, announcements and migration guides; not for commit messages."]
         }
       }
     },
