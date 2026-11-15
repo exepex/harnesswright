@@ -142,6 +142,13 @@ class Report(TempCase):
         with self.assertRaisesRegex(compare.CompareError, "goose=model-b: it did not grade every page"):
             self.report()
 
+    def test_a_file_of_the_pass_that_lacks_a_field_is_named(self):
+        page = self.out / "model-b" / "pages" / "0003.json"
+        page.write_text("{}")
+        with redirect_stderr(io.StringIO()) as said:
+            self.assertEqual(compare.main([str(self.out)], self.repo), 1)
+        self.assertIn(f"compare: {page}: no field 'graders'", said.getvalue())
+
     def test_the_command_writes_the_report_beside_the_pass(self):
         with redirect_stdout(io.StringIO()) as said:
             self.assertEqual(compare.main([str(self.out), "--family", "claude-code", A], self.repo), 0)

@@ -153,6 +153,18 @@ class Gates(Gated):
                                     r"stopped at the lint gate: fakehost, haiku-writer/c1, previous_version: "):
             self.go(gates.GATES[1:2])
 
+    def test_the_lint_gate_reads_the_skill_from_the_release_when_the_manifest_lists_it(self):
+        line = "Count the syllables of every line twice before you write it down."
+        release = self.repo / "release" / "haiku-writer"
+        release.mkdir(parents=True)
+        release.joinpath("SKILL.md").write_text("---\nname: haiku-writer\ndescription: Writes a haiku. Use when asked "
+                                                f"for a haiku.\n---\n\n{line}\n")
+        (self.repo / "release" / "manifest.json").write_text('{"skills": {"haiku-writer": {}}}\n')
+        (self.case_dir / "world" / "README.md").write_text(f"# Notes app\n\n{line}\n")
+        self.planned()
+        with self.assertRaisesRegex(rounds.RoundError, r"README.md: holds 5 run\(s\) of the skill's own text"):
+            self.go(gates.GATES[1:2])
+
     def test_what_a_probe_gives_is_kept_only_scrubbed(self):
         self.planned()
         secret, token = "sk-" + "s" * 30, "hw-canary-" + "t" * 20

@@ -80,20 +80,37 @@ def kappa(pairs):
     return None if chance == 1 else round((seen - chance) / (1 - chance), 4)
 
 
+class _Fields(dict):
+    """An object of one file of the pass: a field it lacks names the file."""
+
+    def __init__(self, fields, path):
+        super().__init__(fields)
+        self.path = path
+
+    def __missing__(self, key):
+        raise CompareError(f"{self.path}: no field {key!r}")
+
+
+def _load(path):
+    """The JSON of `path`, the one reader of the pass's files: every object in it names `path` when a field is
+    missing."""
+    return json.loads(path.read_text(), object_hook=lambda fields: _Fields(fields, path))
+
+
 def read(out):
     """(head, pages, {route key: (route entry, {place: graders}, its proof)}) of the finished pass in `out`."""
     out = Path(out)
-    head = json.loads((out / "regrade.json").read_text())
+    head = _load(out / "regrade.json")
     if not head.get("finished"):
         raise CompareError(f"{out}: the pass has no finish time, so it stopped part way")
-    pages = json.loads((out / "pages.json").read_text())
+    pages = _load(out / "pages.json")
     routes = {}
     for entry in head["routes"]:
         folder = out / entry["folder"] / "pages"
-        graded = {path.stem: json.loads(path.read_text())["graders"] for path in sorted(folder.glob("*.json"))}
+        graded = {path.stem: _load(path)["graders"] for path in sorted(folder.glob("*.json"))}
         if set(graded) != set(pages):
             raise CompareError(f"route {entry['adapter']}={entry['model']}: it did not grade every page of the pass")
-        proved = json.loads((out / entry["folder"] / "proved.json").read_text())
+        proved = _load(out / entry["folder"] / "proved.json")
         routes[f"{entry['adapter']}={entry['model']}"] = (entry, graded, proved)
     return head, pages, routes
 
