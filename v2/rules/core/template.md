@@ -95,7 +95,7 @@ with the older rule it carries over.
 - **Check:** Is the first step of the template the read of the rules texts, with which stacks to read and the
   missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each read-back
   block?
-- **Good:** "1. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md` for each stack whose code the story
+- **Good:** "1. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md` for each stack whose code the work
   touches (every stack's when it touches none), making it with the standards reader's command if it is missing.
   Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
   step: "Quote the read-back block of each rules text in the claims."
