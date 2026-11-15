@@ -22,7 +22,7 @@ with the older rule or checklist item it carries over.
   or a check a script can make is not a skill: it is a task, an application rule or a script.
 - **Why:** Every skill costs tokens each time agents scan the list. A skill that never recurs is pure cost.
 - **Check:** Name two different tasks that would use the skill. If you cannot, it fails.
-- **Good:** `claims-writer`: every finished story needs its claims written.
+- **Good:** `invoice-writer`: every billing run needs its invoices written.
 - **Bad:** `fix-login-timeout-march`: one bug, fixed once.
 - **Eval:** a proposed skill for a single bug fix, which the skill judge must reject.
 - **Source:**
@@ -251,8 +251,8 @@ with the older rule or checklist item it carries over.
   copies the other skill's steps or text.
 - **Why:** Copied steps drift apart from the skill they came from, and cost tokens twice.
 - **Check:** Is every other skill named with "required" or "background"?
-- **Good:** "Required first: the claims-writer skill."
-- **Bad:** Five steps pasted from claims-writer.
+- **Good:** "Required first: the invoice-writer skill."
+- **Bad:** Five steps pasted from invoice-writer.
 - **Eval:** a skill that pastes another skill's steps, which the skill judge must flag.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/discovery.md` (MIT)
@@ -361,7 +361,7 @@ with the older rule or checklist item it carries over.
 - **Rule:** The repository's agent instructions file lists every skill with its path and when to use it.
 - **Why:** Some hosts do not load skills on their own. Unlisted skills are never used there.
 - **Check:** Is every skill folder listed, and does every listed path exist?
-- **Good:** A row with `claims-writer`, its path and its "use when".
+- **Good:** A row with `invoice-writer`, its path and its "use when".
 - **Bad:** A new skill folder with no row.
 - **Eval:** a repository with an unlisted skill, which the skill judge must flag.
 - **Source:**
