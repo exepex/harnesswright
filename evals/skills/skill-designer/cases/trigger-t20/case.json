@@ -1,5 +1,5 @@
 {
-  "prompt": "review the change in changes/triage.diff, which edits v2/rules/core/triage.md, and comment on anything that breaks docs/rule-format.md",
+  "prompt": "review the change in changes/triage.diff, which edits v2/skills/triage/SKILL.tmpl.md, and leave a comment on each line that breaks docs/skill-checklist.md",
   "kind": "trigger",
   "should_trigger": false,
   "split": "train",
