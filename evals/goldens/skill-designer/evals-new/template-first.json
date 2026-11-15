@@ -122,7 +122,7 @@
   },
   "q8": {
    "expectation": "The run changes only the skill's evals folder",
-   "sha256": "58a7fdbb56349f7079ea0475b120190faa3634fb1c232bf93b564c1237b2a845",
+   "sha256": "6b7e9e12be50478696cccd6e8431898c7e8ead7d19c7c46123e383dde96155a9",
    "answer": "no",
    "by": "judge-e"
   },
@@ -146,7 +146,7 @@
   },
   "q12": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "83e67987302882700262503dc513343fad53f148b1ddb486e96285e295a8ef25",
+   "sha256": "6b54e1899446dacc1846a9b7a22907f3d8808851c3030ea5cdf50367291718ec",
    "answer": "no",
    "by": "judge-e"
   },
