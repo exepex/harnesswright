@@ -1,0 +1,6 @@
+{
+  "kind": "trigger",
+  "prompt": "about to merge #91, can you put it in the changelog",
+  "should_trigger": true,
+  "split": "test"
+}
