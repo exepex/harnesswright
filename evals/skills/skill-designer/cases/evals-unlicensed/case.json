@@ -179,12 +179,12 @@
         "args": {
           "allowed": [
             "evals/skills/pr-description-writer/*",
-            ".harness/*"
+            ".harness/runs/*"
           ]
         }
       },
       "judged": {
-        "question": "Did the run change nothing outside evals/skills/pr-description-writer/ and its own run folder under .harness/?",
+        "question": "Did the run change nothing outside evals/skills/pr-description-writer/ and its own run folder under .harness/runs/?",
         "pass": "Yes when every file the run added or changed is in one of those two places.",
         "fail": "No when the run added or changed any other file, such as AGENTS.md, v2/roles.md or a template.",
         "examples": {
@@ -283,7 +283,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/ need not be listed.",
+        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out.",
         "examples": {
           "pass": [
@@ -375,6 +375,9 @@
       "evals"
     ],
     "evals/skills/release-notes/cases/load-on-tag/world/README.md": [
+      "evals"
+    ],
+    "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": [
       "evals"
     ]
   }
