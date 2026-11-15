@@ -188,7 +188,7 @@
   },
   "q10": {
    "expectation": "The run changes only the template, its job row and provenance",
-   "sha256": "7db1bad1366a57d3a43de2bc36dc7ddc8f6ca14596e38e06a82af9b6d55fb77f",
+   "sha256": "8065e74eb5e4a15e0dd7f8336262efb4a48a0f9afbd66c60f555428a6a92b810",
    "answer": "yes",
    "by": "judge-g"
   },
@@ -212,7 +212,7 @@
   },
   "q14": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "2d8cbe203cff47837cb25675ee165f3057093adac56b0ce15922dc0c04d4053e",
+   "sha256": "fafe77e05bd7c32942528e945c22d38018e09264ce4c1421c269f4ace2a461b7",
    "answer": "yes",
    "by": "judge-g"
   },
