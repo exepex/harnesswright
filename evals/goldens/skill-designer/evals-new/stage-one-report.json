@@ -9,7 +9,7 @@
   "evals/skills/commit-message-writer/cases/past-tense-subject/case.json": "{\n  \"prompt\": \"turn 'fixed the login bug and updated some tests' into a proper commit message\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": true,\n  \"split\": \"test\"\n}\n",
   "evals/skills/commit-message-writer/cases/two-commits/case.json": "{\n  \"prompt\": \"I split the change into two commits, write a message for each one\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": true,\n  \"split\": \"train\"\n}\n",
   "evals/skills/commit-message-writer/cases/release-notes-tag/case.json": "{\n  \"prompt\": \"draft the release notes for v3.1.0 from the merged pull requests\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"test\"\n}\n",
-  "evals/skills/commit-message-writer/cases/pr-description/case.json": "{\n  \"prompt\": \"write the pull request description for this branch\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"train\"\n}\n",
+  "evals/skills/commit-message-writer/cases/pr-description/case.json": "{\n  \"prompt\": \"write up the description for this branch's pull request\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"train\"\n}\n",
   "evals/skills/commit-message-writer/cases/changelog-entry/case.json": "{\n  \"prompt\": \"add an entry to CHANGELOG.md for the new --export flag\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"test\"\n}\n",
   "evals/skills/commit-message-writer/cases/rebase-on-main/case.json": "{\n  \"prompt\": \"rebase my branch onto main and fix the conflicts\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"train\"\n}\n",
   "evals/skills/commit-message-writer/cases/review-before-commit/case.json": "{\n  \"prompt\": \"review the diff on this branch before I commit it\",\n  \"kind\": \"trigger\",\n  \"should_trigger\": false,\n  \"split\": \"test\"\n}\n",
@@ -139,7 +139,7 @@
    "kind": "write",
    "source": "observed",
    "path": "evals/skills/commit-message-writer/cases/pr-description/case.json",
-   "sha256": "ada110624c0111c124f76dcc4053327eef245e4fe6b54fff051593590a6e379f"
+   "sha256": "a81ab9de4e844fab357abfea85644a1abc39300fb59ce2a62d308b18c8ec05b8"
   },
   {
    "kind": "write",
