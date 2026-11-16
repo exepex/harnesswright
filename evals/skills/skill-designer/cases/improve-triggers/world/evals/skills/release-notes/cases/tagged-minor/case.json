@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "v1.4.0 was tagged this morning. Put together its notes.",
+  "expectations": [
+    {
+      "judged": {
+        "question": "After the run, does docs/releases/v1.4.0.md hold the notes for that tag?",
+        "pass": "Yes if the run created or filled that very file.",
+        "fail": "No if the notes went to the chat or some other path.",
+        "examples": {"fail": ["NOTES.txt at the top level."], "pass": ["docs/releases/v1.4.0.md listing three merged fixes."]}
+      },
+      "text": "Notes land in docs/releases/v1.4.0.md",
+      "source": "format"
+    }
+  ]
+}
