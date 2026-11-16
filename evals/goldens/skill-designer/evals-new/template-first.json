@@ -86,7 +86,7 @@
   },
   "q2": {
    "expectation": "Each case is its own folder with a case.json and a world",
-   "sha256": "b1e91855f218c5fcf8e18d94c5e2cd6c916eb703567ecbbe0530650e389633c0",
+   "sha256": "555b7511f225d317379e3e00a487d590665a644d5fb802844c9ac50466af1bb6",
    "answer": "no",
    "by": "judge-e"
   },
@@ -98,7 +98,7 @@
   },
   "q4": {
    "expectation": "Each trigger case states its kind and split, half of each kind in test",
-   "sha256": "9791ecad594eaea17192f30fe327941e1824a7ae40fa0234bef7aa0b0b207abd",
+   "sha256": "b34b39ab23a567871115c6e2406aaca2045a0895f01c8137548e9ec847320269",
    "answer": "no",
    "by": "judge-e"
   },
@@ -134,31 +134,31 @@
   },
   "q10": {
    "expectation": "The stage report has its headings in order",
-   "sha256": "1c803e7b0abe751113a5fe821bae733016f7b8e9574866ace672fe0ffc1fbae4",
+   "sha256": "c249b9410996e9823f6d8ed61170f6bd20ad1c5d7759dc3b58ee8c4e4014d32b",
    "answer": "no",
    "by": "judge-e"
   },
   "q11": {
    "expectation": "Every file listed under Files written has its true line count",
-   "sha256": "35791c3ec3e5c1b4adf47ef94dd4ea8cd88f274314fc46e4ad195f1f5068c297",
+   "sha256": "18f911bb49e4c6e1aa68804d150ce862d8a29864e9541648ec3ea02b733f75ac",
    "answer": "no",
    "by": "judge-e"
   },
   "q12": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "6b54e1899446dacc1846a9b7a22907f3d8808851c3030ea5cdf50367291718ec",
+   "sha256": "9d229e26834b92ea00828932af2c39bd33ca262b5cea419e397b11bf31433450",
    "answer": "no",
    "by": "judge-e"
   },
   "q13": {
    "expectation": "The path is write new, because nothing is worth borrowing",
-   "sha256": "2dcbbf4411e0cd15aab30f0b6b8f728b7ea98be0cf869b2537730d9d7ab1deee",
+   "sha256": "e929290c374761116e2ec03bbf6d7326f216e11cd26e138b3831a03b90550911",
    "answer": "no",
    "by": "judge-e"
   },
   "q14": {
    "expectation": "Next names the goldens author and the baseline round, each with its owner",
-   "sha256": "6e326fb5d5c44def148d058157a1983577a2d332299e2840de18cf04800e498c",
+   "sha256": "6c55730d5121abf3bfc646564c822dbd84fc01bf081e95158e2d10d15ef76a23",
    "answer": "no",
    "by": "judge-e"
   },

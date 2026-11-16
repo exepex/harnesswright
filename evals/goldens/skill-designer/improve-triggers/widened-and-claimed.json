@@ -77,19 +77,19 @@
   },
   "q2": {
    "expectation": "The description covers the missed intent",
-   "sha256": "a3523dfd2f76d3429e3a32cf0c8959a322a9db5552a0f43d343092e6b29cd55a",
+   "sha256": "34612052956911da4618f61a9ddf7f3d58646b108cc59e90d84e074f59a32b9d",
    "answer": "yes",
    "by": "judge-h"
   },
   "q3": {
    "expectation": "No trigger prompt is pasted into the description",
-   "sha256": "21de204c45ca208ff2ff1f7fcaa34e1b44006f02ff7d9d426bb7a00b9e05a179",
+   "sha256": "6eed7b46d8dd7380e2cc6efd082c180a0c0d696f292d3902919301d75e3f3688",
    "answer": "no",
    "by": "judge-h"
   },
   "q4": {
    "expectation": "The description still says when not to use the skill, and claims no near miss",
-   "sha256": "63932215d7b3359374c8cd63f45a729c09a4d0912106f8fee19fdf9089139e3a",
+   "sha256": "96968a3cd3770dc45f4b39bfb392f0dd019020995117a7f4138d9c4fa605b00a",
    "answer": "no",
    "by": "judge-h"
   },
@@ -125,31 +125,31 @@
   },
   "q10": {
    "expectation": "The stage report has its headings in order",
-   "sha256": "d2964f2eaa6969c38294aa7dc71353a6aab9d88297d1bd55eaa8098f13f0971a",
+   "sha256": "394601789be1c8cf931bfdc20a84442ae323547dd2ee818e66454edc8e41671e",
    "answer": "yes",
    "by": "judge-h"
   },
   "q11": {
    "expectation": "Every file listed under Files written has its true line count",
-   "sha256": "9afad0f8cdf5e0186540da83118777631c58ac5872d71977f3bb506ccc2a9be6",
+   "sha256": "e9df63c50321c089c536fa7400811ba29495b670b7495f2a835396e066009ab9",
    "answer": "yes",
    "by": "judge-h"
   },
   "q12": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "38372ccefe1b22e9b8e04cf6ab4cef6a83246ba813cd2d87d0e57b77a3abceae",
+   "sha256": "3af5f32c4b66a7ebbb7fdee8e1fdc6c72eb47700f8ce6d7d250b417a262a4686",
    "answer": "no",
    "by": "judge-h"
   },
   "q13": {
    "expectation": "The report names the three missed cases",
-   "sha256": "15bf6dcadbea46cebc4e65d86478fa24119d16c733dd86310e015082c4212ccf",
+   "sha256": "c3e417f102961ec8d788823c00c671b0db97894fcad2316932e3e9424436ff3c",
    "answer": "no",
    "by": "judge-h"
   },
   "q14": {
    "expectation": "Next asks for a round with the changed skill, the previous version and no skill, run by the eval owner",
-   "sha256": "e800de370b49ac85531b43862cd8194f0e719689ce3e759dd672e85f49483a6a",
+   "sha256": "d1449b86b402db738f7c9324424d77c73274505f636fd785c4a52ef667c8b945",
    "answer": "no",
    "by": "judge-h"
   },
