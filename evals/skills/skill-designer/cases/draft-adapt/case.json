@@ -49,10 +49,10 @@
       "judged": {
         "question": "Does the template's frontmatter hold only name, description, license, compatibility and metadata?",
         "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no other top-level field is there.",
-        "fail": "No when any other field is, such as allowed-tools or context. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "fail": "No when any other field is, such as the source's context field. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["name, description, license and metadata only."],
-          "fail": ["The source's allowed-tools field kept."]
+          "fail": ["The source's context field kept."]
         }
       }
     },
@@ -114,21 +114,21 @@
       }
     },
     {
-      "text": "No host-only tool or field is left",
+      "text": "No file of the new skill names a host-only tool, setting or variable, or a model",
       "source": {
         "contract": {
           "path": "AGENTS.md",
           "line": 32,
-          "quote": "A template tells the agent what to do in plain verbs. It names no tool that only one host has, and no model."
+          "quote": "A skill's files tell the agent what to do in plain verbs. None names a tool, setting or environment variable that only one host has, or a model."
         }
       },
       "judged": {
-        "question": "Is the template free of tool names that only one host has, such as the Bash or Edit tool, and of any model name, in its steps and anywhere else in it?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and every step says what to do in plain verbs, such as run, read or edit the file, and no such name is left anywhere in the template.",
-        "fail": "No when the template names a host's tool anywhere, even in a note that it was taken out, or names a model. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "The source names two things only one host has, both in the references/format.md file of incoming/changelog-writer/: a tool for starting a sub-agent, and an environment variable. Is every file the run wrote under v2/skills/changelog-writer/ free of both, of any other tool, setting or environment variable that only one host has, and of any model name?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file in v2/skills/changelog-writer/ names such a tool, setting or variable, or a model. A step that needs a helper agent says so in plain words.",
+        "fail": "No when any file there names the source's sub-agent tool or its environment variable, another tool or setting of one host, or a model, anywhere, even in a note that it was taken out. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["Run git log on the branch and read its commits."],
-          "fail": ["Use the Bash tool to run git log.", "A note: the Bash and Edit steps of the source were removed."]
+          "pass": ["A references/format.md that says: on a long branch, ask a helper agent for one line per commit, where the host can start one."],
+          "fail": ["A copied references/format.md that still says to edit in the editor pane when the source's variable is set.", "A note in the template that the source's sub-agent tool was replaced."]
         }
       }
     },
@@ -152,11 +152,30 @@
       }
     },
     {
+      "text": "The two rules the source restates are cited by ID, not kept as sentences",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 22,
+          "quote": "Where a borrowed skill has a sentence that says what a listed rule says, the template keeps the step's action, drops that sentence and cites the rule's ID instead."
+        }
+      },
+      "judged": {
+        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each say what a rule of v2/rules/index.md says: step 5 keeps credentials and personal data out of the changelog (CORE-WORK-06), and step 6 holds back any claim until the file has been read again (CORE-SKILL-07; CORE-WORK-01 or CORE-WORK-02 also fit). Does the template cite a fitting ID for each of the two, and leave out both sentences and any sentence of its own that says the same as a general rule?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and it cites CORE-WORK-06 for the first, and CORE-SKILL-07, CORE-WORK-01 or CORE-WORK-02 for the second, without either sentence. A step's own action and its check, such as reading the changelog back to see the new line, may stay beside the ID.",
+        "fail": "No when either ID is missing, or the template keeps either sentence, or says the same in words of its own, with or without the ID. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "examples": {
+          "pass": ["3. Add the line under Unreleased (CORE-WORK-06). Check: the new line is in CHANGELOG.md (CORE-SKILL-07)."],
+          "fail": ["The source's step 5 kept word for word, with CORE-WORK-06 added after it.", "A Rules section that explains in a sentence of its own why entries hold no secrets."]
+        }
+      }
+    },
+    {
       "text": "The job has a row in v2/roles.md for the implementer",
       "source": {
         "contract": {
           "path": "AGENTS.md",
-          "line": 33,
+          "line": 34,
           "quote": "Each skill's job is listed in `v2/roles.md`, in its Jobs table."
         }
       },
@@ -175,7 +194,7 @@
       "source": {
         "contract": {
           "path": "AGENTS.md",
-          "line": 34,
+          "line": 35,
           "quote": "After you change a template, run `python3 v2/build/build.py` and report what it printed."
         }
       },
@@ -190,8 +209,33 @@
       }
     },
     {
-      "text": "The run changes only the template, its job row and provenance",
-      "source": "format",
+      "text": "v2/VERSION is raised in its middle number for a new skill",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 16,
+          "quote": "A new skill raises the middle number and sets the last one to 0."
+        }
+      },
+      "judged": {
+        "question": "v2/VERSION read 0.4.1 before the run. Does it read 0.5.0 after the run?",
+        "pass": "Yes when v2/VERSION holds 0.5.0.",
+        "fail": "No when it still reads 0.4.1, or holds any other version, such as 0.4.2 or 1.0.0.",
+        "examples": {
+          "pass": ["v2/VERSION holds 0.5.0."],
+          "fail": ["v2/VERSION unchanged at 0.4.1.", "v2/VERSION raised to 0.4.2."]
+        }
+      }
+    },
+    {
+      "text": "The run changes only the files stage 2 may change",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 8,
+          "quote": "Writing a new skill's template changes only `v2/skills/<name>/`, `v2/roles.md`, `THIRD_PARTY.md`, `v2/VERSION` and the stage report, `evals/skills/<name>/stage-2.md`."
+        }
+      },
       "check": {
         "name": "changes_only_in",
         "args": {
@@ -210,7 +254,13 @@
     },
     {
       "text": "The stage report is written",
-      "source": "format",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 12,
+          "quote": "Stage 2 ends with that report, which lists every file the stage wrote"
+        }
+      },
       "check": {
         "name": "file_state",
         "args": {
@@ -225,6 +275,25 @@
         "examples": {
           "pass": ["A new evals/skills/changelog-writer/stage-2.md."],
           "fail": ["The report only in the final message."]
+        }
+      }
+    },
+    {
+      "text": "The stage report lists every file the run wrote",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 12,
+          "quote": "Stage 2 ends with that report, which lists every file the stage wrote"
+        }
+      },
+      "judged": {
+        "question": "Does evals/skills/changelog-writer/stage-2.md list every file the run added or changed?",
+        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and no file the run wrote is missing from it, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "examples": {
+          "pass": ["The template, its notice file, its reference, v2/VERSION and the roles and THIRD_PARTY.md rows written, and all six listed."],
+          "fail": ["The template listed, but not the notice file the run also wrote."]
         }
       }
     },
@@ -270,19 +339,6 @@
       }
     },
     {
-      "text": "Files written lists every file the run wrote",
-      "source": "format",
-      "judged": {
-        "question": "Does the Files written section of evals/skills/changelog-writer/stage-2.md list every file the run added or changed?",
-        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
-        "examples": {
-          "pass": ["The template, its notice file, the roles row and the THIRD_PARTY.md row written, and all four listed."],
-          "fail": ["The template listed, but not the notice file the run also wrote."]
-        }
-      }
-    },
-    {
       "text": "Next asks for a round with the skill, run by the eval owner",
       "source": "format",
       "judged": {
@@ -302,7 +358,7 @@
     "evals": ["evals"],
     "evals/skills": ["evals"],
     "evals/results": ["evals"],
-    "evals/results/changelog-writer-baseline.json": ["evals"],
+    "evals/results/changelog-writer-baseline.json": ["evals", "golden", "grader"],
     "evals/skills/changelog-writer": ["evals"],
     "evals/skills/changelog-writer/cases": ["evals"],
     "evals/skills/changelog-writer/stage-1.md": ["eval", "evals", "goldens"],
@@ -315,6 +371,7 @@
     "evals/skills/changelog-writer/cases/load-on-merge/world": ["evals"],
     "evals/skills/changelog-writer/cases/load-on-merge/world/README.md": ["evals"],
     "<prompt>": ["evals", "goldens"],
-    "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": ["evals"]
+    "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": ["evals"],
+    "docs/templates.md": ["evals"]
   }
 }

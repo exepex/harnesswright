@@ -1,17 +1,83 @@
 {
- "attempt": "20261114T091200-k2pq",
- "commit": "7d41c0e",
+ "attempt": "20261114T091200-k2pqx7mz",
+ "commit": "7d41c0e9a3b25f8164c0d7e2b9a1f3c5d8e6b402",
+ "prices": "2026-11-12",
  "reference": "claude-code",
  "round": "changelog-writer-baseline-1",
  "skills": {
   "changelog-writer": {
    "claude-code": {
-    "label": "incomplete",
     "baseline_pass_rate": 0.4444,
-    "runs": {"no_skill": 9, "skill": 0},
-    "per_case": {"adds-fix-entry": "1 of 3", "keeps-unreleased-order": "2 of 3", "no-entry-for-docs-only": "1 of 3"},
-    "gaps": ["no with-skill arm: the skill has no template yet"]
+    "false_done": {
+     "without_skill": {
+      "decided": 9,
+      "false_done": 3,
+      "rate": 0.3333,
+      "undecided": 0
+     }
+    },
+    "faults": {
+     "caught": 14,
+     "planted": 14
+    },
+    "format_conformance": {
+     "without_skill": {
+      "decided": 27,
+      "passed": 4,
+      "rate": 0.1481,
+      "undecided": 0
+     }
+    },
+    "gaps": [
+     "test trigger cases: none",
+     "adds-fix-entry, with_skill: 0 scored run(s), 3 needed",
+     "keeps-unreleased-order, with_skill: 0 scored run(s), 3 needed",
+     "no-entry-for-docs-only, with_skill: 0 scored run(s), 3 needed"
+    ],
+    "golden_accuracy": {
+     "asked": 135,
+     "rate": 1.0,
+     "right": 135
+    },
+    "grader_agreement": {
+     "agreed": 133,
+     "asked": 135,
+     "rate": 0.9852
+    },
+    "host_version": "2.1.320 (Claude Code)",
+    "inferred_evidence": {
+     "without_skill": 0
+    },
+    "inferred_loads": 0,
+    "label": "incomplete",
+    "lift": null,
+    "runs": {
+     "adds-fix-entry, with_skill": 0,
+     "adds-fix-entry, without_skill": 3,
+     "keeps-unreleased-order, with_skill": 0,
+     "keeps-unreleased-order, without_skill": 3,
+     "no-entry-for-docs-only, with_skill": 0,
+     "no-entry-for-docs-only, without_skill": 3
+    },
+    "task_cases": 3,
+    "task_pass_rate": null,
+    "trigger_accuracy": null,
+    "trigger_cases": 0,
+    "void_rate": {
+     "without_skill": {
+      "rate": 0.0,
+      "tries": 9,
+      "voids": 0
+     }
+    }
    }
   }
+ },
+ "thresholds": {
+  "max_gap": 0.15,
+  "min_lift": 0.05,
+  "min_runs": 3,
+  "task_pass_rate": 0.85,
+  "trigger_accuracy": 0.9
  }
 }

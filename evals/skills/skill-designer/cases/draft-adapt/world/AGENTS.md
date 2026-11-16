@@ -29,9 +29,12 @@ application code.
 - The only frontmatter fields a template may have are `name`, `description`, `license`, `compatibility` and
   `metadata`. Its `metadata` holds `roles`, `areas` and, for a borrowed skill, `source`, `source-licence` and
   `sourcing`, which is `adopted` or `adapted`.
-- A template tells the agent what to do in plain verbs. It names no tool that only one host has, and no model.
+- A skill's files tell the agent what to do in plain verbs. None names a tool, setting or environment variable
+  that only one host has, or a model.
 - Each skill's job is listed in `v2/roles.md`, in its Jobs table.
 - After you change a template, run `python3 v2/build/build.py` and report what it printed.
+- What a template may change, how it raises the version and how it cites rules are in
+  [docs/templates.md](docs/templates.md).
 
 ## Working rules
 
