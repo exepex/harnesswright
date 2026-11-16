@@ -1,0 +1,14 @@
+{
+  "prompt": "review the change in changes/triage.diff, which edits v2/skills/triage/SKILL.tmpl.md, and leave a comment on each line that breaks docs/skill-checklist.md",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "prompt": "the CI job that lints template frontmatter fails on main with this error: `yaml: line 9: did not find expected key`. fix the workflow file",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

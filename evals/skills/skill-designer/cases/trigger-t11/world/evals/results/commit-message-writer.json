@@ -1,0 +1,6 @@
+{
+ "round": "commit-message-writer-1",
+ "skills": {"commit-message-writer": {
+  "claude-code": {"trigger_accuracy": 0.95, "pass_rate": 0.9444, "label": "verified"}
+ }}
+}

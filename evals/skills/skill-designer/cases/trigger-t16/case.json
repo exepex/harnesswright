@@ -1,0 +1,14 @@
+{
+  "prompt": "write a python script for adapters/codex that builds the codex exec command line for a run, plus unittest cases for it",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
