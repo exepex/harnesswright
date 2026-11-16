@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-01, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
   rulebook-version: "0.4.1"
-  content-hash: "097a634f3b302fe01303c3dd62eefee58cfd4642f011b58a0dc87033d67c9736"
+  content-hash: "5c3adde71016a2806d3e60b34b17d1ff75d54c6df6b7a10f641e5b298ccbbdc5"
   size-floors: "14440"
-  size-rest: "26128"
+  size-rest: "26239"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.4.1. Do not edit. -->
 
@@ -514,10 +514,11 @@ Check: the run folder holds `rules.md` and the rules texts, and you have read th
 
 1. Look for `evals/skills/<name>/cases/`. With no case folder there, the stage is 1, even when the request asks for
    the skill itself: say so in the report.
-2. With cases, read the label file the request names. Stage 3 needs the label `verified` on the reference host.
-   Otherwise the stage 2 test applies, and it is the only one: the label file names this skill, its no-skill arm
-   has at least 3 scored runs of every task case, and for an improvement the round report lists the failed cases.
-   When the test fails, ask which file to read, and write nothing.
+2. With cases, read the label file the request names. It must name this skill, for either stage; when it does not,
+   ask which file to read, and write nothing. Stage 3 needs the label `verified` on the reference host. Otherwise
+   the stage 2 test applies, and it is the only one: the label's no-skill arm has at least 3 scored runs of every
+   task case, and for an improvement the round report lists the failed cases. When the test fails, ask which file
+   to read, and write nothing.
 3. The test reads only the label file and the round report. Goldens are kept by others and are not in the project:
    never search for them, and never stop because you see none. A project may hold only some of the cases, as
    samples; that is no reason to stop either.
@@ -540,7 +541,7 @@ Check: you know the stage and why, from files you read.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show, each with its source.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
-6. On the write-new path, compare every file you wrote with every file of the source: no eight words in a row may
+6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:
 
    ```sh
@@ -555,8 +556,8 @@ Check: you know the stage and why, from files you read.
 
    List the command and its result under Checked.
 
-Check: every case is a folder with both files; the counts and the split hold; on the write-new path the copy check
-passed or is under Not run; you wrote nothing outside the stage's files, and no golden or round
+Check: every case is a folder with both files; the counts and the split hold; on the write-new path with a source,
+the copy check passed or is under Not run; you wrote nothing outside the stage's files, and no golden or round
 result.
 
 ### 4. Stage 2: write the skill
