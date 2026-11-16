@@ -1,0 +1,14 @@
+{
+  "prompt": "the scenario-tester skill names a host's subagent tool in step 4 and keeps allowed-tools in its frontmatter. make it portable under the rules in AGENTS.md",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
