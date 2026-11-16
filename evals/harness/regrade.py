@@ -120,9 +120,10 @@ def pages(r, attempt, outcome):
             raise RegradeError(f"run {path.stem}: its bundle is not in the store")
         record, blob = evidence.load(bundle[1])
         verdicts = json.loads((bundle[1].parent / "checks.json").read_text())["verdicts"]
-        found[path.stem] = {"text": grades.text(record, blob), "kept": kept, "kind": "run", "case": kept["case"],
+        case = r.cases[(skill, case_id)]
+        found[path.stem] = {"text": grades.text(case, record, blob), "kept": kept, "kind": "run", "case": kept["case"],
                             "host": record["host"], "model": record["model"], "arm": record["arm"],
-                            "asked": grading.questions(r.cases[(skill, case_id)].expectations, verdicts)}
+                            "asked": grading.questions(case.expectations, verdicts)}
     top = grades.reference(r.hosts)
     library = checks.library(r.repo / "evals" / "checks")
     expected = set()  # the golden records the grade gate wrote: one for each golden with a question to grade
@@ -143,7 +144,7 @@ def pages(r, attempt, outcome):
             if not path.is_file():
                 raise RegradeError(f"{name}: the grade gate graded it, and its grade record is not in the store")
             found[name] = {
-                "text": grades.text(record, blobs.__getitem__), "kept": json.loads(path.read_text()),
+                "text": grades.text(case, record, blobs.__getitem__), "kept": json.loads(path.read_text()),
                 "kind": "golden", "case": f"{skill}/{case_id}", "host": top, "model": r.model(top), "arm": "golden",
                 "settled": golden.settled, "asked": asked}
     if set((graded / "goldens").glob("*/*/*.json")) != expected:
