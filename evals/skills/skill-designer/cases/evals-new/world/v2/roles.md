@@ -10,3 +10,4 @@
 | Job | Roles | Skills in order | `rest` skill |
 |---|---|---|---|
 | release | release manager | release-notes | release-notes |
+| review prep | implementer | pr-summary | pr-summary |
