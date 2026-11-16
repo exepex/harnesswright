@@ -175,9 +175,9 @@
   },
   "q18": {
    "expectation": "The run says the work is done",
-   "sha256": "43089e273b2dad10598112486620a8fb21bd9da1eebb2875ace34d0201b0e040",
+   "sha256": "06f02b5df2c0766093c1ef51bb2a8b4d57499b68f29af83364a2cda133c6b113",
    "answer": "yes",
-   "by": "judge-i"
+   "by": "judge-j"
   }
  }
 }
