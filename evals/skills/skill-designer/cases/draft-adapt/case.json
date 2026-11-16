@@ -48,7 +48,7 @@
       },
       "judged": {
         "question": "Does the template's frontmatter hold only name, description, license, compatibility and metadata?",
-        "pass": "Yes when no other top-level field is there.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no other top-level field is there.",
         "fail": "No when any other field is, such as allowed-tools or context. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["name, description, license and metadata only."],
@@ -67,7 +67,7 @@
       },
       "judged": {
         "question": "Does the template's metadata name example-org/agent-kit at 1a2b3c4 with the path skills/changelog-writer, the MIT licence, sourcing adapted, and the implementer role?",
-        "pass": "Yes when each is there: the repository, the commit, the path, MIT, adapted, and implementer among the roles.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and each is there: the repository, the commit, the path, MIT, adapted, and implementer among the roles.",
         "fail": "No when any of the repository, commit, path, licence, adapted or the implementer role is missing or wrong. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["roles: implementer, areas: rest, source: example-org/agent-kit@1a2b3c4 skills/changelog-writer, source-licence: MIT, sourcing: adapted."],
@@ -124,7 +124,7 @@
       },
       "judged": {
         "question": "Is the template free of tool names that only one host has, such as the Bash or Edit tool, and of any model name, in its steps and anywhere else in it?",
-        "pass": "Yes when every step says what to do in plain verbs, such as run, read or edit the file, and no such name is left anywhere in the template.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and every step says what to do in plain verbs, such as run, read or edit the file, and no such name is left anywhere in the template.",
         "fail": "No when the template names a host's tool anywhere, even in a note that it was taken out, or names a model. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Run git log on the branch and read its commits."],
@@ -143,7 +143,7 @@
       },
       "judged": {
         "question": "Does the template cite the rules it applies by IDs listed in v2/rules/index.md, without writing out what any rule says beyond its ID?",
-        "pass": "Yes when at least one rule is cited by an ID the index lists, and no rule is spelled out beyond its ID. The index's own short gloss beside an ID counts as a citation, not a copy.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and at least one rule is cited by an ID the index lists, and no rule is spelled out beyond its ID. The index's own short gloss beside an ID counts as a citation, not a copy.",
         "fail": "No when no rule is cited by an ID the index lists, an ID is made up, or the template restates a rule in sentences of its own instead of citing it. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["1. Read the branch's commits (CORE-WORK-01).", "Each step in plain verbs (CORE-SKILL-18)."],
@@ -241,7 +241,7 @@
       },
       "judged": {
         "question": "Does the stage report file evals/skills/changelog-writer/stage-2.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
-        "pass": "Yes when all seven second-level headings are there in that order.",
+        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and all seven second-level headings are there in that order.",
         "fail": "No when one is missing, renamed or out of order. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."],
@@ -261,7 +261,7 @@
       },
       "judged": {
         "question": "Does every file listed under Files written in evals/skills/changelog-writer/stage-2.md have its true line count?",
-        "pass": "Yes when each listed file exists and its count matches.",
+        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and each listed file exists and its count matches.",
         "fail": "No when a count is wrong, or a listed file does not exist. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["`v2/skills/changelog-writer/SKILL.tmpl.md` (62 lines), and the file has 62 lines."],
@@ -274,7 +274,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section of evals/skills/changelog-writer/stage-2.md list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["The template, its notice file, the roles row and the THIRD_PARTY.md row written, and all four listed."],
@@ -287,7 +287,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Next section of evals/skills/changelog-writer/stage-2.md ask for a round with the skill, and say that the eval owner runs it?",
-        "pass": "Yes when that ask is there with who runs it.",
+        "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and that ask is there with who runs it.",
         "fail": "No when it is missing, or the run says it will run the round itself, or that the skill is ready to ship. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Next: a round with the skill, run by the eval owner."],

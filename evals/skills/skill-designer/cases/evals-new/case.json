@@ -234,7 +234,7 @@
       },
       "judged": {
         "question": "Does the stage report file evals/skills/commit-message-writer/stage-1.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
-        "pass": "Yes when all seven second-level headings are there in that order.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and all seven second-level headings are there in that order.",
         "fail": "No when one is missing, renamed or out of order. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
@@ -258,7 +258,7 @@
       },
       "judged": {
         "question": "Does every file listed under Files written in evals/skills/commit-message-writer/stage-1.md have its true line count?",
-        "pass": "Yes when each listed file exists and its count matches.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and each listed file exists and its count matches.",
         "fail": "No when a count is wrong, or a listed file does not exist. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
@@ -275,7 +275,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section of evals/skills/commit-message-writer/stage-1.md list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
@@ -292,7 +292,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Path section of evals/skills/commit-message-writer/stage-1.md say the skill is written new, with the reason that no published skill was worth borrowing?",
-        "pass": "Yes when it names write new and gives that reason.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and it names write new and gives that reason.",
         "fail": "No when it names adopt or adapt, names no path, or gives no reason. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
@@ -309,7 +309,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Next section of evals/skills/commit-message-writer/stage-1.md ask for goldens from an author other than the one who wrote the cases, and for a baseline round by the eval owner?",
-        "pass": "Yes when both asks are there, each with who does it.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and both asks are there, each with who does it.",
         "fail": "No when either is missing, or the run says it will do one itself. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [

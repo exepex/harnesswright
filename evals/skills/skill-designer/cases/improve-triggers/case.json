@@ -33,7 +33,7 @@
       },
       "judged": {
         "question": "Does the new description name the intent behind the three missed train cases: notes or an announcement of what is new in a released version, for customers or a release page?",
-        "pass": "Yes when a request like any of the three would now plainly match what the description says the skill is for.",
+        "pass": "Yes when the run changed the release-notes template's description, and a request like any of the three would now plainly match what the description says the skill is for.",
         "fail": "No when the description still speaks only of tagged versions and merged pull requests, or names only the words of the prompts and not what they ask for. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Notes for a released version: its what's-new note for customers or its release page."],
@@ -52,7 +52,7 @@
       },
       "judged": {
         "question": "Is the new description free of the missed cases' prompts, word for word or nearly so?",
-        "pass": "Yes when none of the three prompts, nor five or more words in a row of one, is in the description.",
+        "pass": "Yes when the run changed the release-notes template's description, and none of the three prompts, nor five or more words in a row of one, is in the description.",
         "fail": "No when the description holds a prompt, or five or more words in a row of one. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["...when asked to put together the changes of a version (four words in a row of the second prompt, not five)."],
@@ -71,7 +71,7 @@
       },
       "judged": {
         "question": "Does the new description still say when not to use the skill, without now covering a near miss the round report names: a one-PR changelog entry, a commit message, a team blog post, or a migration guide?",
-        "pass": "Yes when it names at least one nearby request the skill is not for, and none of those four near misses would now match what it says the skill is for.",
+        "pass": "Yes when the run changed the release-notes template's description, and it names at least one nearby request the skill is not for, and none of those four near misses would now match what it says the skill is for.",
         "fail": "No when the do-not-use part is gone, or the wider description now also covers one of those near misses. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Use for the notes or announcement of a released version. Do not use for a changelog entry or a commit message."],
@@ -188,7 +188,7 @@
       },
       "judged": {
         "question": "Does the stage report file evals/skills/release-notes/stage-2.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
-        "pass": "Yes when all seven second-level headings are there in that order.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and all seven second-level headings are there in that order.",
         "fail": "No when one is missing, renamed or out of order. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."],
@@ -208,7 +208,7 @@
       },
       "judged": {
         "question": "Does every file listed under Files written in evals/skills/release-notes/stage-2.md have its true line count?",
-        "pass": "Yes when each listed file exists and its count matches.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and each listed file exists and its count matches.",
         "fail": "No when a count is wrong, or a listed file does not exist. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["The template listed with 17 lines, and the file has 17 lines."],
@@ -221,7 +221,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Files written section of evals/skills/release-notes/stage-2.md list every file the run added or changed?",
-        "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["The template and v2/VERSION written, and both listed."],
@@ -234,7 +234,7 @@
       "source": "format",
       "judged": {
         "question": "Does the stage report file evals/skills/release-notes/stage-2.md name, by case name or by prompt, each of the three train cases that the round report lists as missed?",
-        "pass": "Yes when each of the three is named, by its case name such as announce-whats-new or by its prompt.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and each of the three is named, by its case name such as announce-whats-new or by its prompt.",
         "fail": "No when any of the three is not named. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["All three case names, as what the change answers."],
@@ -247,7 +247,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Next section of evals/skills/release-notes/stage-2.md ask for a round with the changed skill, its previous version and no skill, and say that the eval owner runs it?",
-        "pass": "Yes when that ask names all three arms and who runs it.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and that ask names all three arms and who runs it.",
         "fail": "No when an arm is missing, no owner is named, or the run says it will run the round itself. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Next: a round with the changed skill, the version at b21f9aa and no skill, run by the eval owner."],
