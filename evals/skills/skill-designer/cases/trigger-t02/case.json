@@ -1,0 +1,14 @@
+{
+  "prompt": "I found a changelog skill on someone's GitHub (MIT licence) and copied it to incoming/changelog/. Can we bring it into v2/skills/ and strip the Claude-only parts so Codex can run it too?",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

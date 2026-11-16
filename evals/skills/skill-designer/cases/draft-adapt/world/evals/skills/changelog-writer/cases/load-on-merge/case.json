@@ -1,0 +1,11 @@
+{
+  "prompt": "about to merge #91, can you put it in the changelog",
+  "split": "test",
+  "should_trigger": true,
+  "kind": "trigger",
+  "index": {
+    "row": "| {name} | {description} | [{path}]({path}) |",
+    "after": "| Name | When to use | File |",
+    "file": "AGENTS.md"
+  }
+}
