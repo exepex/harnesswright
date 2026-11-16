@@ -1,19 +1,117 @@
 {
- "attempt": "20261114T160500-r8nd",
- "commit": "b21f9aa",
+ "attempt": "20261114T160500-r8ndw2qa",
+ "commit": "b21f9aa4c7e03d5f1a8b6c92e4d7f0a3b5c8e1d6",
+ "prices": "2026-11-12",
  "reference": "claude-code",
  "round": "release-notes-2",
  "skills": {
   "release-notes": {
    "claude-code": {
-    "label": "unsupported",
-    "pass_rate": 1.0,
     "baseline_pass_rate": 0.3333,
+    "false_done": {
+     "with_skill": {
+      "decided": 6,
+      "false_done": 1,
+      "rate": 0.1667,
+      "undecided": 0
+     },
+     "without_skill": {
+      "decided": 6,
+      "false_done": 3,
+      "rate": 0.5,
+      "undecided": 0
+     }
+    },
+    "faults": {
+     "caught": 14,
+     "planted": 14
+    },
+    "format_conformance": {
+     "with_skill": {
+      "decided": 30,
+      "passed": 27,
+      "rate": 0.9,
+      "undecided": 0
+     },
+     "without_skill": {
+      "decided": 30,
+      "passed": 6,
+      "rate": 0.2,
+      "undecided": 0
+     }
+    },
+    "gaps": [
+     "task pass rate 67% below 85%",
+     "trigger accuracy 85% below 90%"
+    ],
+    "golden_accuracy": {
+     "asked": 120,
+     "rate": 1.0,
+     "right": 120
+    },
+    "grader_agreement": {
+     "agreed": 119,
+     "asked": 120,
+     "rate": 0.9917
+    },
+    "host_version": "2.1.320 (Claude Code)",
+    "inferred_evidence": {
+     "with_skill": 0,
+     "without_skill": 0
+    },
+    "inferred_loads": 0,
+    "label": "unsupported",
+    "lift": 0.3334,
+    "runs": {
+     "major-with-breaking, with_skill": 3,
+     "major-with-breaking, without_skill": 3,
+     "tagged-minor, with_skill": 3,
+     "tagged-minor, without_skill": 3,
+     "trigger-01, with_skill": 3,
+     "trigger-02, with_skill": 3,
+     "trigger-03, with_skill": 3,
+     "trigger-04, with_skill": 3,
+     "trigger-05, with_skill": 3,
+     "trigger-06, with_skill": 3,
+     "trigger-07, with_skill": 3,
+     "trigger-08, with_skill": 3,
+     "trigger-09, with_skill": 3,
+     "trigger-10, with_skill": 3,
+     "trigger-11, with_skill": 3,
+     "trigger-12, with_skill": 3,
+     "trigger-13, with_skill": 3,
+     "trigger-14, with_skill": 3,
+     "trigger-15, with_skill": 3,
+     "trigger-16, with_skill": 3,
+     "trigger-17, with_skill": 3,
+     "trigger-18, with_skill": 3,
+     "trigger-19, with_skill": 3,
+     "trigger-20, with_skill": 3
+    },
+    "task_cases": 2,
+    "task_pass_rate": 0.6667,
     "trigger_accuracy": 0.85,
-    "runs": {"no_skill": 6, "skill": 6},
-    "per_case": {"tagged-minor": "3 of 3", "major-with-breaking": "3 of 3"},
-    "gaps": ["trigger accuracy 0.85 is below 0.9"]
+    "trigger_cases": 20,
+    "void_rate": {
+     "with_skill": {
+      "rate": 0.0,
+      "tries": 126,
+      "voids": 0
+     },
+     "without_skill": {
+      "rate": 0.0,
+      "tries": 6,
+      "voids": 0
+     }
+    }
    }
   }
+ },
+ "thresholds": {
+  "max_gap": 0.15,
+  "min_lift": 0.05,
+  "min_runs": 3,
+  "task_pass_rate": 0.85,
+  "trigger_accuracy": 0.9
  }
 }

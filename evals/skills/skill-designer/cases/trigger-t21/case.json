@@ -1,0 +1,31 @@
+{
+  "prompt": "story-judge came out unsupported in its round, fix it. the round report is in evals/results/story-judge-round-1.md",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "<prompt>": [
+      "evals"
+    ],
+    "README.md": [
+      "evals"
+    ],
+    "evals": [
+      "evals"
+    ],
+    "evals/results": [
+      "evals"
+    ],
+    "evals/results/story-judge-round-1.md": [
+      "evals"
+    ]
+  }
+}

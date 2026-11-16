@@ -4,20 +4,20 @@
   "tools": ["python3"],
   "expectations": [
     {
-      "text": "Only the description changes",
+      "text": "Only the description and what the failed task case points to change",
       "source": {
         "contract": {
           "path": "AGENTS.md",
           "line": 29,
-          "quote": "Change only what the failed cases point to, and leave the rest of the template as it is."
+          "quote": "Change what each failed case in the round report points to, and leave the rest of the template as it is."
         }
       },
       "judged": {
-        "question": "Before the run, the release-notes template held: the fields name (release-notes), description, license (Apache-2.0) and metadata (sourcing new, areas rest, roles release manager); the title Release notes; and a Steps section of three numbered steps, each ending in a Check, given here in other words, so compare by meaning: list the pull requests merged after the last tag (CORE-WORK-01), put each in one group, Fixed, Changed or Added (CORE-SKILL-05), write the notes file of the version, under docs/releases. Is the description the only part of the template after the run that differs from this?",
-        "pass": "Yes when the description line changed and every other field, the title and the three steps with their IDs and checks are as listed, with nothing added or removed.",
-        "fail": "No when the run changed the steps, the name, the metadata or any other part, or rewrote the template.",
+        "question": "Before the run, the release-notes template held: the fields name (release-notes), description, license (Apache-2.0) and metadata (sourcing new, areas rest, roles release manager); the title Release notes; and a Steps section of three numbered steps, each ending in a Check, given here in other words, so compare by meaning: list the pull requests merged after the last tag (CORE-WORK-01), put each in one group, Fixed, Changed or Added (CORE-SKILL-05), write the notes file of the version, under docs/releases. Apart from the description, and apart from words that give breaking changes their own group ahead of Added, is the template after the run the same as this?",
+        "pass": "Yes when every other field, the title and the three steps with their IDs and checks are as listed, except for words that add that group, in the grouping step or in one step of its own, with nothing else added or removed.",
+        "fail": "No when the run changed the name, the metadata or any step beyond adding that group, or rewrote the template.",
         "examples": {
-          "pass": ["A new description; steps 1 to 3 untouched."],
+          "pass": ["A new description, and step 2 now grouping under Breaking changes, Added, Changed and Fixed; steps 1 and 3 untouched."],
           "fail": ["A fourth step added for customer wording."]
         }
       }
@@ -76,6 +76,63 @@
         "examples": {
           "pass": ["Use for the notes or announcement of a released version. Do not use for a changelog entry or a commit message."],
           "fail": ["Use whenever changes need writing up for anyone.", "A description with only when to use it.", "Use for release notes, announcements and migration guides; not for commit messages."]
+        }
+      }
+    },
+    {
+      "text": "The template now gives breaking changes their own group, ahead of Added",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 29,
+          "quote": "Change what each failed case in the round report points to, and leave the rest of the template as it is."
+        }
+      },
+      "judged": {
+        "question": "Task case major-with-breaking failed in the round, as the round report shows, on removed endpoints that the notes did not set apart for breaking changes before Added. Before the run, step 2 grouped pull requests under Added, Changed and Fixed only. After the run, does the template tell the agent to put breaking changes under a heading of their own, placed before Added?",
+        "pass": "Yes when the run changed the release-notes template, and a step now puts breaking changes, such as removed endpoints, under their own heading before Added.",
+        "fail": "No when no step does, or the group comes after Added, or only the description changed. No also when the run left the release-notes template unchanged: only what that template holds counts, never the final message or the page's list of changes.",
+        "examples": {
+          "pass": ["2. Group them under Breaking changes, Added, Changed and Fixed, in that order (CORE-SKILL-05)."],
+          "fail": ["Steps 1 to 3 as they were, with only a new description."]
+        }
+      }
+    },
+    {
+      "text": "The new description stays within 60 words",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 7,
+          "quote": "so the descriptions share one budget: a template's `description` is 60 words or fewer."
+        }
+      },
+      "judged": {
+        "question": "Is the description in the release-notes template after the run 60 words or fewer?",
+        "pass": "Yes when the run changed the release-notes template's description, and it has 60 words or fewer, each run of letters or digits between spaces or marks counting as one word.",
+        "fail": "No when it has more than 60 words. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
+        "examples": {
+          "pass": ["A description of 52 words."],
+          "fail": ["A description of 75 words that lists every kind of notes it covers."]
+        }
+      }
+    },
+    {
+      "text": "v2/VERSION is raised in its last number for a change",
+      "source": {
+        "contract": {
+          "path": "docs/templates.md",
+          "line": 13,
+          "quote": "A change to a skill that is already there raises the last number."
+        }
+      },
+      "judged": {
+        "question": "v2/VERSION read 0.4.1 before the run. Does it read 0.4.2 after the run?",
+        "pass": "Yes when v2/VERSION holds 0.4.2.",
+        "fail": "No when it still reads 0.4.1, or holds any other version, such as 0.5.0.",
+        "examples": {
+          "pass": ["v2/VERSION holds 0.4.2."],
+          "fail": ["v2/VERSION unchanged at 0.4.1.", "v2/VERSION raised to 0.5.0."]
         }
       }
     },
@@ -230,15 +287,15 @@
       }
     },
     {
-      "text": "The report names the three missed cases",
+      "text": "The report names the four failed cases",
       "source": "format",
       "judged": {
-        "question": "Does the stage report file evals/skills/release-notes/stage-2.md name, by case name or by prompt, each of the three train cases that the round report lists as missed?",
-        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and each of the three is named, by its case name such as announce-whats-new or by its prompt.",
-        "fail": "No when any of the three is not named. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Does the stage report file evals/skills/release-notes/stage-2.md name, by case name or by prompt, each of the four failed cases the round report lists: the three train cases that missed and the task case major-with-breaking?",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and each of the four is named, by its case name such as announce-whats-new or by its prompt.",
+        "fail": "No when any of the four is not named. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["All three case names, as what the change answers."],
-          "fail": ["Answers the trigger misses."]
+          "pass": ["All four case names, each with the part of the change that answers it."],
+          "fail": ["The three trigger misses named, and the task case left out."]
         }
       }
     },
@@ -265,7 +322,7 @@
     "evals/skills/release-notes": ["evals"],
     "evals/skills/release-notes/cases": ["evals"],
     "evals/results": ["evals"],
-    "evals/results/release-notes.json": ["evals"],
+    "evals/results/release-notes.json": ["evals", "golden", "grader"],
     "evals/results/release-notes-round-2.md": ["evals"],
     "evals/skills/release-notes/cases/tagged-minor": ["evals"],
     "evals/skills/release-notes/cases/tagged-minor/case.json": ["evals"],
