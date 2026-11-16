@@ -23,5 +23,7 @@ the template once goldens and a baseline round exist. Each world is a small tool
   The run writes the template for the implementer role, cites rule IDs only, records the source and tries the build.
 - `improve-triggers` (stage 3): a skill whose round came out unsupported because it missed three train cases.
   The run changes only the description and the version, and asks for a round against the previous version.
+- `trigger-t01` to `trigger-t10`: requests that should load the skill designer, each in a world that holds what
+  it names; the odd ones are in the test split.
 
 `tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
