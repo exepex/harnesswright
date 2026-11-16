@@ -20,7 +20,8 @@ application code.
 ## Borrowing
 
 - Read every file of a borrowed skill before you use any of it. Never run a borrowed script before it is reviewed.
-- Copy text only when the source's licence allows it. With no licence, copy nothing: write the skill new.
+- Copy text only when a licence covers the files you copy and allows it. With no such licence, copy nothing:
+  write the skill new.
 - For an adopted or adapted skill, record its repository, commit, path and licence in the template's `metadata`
   and in `THIRD_PARTY.md`, and keep any notice its licence asks for.
 
