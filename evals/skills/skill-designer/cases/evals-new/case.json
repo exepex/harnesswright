@@ -35,15 +35,15 @@
         }
       },
       "judged": {
-        "question": "Is every case the run wrote a folder under evals/skills/commit-message-writer/cases/ that holds a case.json and a world/ folder?",
-        "pass": "Yes when the run wrote at least one case, and each case has its own folder with both.",
-        "fail": "No when cases are listed in one file, or a case folder lacks its case.json or its world/ folder. No also when the run wrote no case under evals/skills/commit-message-writer/cases/: only what those files hold counts, never the final message or the page's list of changes.",
+        "question": "Is every case the run wrote, trigger or task and in whatever file, its own folder under evals/skills/commit-message-writer/cases/ that holds a case.json and a world/ folder?",
+        "pass": "Yes when the run wrote at least one case, and every trigger case and task case it wrote has its own folder under evals/skills/commit-message-writer/cases/ with both.",
+        "fail": "No when any case the run wrote is not in its own folder, such as trigger queries listed in one file, even beside case folders, or a case folder lacks its case.json or its world/ folder. No also when the run wrote no case: a trigger query or task the run wrote in any file is a case, and only what the files the run wrote hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "evals/skills/commit-message-writer/cases/asks-for-summary/case.json beside evals/skills/commit-message-writer/cases/asks-for-summary/world/."
           ],
           "fail": [
-            "All queries in one evals/skills/commit-message-writer/triggers.json, with no case folders."
+            "Thirteen trigger queries in one evals/skills/commit-message-writer/triggers.json, beside a single task case folder."
           ]
         }
       }
@@ -83,7 +83,7 @@
       "judged": {
         "question": "Does every trigger case say whether it should load the skill and whether it is train or test, with half of the should-load cases and half of the others in test?",
         "pass": "Yes when the run wrote at least one trigger case, every trigger case states both, and each kind is split in half, or as near half as an odd count allows.",
-        "fail": "No when a trigger case lacks either, or either kind is not split in half, or as near half as an odd count allows. No also when the run wrote no trigger case under evals/skills/commit-message-writer/cases/: only what those files hold counts, never the final message or the page's list of changes.",
+        "fail": "No when a trigger case lacks either, or either kind is not split in half, or as near half as an odd count allows. No also when the run wrote no trigger case: a trigger query the run wrote in any file is a trigger case, and only what the files the run wrote hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "Ten should-load cases, five marked test; ten others, five marked test."
