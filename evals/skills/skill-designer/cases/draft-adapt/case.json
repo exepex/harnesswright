@@ -240,9 +240,9 @@
         }
       },
       "judged": {
-        "question": "Does the stage report have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
+        "question": "Does the stage report file evals/skills/changelog-writer/stage-2.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
         "pass": "Yes when all seven second-level headings are there in that order.",
-        "fail": "No when one is missing, renamed or out of order.",
+        "fail": "No when one is missing, renamed or out of order. No also when evals/skills/changelog-writer/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."],
           "fail": ["A report with ## Summary and ## Files only."]
@@ -260,9 +260,9 @@
         }
       },
       "judged": {
-        "question": "Does every file listed under Files written have its true line count?",
+        "question": "Does every file listed under Files written in evals/skills/changelog-writer/stage-2.md have its true line count?",
         "pass": "Yes when each listed file exists and its count matches.",
-        "fail": "No when a count is wrong, or a listed file does not exist.",
+        "fail": "No when a count is wrong, or a listed file does not exist. No also when evals/skills/changelog-writer/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["`v2/skills/changelog-writer/SKILL.tmpl.md` (62 lines), and the file has 62 lines."],
           "fail": ["A count of 30 for a file of 41 lines."]
@@ -273,9 +273,9 @@
       "text": "Files written lists every file the run wrote",
       "source": "format",
       "judged": {
-        "question": "Does the Files written section list every file the run added or changed?",
+        "question": "Does the Files written section of evals/skills/changelog-writer/stage-2.md list every file the run added or changed?",
         "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out.",
+        "fail": "No when the run wrote a file the list leaves out. No also when evals/skills/changelog-writer/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["The template, its notice file, the roles row and the THIRD_PARTY.md row written, and all four listed."],
           "fail": ["The template listed, but not the notice file the run also wrote."]
@@ -286,9 +286,9 @@
       "text": "Next asks for a round with the skill, run by the eval owner",
       "source": "format",
       "judged": {
-        "question": "Does the Next section ask for a round with the skill, and say that the eval owner runs it?",
+        "question": "Does the Next section of evals/skills/changelog-writer/stage-2.md ask for a round with the skill, and say that the eval owner runs it?",
         "pass": "Yes when that ask is there with who runs it.",
-        "fail": "No when it is missing, or the run says it will run the round itself, or that the skill is ready to ship.",
+        "fail": "No when it is missing, or the run says it will run the round itself, or that the skill is ready to ship. No also when evals/skills/changelog-writer/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["Next: a round with the skill, run by the eval owner."],
           "fail": ["Next: ship the skill."]

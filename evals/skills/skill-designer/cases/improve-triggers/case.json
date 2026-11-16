@@ -187,9 +187,9 @@
         }
       },
       "judged": {
-        "question": "Does the stage report have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
+        "question": "Does the stage report file evals/skills/release-notes/stage-2.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
         "pass": "Yes when all seven second-level headings are there in that order.",
-        "fail": "No when one is missing, renamed or out of order.",
+        "fail": "No when one is missing, renamed or out of order. No also when evals/skills/release-notes/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."],
           "fail": ["A report with ## Summary and ## Files only."]
@@ -207,9 +207,9 @@
         }
       },
       "judged": {
-        "question": "Does every file listed under Files written have its true line count?",
+        "question": "Does every file listed under Files written in evals/skills/release-notes/stage-2.md have its true line count?",
         "pass": "Yes when each listed file exists and its count matches.",
-        "fail": "No when a count is wrong, or a listed file does not exist.",
+        "fail": "No when a count is wrong, or a listed file does not exist. No also when evals/skills/release-notes/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["The template listed with 17 lines, and the file has 17 lines."],
           "fail": ["A count of 30 for a file of 41 lines."]
@@ -220,9 +220,9 @@
       "text": "Files written lists every file the run wrote",
       "source": "format",
       "judged": {
-        "question": "Does the Files written section list every file the run added or changed?",
+        "question": "Does the Files written section of evals/skills/release-notes/stage-2.md list every file the run added or changed?",
         "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out.",
+        "fail": "No when the run wrote a file the list leaves out. No also when evals/skills/release-notes/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["The template and v2/VERSION written, and both listed."],
           "fail": ["The template written and listed, but v2/VERSION left out."]
@@ -233,9 +233,9 @@
       "text": "The report names the three missed cases",
       "source": "format",
       "judged": {
-        "question": "Does the stage report name, by case name or by prompt, each of the three train cases that the round report lists as missed?",
+        "question": "Does the stage report file evals/skills/release-notes/stage-2.md name, by case name or by prompt, each of the three train cases that the round report lists as missed?",
         "pass": "Yes when each of the three is named, by its case name such as announce-whats-new or by its prompt.",
-        "fail": "No when any of the three is not named.",
+        "fail": "No when any of the three is not named. No also when evals/skills/release-notes/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["All three case names, as what the change answers."],
           "fail": ["Answers the trigger misses."]
@@ -246,9 +246,9 @@
       "text": "Next asks for a round with the changed skill, the previous version and no skill, run by the eval owner",
       "source": "format",
       "judged": {
-        "question": "Does the Next section ask for a round with the changed skill, its previous version and no skill, and say that the eval owner runs it?",
+        "question": "Does the Next section of evals/skills/release-notes/stage-2.md ask for a round with the changed skill, its previous version and no skill, and say that the eval owner runs it?",
         "pass": "Yes when that ask names all three arms and who runs it.",
-        "fail": "No when an arm is missing, no owner is named, or the run says it will run the round itself.",
+        "fail": "No when an arm is missing, no owner is named, or the run says it will run the round itself. No also when evals/skills/release-notes/stage-2.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
         "examples": {
           "pass": ["Next: a round with the changed skill, the version at b21f9aa and no skill, run by the eval owner."],
           "fail": ["Next: rerun the trigger cases."]
