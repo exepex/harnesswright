@@ -36,8 +36,8 @@
       },
       "judged": {
         "question": "Is every case the run wrote a folder under evals/skills/commit-message-writer/cases/ that holds a case.json and a world/ folder?",
-        "pass": "Yes when each case has its own folder with both.",
-        "fail": "No when cases are listed in one file, or a case folder lacks its case.json or its world/ folder. No also when the run wrote no case.",
+        "pass": "Yes when the run wrote at least one case, and each case has its own folder with both.",
+        "fail": "No when cases are listed in one file, or a case folder lacks its case.json or its world/ folder. No also when the run wrote no case under evals/skills/commit-message-writer/cases/: only what those files hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "evals/skills/commit-message-writer/cases/asks-for-summary/case.json beside evals/skills/commit-message-writer/cases/asks-for-summary/world/."
@@ -82,8 +82,8 @@
       },
       "judged": {
         "question": "Does every trigger case say whether it should load the skill and whether it is train or test, with half of the should-load cases and half of the others in test?",
-        "pass": "Yes when every trigger case states both, and each kind is split in half, or as near half as an odd count allows.",
-        "fail": "No when a trigger case lacks either, or either kind is not split in half, or as near half as an odd count allows. No also when the run wrote no trigger case.",
+        "pass": "Yes when the run wrote at least one trigger case, every trigger case states both, and each kind is split in half, or as near half as an odd count allows.",
+        "fail": "No when a trigger case lacks either, or either kind is not split in half, or as near half as an odd count allows. No also when the run wrote no trigger case under evals/skills/commit-message-writer/cases/: only what those files hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "Ten should-load cases, five marked test; ten others, five marked test."
@@ -235,7 +235,7 @@
       "judged": {
         "question": "Does the stage report file evals/skills/commit-message-writer/stage-1.md have the headings Stage, Request, Path, Files written, Checked, Not run and Next, in that order?",
         "pass": "Yes when all seven second-level headings are there in that order.",
-        "fail": "No when one is missing, renamed or out of order. No also when evals/skills/commit-message-writer/stage-1.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
+        "fail": "No when one is missing, renamed or out of order. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."
@@ -259,7 +259,7 @@
       "judged": {
         "question": "Does every file listed under Files written in evals/skills/commit-message-writer/stage-1.md have its true line count?",
         "pass": "Yes when each listed file exists and its count matches.",
-        "fail": "No when a count is wrong, or a listed file does not exist. No also when evals/skills/commit-message-writer/stage-1.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
+        "fail": "No when a count is wrong, or a listed file does not exist. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "`evals/skills/commit-message-writer/cases/asks-for-summary/case.json` (41 lines), and the file has 41 lines."
@@ -276,7 +276,7 @@
       "judged": {
         "question": "Does the Files written section of evals/skills/commit-message-writer/stage-1.md list every file the run added or changed?",
         "pass": "Yes when no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out. No also when evals/skills/commit-message-writer/stage-1.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
+        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "Twenty-two case files written, and all twenty-two listed."
@@ -293,7 +293,7 @@
       "judged": {
         "question": "Does the Path section of evals/skills/commit-message-writer/stage-1.md say the skill is written new, with the reason that no published skill was worth borrowing?",
         "pass": "Yes when it names write new and gives that reason.",
-        "fail": "No when it names adopt or adapt, names no path, or gives no reason. No also when evals/skills/commit-message-writer/stage-1.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
+        "fail": "No when it names adopt or adapt, names no path, or gives no reason. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "Write new: the request says no published skill is worth borrowing."
@@ -310,7 +310,7 @@
       "judged": {
         "question": "Does the Next section of evals/skills/commit-message-writer/stage-1.md ask for goldens from an author other than the one who wrote the cases, and for a baseline round by the eval owner?",
         "pass": "Yes when both asks are there, each with who does it.",
-        "fail": "No when either is missing, or the run says it will do one itself. No also when evals/skills/commit-message-writer/stage-1.md is missing or has no such section: what the final message or the page's list of changes says does not count.",
+        "fail": "No when either is missing, or the run says it will do one itself. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": [
             "Goldens: a separate author. Baseline round without the skill: the eval owner."
