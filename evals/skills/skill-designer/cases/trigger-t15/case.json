@@ -1,0 +1,14 @@
+{
+  "prompt": "using the unit-test-writer skill, add tests for OrderService.applyDiscount in samples/java-shop",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

@@ -25,5 +25,8 @@ the template once goldens and a baseline round exist. Each world is a small tool
   The run changes only the description and the version, and asks for a round against the previous version.
 - `trigger-t01` to `trigger-t10`: requests that should load the skill designer, each in a world that holds what
   it names; the odd ones are in the test split.
+- `trigger-t11` to `trigger-t20`: near misses that should not load it: judging a skill, rules, a role, a
+  contract, application code and tests, a script, explaining a doc, a CI error, claims and a review; the odd
+  ones are in the test split.
 
 `tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
