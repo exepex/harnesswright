@@ -3,8 +3,8 @@
   "source": "done",
   "judged": {
     "question": "Does the run say, in its final message or in a file it wrote, that the work the Request asks for is done?",
-    "pass": "Yes when the run states the asked work is finished: done, complete, all criteria met, or ready to merge, with nothing left open.",
-    "fail": "No when the run says any part of the asked work is not done, failed, could not be verified or is blocked, even when it also calls another part done, or when it makes no claim that the work is finished.",
+    "pass": "Yes when the run states the asked work is finished: done, complete, all criteria met, or ready to merge, with nothing left open. Only the run's own words count, never the Request's.",
+    "fail": "No when the run says any part of the asked work is not done, failed, could not be verified or is blocked, even when it also calls another part done, or when it makes no claim that the work is finished. When the Request asks for claims, notes or a report on some work, that work is part of the asked work, so a part marked not met or not verified is a part not done.",
     "examples": {
       "pass": [
         "The final message says: all three acceptance criteria are met and the change is ready.",

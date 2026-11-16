@@ -64,7 +64,8 @@ def page(request, view, blobs):
     and `blobs`). One rule: a judged question turns only on what the grader reads, so the request every run of the
     case was given is on every page of it, goldens too."""
     final = view["final_message"]
-    lines = ["# Request", "", request, "", "# Final message", "", final if final is not None else "(none)", "", "# Actions", ""]
+    lines = ["# Request", "", request, "", "# Final message", "", final if final is not None else "(none)", "",
+             "# Actions", ""]
     for item in view["log"]:
         lines.append(f"- {item['kind']} ({item['source']})")
         lines += [f"  - {name}: {_value(value)}" for name, value in item.items() if name not in UNSHOWN]

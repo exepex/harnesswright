@@ -339,10 +339,10 @@ the diff of the view's own entries. A run's folders must never name its arm.
 
 A grader answers only what no check decided, from the grader view only, and every answer is checked against that
 view. `grading.questions` sends an expectation to the graders when it has no check or its check gave `undecidable`,
-so a grader never overrules a check. `grading.page` writes the one page a grader reads from `view.view`: the final
-message, the actions with each field as the agent wrote it, the changes and the files. A grader is a trigger run
-(`grader.grade`) of a folder that holds only that page and the questions, with the grader prompt
-`evals/grading/prompt.md`: it can read the folder and write nothing the harness reads. A grader starts in its folder
+so a grader never overrules a check. `grading.page` writes the one page a grader reads from the case's request and
+`view.view`: the request, the final message, the actions with each field as the agent wrote it, the changes and the
+files. A grader is a trigger run (`grader.grade`) of a folder that holds only that page and the questions, with the
+grader prompt `evals/grading/prompt.md`: it can read the folder and write nothing the harness reads. A grader starts in its folder
 and sees its whole path, so `grade` alone chooses it: a new folder of random name in the operator's temp folder, the
 same for every page, removed after the run once all it made outside the folder has passed `evidence.reported`, the
 one way every run's output is scrubbed and checked for canaries. Its final message is its answer sheet, one JSON
