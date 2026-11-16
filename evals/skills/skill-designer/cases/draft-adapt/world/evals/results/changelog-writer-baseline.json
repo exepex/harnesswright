@@ -8,7 +8,7 @@
    "claude-code": {
     "label": "incomplete",
     "baseline_pass_rate": 0.4444,
-    "runs": {"without_skill": 9, "with_skill": 0},
+    "runs": {"no_skill": 9, "skill": 0},
     "per_case": {"adds-fix-entry": "1 of 3", "keeps-unreleased-order": "2 of 3", "no-entry-for-docs-only": "1 of 3"},
     "gaps": ["no with-skill arm: the skill has no template yet"]
    }
