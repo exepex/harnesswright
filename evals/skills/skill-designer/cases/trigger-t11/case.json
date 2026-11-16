@@ -1,0 +1,25 @@
+{
+  "prompt": "here is v2/skills/commit-message-writer with its round results. act as the judge and write the verdict: does it meet docs/skill-checklist.md?",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "evals": [
+      "evals"
+    ],
+    "evals/results": [
+      "evals"
+    ],
+    "evals/results/commit-message-writer.json": [
+      "evals"
+    ]
+  }
+}
