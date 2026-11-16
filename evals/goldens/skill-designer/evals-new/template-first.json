@@ -86,7 +86,7 @@
   },
   "q2": {
    "expectation": "Each case is its own folder with a case.json and a world",
-   "sha256": "555b7511f225d317379e3e00a487d590665a644d5fb802844c9ac50466af1bb6",
+   "sha256": "91a2704382e9d6d099f1d8778666c7a8bd7188eb4a28a315dd25c899e95e665d",
    "answer": "no",
    "by": "judge-e"
   },
@@ -98,7 +98,7 @@
   },
   "q4": {
    "expectation": "Each trigger case states its kind and split, half of each kind in test",
-   "sha256": "b34b39ab23a567871115c6e2406aaca2045a0895f01c8137548e9ec847320269",
+   "sha256": "867c957c97a641f6f357db5ad032f792c0ae329c6d2042d444f1094a3d6486c9",
    "answer": "no",
    "by": "judge-e"
   },
