@@ -1,0 +1,14 @@
+{
+  "prompt": "v2/skills/test-reviewer/SKILL.tmpl.md is hard to follow and half its steps can't be checked. rework it to meet docs/skill-checklist.md and move the long detail into references/",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

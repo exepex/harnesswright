@@ -1,0 +1,7 @@
+{
+ "round": "dependency-upgrade-3",
+ "skills": {"dependency-upgrade": {
+  "claude-code": {"label": "verified", "pass_rate": 1.0},
+  "codex": {"label": "unsupported", "pass_rate": 0.7}
+ }}
+}

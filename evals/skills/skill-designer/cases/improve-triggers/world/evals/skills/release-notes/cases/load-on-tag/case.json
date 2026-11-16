@@ -1,0 +1,11 @@
+{
+  "prompt": "we just cut v2.0.0, can you draft what changed for the announcement page",
+  "split": "train",
+  "should_trigger": true,
+  "kind": "trigger",
+  "index": {
+    "row": "| {name} | {description} | [{path}]({path}) |",
+    "after": "| Name | When to use | File |",
+    "file": "AGENTS.md"
+  }
+}

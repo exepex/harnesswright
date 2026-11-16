@@ -1,0 +1,19 @@
+{
+  "prompt": "Write the trigger cases and task cases for v2/skills/story-judge. It has none yet, and the release is blocked until it does",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "README.md": [
+      "evals"
+    ]
+  }
+}
