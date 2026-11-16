@@ -1,0 +1,14 @@
+{
+  "prompt": "draft v2/roles/story-judge.md: purpose, reads, produces, model class and access, like the other role files",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

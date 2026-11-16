@@ -1,0 +1,14 @@
+{
+  "prompt": "story S07 is done: the discount rule is in src/discount.py with its tests. write up, for each acceptance criterion, whether it is met and the evidence, for the judge",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

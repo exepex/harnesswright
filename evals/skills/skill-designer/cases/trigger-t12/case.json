@@ -1,0 +1,14 @@
+{
+  "prompt": "write v2/rules/core/test.md with the rules CORE-TEST-01 to CORE-TEST-05, in the format of docs/rule-format.md",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
