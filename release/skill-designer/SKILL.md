@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-01, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
   rulebook-version: "0.4.1"
-  content-hash: "46303f6fbff558e6ee86e8cedcaf6e101b1ab6cd48a3a1982c30e377c6a00ae7"
+  content-hash: "92d6b1ec0234440378544a86ba7d0a74aa16d56e0ff7a35e66cbb5ba77f907aa"
   size-floors: "14440"
-  size-rest: "25746"
+  size-rest: "26049"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.4.1. Do not edit. -->
 
@@ -447,7 +447,7 @@ what exists, does only that stage, writes only the files that stage allows, and 
 | Stage | Starts when | Does | Next step, and its owner |
 |---|---|---|---|
 | 1 Evals | A request, and no cases for the skill | Source and path; trigger and task cases | Goldens by an author who did not write the cases; kit approval by the judges; a baseline round without the skill by the eval owner |
-| 2 Draft | Cases, and a round's label file for the skill with a no-skill arm, which only a round with graded goldens makes | A new skill: template, licence, provenance, job row. An improvement: only the change its failed cases call for. Then the version and the release build | A round by the eval owner: the skill and no skill; for an improvement, the changed skill, its previous version and no skill |
+| 2 Draft | Cases, and a round's label file for the skill that meets the stage 2 test of step 2 | A new skill: template, licence, provenance, job row. An improvement: only the change its failed cases call for. Then the version and the release build | A round by the eval owner: the skill and no skill; for an improvement, the changed skill, its previous version and no skill |
 | 3 Ship | A round's label file says `verified` on the reference host | Checks the release is the one the round measured; lists the skill | Claims by the role whose job they are, then an independent judge |
 
 Files each stage may write, besides the run folder and its own report `evals/skills/<name>/stage-<n>.md`:
@@ -514,13 +514,13 @@ Check: the run folder holds `rules.md` and the rules texts, and you have read th
 
 1. Look for `evals/skills/<name>/cases/`. With no case folder there, the stage is 1, even when the request asks for
    the skill itself: say so in the report.
-2. With cases, read the label file the request names. It must name this skill. Stage 3 needs the label `verified`
-   on the reference host. Otherwise it is stage 2: a new skill needs the label's no-skill arm with at least 3 runs
-   of every task case; an improvement needs the round report as well.
-3. The label file is the evidence for the goldens and the baseline: a round grades its goldens before it labels.
-   Goldens are kept by others and are not in the project, so never search for them, and never stop because you see
-   none. A project may hold only some of the cases, as samples; that is no reason to stop either. Ask which file to
-   read, and write nothing, only when the label file is missing, names another skill or has no no-skill arm.
+2. With cases, read the label file the request names. Stage 3 needs the label `verified` on the reference host.
+   Otherwise the stage 2 test applies, and it is the only one: the label file names this skill, its no-skill arm
+   has at least 3 scored runs of every task case, and for an improvement the round report lists the failed cases.
+   When the test fails, ask which file to read, and write nothing.
+3. The test reads only the label file and the round report. Goldens are kept by others and are not in the project:
+   never search for them, and never stop because you see none. A project may hold only some of the cases, as
+   samples; that is no reason to stop either.
 
 Check: you know the stage and why, from files you read.
 
@@ -541,11 +541,22 @@ Check: you know the stage and why, from files you read.
    list what a good run must show, each with its source.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path, compare every file you wrote with every file of the source: no eight words in a row may
-   match, ignoring case and punctuation. Look hardest at expectations, which restate what the source does. Reword
-   each run you find, then list the comparison and its result under Checked.
+   match, ignoring case and punctuation. Run the copy check from the project root:
 
-Check: every case is a folder with both files; the counts and the split hold; on the write-new path no written file
-shares eight words in a row with the source; you wrote nothing outside the stage's files, and no golden or round
+   ```sh
+   python3 SKILL_DIR/scripts/shared_runs.py --source <source folder> --written evals/skills/<name>/
+   ```
+
+   - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
+   - It could not run (scripts forbidden in `.harness/profile.yaml`, or no Python): compare by reading, looking
+     hardest at expectations, which restate what the source does. Put "copy check by reading, not verified" under
+     Not run.
+   - Exit 2: stop, and report its output.
+
+   List the command and its result under Checked.
+
+Check: every case is a folder with both files; the counts and the split hold; on the write-new path the copy check
+passed or is under Not run; you wrote nothing outside the stage's files, and no golden or round
 result.
 
 ### 4. Stage 2: write the skill
