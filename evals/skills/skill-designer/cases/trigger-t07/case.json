@@ -1,0 +1,25 @@
+{
+  "prompt": "our dependency-upgrade skill passes on Claude Code but only 70% of its task cases on Codex. work out what in the skill is host-specific and fix it without breaking the reference host",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "evals": [
+      "evals"
+    ],
+    "evals/results": [
+      "evals"
+    ],
+    "evals/results/dependency-upgrade.json": [
+      "evals"
+    ]
+  }
+}
