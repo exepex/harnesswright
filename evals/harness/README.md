@@ -20,6 +20,7 @@ allowed connections.
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 | `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
 | `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
+| `textruns.py` | Text as the lint reads it: folded words and runs of consecutive words |
 | `contain.py` | Builds one run's environment, home and jail from one list of mounts |
 | `audit.py` | Runs inside the jail before the host starts and checks it against the same list |
 | `gate.py` | The jail's one way out: a proxy that passes on only the host's model hosts |

@@ -325,12 +325,11 @@ def names(setup, fault, rng, place):
     elif what == "path":
         text = f"See {setup.case.skill_rel} first."
     else:
-        # A run of the skill's own text, after what the lint excuses (its upstream source and the licences).
-        repo = Path(setup.repo)
-        project = lint.texts(repo / "evals" / "skills" / skill / "upstream") + lint.texts(repo.joinpath(*lint.LICENCES))
-        files, _ = skills.skill_files(setup.skill_dir, skill)
-        own = sorted(lint.all_runs([d.decode("utf-8", "replace") for d in files.values()], {lint.RUN})
-                     - lint.all_runs(project, {lint.RUN}))
+        # A run of the skill's own text that the lint protects in this case, as the lint itself finds them.
+        repo, arm = Path(setup.repo), world.build(setup.case, setup.adapter, setup.folder() / "a", setup.skills_root)
+        copied, _ = lint.verified_copies(setup.case, repo)
+        own = sorted(lint.protected(setup.case, lint.visible(setup.case, arm), copied, setup.skill_dir,
+                                    lint.texts(repo / "evals" / "skills" / skill / "upstream"), repo)[1])
         if not own:
             raise Missed("the skill has no text of its own for the lint to protect, so no fingerprint can be planted")
         text = rng.choice(own)

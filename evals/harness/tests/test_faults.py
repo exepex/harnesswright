@@ -12,6 +12,7 @@ from helpers import TempCase
 from test_host import FAKE, JAIL, changed, fake_adapter
 from test_gate import Upstream
 from test_probes import SOUND
+from test_world import AGENTS, INDEX
 
 import contain
 import faults
@@ -62,14 +63,15 @@ class Catalogue(unittest.TestCase):
 class Fake(TempCase):
     """The fake host in a real jail, signing in with a key or a credential file in a decoy operator home."""
 
-    def setup_of(self, adapter=None, data=None):
+    def setup_of(self, adapter=None, data=None, files=None):
         tool = self.tmp / "tool"
         shutil.copytree(FAKE, tool, ignore=shutil.ignore_patterns("adapter.py", "__pycache__"))
         self.skill()
         operator = self.tmp / "operator" / ".fake"
         operator.mkdir(parents=True)
         (operator / "creds.json").write_text(json.dumps({"refresh": "refresh-0123456789abcdef"}))
-        case = self.case({"README.md": "A notes app.\n", "docs/usage.md": "Open the app and write a note.\n"}, data)
+        case = self.case({"README.md": "A notes app.\n", "docs/usage.md": "Open the app and write a note.\n",
+                          **(files or {})}, data)
         base = fake_adapter()
         adapter = adapter or changed(base, ENV_KEYS=("FAKE_API_KEY",), CREDENTIAL_FILES=(".fake/creds.json",),
                                      jail_command=lambda *args: base.jail_command(*args) + ["--sign-in"])
@@ -80,6 +82,18 @@ class Fake(TempCase):
                             operator_env={"PATH": f"{tool}:/usr/bin:/bin", "FAKE_API_KEY": KEY,
                                           "HTTPS_PROXY": upstream.url},
                             operator_home=self.tmp / "operator", host_paths=[tool])
+
+
+class Fingerprint(Fake):
+    def test_a_fingerprint_is_a_run_the_lint_protects_in_its_case_never_one_a_sibling_shares(self):
+        shared = "Count the syllables of every line twice before you answer, five then seven then five."
+        self.skill("note-taker", f"---\nname: note-taker\ndescription: Takes notes.\n---\n\n# Notes\n\n{shared}\n")
+        setup = self.setup_of(data={"siblings": ["note-taker"], "index": INDEX}, files={"AGENTS.md": AGENTS})
+        names = next(e for e in faults.load() if e["id"] == "names")
+        for seed in range(12):
+            with self.subTest(seed=seed):
+                outcome = faults.run(names, setup, seed, place="existing/fingerprint")
+                self.assertEqual((outcome["caught"], outcome["reason"]), (True, None))
 
 
 # What the gate saw when it caught each fault that stops its run before a bundle holds the catch.

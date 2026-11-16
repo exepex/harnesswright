@@ -30,7 +30,6 @@ import json
 import re
 import tempfile
 import tokenize
-import unicodedata
 from pathlib import Path
 
 import checks
@@ -38,8 +37,8 @@ import manifest
 import world
 from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
 from skills import folders, library, skill_files, tracked, tracked_file
+from textruns import RUN, all_runs, plain, runs, words
 
-RUN = 8
 EXPECTATION_RUN = 6
 SHORTEST = 3
 # Tell stems (doc 11): a word that starts with one tells an agent it is being tested. `allow_words` lets a place
@@ -73,34 +72,6 @@ class Place:
         self.key, self.text, self.kind = key, text, kind
         self.link = False
         self.words = " ".join(words(text or ""))
-
-
-def words(text):
-    """The words of `text` after compatibility folding, with format characters removed: lower-case runs of
-    letters and digits in any script. `haiku-writer`, `Haiku_Writer` and `haiku writer` are the same words."""
-    folded = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf")
-    # ASCII letters and digits form words of their own, so a name written flush against text in another script,
-    # as in Chinese or Japanese prose, is still a word.
-    return re.findall(r"[a-z0-9]+|[^\W_a-z0-9]+", folded.casefold())
-
-
-def runs(text, sizes):
-    """Every run of consecutive words of `text` whose length is one of `sizes`."""
-    found = words(text)
-    return {" ".join(found[i:i + n]) for n in sizes for i in range(len(found) - n + 1)}
-
-
-def all_runs(texts, sizes):
-    return set().union(set(), *(runs(t, sizes) for t in texts))
-
-
-def plain(data):
-    """`data` as text when it is UTF-8 and plain (`cases.is_plain`); otherwise None."""
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-    return text if is_plain(text) else None
 
 
 def names(place, name):
@@ -303,6 +274,17 @@ def stated_quotes(text):
             and isinstance(e["source"].get("contract"), dict) and isinstance(e["source"]["contract"].get("quote"), str)]
 
 
+def protected(case, places, copied, skill_dir, upstream=(), repo=REPO, sizes=frozenset()):
+    """(project, skill): the runs, of RUN words and `sizes`, of the project text the run sees (its verified copies,
+    its installed siblings, the skill's upstream source and the licences), and the runs of the skill's own text that
+    are not project text. Only those are the skill's to protect: the lint refuses them, and the names fault plants
+    one of them."""
+    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
+                       + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | set(sizes))
+    files, _ = skill_files(skill_dir, case.skill)
+    return project, all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
+
+
 def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     """Every problem with `case`, given its built and proved without-skill arm and the eval text: `kit`, the
     measuring texts, and `cases`, the case data as (path, text). An empty list means it passes."""
@@ -316,10 +298,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     expectations = [[" ".join(words(t)) for t in expectation_texts(e) if len(words(t)) >= SHORTEST]
                     for e in case.expectations]
     expected_sizes = {min(EXPECTATION_RUN, len(t.split())) for texts_ in expectations for t in texts_}
-    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
-                       + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | expected_sizes)
-    files, _ = skill_files(skill_dir, case.skill)
-    skill = all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
+    project, skill = protected(case, places, copied, skill_dir, upstream, repo, expected_sizes)
     # Case data may repeat what the run sees of this case outside its world (its prompt, commits and index row)
     # and every path, which old task lists name. The rest of the eval text may not. The case's own file is case
     # data like any other, wherever it lives.

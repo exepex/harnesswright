@@ -2,7 +2,7 @@
   "parts": {
     "checks": ["evals/checks"],
     "answer keys": ["evals/checks/keys", "evals/grading/keys"],
-    "lint rules": ["evals/harness/lint.py", "evals/fixtures/licences"],
+    "lint rules": ["evals/harness/lint.py", "evals/harness/textruns.py", "evals/fixtures/licences"],
     "power table": ["evals/harness/powers.py"],
     "probes": ["evals/harness/probes.py"],
     "goldens": ["evals/goldens"],
