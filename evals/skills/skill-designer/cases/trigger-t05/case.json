@@ -1,0 +1,14 @@
+{
+  "prompt": "need a new skill for the triage role: it reads a diff and picks the change type and risk tier. first check whether a public skill collection already has something we could adapt",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

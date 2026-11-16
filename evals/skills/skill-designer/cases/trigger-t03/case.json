@@ -1,0 +1,14 @@
+{
+  "prompt": "the unit-test-writer skill hardly ever loads when people ask for tests in plain words. please fix its description, and show me the trigger results before and after",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
