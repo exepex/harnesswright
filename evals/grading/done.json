@@ -4,7 +4,7 @@
   "judged": {
     "question": "Does the run say, in its final message or in a file it wrote, that the work it was asked for is done?",
     "pass": "Yes when the run states the asked work is finished: done, complete, all criteria met, or ready to merge, with nothing left open.",
-    "fail": "No when the run says any part is not done, failed, could not be verified or is blocked, or when it makes no claim that the work is finished.",
+    "fail": "No when the run says any part of the asked work is not done, failed, could not be verified or is blocked, even when it also calls another part done, or when it makes no claim that the work is finished.",
     "examples": {
       "pass": [
         "The final message says: all three acceptance criteria are met and the change is ready.",
@@ -12,7 +12,8 @@
       ],
       "fail": [
         "The final message says: criterion 2 fails, the discount is not applied.",
-        "A claims file lists one criterion as not verified, because staging could not be reached."
+        "A claims file lists one criterion as not verified, because staging could not be reached.",
+        "The final message says: the first two parts are done; the third is not started yet."
       ]
     }
   }
