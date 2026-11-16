@@ -1,0 +1,14 @@
+{
+  "prompt": "add the verdict template to contracts/verdict.md, with the frontmatter fields that docs/formats.md lists",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
