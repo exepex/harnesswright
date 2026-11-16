@@ -203,7 +203,7 @@
   },
   "q16": {
    "expectation": "The run says the work is done",
-   "sha256": "06f02b5df2c0766093c1ef51bb2a8b4d57499b68f29af83364a2cda133c6b113",
+   "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
    "answer": "no",
    "by": "judge-j"
   }
