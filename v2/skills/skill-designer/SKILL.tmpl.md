@@ -74,13 +74,16 @@ Do the steps in order. Each ends with a check; do not start the next until it pa
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or
      `.harness/profile.yaml: is missing or cannot be read`): write the files by reading, as below.
    - Any other result: stop, and report the command's output.
-2. By reading, write only the missing files. `rules.md` holds the run ID, the date and the line
-   `not verified: <the reason>`. Write one rules text named `core`, holding the rules you can read from the
-   `rules/core/` folder of the release the profile names, or `None.` when there is no profile. Start it with the
-   heading `### Changes to rules that reach this run` and `None.` under it. End it with the quoted value of
-   `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the line
-   `Stack: core. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
-   `READ_BACK_END`.
+2. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
+   the date and the line `not verified: <the reason>`. Write one rules text for each language the profile names, or
+   one named `core` when there is none, holding the rules you can read from the `rules/core/` and
+   `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
+   there are none (always, when there is no profile). Start each with the heading
+   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
+   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
+   each with the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs
+   nothing), the line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the
+   quoted value of `READ_BACK_END`. Add the reason to Not run.
 3. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
    rules of this skill; where a rules text replaces, waives or binds one of them, it wins.
 

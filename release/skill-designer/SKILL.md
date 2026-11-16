@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-01, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
   rulebook-version: "0.4.0"
-  content-hash: "5b7d57adae3a5e51633adf9a02fe40acf6ce86860ec3abb51e682c97a288e5f9"
+  content-hash: "44f484085cd1151ccd9d9f9d175e7b5334440c769bfca8f09c4e6f810a4bb378"
   size-floors: "14440"
-  size-rest: "24374"
+  size-rest: "24760"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.4.0. Do not edit. -->
 
@@ -495,13 +495,16 @@ Do the steps in order. Each ends with a check; do not start the next until it pa
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or
      `.harness/profile.yaml: is missing or cannot be read`): write the files by reading, as below.
    - Any other result: stop, and report the command's output.
-2. By reading, write only the missing files. `rules.md` holds the run ID, the date and the line
-   `not verified: <the reason>`. Write one rules text named `core`, holding the rules you can read from the
-   `rules/core/` folder of the release the profile names, or `None.` when there is no profile. Start it with the
-   heading `### Changes to rules that reach this run` and `None.` under it. End it with the quoted value of
-   `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs nothing), the line
-   `Stack: core. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the quoted value of
-   `READ_BACK_END`.
+2. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
+   the date and the line `not verified: <the reason>`. Write one rules text for each language the profile names, or
+   one named `core` when there is none, holding the rules you can read from the `rules/core/` and
+   `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
+   there are none (always, when there is no profile). Start each with the heading
+   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
+   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
+   each with the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs
+   nothing), the line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the
+   quoted value of `READ_BACK_END`. Add the reason to Not run.
 3. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
    rules of this skill; where a rules text replaces, waives or binds one of them, it wins.
 
