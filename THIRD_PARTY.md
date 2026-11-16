@@ -11,9 +11,9 @@ licence, and whether the material was adopted, adapted or written new.
 | Repository | https://github.com/anthropics/skills |
 | Commit | `ca45fc496a3436251f191354091d557da31c15b5` |
 | Path | `skills/skill-creator` |
-| Licence | Apache-2.0, Copyright 2026 Anthropic, PBC. Full text kept in `skills/skill-designer/LICENSE.txt`. |
+| Licence | Apache-2.0, Copyright 2026 Anthropic, PBC. Full text kept in `skills/skill-designer/LICENSE.txt`, `v2/skills/skill-designer/LICENSE.txt` and `release/skill-designer/LICENSE.txt`. |
 | Sourcing | adapted |
-| Used in | `skills/skill-designer/` |
+| Used in | `skills/skill-designer/`, `v2/skills/skill-designer/` and the release skill built from it, `release/skill-designer/` |
 
 ### What was taken and what changed
 
@@ -24,6 +24,8 @@ licence, and whether the material was adopted, adapted or written new.
 | `skills/skill-designer/references/grader.md` | `agents/grader.md` | Shortened; runs as an independent agent; reads script check results; no host tool names; output limited to the reduced grading format. |
 | `skills/skill-designer/references/comparator.md` | `agents/comparator.md`, `agents/analyzer.md` | Merged and shortened into one blind comparison and one analysis; simplified output; benchmark analysis removed. |
 | `skills/skill-designer/LICENSE.txt` | `LICENSE.txt` | Unchanged, except a final newline added. |
+| `v2/skills/skill-designer/SKILL.tmpl.md`, built into `release/skill-designer/SKILL.md` | `SKILL.md` | Rewritten as a template from the adapted skill above. The work runs in three stages (evals, draft, ship), one per run, each ending with a stage report that names the next step's owner. Evals come before the skill; goldens, rounds and judging are left to other agents. Rules are cited by ID. Kept the ideas on descriptions that say when to use a skill and when not, realistic trigger prompts, near-miss negatives, a held-out test split and baselines without the skill. |
+| `v2/skills/skill-designer/LICENSE.txt`, copied to `release/skill-designer/LICENSE.txt` | `LICENSE.txt` | Copied from `skills/skill-designer/LICENSE.txt`. |
 | `evals/runner/core.py`, `evals/runner/run_evals.py` | `scripts/run_eval.py`, `scripts/run_loop.py` | Written new; no code copied. Ideas taken: several runs per trigger query, a trigger-rate threshold of 0.5, a held-out test set stratified by `should_trigger` for description tuning, and from `scripts/aggregate_benchmark.py` and `references/schemas.md`: 3 runs per configuration, the mean and standard deviation of run results, and the with-skill minus without-skill delta (`lift`). The host is reached through an adapter instead of `claude -p`. |
 
 Not taken: `scripts/`, `eval-viewer/`, `assets/eval_review.html` and `agents/` files other than those above. The
