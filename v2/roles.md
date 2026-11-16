@@ -57,3 +57,4 @@ template, so the table holds only jobs whose skills exist.
 | Job | Roles | Skills in order | `rest` skill |
 |---|---|---|---|
 | claims | claims writer | claims-writer | claims-writer |
+| skills | skill designer | skill-designer | skill-designer |
