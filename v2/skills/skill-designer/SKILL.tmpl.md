@@ -1,6 +1,6 @@
 ---
 name: skill-designer
-description: Make or change a harnesswright skill in stages, one stage per run, each ending with a stage report that names who does the next step. It writes a skill's trigger and task cases first, then its template once goldens and a baseline round exist, then lists it once a round verifies it, and it decides whether a borrowed skill is adopted, adapted or written new from its licence. Use when asked to create a skill, adopt or adapt one from elsewhere, improve a skill's description or steps, write its evals, or make it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill.
+description: Make or change a harnesswright skill in stages, one stage per run, each ending with a stage report that names who does the next step. It writes a skill's trigger and task cases first, then its template once goldens and a baseline round exist, then lists it once a round verifies it, and it decides whether a borrowed skill is adopted, adapted or written new from its licence. Use when asked to create a skill, adopt or adapt one from elsewhere, improve a skill's description or steps, fix a skill that failed its round, write its evals, or make it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill.
 license: Apache-2.0. LICENSE.txt has the full terms.
 metadata:
   roles: skill designer
@@ -26,7 +26,7 @@ what exists, does only that stage, writes only the files that stage allows, and 
 | Stage | Starts when | Does | Next step, and its owner |
 |---|---|---|---|
 | 1 Evals | A request, and no cases for the skill | Source and path; trigger and task cases | Goldens by an author who did not write the cases; kit approval by the judges; a baseline round without the skill by the eval owner |
-| 2 Draft | Cases, goldens and a round's label file for the skill exist | A new skill: template, licence, provenance, job row. An improvement: only the change its failed cases call for. Then the version and the release build | A round by the eval owner: the skill and no skill; for an improvement, the changed skill, its previous version and no skill |
+| 2 Draft | Cases, and a round's label file for the skill that meets the stage 2 test of step 2 | A new skill: template, licence, provenance, job row. An improvement: only the change its failed cases call for. Then the version and the release build | A round by the eval owner: the skill and no skill; for an improvement, the changed skill, its previous version and no skill |
 | 3 Ship | A round's label file says `verified` on the reference host | Checks the release is the one the round measured; lists the skill | Claims by the role whose job they are, then an independent judge |
 
 Files each stage may write, besides the run folder and its own report `evals/skills/<name>/stage-<n>.md`:
@@ -93,10 +93,14 @@ Check: the run folder holds `rules.md` and the rules texts, and you have read th
 
 1. Look for `evals/skills/<name>/cases/`. With no case folder there, the stage is 1, even when the request asks for
    the skill itself: say so in the report.
-2. With cases, read the label file the request names. It must name this skill. Stage 3 needs the label `verified`
-   on the reference host. Otherwise it is stage 2: a new skill needs the label's no-skill arm with at least 3 runs
-   of every task case; an improvement needs the round report as well. When neither fits, ask which file to read,
-   and write nothing.
+2. With cases, read the label file the request names. It must name this skill, for either stage; when it does not,
+   ask which file to read, and write nothing. Stage 3 needs the label `verified` on the reference host. Otherwise
+   the stage 2 test applies, and it is the only one: the label's no-skill arm has at least 3 scored runs of every
+   task case, and for an improvement the round report lists the failed cases. When the test fails, ask which file
+   to read, and write nothing.
+3. The test reads only the label file and the round report. Goldens are kept by others and are not in the project:
+   never search for them, and never stop because you see none. A project may hold only some of the cases, as
+   samples; that is no reason to stop either.
 
 Check: you know the stage and why, from files you read.
 
@@ -116,9 +120,24 @@ Check: you know the stage and why, from files you read.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show, each with its source.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
+6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
+   match, ignoring case and punctuation. Run the copy check from the project root:
 
-Check: every case is a folder with both files; the counts and the split hold; you wrote nothing outside the stage's
-files, and no golden or round result.
+   ```sh
+   python3 SKILL_DIR/scripts/shared_runs.py --source <source folder> --written evals/skills/<name>/
+   ```
+
+   - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
+   - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
+     it): tell the person the check did not run, then compare by reading, looking hardest at expectations, which
+     restate what the source does. Put "copy check by reading, not verified" under Not run.
+   - Exit 2: stop, and report its output.
+
+   List the command and its result under Checked.
+
+Check: every case is a folder with both files; the counts and the split hold; on the write-new path with a source,
+the copy check passed or is under Not run; you wrote nothing outside the stage's files, and no golden or round
+result.
 
 ### 4. Stage 2: write the skill
 
@@ -204,6 +223,7 @@ Check: your message matches the stage report.
 |---|---|
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
+| You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |
 | A borrowed script exists | Do not run it. Name it under Not run, for a person to review. |
 | The build or a check is missing or fails | Report the command, its exit code and its output. Do not claim the release. |
 | A round cannot name a new skill that has no folder yet | Say so under Next, for the eval owner. Never write the skill early to get round it. |
