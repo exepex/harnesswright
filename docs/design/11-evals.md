@@ -219,6 +219,11 @@ exit code, since the two arms are different worlds and what a world prints back 
 removed from the view's text. What the agent itself wrote or said about what it saw is its own output and stays
 visible. The full bundle is kept for checks, audits and judges.
 
+A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
+or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The
+prompt is the same in both arms, so it tells no arm, and the world lint keeps the skill out of it. A golden is
+graded as a page of its case, so it gets the same request.
+
 ## Scoring
 
 ### Script checks
