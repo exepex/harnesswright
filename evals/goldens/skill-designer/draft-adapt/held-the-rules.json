@@ -119,13 +119,13 @@
   },
   "q2": {
    "expectation": "The frontmatter holds only the standard fields",
-   "sha256": "8f92e6147aa5ace8a295621bd798437b8398e2df87eb343a220b14dbf7838a30",
+   "sha256": "bae896b00f15c92cc850dcd005ea6c0c91c9f4dcee878dbba773d3e6eb52a02c",
    "answer": "yes",
    "by": "judge-g"
   },
   "q3": {
    "expectation": "Metadata records the source, its licence, the sourcing and the role",
-   "sha256": "eec18fe75787505e3255229a41b1d612725f17a8086745b54728876d19b7487b",
+   "sha256": "d35d6e46d6d4f3a29dab4e964c762e492fbd3e78942403fa382330e5716098a5",
    "answer": "yes",
    "by": "judge-g"
   },
@@ -143,13 +143,13 @@
   },
   "q6": {
    "expectation": "No host-only tool or field is left",
-   "sha256": "f5dceccd031d97ba12752d4d50ee76a3da1161694d41418cb8ec2edd3c1910e9",
+   "sha256": "e0d108429a348e053897731c00f5089bdeb43231150bb774983128a66ff3f049",
    "answer": "yes",
    "by": "judge-g"
   },
   "q7": {
    "expectation": "Rules are cited by ID, never copied",
-   "sha256": "9c3425798cbb5db1454c6b5e952381ebf4895b5ef10e76aafdf60f2247d8c49b",
+   "sha256": "15f5efe19d1dd577ade8bed5bb41a2cb3f27f395cc3e94f6a7b16ac2ee4d4c93",
    "answer": "yes",
    "by": "judge-g"
   },
@@ -179,25 +179,25 @@
   },
   "q12": {
    "expectation": "The stage report has its headings in order",
-   "sha256": "00fa428ac9b6270964bedb3d5dbc8a8326d71b8716e0ff2033250e9ea3a2afa9",
+   "sha256": "f13370f75bd329a7ffd30019e408abcf6c1b164478e10d09ef293ea3fc20cc8b",
    "answer": "yes",
    "by": "judge-g"
   },
   "q13": {
    "expectation": "Every file listed under Files written has its true line count",
-   "sha256": "420da9ba47986a7067cd62c6e31eb1c576400ff2b28cdf47a3812e4643af4ede",
+   "sha256": "6ab3301ab85eae65b0a7e4fccebd98d9f5f51d6b126895f21ec5cf329daf61aa",
    "answer": "no",
    "by": "judge-g"
   },
   "q14": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "fafe77e05bd7c32942528e945c22d38018e09264ce4c1421c269f4ace2a461b7",
+   "sha256": "d15dbc21ac9179fffb92dc524f1384d0ac5ca96c1a4fa8db7fdfd1214800808d",
    "answer": "no",
    "by": "judge-g"
   },
   "q15": {
    "expectation": "Next asks for a round with the skill, run by the eval owner",
-   "sha256": "bc857516af7c410fb7e730625f729d442014b44e309902be07c97c2464cf0d71",
+   "sha256": "834611af467b9f84ef9f89a8aae64e27a613c7e2def5832bff2a0e06fab1e58e",
    "answer": "no",
    "by": "judge-g"
   },

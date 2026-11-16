@@ -134,7 +134,7 @@
   },
   "q2": {
    "expectation": "Each case is its own folder with a case.json and a world",
-   "sha256": "60c6fe493acd15c7cc664d36fac0e6ac9e4e402a7deb1cb1a5c7ed447e965d2b",
+   "sha256": "403d5eaa455e05ae3c1fb1b449422c35d25ba76b13a61fcc7821c982226de4c3",
    "answer": "no",
    "by": "judge-f"
   },
@@ -146,7 +146,7 @@
   },
   "q4": {
    "expectation": "Each trigger case states its kind and split, half of each kind in test",
-   "sha256": "9791ecad594eaea17192f30fe327941e1824a7ae40fa0234bef7aa0b0b207abd",
+   "sha256": "725a4385c3f6325f8e0900e77beb5ea3e2eb90743f008e984500284c4762ce62",
    "answer": "no",
    "by": "judge-f"
   },
@@ -188,31 +188,31 @@
   },
   "q11": {
    "expectation": "The stage report has its headings in order",
-   "sha256": "e363dae639a8f8da2097250a5387060c64df211c94e6a8297a458a3908f27fd7",
+   "sha256": "3a57ef73d151fd7c5300396c7e0cfe00d0c2c18c1cb389d5325aaf38c6df7ef6",
    "answer": "no",
    "by": "judge-f"
   },
   "q12": {
    "expectation": "Every file listed under Files written has its true line count",
-   "sha256": "2e2ce246d82cf8786c1f3b34b8e15cd9bfecc928706d49356d72b76c9353d0c8",
+   "sha256": "debc10f93553fbfb97b2c5ef951eda62e7596a970ea68087f29d0a2495a9bc04",
    "answer": "no",
    "by": "judge-f"
   },
   "q13": {
    "expectation": "Files written lists every file the run wrote",
-   "sha256": "6b54e1899446dacc1846a9b7a22907f3d8808851c3030ea5cdf50367291718ec",
+   "sha256": "2e92593eb595d21a09c92c5ff57abd27c36f01fea4bd2d11e50d507bf7328667",
    "answer": "no",
    "by": "judge-f"
   },
   "q14": {
    "expectation": "The path is write new, because the source has no licence",
-   "sha256": "7f6eb7b2a1be2be9e9dc52a7ceab7be636186c4f0f2791584a0c58fb2d48abb9",
+   "sha256": "54af0ba39f88415bcff7577ee3241af02f4ab04811fc24bc3c570c95244abbcf",
    "answer": "no",
    "by": "judge-f"
   },
   "q15": {
    "expectation": "Next names the goldens author and the baseline round, each with its owner",
-   "sha256": "6e326fb5d5c44def148d058157a1983577a2d332299e2840de18cf04800e498c",
+   "sha256": "597802c6db58eb2cf6d53ba7a0797b96b7d5a9cc8f4b4d569f6f90ee6f40a9a3",
    "answer": "no",
    "by": "judge-f"
   },
