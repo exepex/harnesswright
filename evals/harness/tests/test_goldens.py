@@ -61,7 +61,7 @@ class Goldens(TempCase):
         loaded, blob = evidence.load(out)
         self.assertEqual(checks.decide(CHANGED["name"], checks.Bundle(loaded, blob), CHANGED["args"])["outcome"],
                          "pass")
-        page = grading.page(*view.view(loaded, blob))
+        page = grading.page("Write the notes.", *view.view(loaded, blob))
         for shown in ("Wrote the notes.", "Buy milk.", "  - command: cat README.md"):
             self.assertIn(shown, page)
         self.assertNotIn("A notes app.", page)  # a command's output never reaches a grader, as in every run
@@ -69,7 +69,7 @@ class Goldens(TempCase):
     def test_a_golden_s_text_is_seen_through_the_same_view_as_a_run_s(self):
         log = [*LOG[:2], {"kind": "message", "source": "observed", "text": "Read .harness/active/SKILL.md.\nDone."}]
         record, blobs = self.built({**GOLDEN, "log": log})
-        page = grading.page(*view.view(record, blobs.__getitem__))
+        page = grading.page("Write the notes.", *view.view(record, blobs.__getitem__))
         self.assertNotIn(".harness/active", page)  # the skill's path is the overlay's, whatever its name
         self.assertIn("Done.", page)
 

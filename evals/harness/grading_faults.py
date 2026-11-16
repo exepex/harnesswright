@@ -96,8 +96,8 @@ def _asked(pages, rng):
     return rng.choice(asked)
 
 
-def _text(record, blob):
-    return grading.page(*view.view(record, blob))
+def _text(case, record, blob):
+    return grading.page(case.prompt, *view.view(record, blob))
 
 
 def _sheet(page, asked, answer):
@@ -132,9 +132,9 @@ def sheet(setup, fault, rng, place):
     the words reversed) for `misquoted` and empty or blank evidence for `no quote`, and for `extra
     field` the file itself holding another field too. Caught when the sheet check accepts the correct sheet and
     refuses every planted one for the reason the place names."""
-    _, pages = _pages(setup, rng)
+    case, pages = _pages(setup, rng)
     golden, record, blob, asked = _asked(pages, rng)
-    page, ids = _text(record, blob), [question["id"] for question in asked]
+    page, ids = _text(case, record, blob), [question["id"] for question in asked]
     clean = _sheet(page, asked, golden.settled.get)
     problems = grading.check(clean, ids, page)
     if problems:
@@ -179,7 +179,7 @@ def _gate(case, pages, answer, ungraded=None):
     for golden, record, blob, asked in pages:
         one = _grader(lambda id_, golden=golden: answer(golden, id_))
         pair = [_grader(None), one] if golden.name == ungraded else [one, one]
-        found = grader.panel(_text(record, blob), asked, pair, _grader(None))
+        found = grader.panel(_text(case, record, blob), asked, pair, _grader(None))
         graded[golden.name] = ([question["id"] for question in asked], found.answers)
     return goldens.gate(case, [p[0] for p in pages], graded)
 
@@ -239,9 +239,9 @@ def tie(setup, fault, rng, place):
     exactly the split questions and the panel takes its answers; with one grader ungraded, also when that host's
     grader is asked every question twice, and, when its stand-in gives no sheet either, nothing is answered and the
     tie-breaker is asked nothing: one grader never decides alone."""
-    _, pages = _pages(setup, rng)
+    case, pages = _pages(setup, rng)
     golden, record, blob, asked = _asked(pages, rng)
-    page, ids, settled = _text(record, blob), [question["id"] for question in asked], golden.settled
+    page, ids, settled = _text(case, record, blob), [question["id"] for question in asked], golden.settled
     splits = {"one split": [[id_] for id_ in ids], "all split": [ids],
               "one ungraded": [rng.sample(ids, max(1, len(ids) // 2))]}[place]
     orders = [rng.sample(split, len(split)) for split in splits]  # one order for both turns of a split
@@ -279,7 +279,7 @@ def view_(setup, fault, rng, place):
     the plant's actions on the overlay left out, its lines that name the skill left out, its run folders as their
     neutral words and its command output empty. Caught when the clean view and page name none of them, and the planted
     view and page equal the control's: nothing of the plant shows, not even an entry with its names taken out."""
-    _, pages = _pages(setup, rng)
+    case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
@@ -351,27 +351,27 @@ def view_(setup, fault, rng, place):
             planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
             planted["log"].append({"kind": "write", "source": "observed", "path": f"{path}/SKILL.md", "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
-    if _shown(record, blob, names):
+    if _shown(case, record, blob, names):
         return "the clean view already names the arm or the skill, so the plant proves nothing"
-    shown = _shown(planted, read, names)
+    shown = _shown(case, planted, read, names)
     if shown:
         return f"the view a grader gets names {shown}"
-    seen = _seen(control, read)
+    seen = _seen(case, control, read)
     if place != "arm" and kept.strip() not in seen[2]:
         return "the control's page lost the neutral line next to the plant, so the view hides what it must show"
-    if _seen(planted, read) != seen:
+    if _seen(case, planted, read) != seen:
         return "the view a grader gets differs from its control's: the plant shows"
     return None
 
 
-def _seen(record, blob):
+def _seen(case, record, blob):
     seen, blobs = view.view(record, blob)
-    return seen, blobs, grading.page(seen, blobs)
+    return seen, blobs, grading.page(case.prompt, seen, blobs)
 
 
-def _shown(record, blob, names):
+def _shown(case, record, blob, names):
     """The names that the view of `record` (its record and every blob) or its page holds."""
-    seen, blobs, page = _seen(record, blob)
+    seen, blobs, page = _seen(case, record, blob)
     text = json.dumps(seen, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
     return [name for name in names if name in text + page]
 

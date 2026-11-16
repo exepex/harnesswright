@@ -76,8 +76,14 @@ class Questions(TempCase):
 
 
 class Page(TempCase):
-    def page(self, files, log, final="Done."):
-        return grading.page(*view.view(*record(files, log, final)))
+    def page(self, files, log, final="Done.", request="Write the notes."):
+        return grading.page(request, *view.view(*record(files, log, final)))
+
+    def test_the_page_starts_with_the_request_every_run_of_the_case_was_given(self):
+        shown = self.page({"notes.md": b"Tests pass.\n"}, [], request="Bring it in as notes-writer.\nKeep it short.")
+        self.assertTrue(shown.startswith("# Request\n\nBring it in as notes-writer.\nKeep it short.\n\n# Final message"))
+        answers = [{"id": "q1", "answer": "no", "evidence": "Bring it in as notes-writer"}]
+        self.assertEqual(grading.check({"answers": answers}, ["q1"], shown), [])  # a grader may quote the request
 
     def test_the_page_shows_what_the_agent_did_and_wrote_and_never_what_a_command_printed(self):
         shown = self.page({"notes.md": b"Tests pass.\n", "logo.png": b"\x89PNG\xff", "latest": ("link", "notes.md")},

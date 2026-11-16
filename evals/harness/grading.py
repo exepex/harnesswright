@@ -7,8 +7,9 @@ against that view.
 - `questions(expectations, verdicts)`: the judged questions of one run. An expectation goes to the graders when it
   has no check, or its check gave `undecidable` on the run's bundle. Nothing else is sent, so a grader never
   overrules a script check. Each question keeps its expectation's place as its id (`q1` is the first expectation).
-- `page(view, blobs)`: the one text a grader reads of a run, written from the grader view (`view.view`) and
-  nothing else: the final message, the actions (each field's text as the agent wrote it, never escaped), the
+- `page(request, view, blobs)`: the one text a grader reads of a run, written from the case's request (its
+  prompt, the same in both arms, so it tells no arm) and the grader view (`view.view`), and nothing else: the
+  request, the final message, the actions (each field's text as the agent wrote it, never escaped), the
   changes and the files. It is also the text every quote is checked against, so a grader is held to exactly what
   it was shown.
 - `check(grading, ids, page)`: the problems of one grading file, none when it is accepted. A file is accepted
@@ -58,10 +59,13 @@ def questions(expectations, verdicts):
     return found
 
 
-def page(view, blobs):
-    """The text a grader reads of one run's grader view (`view.view` gives `view` and `blobs`)."""
+def page(request, view, blobs):
+    """The text a grader reads of one run: the case's `request` and the run's grader view (`view.view` gives `view`
+    and `blobs`). One rule: a judged question turns only on what the grader reads, so the request every run of the
+    case was given is on every page of it, goldens too."""
     final = view["final_message"]
-    lines = ["# Final message", "", final if final is not None else "(none)", "", "# Actions", ""]
+    lines = ["# Request", "", request, "", "# Final message", "", final if final is not None else "(none)", "",
+             "# Actions", ""]
     for item in view["log"]:
         lines.append(f"- {item['kind']} ({item['source']})")
         lines += [f"  - {name}: {_value(value)}" for name, value in item.items() if name not in UNSHOWN]

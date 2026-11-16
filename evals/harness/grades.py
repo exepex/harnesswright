@@ -42,9 +42,9 @@ def reference(hosts):
     return REFERENCE if REFERENCE in hosts else sorted(hosts)[0]
 
 
-def text(record, blob):
-    """The page a grader reads of a bundle."""
-    return grading.page(*view.view(record, blob))
+def text(case, record, blob):
+    """The page a grader reads of a bundle of `case`."""
+    return grading.page(case.prompt, *view.view(record, blob))
 
 
 def grade_gate(r):
@@ -54,7 +54,8 @@ def grade_gate(r):
     for made in r.runs:
         if made["status"] in ("kept", "made") and r.asked[made["key"]]:
             record, blob = evidence.load(made["bundle"])
-            pages[made["key"]], asked[made["key"]] = text(record, blob), r.asked[made["key"]]
+            pages[made["key"]] = text(r.cases[(made["skill"], made["case"])], record, blob)
+            asked[made["key"]] = r.asked[made["key"]]
             case_of[made["key"]] = (made["skill"], made["case"])
     calibrated = {}  # (skill, case id): (case, its goldens)
     for (skill, case_id), case in r.cases.items():
@@ -71,7 +72,7 @@ def grade_gate(r):
             name = f"golden {skill}/{case_id}/{golden.name}"
             asked[name] = grading.questions(case.expectations, verdicts)
             if asked[name]:  # a golden whose every question a check decided has no page to grade
-                pages[name], case_of[name] = text(record, blobs.__getitem__), (skill, case_id)
+                pages[name], case_of[name] = text(case, record, blobs.__getitem__), (skill, case_id)
     panel, pair = _panel(r, top)
     for name, _ in grader.blind(pages, r.seed):
         sheets[name] = panel(pages[name], asked[name])

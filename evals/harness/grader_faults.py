@@ -58,9 +58,9 @@ def _tree(folder):
 
 def folder(setup, fault, rng, place):
     """A grader that writes to its folder or reads outside it, as `place` says. See the module's docstring."""
-    _, pages = grading_faults._pages(setup, rng)
+    case, pages = grading_faults._pages(setup, rng)
     golden, record, blob, asked = grading_faults._asked(pages, rng)
-    page = grading_faults._text(record, blob)
+    page = grading_faults._text(case, record, blob)
     sheet = grading_faults._sheet(page, asked, golden.settled.get)  # a right sheet, so only the plant can fail it
     beside = Path(tempfile.mkdtemp(prefix="grader-", dir=grader.place()))  # another grader's folder, as it looks
     (beside / "page").mkdir()
