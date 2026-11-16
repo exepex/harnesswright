@@ -3,6 +3,7 @@ Run: python3 -m unittest discover -s v2/build/tests"""
 
 import importlib.util
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -34,6 +35,15 @@ class SharedRuns(unittest.TestCase):
         code, out = self.run_check('"Does it List the commands a reviewer\\nruns with what each shows?"')
         self.assertEqual(code, 1)
         self.assertIn("list the commands a reviewer runs with what each\n", out)
+
+    def test_a_json_file_is_read_with_its_escapes_decoded(self):
+        source = "Each step \u2014 list the commands a reviewer runs, with what each should print.\n"
+        (self.tmp / "src" / "SKILL.md").write_text(source)
+        copied = json.dumps({"question": "Each step \u2014 list the commands a reviewer runs with what each shows?"})
+        self.assertIn("\\u2014", copied)  # as json.dump writes it by default
+        code, out = self.run_check(copied)
+        self.assertEqual(code, 1)
+        self.assertIn("each step list the commands a reviewer runs with what each\n", out)
 
     def test_seven_words_in_a_row_pass_and_a_lower_limit_finds_them(self):
         text = "open with list the commands a reviewer runs with, then stop."

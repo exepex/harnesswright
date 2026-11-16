@@ -127,9 +127,9 @@ Check: you know the stage and why, from files you read.
    ```
 
    - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
-   - It could not run (scripts forbidden in `.harness/profile.yaml`, or no Python): compare by reading, looking
-     hardest at expectations, which restate what the source does. Put "copy check by reading, not verified" under
-     Not run.
+   - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
+     it): tell the person the check did not run, then compare by reading, looking hardest at expectations, which
+     restate what the source does. Put "copy check by reading, not verified" under Not run.
    - Exit 2: stop, and report its output.
 
    List the command and its result under Checked.

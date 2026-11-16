@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-01, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
   rulebook-version: "0.4.1"
-  content-hash: "92d6b1ec0234440378544a86ba7d0a74aa16d56e0ff7a35e66cbb5ba77f907aa"
+  content-hash: "097a634f3b302fe01303c3dd62eefee58cfd4642f011b58a0dc87033d67c9736"
   size-floors: "14440"
-  size-rest: "26049"
+  size-rest: "26128"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.4.1. Do not edit. -->
 
@@ -548,9 +548,9 @@ Check: you know the stage and why, from files you read.
    ```
 
    - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
-   - It could not run (scripts forbidden in `.harness/profile.yaml`, or no Python): compare by reading, looking
-     hardest at expectations, which restate what the source does. Put "copy check by reading, not verified" under
-     Not run.
+   - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
+     it): tell the person the check did not run, then compare by reading, looking hardest at expectations, which
+     restate what the source does. Put "copy check by reading, not verified" under Not run.
    - Exit 2: stop, and report its output.
 
    List the command and its result under Checked.

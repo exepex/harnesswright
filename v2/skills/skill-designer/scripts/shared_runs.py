@@ -5,9 +5,10 @@ Run from the project root:
   python3 shared_runs.py --source PATH [--source PATH ...] --written PATH [--written PATH ...] [--words N]
 
 A source or written path may be a file or a folder (every file under it). A word is a run of letters and digits,
-compared without case; everything else, white space, punctuation and Markdown marks, only separates words, and so
-does an escaped line break or tab (`\\n`, `\\r`, `\\t`, as JSON writes them), so a run split by a comma or a line
-break is still found. N is 8 unless given.
+compared without case; everything else, white space, punctuation and Markdown marks, only separates words, so a run
+split by a comma or a line break is still found. A file is read as the text a person sees: a `.json` file that parses
+is read as its keys and string values, with every escape decoded, so `\\n` or `\\u2014` never joins or splits a
+word. N is 8 unless given.
 
 Standard library only, no network, deterministic. Exit 0: no written file shares N words in a row with a source.
 Exit 1: each "shared:" line names a written file, a source file and the run, longest first. Exit 2: a path is
@@ -15,12 +16,12 @@ missing or cannot be read.
 """
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 
 WORD = re.compile(r"[^\W_]+")
-ESCAPE = re.compile(r"\\[nrt]")  # a line break or tab as JSON writes it, which only separates words
 
 
 def files(path):
@@ -34,8 +35,27 @@ def files(path):
 
 
 def words(path):
-    text = ESCAPE.sub(" ", Path(path).read_text(encoding="utf-8", errors="replace"))
+    """The words of `path` as a person reads it (see the module's docstring), in order, lower case."""
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    if Path(path).suffix == ".json":
+        try:
+            text = "\n".join(_strings(json.loads(text)))
+        except ValueError:
+            pass  # not JSON after all: read as written
     return [w.lower() for w in WORD.findall(text)]
+
+
+def _strings(value):
+    """Every key and string of a parsed JSON value, in order."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield key
+            yield from _strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _strings(item)
 
 
 def shared(written, source, n):
