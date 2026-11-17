@@ -1,0 +1,17 @@
+{
+  "args": {
+    "file": "evals/skills/x/stage-1.md"
+  },
+  "outcome": "fail",
+  "before": {
+    "README.md": "root\n",
+    "evals/skills/x/stage-1.md": "# Stage 1\n\n- `evals/skills/x/cases/a/case.json` (1 line)\n- `evals/skills/x/cases/a/world/README.md` (1 line)\n"
+  },
+  "after": {
+    "README.md": "root\n",
+    "evals/skills/x/cases/a/case.json": "{}\n",
+    "evals/skills/x/cases/a/world/README.md": "hi\n",
+    ".harness/runs/r1/notes.txt": "n\n",
+    "evals/skills/x/stage-1.md": "# Stage 1\n\n- `evals/skills/x/cases/a/case.json` (1 line)\n- `evals/skills/x/cases/a/world/README.md` (1 line)\n"
+  }
+}

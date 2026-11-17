@@ -1,0 +1,16 @@
+{
+  "args": {
+    "file": "evals/skills/x/stage-1.md"
+  },
+  "outcome": "fail",
+  "before": {
+    "README.md": "root\n"
+  },
+  "after": {
+    "README.md": "root\n",
+    "evals/skills/x/cases/a/case.json": "{}\n",
+    "evals/skills/x/cases/a/world/README.md": "hi\n",
+    ".harness/runs/r1/notes.txt": "n\n",
+    "evals/skills/x/stage-1.md": "# Stage 1\n\n- `backup+evals/skills/x/cases/a/case.json`\n- `backup@evals/skills/x/cases/a/world/README.md`\n"
+  }
+}

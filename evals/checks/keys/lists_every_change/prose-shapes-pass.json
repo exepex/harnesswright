@@ -1,0 +1,16 @@
+{
+  "args": {
+    "file": "evals/skills/x/stage-1.md"
+  },
+  "outcome": "pass",
+  "before": {
+    "README.md": "root\n"
+  },
+  "after": {
+    "README.md": "root\n",
+    "evals/skills/x/cases/a/case.json": "{}\n",
+    "evals/skills/x/cases/a/world/README.md": "hi\n",
+    ".harness/runs/r1/notes.txt": "n\n",
+    "evals/skills/x/stage-1.md": "# Stage 1\n\n**I wrote evals/skills/x/cases/a/case.json.** Did it hold? See [line 3](evals/skills/x/cases/a/world/README.md#L3)!\n"
+  }
+}
