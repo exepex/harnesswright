@@ -12,7 +12,8 @@ A skill is made in three stages, each its own piece of work with its own owner:
 3. A line for the skill in the `AGENTS.md` Skills table, once a round with the skill has verified it.
 
 Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that
-lists every file the stage wrote. Whoever takes the next stage starts from that report.
+lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the
+files in it. Whoever takes the next stage starts from that report.
 
 ## Cases
 

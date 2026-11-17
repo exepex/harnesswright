@@ -26,7 +26,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 19,
+          "line": 20,
           "quote": "Cases go under `evals/skills/<name>/cases/`, one folder per case, each with a `case.json` and a `world/` folder."
         }
       },
@@ -45,7 +45,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 22,
+          "line": 23,
           "quote": "Each skill gets at least eight trigger cases that should load it and eight near misses that should not."
         }
       },
@@ -64,7 +64,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 23,
+          "line": 24,
           "quote": "trigger case says whether it should load the skill and whether it is in the train or the test split, and half of each kind are in the test split."
         }
       },
@@ -83,7 +83,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 25,
+          "line": 26,
           "quote": "The near misses include, for each other skill in the Skills table of `AGENTS.md`, at least one request that is that skill's job."
         }
       },
@@ -102,7 +102,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 27,
+          "line": 28,
           "quote": "Each skill gets at least two task cases, and each task case lists what a good run must show."
         }
       },
@@ -121,7 +121,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 28,
+          "line": 29,
           "quote": "Each item a task case lists names where its rule comes from: a file and line in that case's `world/`, or `format` when the rule is only the shape the skill gives its own output."
         }
       },
@@ -140,7 +140,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 33,
+          "line": 34,
           "quote": "The goldens for a case are written by someone who did not write the case."
         }
       },
@@ -159,7 +159,7 @@
       "source": {
         "contract": {
           "path": "docs/evals.md",
-          "line": 34,
+          "line": 35,
           "quote": "The eval owner runs every round."
         }
       },
@@ -179,7 +179,7 @@
         "contract": {
           "path": "docs/evals.md",
           "line": 14,
-          "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote."
+          "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."
         }
       },
       "check": {
@@ -205,16 +205,16 @@
         "contract": {
           "path": "docs/evals.md",
           "line": 14,
-          "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote."
+          "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."
         }
       },
       "judged": {
-        "question": "Does evals/skills/commit-message-writer/stage-1.md list every file the run added or changed?",
-        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and no file the run wrote is missing from it, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Does evals/skills/commit-message-writer/stage-1.md list every file the run added or changed, each by its own path? A folder, a pattern such as cases/trigger-*/case.json, or a count does not list the files in it.",
+        "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "fail": "No when a file the run wrote is not named by its own path, even if a folder, pattern or count covers it. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["Twenty-two case files written, and all twenty-two listed."],
-          "fail": ["Twenty-two case files written, and only the task cases listed."]
+          "pass": ["Thirty-eight case files written, and each named by its path, one per line."],
+          "fail": ["Twenty-two case files written, and only the task cases listed.", "A line 'cases/trigger-01 to cases/trigger-16, each with case.json and world/README.md' in place of the paths."]
         }
       }
     },
