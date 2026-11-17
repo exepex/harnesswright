@@ -393,6 +393,7 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 |---|---|
 | `file_state` | The file at `path` exists, is absent, is unchanged, or was changed by the run |
 | `changes_only_in` | Every path the run changed matches one of the `allowed` globs (`*` crosses folders) |
+| `lists_every_change` | The run's `file` names every other file the run added or changed by its own whole path |
 | `command_ran` | A program matching `pattern` where it starts ran, or was never run nor tried (`ran`), maybe with its own `exit_code` |
 | `sections` | The Markdown headings of `level` are exactly `headings`, in order |
 | `frontmatter` | Each line is a field given once or part of one: `required`, only `allowed`, with `values` |

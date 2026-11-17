@@ -1,6 +1,11 @@
 {
   "prompt": "Someone on the platform team found a pull request description skill they like and copied it into incoming/pr-helper/ (ORIGIN.md says where it came from). Bring it into the toolkit as pr-description-writer, for the implementer role.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "expectations": [
     {
       "text": "No skill template is written yet",
@@ -300,15 +305,16 @@
       }
     },
     {
-      "text": "Files written lists every file the run wrote",
+      "text": "The stage report lists every file the run wrote",
       "source": "format",
+      "check": {"name": "lists_every_change", "args": {"file": "evals/skills/pr-description-writer/stage-1.md"}},
       "judged": {
-        "question": "Does the Files written section of evals/skills/pr-description-writer/stage-1.md list every file the run added or changed?",
-        "pass": "Yes when the run wrote evals/skills/pr-description-writer/stage-1.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/pr-description-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Does evals/skills/pr-description-writer/stage-1.md list every file the run added or changed, each by its own path? A folder, a pattern such as evals/skills/pr-description-writer/cases/*/case.json, or a count names none of the files in it.",
+        "pass": "Yes when the run wrote evals/skills/pr-description-writer/stage-1.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "fail": "No when a file the run wrote is not named by its own path, even if a folder, pattern or count covers it. No also when the run wrote no evals/skills/pr-description-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Twenty-two case files written, and all twenty-two listed."],
-          "fail": ["Twenty-two case files written, and only the task cases listed."]
+          "fail": ["Twenty-two case files written, and only the task cases listed.", "A line 'evals/skills/pr-description-writer/cases/ (22 files)' in place of the paths."]
         }
       }
     },
