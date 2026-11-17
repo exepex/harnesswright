@@ -5,8 +5,8 @@ Standard library only, build only: this module is not shipped with a skill (buil
 one allowed shape. A `Rules:` line is one line that, after any indentation by spaces, is `Rules: ` and then one or
 more tags separated by ", ", with nothing else. It never wraps: a wrapped line leaves a tag outside a `Rules:` line,
 or a line that ends with a comma, and both fail. The tag `{{rule:<ID>}}` holds no rule ID; it shows the form
-itself, so the build leaves it as it is, on a `Rules:` line or anywhere else. Any other `{{`, `}}` or `{rule` is a
-mistyped tag and fails.
+itself, so the build leaves it as it is, on a `Rules:` line or anywhere else. Any other `{` followed by `rule` as a
+word, in any case and with any spaces between, is a mistyped tag and fails; other braces, such as JSON, are text.
 
 The build writes each tag as "ID (title)". A bare rule ID outside a tag is the old form; it still builds, as
 "ID (title)", until both templates are converted (reviews/sd-root-cause/marker-plan.md).
@@ -26,7 +26,7 @@ PLACEHOLDER = "{{rule:<ID>}}"
 TAG = re.compile(rf"\{{\{{rule:({ID})\}}\}}")
 ITEM = rf"(?:\{{\{{rule:{ID}\}}\}}|{re.escape(PLACEHOLDER)})"
 RULES_LINE = re.compile(rf" *Rules: {ITEM}(?:, {ITEM})*")
-MISTYPED = re.compile(r"\{\{|\}\}|\{\s*rule", re.IGNORECASE)  # what is left of a tag that has no allowed shape
+MISTYPED = re.compile(r"\{\s*rule\b", re.IGNORECASE)  # the start of a tag; left over, it has no allowed shape
 
 
 class TagError(rulebook.RulebookError):
@@ -40,6 +40,13 @@ def is_rules_line(line):
 def ids(text):
     """Every rule ID the text cites, in a tag or bare."""
     return set(CITATION.findall(text))
+
+
+def check_frontmatter(lines, where):
+    """The frontmatter holds no tag: the build writes it out as it is, so a tag there would reach the release."""
+    for number, line in enumerate(lines, start=1):
+        if MISTYPED.search(line):
+            raise TagError(f"{where}:{number}: the frontmatter holds no rule tag: {line!r}")
 
 
 def expand(text, titles, where, first=1):

@@ -103,6 +103,7 @@ def build_skill(folder, rel_folder, layer, version, row, skills):
     titles = {rule.id: rule.title for rule in rules}
     texts = {rel: "\n".join(rulebook.read_lines(folder / rel)) + "\n" for rel in markdown}
     texts[TEMPLATE] = "\n".join(lines[body_start:])  # the frontmatter cites nothing
+    tags.check_frontmatter(lines[:body_start], f"{name}/{TEMPLATE}")
     expanded = {rel: tags.expand(text, titles, f"{name}/{rel}", body_start + 1 if rel == TEMPLATE else 1)
                 for rel, text in texts.items()}  # fails an unknown ID or a tag with no allowed shape, naming the line
     cited = set().union(*(tags.ids(text) for text in texts.values()))

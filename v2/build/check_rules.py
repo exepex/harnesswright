@@ -37,9 +37,10 @@ FRONT = re.compile(r"(?:  )?[a-z][a-z0-9-]*: \S.*|metadata:")
 MARKERS = ("<!-- rule ", "<!-- end ", "<!-- Generated from ")
 SECTION = "## Rules for this skill"
 # A rule tag, {{rule:ID}}, is template text: the build writes each one out as "ID (title)". A release shows only the
-# form itself, {{rule:<ID>}}; any other "{{", "}}" or "{rule" is a tag the build did not write out.
+# form itself, {{rule:<ID>}}; any other "{" followed by the word "rule", in any case, is a tag the build did not
+# write out. Other braces, such as JSON, are text.
 PLACEHOLDER = "{{rule:<ID>}}"
-TAG_LEFT = re.compile(r"\{\{|\}\}|\{\s*rule", re.IGNORECASE)
+TAG_LEFT = re.compile(r"\{\s*rule\b", re.IGNORECASE)
 ITEM = re.compile(rf"({POINT_ID}|{RULE_ID}) \(")
 
 
@@ -263,6 +264,10 @@ class Check:
     def check_bare(self, path, name):
         lines = path.read_text(encoding="utf-8").split("\n")
         start = lines.index("---", 1) + 1 if lines[0] == "---" else 0  # the frontmatter lists copied IDs
+        where = f"release/{name}/{path.relative_to(self.release / name).as_posix()}"
+        for number, line in enumerate(lines[:start], start=1):
+            if TAG_LEFT.search(line):
+                self.fail(f"{where}:{number}", f"holds a rule tag the build did not write out: {line!r}")
         inside = None
         for number, line in enumerate(lines[start:], start=start + 1):
             begin, end = BEGIN.fullmatch(line), END.fullmatch(line)
@@ -271,7 +276,7 @@ class Check:
             elif end and end.group(1) == inside:
                 inside = None
             elif inside is None:
-                self.check_line(line, f"release/{name}/{path.relative_to(self.release / name).as_posix()}:{number}")
+                self.check_line(line, f"{where}:{number}")
 
     def check_line(self, line, where):
         """One release line outside the copied rules: no tag left, and a `Rules:` line of the one allowed shape."""

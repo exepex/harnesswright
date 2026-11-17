@@ -17,7 +17,6 @@ sys.path.insert(0, str(HERE.parent))
 
 import build  # noqa: E402
 import check_rules  # noqa: E402
-import rulebook  # noqa: E402
 
 SKILL = "v2/skills/golden-skill/SKILL.tmpl.md"
 
@@ -43,7 +42,7 @@ class TagTest(unittest.TestCase):
             handle.write(line + "\n")
 
     def test_the_shared_faults_are_there(self):
-        self.assertEqual((len(faults("Template lines")), len(faults("Release lines"))), (18, 12))
+        self.assertEqual([len(faults(h)) for h in ("Template lines", "Release lines", "Plain lines")], [18, 12, 4])
 
     def test_the_build_fails_each_bad_template_line_and_names_it(self):
         lines = (self.root / SKILL).read_text(encoding="utf-8").count("\n")
@@ -51,7 +50,7 @@ class TagTest(unittest.TestCase):
             with self.subTest(line=line):
                 self.setUp()
                 self.append(self.root / SKILL, line)
-                with self.assertRaisesRegex(rulebook.RulebookError, f"golden-skill/SKILL.tmpl.md:{lines + 1}: "):
+                with self.assertRaisesRegex(build.tags.TagError, f"golden-skill/SKILL.tmpl.md:{lines + 1}: "):
                     build.build(self.root)
 
     def test_the_build_fails_a_bad_line_in_a_reference_too(self):
@@ -59,14 +58,37 @@ class TagTest(unittest.TestCase):
         with self.assertRaisesRegex(build.tags.TagError, "references/guide.md:3: a rule tag stands only on"):
             build.build(self.root)
 
-    def test_the_release_check_fails_each_bad_release_line(self):
+    def test_the_release_check_fails_each_bad_release_line_at_that_line(self):
         self.assertEqual(check_rules.Check(self.root, self.release).run(), [])
+        skill = self.release / "golden-skill/SKILL.md"
+        at = f"release/golden-skill/SKILL.md:{skill.read_text(encoding='utf-8').count(chr(10)) + 1}: "
+        reasons = ("holds a rule tag the build did not write out", "a `Rules:` line holds only", "is bare")
         for line in faults("Release lines"):
             with self.subTest(line=line):
                 self.setUp()
-                self.append(self.release / "golden-skill/SKILL.md", line)
+                skill = self.release / "golden-skill/SKILL.md"
+                self.append(skill, line)
                 failures = check_rules.Check(self.root, self.release).run()
-                self.assertTrue(failures and all("golden-skill/SKILL.md:" in f for f in failures), failures)
+                self.assertTrue(failures, line)
+                for failure in failures:
+                    self.assertTrue(failure.startswith(at) and any(r in failure for r in reasons), failure)
+
+    def test_plain_lines_build_unchanged_and_pass_the_release_check(self):
+        lines = faults("Plain lines")
+        self.append(self.root / SKILL, "\n".join(lines))
+        self.assertTrue(build.build(self.root)["golden-skill/SKILL.md"].endswith("\n".join(lines) + "\n"))
+        self.append(self.release / "golden-skill/SKILL.md", "\n".join(lines))
+        self.assertEqual(check_rules.Check(self.root, self.release).run(), [])
+
+    def test_a_tag_in_the_frontmatter_fails_both_readers(self):
+        template, skill = self.root / SKILL, self.release / "golden-skill/SKILL.md"
+        for path in (template, skill):
+            text = path.read_text(encoding="utf-8")
+            path.write_text(text.replace("Never used as a real skill.", "Follow {{rule:CORE-WORK-01}}.", 1))
+        with self.assertRaisesRegex(build.tags.TagError, "SKILL.tmpl.md:3: the frontmatter holds no rule tag"):
+            build.build(self.root)
+        failures = check_rules.Check(self.root, self.release).run()
+        self.assertEqual([f.split(": ")[0] for f in failures], ["release/golden-skill/SKILL.md:3"])
 
     def test_a_title_with_a_comma_builds_and_passes_the_release_check(self):
         work = self.root / "v2/rules/core/work.md"

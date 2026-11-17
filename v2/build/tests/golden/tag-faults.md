@@ -1,9 +1,10 @@
 # Rule tag faults
 
 Shared examples for every reader of rule tags: the build (`tags.py`), the release check (`check_rules.py`) and,
-later, the eval kit. Good examples are the golden skill itself (`root/` and `expected/`). Each line below a `##`
-heading is one bad line, written for the golden CORE layer. The build must fail each template line; the release
-check must fail each release line. Blank lines and this text are not examples.
+later, the eval kit. Good examples are the golden skill itself (`root/` and `expected/`) and the plain lines below.
+Each line below a `##` heading is one example, written for the golden CORE layer. The build must fail each template
+line; the release check must fail each release line; each plain line must build unchanged and pass the release
+check. Blank lines and this text are not examples.
 
 ## Template lines
 
@@ -40,3 +41,10 @@ Rules:  CORE-WORK-01 (Report only what you verified)
 Rules: CORE-NONE-01 (Not a rule)
 Rules: report CORE-WORK-01 (Report only what you verified)
 Rules:
+
+## Plain lines
+
+{"metadata": {"roles": "x"}}
+Use ${{ github.sha }} in the workflow, and {{ name }} in the page.
+Write `reports/{rule_id}.md` under `{rules}`, then `{ruler}`.
+A template cites a rule as `{{rule:<ID>}}` on a `Rules:` line.
