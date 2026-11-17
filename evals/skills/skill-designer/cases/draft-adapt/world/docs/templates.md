@@ -24,3 +24,7 @@ the ID it may repeat the index's short reminder for that ID, and nothing more of
 has a sentence that says what a listed rule says, the template drops that sentence and cites the rule's ID
 instead. It keeps the step's own action and any check on the step's own output, such as reading the file back to
 see the new line: those say what to do here, not what the rule says in general.
+Where the only thing a step would keep is the duty a listed rule already states, the template writes it as a check
+of what that step produced, with the ID beside it. A step that adds a heading, for example, keeps "Check: the
+heading, read back, names no customer (CORE-WORK-06)" and drops "Never put a customer's name in a file
+(CORE-WORK-06)": the first checks what this step made, the second restates the rule.

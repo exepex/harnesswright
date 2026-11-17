@@ -115,16 +115,16 @@
    "by": "judge-g"
   },
   "q7": {
-   "expectation": "Rules are cited by ID, never copied",
-   "sha256": "c777c44efc7c1f7942229cda166adc280d8e440f1619257e2a89d7a7d1f419c4",
+   "expectation": "Every rule ID the template cites is one the index lists",
+   "sha256": "c8fce4a64358e5f5db7a1db8b8b89dfa563c9586edc638fa97379e7391870350",
    "answer": "no",
-   "by": "judge-g"
+   "by": "judge-i"
   },
   "q8": {
-   "expectation": "The two rules the source restates are cited by ID, not kept as sentences",
-   "sha256": "32514973eace78c47806c945084ead14db80f92598581ff9bcccd6da98104f16",
+   "expectation": "The two rules the source restates are cited by ID, and no sentence states a rule's duty",
+   "sha256": "10c7f0122bd92ab22c6d1d48b6e6deb59e5a522a680181e94993960c7f11962f",
    "answer": "no",
-   "by": "judge-g"
+   "by": "judge-i"
   },
   "q9": {
    "expectation": "The job has a row in v2/roles.md for the implementer",

@@ -1,0 +1,15 @@
+{
+  "args": {
+    "file": "v2/skills/x/SKILL.tmpl.md",
+    "index": "v2/rules/index.md",
+    "pattern": "[A-Z]+(?:-[A-Z]+)+-[0-9]+"
+  },
+  "outcome": "pass",
+  "before": {
+    "v2/rules/index.md": "| ID | Reminder |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n"
+  },
+  "after": {
+    "v2/rules/index.md": "| ID | Reminder |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n",
+    "v2/skills/x/SKILL.tmpl.md": "1. Add the line. Check: it holds no token (CORE-WORK-06).\n2. Read it again (CORE-SKILL-07).\n3. Close the ticket JIRA-412.\n"
+  }
+}
