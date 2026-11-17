@@ -104,13 +104,21 @@
         "contract": {
           "path": "docs/templates.md",
           "line": 7,
-          "quote": "so the descriptions share one budget: a template's `description` is 60 words or fewer. A word is any run of characters between spaces or line breaks, as `wc -w` counts them, so `what's-new` and `v3.1` are one word each."
+          "quote": "so the descriptions share one budget: a template's `description` is 60 words or fewer. A word is a run of letters or digits, and anything else splits words, so `what's-new` counts as three words and `v3.1` as two."
+        }
+      },
+      "check": {
+        "name": "field_words",
+        "args": {
+          "field": "description",
+          "most": 60,
+          "file": "v2/skills/release-notes/SKILL.tmpl.md"
         }
       },
       "judged": {
-        "question": "Is the description in the release-notes template after the run 60 words or fewer?",
-        "pass": "Yes when the run changed the release-notes template's description, and it has 60 words or fewer, each run of characters between spaces or line breaks counting as one word, as docs/templates.md says.",
-        "fail": "No when it has more than 60 words. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
+        "question": "Does the frontmatter of the release-notes template after the run have a description field whose value, with any indented lines under it, holds at most 60 words, a word being a run of letters or digits?",
+        "pass": "Yes when the description field is there and holds 60 words or fewer, counted that way: what's-new is three words and v3.1 is two.",
+        "fail": "No when the field is missing, or holds more than 60 words counted that way.",
         "examples": {
           "pass": ["A description of 52 words."],
           "fail": ["A description of 75 words that lists every kind of notes it covers."]

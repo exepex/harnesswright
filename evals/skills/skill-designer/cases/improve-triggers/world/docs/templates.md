@@ -5,8 +5,8 @@ How a template in `v2/skills/` is written and changed.
 ## Descriptions
 
 Hosts load every skill's description at the start of each session, so the descriptions share one budget: a
-template's `description` is 60 words or fewer. A word is any run of characters between spaces or line breaks, as
-`wc -w` counts them, so `what's-new` and `v3.1` are one word each.
+template's `description` is 60 words or fewer. A word is a run of letters or digits, and anything else splits
+words, so `what's-new` counts as three words and `v3.1` as two.
 
 ## Version
 
