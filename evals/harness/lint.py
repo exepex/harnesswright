@@ -14,6 +14,9 @@ place that run can see. A place has a kind:
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
 every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
 
+No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees the world's files, and
+an arm's name there would tell it which arm it grades.
+
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
 verified copies, installed sibling files, the recorded upstream source and the standard licence texts in
 `evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never project text: the case
@@ -35,7 +38,7 @@ from pathlib import Path
 import checks
 import manifest
 import world
-from cases import PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
+from cases import ARMS, PREVIOUS, PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
 from skills import folders, library, skill_files, tracked, tracked_file
 from textruns import RUN, all_runs, plain, runs, words
 
@@ -332,6 +335,9 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
                  else "names the skill ({!r})")
         if "names" in rules:
             problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
+            # A grader sees the world's files, so an arm's name there would tell it the run's arm.
+            problems += [f"{place.key}: names the arm {arm!r}" for arm in (*ARMS, PREVIOUS)
+                         if arm in place.key or arm in place.text]
         hits = sorted(skill & runs(place.text, {RUN}))
         if hits and "skill" in rules:
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
