@@ -8,6 +8,8 @@ A golden is `evals/goldens/<skill>/<case>/<name>.json`, written by hand by a jud
 
 - `changes`: what the run did to the case's world, `{path: the file's new text, or null when the run removed the
   file}`. A path that is not a file of the world, or that runs through one, is refused when the golden is built.
+  No path, text or log entry may name an arm (`cases.ARMS`, `cases.PREVIOUS`), as the world lint asks of a case:
+  a grader page shows them.
   A trigger case's golden has none, as a trigger run's world is read-only.
 - `log`: the run's actions, each an entry of `host.ENTRIES`, as a bundle's log holds them. Its last message, if it
   has one, is the final message, as in a run.
@@ -98,6 +100,9 @@ def check(path, case):
     except host.HostError as error:
         problems.append(str(error))
     problems += _settled(data["settled"], case.expectations or [])
+    shown = json.dumps([data["changes"], data["log"]], ensure_ascii=False)
+    problems += [f"names the arm {arm!r}, which a grader page would show" for arm in (*cases.ARMS, cases.PREVIOUS)
+                 if arm in shown]
     if problems:
         raise GoldenError(f"{path.name}: " + "; ".join(problems))
     return data

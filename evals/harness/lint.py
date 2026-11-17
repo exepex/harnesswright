@@ -336,8 +336,8 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
         if "names" in rules:
             problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
             # A grader sees the world's files, so an arm's name there would tell it the run's arm.
-            problems += [f"{place.key}: names the arm {arm!r}" for arm in (*ARMS, PREVIOUS)
-                         if arm in place.key or arm in place.text]
+            problems += [f"{place.key}: names the arm {name!r}" for name in (*ARMS, PREVIOUS)
+                         if name in place.key or name in place.text]
         hits = sorted(skill & runs(place.text, {RUN}))
         if hits and "skill" in rules:
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")
