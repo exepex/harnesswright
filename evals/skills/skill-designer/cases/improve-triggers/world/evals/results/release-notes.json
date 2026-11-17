@@ -9,13 +9,13 @@
    "claude-code": {
     "baseline_pass_rate": 0.3333,
     "false_done": {
-     "with_skill": {
+     "skill": {
       "decided": 6,
       "false_done": 1,
       "rate": 0.1667,
       "undecided": 0
      },
-     "without_skill": {
+     "no_skill": {
       "decided": 6,
       "false_done": 3,
       "rate": 0.5,
@@ -27,13 +27,13 @@
      "planted": 14
     },
     "format_conformance": {
-     "with_skill": {
+     "skill": {
       "decided": 30,
       "passed": 27,
       "rate": 0.9,
       "undecided": 0
      },
-     "without_skill": {
+     "no_skill": {
       "decided": 30,
       "passed": 6,
       "rate": 0.2,
@@ -56,49 +56,49 @@
     },
     "host_version": "2.1.320 (Claude Code)",
     "inferred_evidence": {
-     "with_skill": 0,
-     "without_skill": 0
+     "skill": 0,
+     "no_skill": 0
     },
     "inferred_loads": 0,
     "label": "unsupported",
     "lift": 0.3334,
     "runs": {
-     "major-with-breaking, with_skill": 3,
-     "major-with-breaking, without_skill": 3,
-     "tagged-minor, with_skill": 3,
-     "tagged-minor, without_skill": 3,
-     "trigger-01, with_skill": 3,
-     "trigger-02, with_skill": 3,
-     "trigger-03, with_skill": 3,
-     "trigger-04, with_skill": 3,
-     "trigger-05, with_skill": 3,
-     "trigger-06, with_skill": 3,
-     "trigger-07, with_skill": 3,
-     "trigger-08, with_skill": 3,
-     "trigger-09, with_skill": 3,
-     "trigger-10, with_skill": 3,
-     "trigger-11, with_skill": 3,
-     "trigger-12, with_skill": 3,
-     "trigger-13, with_skill": 3,
-     "trigger-14, with_skill": 3,
-     "trigger-15, with_skill": 3,
-     "trigger-16, with_skill": 3,
-     "trigger-17, with_skill": 3,
-     "trigger-18, with_skill": 3,
-     "trigger-19, with_skill": 3,
-     "trigger-20, with_skill": 3
+     "major-with-breaking, skill": 3,
+     "major-with-breaking, no_skill": 3,
+     "tagged-minor, skill": 3,
+     "tagged-minor, no_skill": 3,
+     "trigger-01, skill": 3,
+     "trigger-02, skill": 3,
+     "trigger-03, skill": 3,
+     "trigger-04, skill": 3,
+     "trigger-05, skill": 3,
+     "trigger-06, skill": 3,
+     "trigger-07, skill": 3,
+     "trigger-08, skill": 3,
+     "trigger-09, skill": 3,
+     "trigger-10, skill": 3,
+     "trigger-11, skill": 3,
+     "trigger-12, skill": 3,
+     "trigger-13, skill": 3,
+     "trigger-14, skill": 3,
+     "trigger-15, skill": 3,
+     "trigger-16, skill": 3,
+     "trigger-17, skill": 3,
+     "trigger-18, skill": 3,
+     "trigger-19, skill": 3,
+     "trigger-20, skill": 3
     },
     "task_cases": 2,
     "task_pass_rate": 0.6667,
     "trigger_accuracy": 0.85,
     "trigger_cases": 20,
     "void_rate": {
-     "with_skill": {
+     "skill": {
       "rate": 0.0,
       "tries": 126,
       "voids": 0
      },
-     "without_skill": {
+     "no_skill": {
       "rate": 0.0,
       "tries": 6,
       "voids": 0
