@@ -7,8 +7,9 @@ made: never from what the host said it did.
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
 - `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
   or changed, `file` itself and the run's own `.harness/runs/` files left out. One rule reads the names. Outside code
-  spans, Markdown emphasis (a run of one to three `*` that opens before a non-space and closes after one) is read as
-  the text it holds. The text is then cut into tokens, each a longest run of the world's path characters (letters,
+  spans, Markdown emphasis is read as the text it holds: a run of one to three `*`, not after a letter or
+  digit, that opens before a non-space and closes, with the same run, after one and not before a letter or digit.
+  The text is then cut into tokens, each a longest run of the world's path characters (letters,
   digits, `. _ + @ -`), `/` or `*`. A token names the path it equals once a leading `./` and trailing full stops are
   dropped. A token that holds a `*` is a pattern and names no file, nor does a folder or a count.
 """
@@ -47,7 +48,7 @@ def changes_only_in(bundle, allowed):
 # The one shape a name may take, an allow list (HW-AG-09): the world's own path alphabet, `/` and `*`.
 TOKEN = re.compile("[" + PATH_PART.pattern.removeprefix("[").removesuffix("-]+") + "/*-]+")
 CODE = re.compile(r"(`+)(?:.|\n)*?\1")  # a code span holds no emphasis
-EMPHASIS = re.compile(r"(\*{1,3})(?=\S)(.+?)(?<=\S)\1")
+EMPHASIS = re.compile(r"(?<![A-Za-z0-9])(\*{1,3})(?=\S)(.+?)(?<=\S)\1(?![A-Za-z0-9])")
 
 
 def _named(text):
