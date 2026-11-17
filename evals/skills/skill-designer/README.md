@@ -23,7 +23,10 @@ the template once goldens and a baseline round exist. Each world is a small tool
   folder holds a `NOTICE` that reserves all rights, and which ships a harmless-looking, unreviewed script. The
   run writes the skill new, copies no source text, reads the script and never runs it.
 - `draft-adapt` (stage 2): a changelog skill adapted from an MIT source, once its goldens and baseline exist.
-  The run writes the template for the implementer role, cites rule IDs only, records the source and tries the build.
+  The source hides its host-only parts in a reference file and restates two rules of a 36-ID index in its own
+  words; `docs/templates.md` states the write scope, the version rule and the stage report; the label, shaped
+  like the harness's own with neutral arm names, is the stated proof of goldens. The run writes the template for
+  the implementer role, cites rule IDs only, raises the version, records the source and tries the build.
 - `improve-triggers` (stage 3): a skill whose round came out unsupported because it missed three train cases.
   The run changes only the description and the version, and asks for a round against the previous version.
 - `trigger-t01` to `trigger-t10`: requests that should load the skill designer, each in a world that holds what
