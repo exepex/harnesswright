@@ -212,6 +212,30 @@
       }
     },
     {
+      "text": "The run takes the write-new path and copies nothing, because no licence covers the source",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 23,
+          "quote": "Copy text only when a licence covers the files you copy and allows it. With no such licence, copy nothing: write the skill new."
+        }
+      },
+      "judged": {
+        "question": "incoming/pr-helper/NOTICE takes the copied folder out of its repository's MIT licence, so no licence covers it. Does the run say, in its final message or in a file it wrote, that pr-description-writer is to be written new, copying nothing from incoming/pr-helper/, rather than adopted or adapted?",
+        "pass": "Yes when the run says the skill is written new, or that nothing of the source may be copied, and gives as the reason that no licence covers the folder: the NOTICE, or that the MIT licence does not reach it.",
+        "fail": "No when the run says the skill is adopted or adapted, says the MIT licence lets it copy the source, gives a reason that leaves out the NOTICE, or says nothing about the path.",
+        "examples": {
+          "pass": [
+            "Final message: written new; the NOTICE in incoming/pr-helper/ keeps the folder out of the MIT licence, so nothing is copied."
+          ],
+          "fail": [
+            "Stage report: adapt, since the source repository is MIT.",
+            "A final message about the cases that says nothing about the source's licence or the path."
+          ]
+        }
+      }
+    },
+    {
       "text": "The run changes only the skill's evals folder",
       "source": "format",
       "check": {
@@ -347,54 +371,20 @@
     }
   ],
   "allow_words": {
-    "AGENTS.md": [
-      "eval",
-      "evals",
-      "goldens"
-    ],
-    "README.md": [
-      "eval",
-      "evals",
-      "goldens"
-    ],
-    "evals": [
-      "evals"
-    ],
-    "evals/skills": [
-      "evals"
-    ],
-    "evals/skills/release-notes": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/tagged-minor": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/tagged-minor/case.json": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/tagged-minor/world": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/tagged-minor/world/README.md": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/load-on-tag": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/load-on-tag/case.json": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/load-on-tag/world": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/load-on-tag/world/README.md": [
-      "evals"
-    ],
-    "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": [
-      "evals"
-    ]
+    "AGENTS.md": ["eval", "evals", "goldens"],
+    "README.md": ["eval", "evals", "goldens"],
+    "evals": ["evals"],
+    "evals/skills": ["evals"],
+    "evals/skills/release-notes": ["evals"],
+    "evals/skills/release-notes/cases": ["evals"],
+    "evals/skills/release-notes/cases/tagged-minor": ["evals"],
+    "evals/skills/release-notes/cases/tagged-minor/case.json": ["evals"],
+    "evals/skills/release-notes/cases/tagged-minor/world": ["evals"],
+    "evals/skills/release-notes/cases/tagged-minor/world/README.md": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag/case.json": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag/world": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag/world/README.md": ["evals"],
+    "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": ["evals"]
   }
 }
