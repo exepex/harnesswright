@@ -1,0 +1,14 @@
+{
+  "args": {
+    "source": "incoming/SKILL.md",
+    "run": 8,
+    "written": [
+      "evals/skills/pr/*"
+    ]
+  },
+  "outcome": "pass",
+  "after": {
+    "incoming/SKILL.md": "Write a short summary of the change first, then list every risk the reviewer should check.",
+    "evals/skills/pr/cases/one/case.json": "{\"summary\": {\"short\": \"change first\"}, \"text\": [\"list every risk\", \"the reviewer should check\"]}"
+  }
+}

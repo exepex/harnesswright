@@ -1,0 +1,11 @@
+{
+  "args": {
+    "field": "description",
+    "most": 3,
+    "file": "SKILL.md"
+  },
+  "outcome": "pass",
+  "after": {
+    "SKILL.md": "---\n  stray\nname: notes\ndescription: Write release notes.\n---\n"
+  }
+}

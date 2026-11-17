@@ -1,0 +1,5 @@
+{
+  "args": {"source": "incoming/SKILL.md", "run": 8, "written": ["evals/skills/pr/*"]},
+  "outcome": "fail",
+  "after": {"evals/skills/pr/stage-1.md": "Anything."}
+}

@@ -1,0 +1,5 @@
+{
+  "args": {"field": "description", "most": 60, "file": "SKILL.md"},
+  "outcome": "fail",
+  "final_message": "description: short"
+}

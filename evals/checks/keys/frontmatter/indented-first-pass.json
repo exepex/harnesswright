@@ -1,0 +1,12 @@
+{
+  "args": {
+    "required": [
+      "name"
+    ],
+    "file": "SKILL.md"
+  },
+  "outcome": "pass",
+  "after": {
+    "SKILL.md": "---\n  stray\nname: notes\n---\n"
+  }
+}
