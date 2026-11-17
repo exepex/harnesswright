@@ -1,0 +1,11 @@
+{
+  "args": {
+    "field": "description",
+    "most": 3,
+    "file": "SKILL.md"
+  },
+  "outcome": "fail",
+  "after": {
+    "SKILL.md": "---\nname: notes\ndescription: |\n  Write notes\n  # for each tag\n---\n"
+  }
+}

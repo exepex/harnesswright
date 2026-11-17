@@ -21,11 +21,13 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   with `file_state` `unchanged` on the source, so a run cannot change the reference.
 - `no_shared_words`: no file the run added or changed that matches one of the globs in `written` (`*` crosses
   folders), the source left out, shares a run of `run` words with the world file `source` after the run, compared
-  as `shares_words` compares them. A `.json` file that parses is read as its decoded keys and strings, as a reader
-  sees them, so an escape such as `\\n` never joins two words. A file the run did not touch is not read.
+  as `shares_words` compares them. A `.json` file that parses (after any byte order mark) is read as its decoded
+  keys and strings, as a reader sees them, so an escape such as `\\n` never joins two words; the source is read
+  the same way. A file the run did not touch is not read, any other entry it wrote there (a link) fails, and no
+  written file at all passes, so a case pairs it with a check that the run wrote.
 - `field_words`: the frontmatter, read as `frontmatter` reads it, has the field `field`, and its value holds at most
-  `most` words, counted as `shares_words` counts them: the field's own line and every indented line under it that
-  is not a `#` comment, a trailing ` #` comment removed.
+  `most` words, counted as `shares_words` counts them: the field's own value, read as `frontmatter` reads it, and
+  every indented line under it, as written (in a `>` or `|` block a `#` is text).
 - `line_counts`: the section under the prose heading `section` (to the next heading of its level or above) is a
   listing: every line that is not blank is only `` - `path` (N lines) `` (or `1 line`) or `` - `path` (deleted) ``,
   and there is at least one. Any other line there, a code block included, fails. Each listed file is a file after
@@ -113,7 +115,8 @@ def _value(raw):
 
 def _fields(text, name):
     """({field: rows}, None) of the frontmatter block of `text`, where a field's rows are its own line's value and
-    every line under it that is part of it (indented, or a `- ` list item); or (None, why it fails)."""
+    every indented or `- ` line under it, as written; or (None, why it fails). An indented line above the first
+    field belongs to no field."""
     block = [row for kind, row in lines(text, True) if kind == "frontmatter"]
     if len(block) < 2:
         return None, f"{name} does not begin with a frontmatter block between --- lines"
@@ -126,7 +129,7 @@ def _fields(text, name):
         elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"
                            or row.startswith("- ") and fields):
             return None, f"{name}'s frontmatter line {number} is not a field given once: {row[:200]}"
-        elif row.strip() and not row.lstrip().startswith("#"):
+        elif last is not None and row.strip() and (row[0] in " \t" or row.startswith("- ")):
             fields[last].append(row)
     return fields, None
 
@@ -157,7 +160,7 @@ def field_words(bundle, field, most, file=None):
         return "fail", why
     if field not in rows:
         return "fail", f"{name}'s frontmatter has no field {field}"
-    count = sum(len(WORD.findall(re.sub(r"\s+#.*$", "", row))) for row in rows[field])
+    count = len(WORD.findall(_value(rows[field][0]))) + sum(len(WORD.findall(row)) for row in rows[field][1:])
     return ("pass" if count <= most else "fail"), f"{name}'s {field} has {count} words, and the most allowed is {most}"
 
 
@@ -210,7 +213,7 @@ def _words(bundle, path):
     text = bundle.text(path)
     if path.endswith(".json"):
         try:
-            return "\n".join(_strings(json.loads(text)))
+            return "\n".join(_strings(json.loads(text.lstrip("\ufeff"))))
         except ValueError:
             pass
     return text
@@ -220,9 +223,13 @@ def no_shared_words(bundle, source, run, written):
     original = bundle.text(source)
     if original is None:
         return "fail", f"{source} does not exist"
-    runs = set(_runs(original, run))
-    read = sorted(path for path in bundle.changes if path != source and matches(path, written)
-                  and bundle.text(path) is not None)
+    runs = set(_runs(_words(bundle, source), run))
+    touched = sorted(path for path in bundle.changes if path != source and matches(path, written)
+                     and path in bundle.files)
+    other = [path for path in touched if bundle.text(path) is None and bundle.files[path] != "dir"]
+    if other:  # only files and folders are read or allowed: a link could carry the source unread
+        return "fail", f"the run wrote entries in {written} that are neither files nor folders: {', '.join(other[:20])}"
+    read = [path for path in touched if bundle.text(path) is not None]
     for path in read:
         common = next((words for words in _runs(_words(bundle, path), run) if words in runs), None)
         if common:
