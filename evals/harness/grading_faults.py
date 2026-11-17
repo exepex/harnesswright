@@ -283,7 +283,7 @@ def view_(setup, fault, rng, place):
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
-    names = [skill, *layer["paths"], "with_skill", "without_skill", "previous_version"]
+    names = [skill, *layer["paths"], *cases.ARMS, cases.PREVIOUS]
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",

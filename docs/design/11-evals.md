@@ -102,6 +102,9 @@ candidate, so it wins over an older skill of the same name.
 The lint runs before any run. A case that fails it cannot run. It rejects:
 
 - the skill's name or path in the without-skill world or in the prompt;
+- an arm's name (`with_skill`, `without_skill`, `previous_version`) anywhere in the world, the prompt, the commits
+  or the sibling skills, since a grader page shows them and would tell the grader its run's arm. A golden's changes
+  and log are refused the same way when it is loaded;
 - any run from the skill's **fingerprint**: every 8-word run of the skill's text, minus runs that also appear in
   verified copies of project documents, in installed sibling skills, in the skill's recorded upstream source
   (stored and hashed under `evals/skills/NAME/upstream/`), or in the standard licence texts recorded in

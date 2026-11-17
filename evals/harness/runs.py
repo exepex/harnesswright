@@ -40,10 +40,8 @@ import manifest
 import rounds
 import skills
 import world
-from cases import REPO
+from cases import ARMS, PREVIOUS, REPO
 
-ARMS = ("without_skill", "with_skill")
-PREVIOUS = "previous_version"
 HARNESS = Path(__file__).resolve().parent
 # The runner code that affects a run: its jail and gate, the host contract, the world builder and the evidence.
 RUNNER = ("audit.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "manifest.py", "powers.py",

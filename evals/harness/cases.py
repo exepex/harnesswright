@@ -55,6 +55,9 @@ import manifest
 REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 KINDS = ("trigger", "task")
+# The arms a case runs in. A grader must never learn its run's arm, so no world, prompt or page may hold these names.
+ARMS = ("without_skill", "with_skill")
+PREVIOUS = "previous_version"
 SPLITS = ("train", "test")
 PROMPT_KEY = "<prompt>"
 SKILL_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")

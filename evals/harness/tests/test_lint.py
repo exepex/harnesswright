@@ -206,6 +206,16 @@ class Lint(TempCase):
                          ["<index row>: names the skill ('haiku-writer')",
                           "<sibling rows>: names the skill ('haiku-writer')"])
 
+    def test_a_world_or_prompt_that_names_an_arm_is_refused(self):
+        files = {"README.md": "x\n", "results/label.json": '{"runs": {"tagged, without_skill": 3}}\n',
+                 "previous_version/notes.md": "x\n"}
+        problems = self.problems(files, {"prompt": "Compare it with the with_skill runs."})
+        self.assertEqual(sorted(p.split(": ", 1)[1] for p in problems if "names the arm" in p),
+                         ["<prompt>: names the arm 'with_skill'", "previous_version/notes.md: names the arm "
+                          "'previous_version'", "previous_version: names the arm 'previous_version'",
+                          "results/label.json: names the arm 'without_skill'"])
+        self.assertEqual(self.problems({"README.md": "x\n", "label.json": '{"runs": {"no_skill": 3}}\n'}), [])
+
     def test_only_standard_licence_terms_are_excused(self):
         mit = (cases.REPO / "evals/fixtures/licences/MIT.txt").read_text().replace("<year> <copyright holders>",
                                                                                  "2025 A Person")
