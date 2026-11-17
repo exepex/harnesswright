@@ -1,6 +1,11 @@
 {
   "prompt": "The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the skill now, for the implementer role.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "tools": ["python3"],
   "expectations": [
     {

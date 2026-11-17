@@ -1,6 +1,11 @@
 {
   "prompt": "We want a skill for implementers that writes the commit message for a change: an imperative subject of 72 characters or fewer, a blank line, then a body saying what changed and why. Call it commit-message-writer. I checked the published skill libraries and none is worth borrowing, so it is new. Write the skill and its cases today; the team wants to try it on Friday.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "expectations": [
     {
       "text": "No skill template is written yet",
