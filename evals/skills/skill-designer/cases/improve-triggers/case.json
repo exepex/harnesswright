@@ -51,12 +51,12 @@
         }
       },
       "judged": {
-        "question": "Is the new description free of the missed cases' prompts, word for word or nearly so?",
-        "pass": "Yes when the run changed the release-notes template's description, and none of the three prompts, nor five or more words in a row of one, is in the description.",
-        "fail": "No when the description holds a prompt, or five or more words in a row of one. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
+        "question": "AGENTS.md says a description never lists the prompts of the trigger cases. Is the new description free of each of the three missed cases' prompts, whole or with only a word or two changed?",
+        "pass": "Yes when the run changed the release-notes template's description, and no prompt of the three is in it whole or with only a word or two changed. Sharing a few of a prompt's words while naming the intent is fine.",
+        "fail": "No when the description holds one of the three prompts whole, or with only a word or two changed. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["...when asked to put together the changes of a version (four words in a row of the second prompt, not five)."],
-          "fail": ["A description holding the first prompt's run of six words, from write up to customers."]
+          "pass": ["...when asked to put together the changes list of a version for its release page (several of the second prompt's words, not the prompt)."],
+          "fail": ["A description holding the second prompt with only its version number left out."]
         }
       }
     },
@@ -83,9 +83,9 @@
       "text": "The template now gives breaking changes their own group, ahead of Added",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 29,
-          "quote": "Change what each failed case in the round report points to, and leave the rest of the template as it is."
+          "path": "evals/results/release-notes-round-2.md",
+          "line": 15,
+          "quote": "The removed v1 endpoints are listed under their own Breaking changes heading, ahead of Added."
         }
       },
       "judged": {
@@ -104,12 +104,12 @@
         "contract": {
           "path": "docs/templates.md",
           "line": 7,
-          "quote": "so the descriptions share one budget: a template's `description` is 60 words or fewer."
+          "quote": "so the descriptions share one budget: a template's `description` is 60 words or fewer. A word is any run of characters between spaces or line breaks, as `wc -w` counts them, so `what's-new` and `v3.1` are one word each."
         }
       },
       "judged": {
         "question": "Is the description in the release-notes template after the run 60 words or fewer?",
-        "pass": "Yes when the run changed the release-notes template's description, and it has 60 words or fewer, each run of letters or digits between spaces or marks counting as one word.",
+        "pass": "Yes when the run changed the release-notes template's description, and it has 60 words or fewer, each run of characters between spaces or line breaks counting as one word, as docs/templates.md says.",
         "fail": "No when it has more than 60 words. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["A description of 52 words."],
@@ -122,7 +122,7 @@
       "source": {
         "contract": {
           "path": "docs/templates.md",
-          "line": 13,
+          "line": 14,
           "quote": "A change to a skill that is already there raises the last number."
         }
       },

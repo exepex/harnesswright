@@ -1,5 +1,5 @@
 {
-  "prompt": "story-judge came out unsupported in its round, fix it. the round report is in evals/results/story-judge-round-1.md",
+  "prompt": "dependency-bump came out unsupported in its round, fix it. the round report is in evals/results/dependency-bump-round-1.md",
   "kind": "trigger",
   "should_trigger": true,
   "split": "test",
@@ -24,7 +24,7 @@
     "evals/results": [
       "evals"
     ],
-    "evals/results/story-judge-round-1.md": [
+    "evals/results/dependency-bump-round-1.md": [
       "evals"
     ]
   }
