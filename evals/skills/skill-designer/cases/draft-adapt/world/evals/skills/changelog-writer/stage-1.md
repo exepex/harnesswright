@@ -16,7 +16,16 @@ frontmatter and two steps belong to one host.
 
 ## Files written
 
-20 trigger cases and 3 task cases under `cases/`; `load-on-merge` and `adds-fix-entry` are kept here as samples.
+Kept in this repository, as samples; the rest of the set is kept by the eval owner.
+
+| File | Lines |
+|---|---|
+| `evals/skills/changelog-writer/cases/adds-fix-entry/case.json` | 16 |
+| `evals/skills/changelog-writer/cases/adds-fix-entry/world/README.md` | 3 |
+| `evals/skills/changelog-writer/cases/load-on-merge/case.json` | 11 |
+| `evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md` | 6 |
+| `evals/skills/changelog-writer/cases/load-on-merge/world/README.md` | 3 |
+| `evals/skills/changelog-writer/stage-1.md` | 40 |
 
 ## Checked
 
