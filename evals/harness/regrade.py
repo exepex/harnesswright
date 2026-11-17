@@ -255,7 +255,8 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
                               timeout=r.timeout, watch=kept, **r.containment) for _ in range(times)]
             r.write(out / entry["folder"] / "pages" / f"{id_}.json", {
                 **grader.digest(found[page]["text"], found[page]["asked"]),
-                "graders": [{"sheet": g.sheet, "tries": g.tries, "costs": g.costs, "logs": g.logs} for g in graded]})
+                "graders": [{"sheet": g.sheet, "tries": g.tries, "refused": g.refused, "costs": g.costs, "logs": g.logs}
+                            for g in graded]})
     head["finished"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     r.write(out / "regrade.json", head)  # a pass with no finish time stopped part way
     return out
