@@ -118,8 +118,9 @@ Check: you know the stage and why, from files you read.
    not. Write prompts as people type them. Each states `should_trigger` and `split`; half of each kind is `test`.
    Never list prompts in one shared file.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
-   list what a good run must show. Write each from a fact in the case's own world, cited by file and line, never
-   from the source skill's steps or wording.
+   list what a good run must show. Write each from a fact in the case's own world, cited by file and line, or
+   mark it `format` when it is only the shape of the skill's own output; never from the source skill's steps or
+   wording.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:
@@ -131,7 +132,7 @@ Check: you know the stage and why, from files you read.
    - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
      it): tell the person the check did not run, then compare by reading, looking hardest at expectations: each
-     must rest on a world fact, not on a source step. Put "copy check by reading, not verified" under Not run.
+     must rest on a world fact or be marked `format`, never on a source step. Put "copy check by reading, not verified" under Not run.
    - Exit 2: stop, and report its output.
 
    List the command and its result under Checked.
@@ -157,9 +158,9 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
      numbered steps that each end with a check (CORE-SKILL-05, CORE-SKILL-07), failure handling (CORE-SKILL-08),
      the output's format (CORE-SKILL-09), one good and one bad example (CORE-SKILL-10);
    - rules only as IDs, each on a step's action or its Check; no sentence states a rule's duty (CORE-TEMPLATE-01).
-     Cite only IDs the project's rules index lists, never IDs from this skill's own rules. On the adapt path,
-     remove each source sentence that a listed rule covers, and put that rule's ID on the Check of the step whose
-     output it governs;
+     Cite only IDs the project's rules index lists; an ID that only this skill's own rules hold is not cited. On
+     the adapt path, remove each source sentence that a listed rule covers, and put that rule's ID on the Check of
+     the step whose output it governs;
    - no host tool name and no model name; a step that needs a host feature names the capability (CORE-SKILL-18,
      CORE-SKILL-19); a script for logic that must agree everywhere, each with a fallback (CORE-SKILL-20,
      CORE-SKILL-21); bundled files named from the skill folder (CORE-SKILL-27), each linked with when to read it
@@ -184,7 +185,8 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
 7. The template stays under 500 lines (CORE-TEMPLATE-02).
 
 Check: you wrote nothing outside the stage's files; every rule ID the template cites is in the project's rules
-index, and no sentence states a rule's duty; for an improvement, every changed line traces to a failed case.
+index, and no line this stage wrote states a rule's duty; for an improvement, every changed line traces to a failed
+case.
 
 ### 5. Stage 3: list the skill
 

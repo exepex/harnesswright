@@ -30,7 +30,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "cc104b9335763d4b7001e9a33f82561c75677ab544c0eef5bf9078f7cfbf1e7b",
+      "content-hash": "f0b0c0311bd4db191413ed3860eaebafbc06aa671965c27650253ec58ad154aa",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -77,7 +77,7 @@
       ],
       "rulebook-version": "0.4.2",
       "size-floors": 14440,
-      "size-rest": 26736
+      "size-rest": 26868
     }
   }
 }
