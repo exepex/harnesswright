@@ -10,7 +10,7 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
   rulebook-version: "0.5.1"
-  content-hash: "8e3f46b9808ca273c839053e68a91207178a16f8077388a178c4541e715d9b06"
+  content-hash: "2310a23ce986368289dbe2dffed371df904062053975b925ba3c2875317e7b7e"
   size-floors: "15064"
   size-rest: "26761"
 ---
@@ -181,9 +181,9 @@ metadata:
   one line that, after any indentation, is `Rules: ` and then tags separated by `, `, with nothing else, never
   wrapped. A step that depends on a rule carries a `Rules:` line, and the skill may have one under its purpose. No
   sentence states a rule's duty in general, whether a tag is near it or not: text near a tag says what this skill
-  does, never how the work must be done. Rule text reaches the agent only through the copies HW-RULE-01 allows. Its `metadata.roles` names the roles it serves. Its `metadata.areas` names
-  every area its work touches, or is `rest` for the one skill of a job that takes every area no other skill of the
-  job lists.
+  does, never how the work must be done. Rule text reaches the agent only through the copies HW-RULE-01 allows.
+  Its `metadata.roles` names the roles it serves. Its `metadata.areas` names every area its work touches, or is
+  `rest` for the one skill of a job that takes every area no other skill of the job lists.
 - **Good:** "4. Write a test for each criterion of the story." with the line "Rules: {{rule:CORE-TEST-03}}" under
   it, in an implementer template with `areas: rest`.
 - **Bad (do not do this):** "4. Test names must state the scenario and the expected outcome."; "4. Name each test as CORE-TEST-03
