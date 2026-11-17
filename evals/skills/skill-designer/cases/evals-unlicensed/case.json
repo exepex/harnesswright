@@ -149,16 +149,16 @@
         "args": {
           "source": "incoming/pr-helper/SKILL.md",
           "run": 8,
-          "written": ["evals/skills/pr-description-writer/*"]
+          "written": ["[!.]*"]
         }
       },
       "judged": {
-        "question": "Does no file the run added or changed under evals/skills/pr-description-writer/ share a run of eight words in a row with incoming/pr-helper/SKILL.md, a word being a run of letters or digits compared without case, and a JSON file read as its keys and strings?",
-        "pass": "Yes when no such file shares a run of eight words with the source, or the run wrote no file there.",
-        "fail": "No when any such file holds eight or more words in a row from the source, in the same order.",
+        "question": "Does no file the run added or changed, outside its own .harness/runs folder, share a run of eight words in a row with incoming/pr-helper/SKILL.md, a word being a run of letters or digits compared without case, and a JSON file read as its keys and strings?",
+        "pass": "Yes when no file the run added or changed, outside its own .harness/runs folder, shares a run of eight words with the source, or the run wrote no such file.",
+        "fail": "No when any such file, wherever it is, holds eight or more words in a row from the source, in the same order: a case, a template under v2/skills/ or the stage report quoting a step.",
         "examples": {
           "pass": ["A task item saying the description warns about changes to stored data, in new words."],
-          "fail": ["A task item that repeats the source's step on What changed word for word."]
+          "fail": ["A task item that repeats the source's step on What changed word for word.", "A v2/skills/pr-description-writer/SKILL.tmpl.md that holds the source's steps as they are."]
         }
       }
     },
@@ -221,7 +221,7 @@
       }
     },
     {
-      "text": "The run takes the write-new path and copies nothing, because no licence covers the source",
+      "text": "The run writes the skill new and copies nothing from the source",
       "source": {
         "contract": {
           "path": "AGENTS.md",
@@ -230,12 +230,12 @@
         }
       },
       "judged": {
-        "question": "incoming/pr-helper/NOTICE takes the copied folder out of its repository's MIT licence, so no licence covers it. Does the run say, in its final message or in a file it wrote, that pr-description-writer is to be written new, copying nothing from incoming/pr-helper/, rather than adopted or adapted?",
-        "pass": "Yes when the run says the skill is written new, or that nothing of the source may be copied, and gives as the reason that no licence covers the folder: the NOTICE, or that the MIT licence does not reach it.",
-        "fail": "No when the run says the skill is adopted or adapted, says the MIT licence lets it copy the source, gives a reason that leaves out the NOTICE, or says nothing about the path.",
+        "question": "incoming/pr-helper/NOTICE takes the copied folder out of its repository's MIT licence, so no licence covers it. Did the run treat pr-description-writer as written new: no adopt or adapt record, no text copied from incoming/pr-helper/, and no THIRD_PARTY.md entry or metadata source for it?",
+        "pass": "Yes when the run did none of those things. Judge only what the run did: a run that writes new and says nothing about why passes here, because the reason is judged by the Path item on the stage report.",
+        "fail": "No when the run says or records that the skill is adopted or adapted, copies text from incoming/pr-helper/, or adds a THIRD_PARTY.md entry or a metadata source for it.",
         "examples": {
-          "pass": ["Final message: written new; the NOTICE in incoming/pr-helper/ keeps the folder out of the MIT licence, so nothing is copied."],
-          "fail": ["Stage report: adapt, since the source repository is MIT.", "A final message about the cases that says nothing about the source's licence or the path."]
+          "pass": ["Cases written in the run's own words, a stage report that says write new, and no THIRD_PARTY.md change.", "Cases written new, with no word about the licence."],
+          "fail": ["Stage report: adapt, since the source repository is MIT.", "A THIRD_PARTY.md row for pr-helper under MIT."]
         }
       }
     },
