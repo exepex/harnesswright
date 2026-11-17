@@ -148,7 +148,7 @@
   "q13": {"expectation": "The run changes only the skill's evals folder", "sha256": "1ca3f66131477310496e49e0264c8d74130ff774df60d9411370e832eebd02ed", "answer": "yes", "by": "judge-f"},
   "q14": {"expectation": "The stage report has its headings in order", "sha256": "3a57ef73d151fd7c5300396c7e0cfe00d0c2c18c1cb389d5325aaf38c6df7ef6", "answer": "yes", "by": "judge-f"},
   "q15": {"expectation": "Every file listed under Files written has its true line count", "sha256": "debc10f93553fbfb97b2c5ef951eda62e7596a970ea68087f29d0a2495a9bc04", "answer": "no", "by": "judge-f"},
-  "q16": {"expectation": "The stage report lists every file the run wrote", "sha256": "b99399a2c85fe45a94f8adfbb331aa091b0e178b9fa95e8d524728d0558a5056", "answer": "yes", "by": "judge-f"},
+  "q16": {"expectation": "The stage report lists every file the run wrote", "sha256": "73452406a309d301996087a5b0d5ba7cecf5f7df4418cc0c50535b2f38b38de4", "answer": "yes", "by": "judge-f"},
   "q17": {"expectation": "The path is write new, because no licence covers the copied folder", "sha256": "f9b1d21c4b430699982785fc0cdf8cd7a059288e88d599ea6949dc3fa13f810c", "answer": "yes", "by": "judge-f"},
   "q18": {"expectation": "Next names the goldens author and the baseline round, each with its owner", "sha256": "597802c6db58eb2cf6d53ba7a0797b96b7d5a9cc8f4b4d569f6f90ee6f40a9a3", "answer": "yes", "by": "judge-f"},
   "q19": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "judge-f"}

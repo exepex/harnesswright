@@ -204,7 +204,7 @@
       "source": {"contract": {"path": "docs/evals.md", "line": 14, "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."}},
       "check": {"name": "lists_every_change", "args": {"file": "evals/skills/commit-message-writer/stage-1.md"}},
       "judged": {
-        "question": "Does evals/skills/commit-message-writer/stage-1.md list every file the run added or changed, each by its own path? A folder, a pattern such as evals/skills/commit-message-writer/cases/*/case.json, or a count does not list the files in it.",
+        "question": "Does evals/skills/commit-message-writer/stage-1.md list every file the run added or changed, each by its own path? A folder, a pattern such as evals/skills/commit-message-writer/cases/*/case.json, or a count names none of the files in it.",
         "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when a file the run wrote is not named by its own path, even if a folder, pattern or count covers it. No also when the run wrote no evals/skills/commit-message-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
