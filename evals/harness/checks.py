@@ -103,6 +103,11 @@ class Bundle:
         return found
 
 
+def is_globs(value):
+    """Whether `value` is a list of globs for `matches`: at least one, none empty."""
+    return isinstance(value, list) and bool(value) and all(isinstance(v, str) and v for v in value)
+
+
 def matches(path, patterns):
     """Whether `path` matches any of the glob `patterns`, where `*` crosses folders."""
     return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)

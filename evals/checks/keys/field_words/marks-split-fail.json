@@ -1,0 +1,5 @@
+{
+  "args": {"field": "description", "most": 6, "file": "SKILL.md"},
+  "outcome": "fail",
+  "after": {"SKILL.md": "---\nname: notes\ndescription: \"Write step-by-step notes for v2.1.\"\n---\n"}
+}

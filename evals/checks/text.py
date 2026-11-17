@@ -19,6 +19,13 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
 - `shares_words`: the text shares a run of `run` consecutive words with the world file `source` after the run
   (`shared` true), or shares none (`shared` false). Words are letters and digits, compared without case. Pair it
   with `file_state` `unchanged` on the source, so a run cannot change the reference.
+- `no_shared_words`: no file the run added or changed that matches one of the globs in `written` (`*` crosses
+  folders), the source left out, shares a run of `run` words with the world file `source` after the run, compared
+  as `shares_words` compares them. A `.json` file that parses is read as its decoded keys and strings, as a reader
+  sees them, so an escape such as `\\n` never joins two words. A file the run did not touch is not read.
+- `field_words`: the frontmatter, read as `frontmatter` reads it, has the field `field`, and its value holds at most
+  `most` words, counted as `shares_words` counts them: the field's own line and every indented line under it that
+  is not a `#` comment, a trailing ` #` comment removed.
 - `line_counts`: the section under the prose heading `section` (to the next heading of its level or above) is a
   listing: every line that is not blank is only `` - `path` (N lines) `` (or `1 line`) or `` - `path` (deleted) ``,
   and there is at least one. Any other line there, a code block included, fails. Each listed file is a file after
@@ -34,10 +41,11 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   are not read. A file `line_counts` lists is also only ever a world path.
 """
 
+import json
 import re
 
 from cases import is_path
-from checks import Check
+from checks import Check, is_globs, matches
 
 HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*")
 OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
@@ -103,21 +111,34 @@ def _value(raw):
     return quoted.group(2) if quoted else re.sub(r"\s+#.*$", "", (raw or "").strip())
 
 
+def _fields(text, name):
+    """({field: rows}, None) of the frontmatter block of `text`, where a field's rows are its own line's value and
+    every line under it that is part of it (indented, or a `- ` list item); or (None, why it fails)."""
+    block = [row for kind, row in lines(text, True) if kind == "frontmatter"]
+    if len(block) < 2:
+        return None, f"{name} does not begin with a frontmatter block between --- lines"
+    fields, last = {}, None
+    for number, row in enumerate(block[1:-1], 2):
+        field = FIELD.fullmatch(row.rstrip())
+        if field and field.group(1) not in fields:
+            last = field.group(1)
+            fields[last] = [field.group(2) or ""]
+        elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"
+                           or row.startswith("- ") and fields):
+            return None, f"{name}'s frontmatter line {number} is not a field given once: {row[:200]}"
+        elif row.strip() and not row.lstrip().startswith("#"):
+            fields[last].append(row)
+    return fields, None
+
+
 def frontmatter(bundle, required, allowed=None, values=None, file=None):
     text, name = _text(bundle, file)
     if text is None:
         return "fail", f"{name} does not exist"
-    block = [row for kind, row in lines(text, True) if kind == "frontmatter"]
-    if len(block) < 2:
-        return "fail", f"{name} does not begin with a frontmatter block between --- lines"
-    fields = {}
-    for number, row in enumerate(block[1:-1], 2):
-        field = FIELD.fullmatch(row.rstrip())
-        if field and field.group(1) not in fields:
-            fields[field.group(1)] = _value(field.group(2))
-        elif field or not (not row.strip() or row.lstrip().startswith("#") or row[0] in " \t"
-                           or row.startswith("- ") and fields):
-            return "fail", f"{name}'s frontmatter line {number} is not a field given once: {row[:200]}"
+    rows, why = _fields(text, name)
+    if rows is None:
+        return "fail", why
+    fields = {field: _value(given[0]) for field, given in rows.items()}
     missing = [f for f in required if f not in fields]
     extra = [f for f in fields if allowed is not None and f not in allowed]
     wrong = [f for f, value in (values or {}).items() if fields.get(f) != value]
@@ -125,6 +146,19 @@ def frontmatter(bundle, required, allowed=None, values=None, file=None):
         return "fail", (f"{name}'s frontmatter fields are {sorted(fields)}: {missing} are missing, {extra} are not "
                         f"allowed, and {wrong} do not hold {values or {}}")
     return "pass", f"{name}'s frontmatter fields are {sorted(fields)}, as the expectation says"
+
+
+def field_words(bundle, field, most, file=None):
+    text, name = _text(bundle, file)
+    if text is None:
+        return "fail", f"{name} does not exist"
+    rows, why = _fields(text, name)
+    if rows is None:
+        return "fail", why
+    if field not in rows:
+        return "fail", f"{name}'s frontmatter has no field {field}"
+    count = sum(len(WORD.findall(re.sub(r"\s+#.*$", "", row))) for row in rows[field])
+    return ("pass" if count <= most else "fail"), f"{name}'s {field} has {count} words, and the most allowed is {most}"
 
 
 def ends_with_one_question(bundle, file=None):
@@ -143,18 +177,57 @@ def ends_with_one_question(bundle, file=None):
     return "fail", f"{name} holds {len(asked)} questions, and {'ends' if last else 'does not end'} with one"
 
 
+def _runs(text, run):
+    """Every run of `run` consecutive words of `text`, without case, as tuples, in order."""
+    words = [w.lower() for w in WORD.findall(text)]
+    return [tuple(words[i:i + run]) for i in range(len(words) - run + 1)]
+
+
 def shares_words(bundle, source, run, shared, file=None):
     text, name = _text(bundle, file)
     original = bundle.text(source)
     if text is None or original is None:
         return "fail", f"{name if text is None else source} does not exist"
-    words = [w.lower() for w in WORD.findall(original)]
-    runs = {tuple(words[i:i + run]) for i in range(len(words) - run + 1)}
-    mine = [w.lower() for w in WORD.findall(text)]
-    common = next((mine[i:i + run] for i in range(len(mine) - run + 1) if tuple(mine[i:i + run]) in runs), None)
+    runs = set(_runs(original, run))
+    common = next((words for words in _runs(text, run) if words in runs), None)
     if common:
         return ("pass" if shared else "fail"), f"{name} shares {run} words with {source}: {' '.join(common)[:200]}"
     return ("fail" if shared else "pass"), f"{name} shares no run of {run} words with {source}"
+
+
+def _strings(value):
+    """The keys and strings of a decoded JSON value, in order."""
+    if isinstance(value, dict):
+        return [part for key, item in value.items() for part in [key, *_strings(item)]]
+    if isinstance(value, list):
+        return [part for item in value for part in _strings(item)]
+    return [value] if isinstance(value, str) else []
+
+
+def _words(bundle, path):
+    """The text of the file at `path` as a reader sees it: a `.json` file that parses as its decoded keys and
+    strings, so an escape such as `\\n` never joins or splits words; any other file as written."""
+    text = bundle.text(path)
+    if path.endswith(".json"):
+        try:
+            return "\n".join(_strings(json.loads(text)))
+        except ValueError:
+            pass
+    return text
+
+
+def no_shared_words(bundle, source, run, written):
+    original = bundle.text(source)
+    if original is None:
+        return "fail", f"{source} does not exist"
+    runs = set(_runs(original, run))
+    read = sorted(path for path in bundle.changes if path != source and matches(path, written)
+                  and bundle.text(path) is not None)
+    for path in read:
+        common = next((words for words in _runs(_words(bundle, path), run) if words in runs), None)
+        if common:
+            return "fail", f"{path} shares {run} words with {source}: {' '.join(common)[:200]}"
+    return "pass", f"none of the {len(read)} files the run wrote in {written} shares a run of {run} words with {source}"
 
 
 def _section(read, heading):
@@ -254,6 +327,10 @@ CHECKS = {
     "shares_words": Check(shares_words, {"source": is_path, "run": is_count, "shared": lambda v: isinstance(v, bool),
                                          **FILE},
                           optional=("file",), about="the text shares a run of words with a source file, or none"),
+    "no_shared_words": Check(no_shared_words, {"source": is_path, "run": is_count, "written": is_globs},
+                             about="no file the run wrote in these globs shares a run of words with a source file"),
+    "field_words": Check(field_words, {"field": is_text, "most": is_count, **FILE}, optional=("file",),
+                         about="a frontmatter field holds at most this many words"),
     "line_counts": Check(line_counts, {"section": is_text, **FILE}, optional=("file",),
                          about="each file the text lists has the line count it gives, or is absent when deleted"),
     "line_references": Check(line_references, dict(FILE), optional=("file",),

@@ -8,13 +8,9 @@ made: never from what the host said it did.
 """
 
 from cases import is_path  # the one shape of a world path, as cases and the lint use it
-from checks import Check, matches
+from checks import Check, is_globs, matches
 
 STATES = ("exists", "absent", "unchanged", "changed")
-
-
-def is_globs(value):
-    return isinstance(value, list) and bool(value) and all(isinstance(v, str) and v for v in value)
 
 
 def file_state(bundle, path, state):

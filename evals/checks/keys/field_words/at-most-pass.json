@@ -1,0 +1,5 @@
+{
+  "args": {"field": "description", "most": 6, "file": "SKILL.md"},
+  "outcome": "pass",
+  "after": {"SKILL.md": "---\nname: notes\ndescription: Write release notes for a tag.  # six words, the comment not counted\n---\n\n# Notes\n"}
+}
