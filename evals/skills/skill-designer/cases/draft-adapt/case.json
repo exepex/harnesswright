@@ -133,7 +133,7 @@
       }
     },
     {
-      "text": "Rules are cited by ID, never copied",
+      "text": "Every rule ID the template cites is one the index lists",
       "source": {
         "contract": {
           "path": "AGENTS.md",
@@ -141,18 +141,26 @@
           "quote": "6. A template cites the rules it applies by the IDs in `v2/rules/index.md` and never copies their text."
         }
       },
+      "check": {
+        "name": "cites_listed_ids",
+        "args": {
+          "file": "v2/skills/changelog-writer/SKILL.tmpl.md",
+          "index": "v2/rules/index.md",
+          "pattern": "CORE-[A-Z]+-[0-9]+"
+        }
+      },
       "judged": {
-        "question": "Does the template cite the rules it applies by IDs listed in v2/rules/index.md, without writing out what any rule says beyond its ID?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and at least one rule is cited by an ID the index lists, and no rule is spelled out beyond its ID. The index's own short reminder for that ID, beside it, counts as part of the citation, not a copy, as docs/templates.md allows.",
-        "fail": "No when no rule is cited by an ID the index lists, an ID is made up, or the template says more of a rule than the index's reminder, in sentences of its own or the source's. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Does v2/skills/changelog-writer/SKILL.tmpl.md cite at least one rule ID, and is every rule ID it cites listed in v2/rules/index.md?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, it cites at least one CORE- ID, and v2/rules/index.md lists every CORE- ID it cites.",
+        "fail": "No when it cites no rule ID, or cites one the index does not list, made up or taken from elsewhere. Whether a rule's duty is written out is not asked here. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["1. Read the branch's commits (CORE-WORK-01).", "Each step in plain verbs, citing CORE-SKILL-18 followed by the index's reminder for it."],
-          "fail": ["A Rules section that explains each rule in a paragraph, with no IDs.", "Steps citing CORE-SKILL-99, which the index does not list."]
+          "pass": ["1. Read the branch's commits (CORE-WORK-01)."],
+          "fail": ["Steps citing CORE-SKILL-99, which the index does not list.", "A template that cites no rule ID at all."]
         }
       }
     },
     {
-      "text": "The two rules the source restates are cited by ID, not kept as sentences",
+      "text": "The two rules the source restates are cited by ID, and no sentence states a rule's duty",
       "source": {
         "contract": {
           "path": "docs/templates.md",
@@ -161,12 +169,12 @@
         }
       },
       "judged": {
-        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each say what a rule of v2/rules/index.md says: step 5 keeps credentials and personal data out of the changelog (CORE-WORK-06), and step 6 holds back any claim until the file has been read again (CORE-SKILL-07; CORE-WORK-01 or CORE-WORK-02 also fit). Does the template cite a fitting ID for each of the two, and leave out both sentences and any sentence of its own that says the same as a general rule? The boundary: a step's own action, or a check on that step's own output, stays and passes beside the ID, such as 'Check: the new line holds no token, password or email address (CORE-WORK-06)' or 'Check: CHANGELOG.md, read again, shows the new line (CORE-SKILL-07)'. A sentence that states the duty in general fails, with or without the ID, such as 'Secrets and personal details must never reach the changelog (CORE-WORK-06)' or 'Never report work as done before you have proof of it (CORE-SKILL-07)'. The index's own reminder for an ID, beside the ID, is part of the citation.",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and it cites CORE-WORK-06 for the first, and CORE-SKILL-07, CORE-WORK-01 or CORE-WORK-02 for the second, without either source sentence and without any sentence that states either duty in general. Actions and checks on a step's own output may stay beside the ID.",
-        "fail": "No when either ID is missing, or the template keeps either source sentence, or states either duty in general in words of its own, with or without the ID. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each say what a rule of v2/rules/index.md says: step 5 keeps credentials and personal data out of the changelog (CORE-WORK-06), and step 6 holds back any claim until the file has been read again (CORE-SKILL-07; CORE-WORK-01 or CORE-WORK-02 also fit). Does the template cite a fitting ID for each of the two, and leave out both sentences and every sentence that states any rule's duty in general? The boundary: a step's own action, or a check on that step's own output, stays and passes beside the ID, such as 'Check: the new line holds no token, password or email address (CORE-WORK-06)' or 'Check: CHANGELOG.md, read again, shows the new line (CORE-SKILL-07)'. A sentence that states the duty in general fails, with or without the ID, such as 'Secrets and personal details must never reach the changelog (CORE-WORK-06)' or 'Never report work as done before you have proof of it (CORE-SKILL-07)'. The index's own reminder for an ID, beside the ID, is part of the citation.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and it cites CORE-WORK-06 for the first, and CORE-SKILL-07, CORE-WORK-01 or CORE-WORK-02 for the second, without either source sentence and without any sentence that states a rule's duty in general. Actions and checks on a step's own output may stay beside the ID.",
+        "fail": "No when either ID is missing, or the template keeps either source sentence, or states any rule's duty in general in words of its own, with or without the ID. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["3. Add the line under Unreleased. Check: the new line holds no token, password or email address (CORE-WORK-06).", "4. Check: CHANGELOG.md, read again, shows the new line (CORE-SKILL-07)."],
-          "fail": ["The source's step 5 kept word for word, with CORE-WORK-06 added after it.", "Secrets and personal details must never reach the changelog (CORE-WORK-06).", "Never report work as done before you have proof of it (CORE-SKILL-07)."]
+          "fail": ["The source's step 5 kept word for word, with CORE-WORK-06 added after it.", "Secrets and personal details must never reach the changelog (CORE-WORK-06).", "Never report work as done before you have proof of it (CORE-SKILL-07).", "6. Keep any token, password or customer's email address out of the line (CORE-WORK-06)."]
         }
       }
     },

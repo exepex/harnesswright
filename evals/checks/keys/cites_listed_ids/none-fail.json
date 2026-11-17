@@ -1,0 +1,15 @@
+{
+  "args": {
+    "file": "v2/skills/x/SKILL.tmpl.md",
+    "index": "v2/rules/index.md",
+    "pattern": "CORE-[A-Z]+-[0-9]+"
+  },
+  "outcome": "fail",
+  "before": {
+    "v2/rules/index.md": "| ID | Reminder |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n"
+  },
+  "after": {
+    "v2/rules/index.md": "| ID | Reminder |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n",
+    "v2/skills/x/SKILL.tmpl.md": "1. Add the line.\n2. Read it again.\n"
+  }
+}

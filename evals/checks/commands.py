@@ -20,7 +20,7 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
 
 import re
 
-from checks import Check, Undecidable
+from checks import Check, Undecidable, is_pattern
 
 # The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
 # A quoted string holds only a plain word's characters and blanks, since a program such as bash -c may run it as a
@@ -32,13 +32,6 @@ TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
 CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
-
-
-def is_pattern(value):
-    try:
-        return isinstance(value, str) and bool(value) and re.compile(value) is not None
-    except re.error:
-        return False
 
 
 # Where a program starts: after an operator outside quotes, then after any NAME=value words. A shell's -c script is

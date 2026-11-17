@@ -15,6 +15,7 @@ import fnmatch
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -106,6 +107,14 @@ class Bundle:
 def is_globs(value):
     """Whether `value` is a list of globs for `matches`: at least one, none empty."""
     return isinstance(value, list) and bool(value) and all(isinstance(v, str) and v for v in value)
+
+
+def is_pattern(value):
+    """Whether `value` is a regular expression that compiles, and is not empty."""
+    try:
+        return isinstance(value, str) and bool(value) and re.compile(value) is not None
+    except re.error:
+        return False
 
 
 def matches(path, patterns):

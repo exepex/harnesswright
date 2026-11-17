@@ -41,13 +41,16 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   `app.py:2` (when the file is `src/app.py`) are broken, as is any other spelling, such as `./src/app.py:2`, and
   `localhost:8080` is not a reference. Quoted lines (`>`, such as the quoted story) are someone else's words and
   are not read. A file `line_counts` lists is also only ever a world path.
+- `cites_listed_ids`: the text cites at least one ID, and every ID it cites is listed in the world file `index`
+  after the run. An ID is a match of `pattern` with no letter, digit or `-` on either side, read from every line
+  of both texts. Pair it with `file_state` `unchanged` on the index, so a run cannot list its own IDs.
 """
 
 import json
 import re
 
 from cases import is_path
-from checks import Check, is_globs, matches
+from checks import Check, is_globs, is_pattern, matches
 
 HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*")
 OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
@@ -318,6 +321,19 @@ def is_count(value, low=1, high=None):
     return isinstance(value, int) and not isinstance(value, bool) and low <= value and (high is None or value <= high)
 
 
+def cites_listed_ids(bundle, index, pattern, file=None):
+    text, name = _text(bundle, file)
+    listed = bundle.text(index)
+    if text is None or listed is None:
+        return "fail", f"{name if text is None else index} does not exist"
+    find = re.compile(f"(?<![A-Za-z0-9-])(?:{pattern})(?![A-Za-z0-9-])")
+    cited, known = sorted(set(find.findall(text))), set(find.findall(listed))
+    unlisted = [found for found in cited if found not in known]
+    if not cited or unlisted:
+        return "fail", f"{name} cites {len(cited)} IDs, and {index} lists none of {', '.join(unlisted[:20]) or '-'}"
+    return "pass", f"{name} cites {len(cited)} IDs, each listed in {index}: {', '.join(cited[:20])}"
+
+
 def is_values(value):
     return isinstance(value, dict) and bool(value) and all(isinstance(v, str) for v in value.values())
 
@@ -342,4 +358,6 @@ CHECKS = {
                          about="each file the text lists has the line count it gives, or is absent when deleted"),
     "line_references": Check(line_references, dict(FILE), optional=("file",),
                              about="every file:line reference in the text points at lines that exist"),
+    "cites_listed_ids": Check(cites_listed_ids, {"index": is_path, "pattern": is_pattern, **FILE}, optional=("file",),
+                              about="the text cites at least one ID, and every ID it cites is in the index file"),
 }
