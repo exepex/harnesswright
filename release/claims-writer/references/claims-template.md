@@ -1,4 +1,4 @@
-<!-- Generated from v2/skills/claims-writer/references/claims-template.md at version 0.4.1. Do not edit. -->
+<!-- Generated from v2/skills/claims-writer/references/claims-template.md at version 0.4.2. Do not edit. -->
 
 # Claims layout
 
