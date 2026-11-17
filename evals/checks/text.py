@@ -42,8 +42,8 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   `localhost:8080` is not a reference. Quoted lines (`>`, such as the quoted story) are someone else's words and
   are not read. A file `line_counts` lists is also only ever a world path.
 - `cites_listed_ids`: the text cites at least one ID, and every ID it cites is listed in the world file `index`
-  after the run. An ID is a match of `pattern` with no letter, digit or `-` on either side, read from every line
-  of both texts. Pair it with `file_state` `unchanged` on the index, so a run cannot list its own IDs.
+  as it was before the run; an index the run changed fails, so a run cannot list its own IDs. An ID is a whole
+  match of `pattern` with no letter, digit or `-` on either side, read from every line of both texts.
 """
 
 import json
@@ -326,8 +326,11 @@ def cites_listed_ids(bundle, index, pattern, file=None):
     listed = bundle.text(index)
     if text is None or listed is None:
         return "fail", f"{name if text is None else index} does not exist"
+    if index in bundle.changes:
+        return "fail", f"the run changed {index}, so it cannot vouch for the IDs cited"
     find = re.compile(f"(?<![A-Za-z0-9-])(?:{pattern})(?![A-Za-z0-9-])")
-    cited, known = sorted(set(find.findall(text))), set(find.findall(listed))
+    cited = sorted({found.group(0) for found in find.finditer(text)})
+    known = {found.group(0) for found in find.finditer(listed)}
     unlisted = [found for found in cited if found not in known]
     if not cited or unlisted:
         return "fail", f"{name} cites {len(cited)} IDs, and {index} lists none of {', '.join(unlisted[:20]) or '-'}"
