@@ -9,12 +9,12 @@ metadata:
   source-licence: MIT
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-WORK-08"
-  rulebook-version: "0.5.0"
-  content-hash: "2f9cbbf7851648b8188158e04e8eda9378e3cf6c81629ab633097cb30ddd5446"
+  rulebook-version: "0.5.1"
+  content-hash: "b35081e48c11b9cdcdbab91147263059995b179c170ab898c54d300cdddb32d5"
   size-floors: "4881"
   size-rest: "18257"
 ---
-<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.5.0. Do not edit. -->
+<!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.5.1. Do not edit. -->
 
 # Claims writer
 
