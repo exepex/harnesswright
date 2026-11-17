@@ -280,13 +280,8 @@
     },
     {
       "text": "The stage report lists every file the run wrote",
-      "source": {
-        "contract": {
-          "path": "docs/templates.md",
-          "line": 12,
-          "quote": "Stage 2 ends with that report, which lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."
-        }
-      },
+      "source": {"contract": {"path": "docs/templates.md", "line": 12, "quote": "Stage 2 ends with that report, which lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."}},
+      "check": {"name": "lists_every_change", "args": {"file": "evals/skills/changelog-writer/stage-2.md"}},
       "judged": {
         "question": "Does evals/skills/changelog-writer/stage-2.md list every file the run added or changed, each by its own path? A folder, a pattern such as v2/skills/changelog-writer/*, or a count does not list the files in it.",
         "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",

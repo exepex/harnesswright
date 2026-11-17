@@ -222,7 +222,7 @@
   },
   "q14": {
    "expectation": "The stage report lists every file the run wrote",
-   "sha256": "a42e8cb113379cb65ba272c6628647c93cab41e47082605cc9874308207519fd",
+   "sha256": "1a3d4a22157c4e2e6f4db3d0703db412de0c09b5d4540334dbc39d1875913602",
    "answer": "no",
    "by": "judge-g"
   },

@@ -5,7 +5,13 @@ made: never from what the host said it did.
 - `changes_only_in`: every path the run changed matches one of the globs in `allowed` (`*` crosses folders). A
   folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
+- `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
+  or changed, `file` itself and the run's own `.harness/` files left out. A path is named where it stands alone,
+  with no path character (letter, digit, `_`, `.`, `/`, `-`) on either side, a full stop that ends a sentence
+  aside, so a folder, a pattern or a count names none of the files in it.
 """
+
+import re
 
 from cases import is_path  # the one shape of a world path, as cases and the lint use it
 from checks import Check, is_globs, matches
@@ -36,9 +42,29 @@ def changes_only_in(bundle, allowed):
     return "pass", f"the run changed {len(bundle.changes)} paths, all inside {allowed}"
 
 
+PATH_CHARS = r"[A-Za-z0-9_./-]"
+AFTER = r"(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_./-])"  # a full stop that ends a sentence is no path character
+
+
+def lists_every_change(bundle, file):
+    text = bundle.text(file)
+    if text is None or file not in bundle.changes:
+        return "fail", f"{file} is not a file the run wrote"
+    written = sorted(path for path in bundle.changes if path != file and not path.startswith(".harness/")
+                     and bundle.text(path) is not None)
+    missing = [path for path in written
+               if not re.search(f"(?<!{PATH_CHARS}){re.escape(path)}{AFTER}", text)]
+    if missing:
+        return "fail", f"{file} does not name {len(missing)} of the {len(written)} files the run wrote: " \
+                       f"{', '.join(missing[:20])}"
+    return "pass", f"{file} names each of the {len(written)} files the run wrote by its own path"
+
+
 CHECKS = {
     "file_state": Check(file_state, {"path": is_path, "state": lambda v: v in STATES},
                         about="the file at a path exists, is absent, is unchanged, or was changed"),
     "changes_only_in": Check(changes_only_in, {"allowed": is_globs},
                              about="the run changed only paths matching the allowed globs"),
+    "lists_every_change": Check(lists_every_change, {"file": is_path},
+                                about="a file the run wrote names every file the run added or changed by its path"),
 }
