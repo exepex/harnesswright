@@ -1,6 +1,11 @@
 {
   "prompt": "Someone on the platform team found a pull request description skill they like and copied it into incoming/pr-helper/ (ORIGIN.md says where it came from). Bring it into the toolkit as pr-description-writer, for the implementer role.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "expectations": [
     {
       "text": "No skill template is written yet",

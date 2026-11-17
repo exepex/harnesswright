@@ -1,6 +1,11 @@
 {
   "prompt": "release-notes came out unsupported in its last round. The round report is evals/results/release-notes-round-2.md and the label is evals/results/release-notes.json. Fix the skill.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "tools": ["python3"],
   "expectations": [
     {
