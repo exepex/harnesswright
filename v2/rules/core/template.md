@@ -97,7 +97,7 @@ with the older rule it carries over.
   one line that, after any indentation, is `Rules: ` and then tags separated by `, `, with nothing else, never
   wrapped. A step that depends on a rule carries a `Rules:` line, and the skill may have one under its purpose. No
   sentence states a rule's duty in general, whether a tag is near it or not: text near a tag says what this skill
-  does, never how the work must be done. Rule text reaches the agent only through the copies HW-RULE-01 allows.
+  does, never how work must be done in general. Rule text reaches the agent only through the copies HW-RULE-01 allows.
   Its `metadata.roles` names the roles it serves. Its `metadata.areas` names every area its work touches, or is
   `rest` for the one skill of a job that takes every area no other skill of the job lists.
 - **Why:** Rule text written by hand goes stale when the rule changes, and the agent then sees two versions. An ID
