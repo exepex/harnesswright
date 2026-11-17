@@ -6,11 +6,11 @@ made: never from what the host said it did.
   folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
 - `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
-  or changed, `file` itself and the run's own `.harness/` files left out. One rule reads the names: the text is cut
-  into tokens, each a longest run of path characters (letters, digits, `_ . / - *`), and a token names the one path
-  it equals once read: leading `*` dropped as emphasis, as many trailing `*` dropped as it had leading ones, then a
-  leading `./` and trailing full stops dropped. A token that still holds a `*` is a pattern and names no file, nor
-  does a folder or a count.
+  or changed, `file` itself and the run's own `.harness/` files left out. One rule reads the names. Outside code
+  spans, Markdown emphasis (a run of one to three `*` that opens before a non-space and closes after one) is read as
+  the text it holds. The text is then cut into tokens, each a longest run of path characters (letters, digits,
+  `_ . / - *`), and a token names the path it equals once a leading `./` and trailing full stops are dropped. A
+  token that holds a `*` is a pattern and names no file, nor does a folder or a count.
 """
 
 import re
@@ -45,19 +45,25 @@ def changes_only_in(bundle, allowed):
 
 
 TOKEN = re.compile(r"[A-Za-z0-9_./*-]+")  # the one shape a name may take, an allow list (HW-AG-09)
+CODE = re.compile(r"(`+)(?:.|\n)*?\1")  # a code span holds no emphasis
+EMPHASIS = re.compile(r"(\*{1,3})(?=\S)(.+?)(?<=\S)\1")
 
 
 def _named(text):
-    """The paths a text names: each token read as the module's rule reads it."""
-    found = set()
-    for token in TOKEN.findall(text):
-        opened = len(token) - len(token.lstrip("*"))
-        name = token[opened:].rstrip(".")
-        closed = min(opened, len(name) - len(name.rstrip("*")))
-        name = name[:len(name) - closed].rstrip(".").removeprefix("./")
-        if name and "*" not in name:
-            found.add(name)
-    return found
+    """The paths a text names, read by the module's one rule."""
+    parts, at = [], 0
+    for span in CODE.finditer(text):  # code spans as written, the prose between them with its emphasis read
+        parts += [_unemphasised(text[at:span.start()]), span.group(0)]
+        at = span.end()
+    parts.append(_unemphasised(text[at:]))
+    return {name for token in TOKEN.findall("\n".join(parts))
+            if (name := token.rstrip(".").removeprefix("./")) and "*" not in name}
+
+
+def _unemphasised(prose):
+    while (read := EMPHASIS.sub(r"\2", prose)) != prose:
+        prose = read
+    return prose
 
 
 def lists_every_change(bundle, file):
