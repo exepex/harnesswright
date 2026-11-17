@@ -1,0 +1,13 @@
+{
+ "round": "triage-2",
+ "skills": {
+  "triage": {
+   "claude-code": {
+    "label": "unsupported",
+    "gaps": ["trigger accuracy 70% below 90%"],
+    "task_pass_rate": 0.9444,
+    "trigger_accuracy": 0.7
+   }
+  }
+ }
+}

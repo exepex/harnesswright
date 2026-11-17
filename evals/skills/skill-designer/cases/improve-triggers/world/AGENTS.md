@@ -26,11 +26,12 @@ application code.
 
 ## Improving a skill
 
-- Change only what the failed cases point to, and leave the rest of the template as it is.
+- Change what each failed case in the round report points to, and leave the rest of the template as it is.
 - A description says what the skill does, when to use it and when not to. It never lists the prompts of the
   trigger cases; it names the intent behind them.
 - An improved skill gets a round against its previous version as well as against no skill.
 - After you change a template, run `python3 v2/build/build.py` and report what it printed.
+- The description budget and the version rule are in [docs/templates.md](docs/templates.md).
 
 ## Working rules
 

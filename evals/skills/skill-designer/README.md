@@ -27,10 +27,13 @@ the template once goldens and a baseline round exist. Each world is a small tool
   words; `docs/templates.md` states the write scope, the version rule and the stage report; the label, shaped
   like the harness's own with neutral arm names, is the stated proof of goldens. The run writes the template for
   the implementer role, cites rule IDs only, raises the version, records the source and tries the build.
-- `improve-triggers` (stage 3): a skill whose round came out unsupported because it missed three train cases.
-  The run changes only the description and the version, and asks for a round against the previous version.
-- `trigger-t01` to `trigger-t10`: requests that should load the skill designer, each in a world that holds what
-  it names; the odd ones are in the test split.
+- `improve-triggers` (stage 2): a skill whose round came out unsupported because it missed three train cases
+  and failed a task case on a step that has no group for breaking changes. `docs/templates.md` states a
+  description budget of 60 words and the version rule. The run changes the description and that step only,
+  raises the last number of the version, and asks for a round against the previous version.
+- `trigger-t01` to `trigger-t10`, `trigger-t21` and `trigger-t22`: requests that should load the skill designer,
+  each in a world that holds what it names; the odd ones are in the test split. `trigger-t21` and `trigger-t22`
+  ask to fix a skill that came out unsupported in its round.
 - `trigger-t11` to `trigger-t20`: near misses that should not load it: judging a skill, rules, a role, a
   contract, application code and tests, a script, explaining a doc, a CI error, claims and a review; the odd
   ones are in the test split.

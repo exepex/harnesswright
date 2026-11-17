@@ -1,0 +1,31 @@
+{
+  "prompt": "triage is unsupported after its last round, the label is evals/results/triage.json. can you fix the skill so it gets through next time",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "train",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "<prompt>": [
+      "evals"
+    ],
+    "README.md": [
+      "evals"
+    ],
+    "evals": [
+      "evals"
+    ],
+    "evals/results": [
+      "evals"
+    ],
+    "evals/results/triage.json": [
+      "evals"
+    ]
+  }
+}
