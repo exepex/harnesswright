@@ -5,7 +5,8 @@ its own, simpler method, so a fault in the build's reader cannot hide itself (re
 section 5; plan/b01-plan.md part d1). It collects every failure, prints each as "check failed: <where>: <what>" and
 returns 1; with none it returns 0. One rule governs its readers: each line has an allowed shape, or it fails. Each
 `check_*` method of Check covers one kind of failure: rule parts and roles, copy markers, templates and their
-citations, jobs, release copies and bare IDs, job names given with --job, and the version bump.
+citations, jobs, release copies, bare IDs, rule tags and `Rules:` lines, job names given with --job, and the
+version bump.
 
 Run: python3 v2/build/check_rules.py [--root ROOT] [--release DIR] [--changed FILE] [--job NAME]...
 """
@@ -35,6 +36,11 @@ PROSE = re.compile(r"[A-Za-z0-9(\[`].*")  # a line of text outside a rule or tab
 FRONT = re.compile(r"(?:  )?[a-z][a-z0-9-]*: \S.*|metadata:")
 MARKERS = ("<!-- rule ", "<!-- end ", "<!-- Generated from ")
 SECTION = "## Rules for this skill"
+# A rule tag, {{rule:ID}}, is template text: the build writes each one out as "ID (title)". A release shows only the
+# form itself, {{rule:<ID>}}; any other "{{", "}}" or "{rule" is a tag the build did not write out.
+PLACEHOLDER = "{{rule:<ID>}}"
+TAG_LEFT = re.compile(r"\{\{|\}\}|\{\s*rule", re.IGNORECASE)
+ITEM = re.compile(rf"({POINT_ID}|{RULE_ID}) \(")
 
 
 class Rule:
@@ -265,7 +271,36 @@ class Check:
             elif end and end.group(1) == inside:
                 inside = None
             elif inside is None:
-                self.check_citations(line, f"release/{name}/{path.relative_to(self.release / name).as_posix()}:{number}")
+                self.check_line(line, f"release/{name}/{path.relative_to(self.release / name).as_posix()}:{number}")
+
+    def check_line(self, line, where):
+        """One release line outside the copied rules: no tag left, and a `Rules:` line of the one allowed shape."""
+        if TAG_LEFT.search(line.replace(PLACEHOLDER, "")):
+            self.fail(where, f"holds a rule tag the build did not write out; a release shows only {PLACEHOLDER}")
+        if line.lstrip(" ").startswith("Rules:"):
+            self.check_rules_line(line, where)
+        else:
+            self.check_citations(line, where)
+
+    def check_rules_line(self, line, where):
+        """After any indentation, "Rules:", then items separated by ",", each a space and then "ID (title)" or the
+        form {{rule:<ID>}}, and nothing else on the line."""
+        rest = line.lstrip(" ")[len("Rules:"):]
+        while rest.startswith(" "):
+            rest = rest[1:]
+            found = ITEM.match(rest)
+            rule = self.core_rules.get(found.group(1)) if found else None
+            item = PLACEHOLDER if rest.startswith(PLACEHOLDER) else rule and f"{rule.id} ({rule.title})"
+            if not item or not rest.startswith(item):
+                break
+            rest = rest[len(item):]
+            if rest == "":
+                return
+            if not rest.startswith(","):
+                break
+            rest = rest[1:]
+        self.fail(where, "a `Rules:` line holds only \"ID (title)\" items separated by \", \", on one line: "
+                         f"{line!r}")
 
     def check_citations(self, line, where):
         """Each ID must be followed by its title. A title is skipped once checked, so an ID inside it is not a

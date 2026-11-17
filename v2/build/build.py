@@ -7,9 +7,9 @@ sections 1, 2 and 5; plan/b01-plan.md part c).
 
 For each skill folder it writes release/<name>/:
 - SKILL.md: the template's frontmatter with generated metadata added, the "Generated from" header, the template's
-  title line, the one copied section (copyform.rules_section), then the rest of the body. Each cited ID outside the
-  copied section becomes "ID (title)". The content hash and size-rest cover the whole file except the generated
-  metadata lines; size-floors counts the copied floors.
+  title line, the one copied section (copyform.rules_section), then the rest of the body. Each rule tag and each
+  cited ID outside the copied section becomes "ID (title)" (tags.py). The content hash and size-rest cover the
+  whole file except the generated metadata lines; size-floors counts the copied floors.
 - every other Markdown file, expanded the same way (header and citations, no copied section);
 - scripts/ and licence files: the skill's own, and the shipped modules, copied byte for byte.
 Then release/manifest.json, which also names each skill's job and whether it is the job's `rest` skill. Any
@@ -30,13 +30,11 @@ from pathlib import Path
 import copyform
 import reach
 import rulebook
+import tags
 
 SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "repoprofile.py", "resolve.py", "runfiles.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-# An ID inside a word, a file name or a path is not a citation: no letter, digit, "-", "/" or "." before it, and no
-# letter, digit, "-" or "/" after it, nor a "." followed by a letter or digit (a file extension).
-CITATION = re.compile(rf"(?<![\w/.-])(?:{rulebook.DP_ID.pattern}|{rulebook.RULE_ID.pattern})(?![\w/-]|\.\w)")
 TEMPLATE = "SKILL.tmpl.md"
 LAYOUT = ("manifest.json", "roles.md", "rules")  # release/ holds these and one folder per skill, nothing else
 LAYER_FILE = re.compile(r"[a-z0-9-]+\.(?:md|yaml)")  # a layer folder holds rule files, its index, layer.yaml
@@ -78,20 +76,6 @@ def skill_files(folder):
     return markdown, scripts
 
 
-def cite(text, rules, where):
-    """Each cited ID with its title added; fails an ID the CORE layer does not hold."""
-    def title(found):
-        rule_id = found.group()
-        if rule_id not in rules:
-            raise BuildError(f"{where}: cites {rule_id}, which is not in the CORE rulebook")
-        return f"{rule_id} ({rules[rule_id].title})"
-    return CITATION.sub(title, text)
-
-
-def citations(text):
-    return set(CITATION.findall(text))
-
-
 def header(source, version):
     return f"<!-- Generated from {source} at version {version}. Do not edit. -->"
 
@@ -116,26 +100,25 @@ def build_skill(folder, rel_folder, layer, version, row, skills):
         raise BuildError(f"{name}/{TEMPLATE}: metadata.{taken[0]} is written by the build")
     rules = list(layer.rules.values())
     lines = rulebook.read_lines(folder / TEMPLATE)
+    titles = {rule.id: rule.title for rule in rules}
     texts = {rel: "\n".join(rulebook.read_lines(folder / rel)) + "\n" for rel in markdown}
     texts[TEMPLATE] = "\n".join(lines[body_start:])  # the frontmatter cites nothing
-    for rel, text in texts.items():
-        cite(text, layer.rules, f"{name}/{rel}")  # fails an ID the CORE layer does not hold, naming the file
-    cited = set().union(*(citations(text) for text in texts.values()))
+    expanded = {rel: tags.expand(text, titles, f"{name}/{rel}", body_start + 1 if rel == TEMPLATE else 1)
+                for rel, text in texts.items()}  # fails an unknown ID or a tag with no allowed shape, naming the line
+    cited = set().union(*(tags.ids(text) for text in texts.values()))
     areas = reach.areas_of(skills[name], row, skills, rules)
     reached = reach.reach(rules, skills[name].roles, areas, cited)
     files = {}
     for rel in markdown:
         if rel != TEMPLATE:
-            body = cite(texts[rel], layer.rules, f"{name}/{rel}")
-            files[rel] = f"{header(f'{rel_folder}/{rel}', version)}\n\n{body}"
-    body = lines[body_start:]
+            files[rel] = f"{header(f'{rel_folder}/{rel}', version)}\n\n{expanded[rel]}"
+    body = expanded[TEMPLATE].split("\n")  # expanding keeps every line in its place
     first = next((i for i, line in enumerate(body) if line.strip()), 0)
     title_at = first if first < len(body) and body[first].startswith("# ") else -1  # the title is the first line
     before, after = body[:title_at + 1], body[title_at + 1:]
     section = copyform.rules_section(reached).rstrip("\n")
-    where = f"{name}/{TEMPLATE}"
-    parts = [cite("\n".join([header(f"{rel_folder}/{TEMPLATE}", version), *before]), layer.rules, where),
-             section, cite("\n".join(after).strip("\n"), layer.rules, where)]
+    parts = ["\n".join([header(f"{rel_folder}/{TEMPLATE}", version), *before]), section,
+             "\n".join(after).strip("\n")]
     text = "\n\n".join(part for part in parts if part) + "\n"
     floors = "\n\n".join(copyform.copy_rule(r) for r in reached.floors)
     copied = [r.id for r in reached.floors] + [r.id for r in reached.others
