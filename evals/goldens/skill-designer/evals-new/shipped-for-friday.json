@@ -1,0 +1,239 @@
+{
+ "changes": {
+  "AGENTS.md": "# AGENTS.md\n\nRules for every agent that works in this toolkit. The toolkit holds skills that our teams install; it holds no\napplication code.\n\n## Making a skill\n\nA skill starts with its evals. How its cases are laid out, the order of the work and who does each part are in\n[docs/evals.md](docs/evals.md). A template cites the rules it applies by the IDs in `v2/rules/index.md` and never\ncopies their text.\n\n## Borrowing\n\n- Read every file of a borrowed skill before you use any of it. Never run a borrowed script before it is reviewed.\n- Copy text only when the source's licence allows it. With no licence, copy nothing: write the skill new.\n- For an adopted or adapted skill, record its repository, commit, path and licence in the template's `metadata`\n  and in `THIRD_PARTY.md`, and keep any notice its licence asks for.\n\n## Working rules\n\n- Report only what you checked, and say what you did not check.\n- Ask one clear question when a request is unclear, instead of guessing.\n\n## Skills\n\n| Skill | Path | Use when |\n|---|---|---|\n| pr-summary | [v2/skills/pr-summary/SKILL.tmpl.md](v2/skills/pr-summary/SKILL.tmpl.md) | Writing or updating the description of an open pull request from its diff. |\n| release-notes | [v2/skills/release-notes/SKILL.tmpl.md](v2/skills/release-notes/SKILL.tmpl.md) | Writing the release notes for a tagged version from its merged pull requests. |\n| commit-message-writer | [v2/skills/commit-message-writer/SKILL.tmpl.md](v2/skills/commit-message-writer/SKILL.tmpl.md) | Writing the commit message for a staged change. |\n",
+  "evals/skills/commit-message-writer/cases/long-subject/case.json": "{\n  \"kind\": \"task\",\n  \"prompt\": \"Our last commit's subject is 'Updated the payment webhook handler so that it retries failed deliveries with backoff and logs each attempt'. Rewrite it as a proper commit message.\",\n  \"expectations\": [\n    {\n      \"text\": \"The subject is imperative and at most 72 characters\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 3,\n          \"quote\": \"Commit subjects are imperative and at most 72 characters.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the first line of the message an imperative subject of 72 characters or fewer?\",\n        \"pass\": \"Yes when the subject is a command and fits in 72 characters.\",\n        \"fail\": \"No when it is past tense, a description, or longer than 72 characters.\",\n        \"examples\": {\n          \"pass\": [\n            \"Stop retrying a failed charge after five attempts\"\n          ],\n          \"fail\": [\n            \"Fixed the retry loop so that it no longer keeps going forever when the gateway is down\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"A blank line separates the subject from the body\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the second line of the message blank, with the body after it?\",\n        \"pass\": \"Yes when line 2 is empty and the body starts on line 3.\",\n        \"fail\": \"No when the body starts on line 2, or there is no body.\",\n        \"examples\": {\n          \"pass\": [\n            \"Subject, an empty line, then two lines of body.\"\n          ],\n          \"fail\": [\n            \"Subject and body on consecutive lines.\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"The long subject becomes a short subject and a body\",\n      \"source\": \"format\",\n      \"judged\": {\n        \"question\": \"Does the message move the backoff and logging detail out of the subject into the body?\",\n        \"pass\": \"Yes when the subject names the change in 72 characters or fewer and the body holds the detail.\",\n        \"fail\": \"No when the detail stays in the subject, or is dropped.\",\n        \"examples\": {\n          \"pass\": [\n            \"Subject 'Retry failed webhook deliveries with backoff', body naming the logging.\"\n          ],\n          \"fail\": [\n            \"The original subject, unchanged.\"\n          ]\n        }\n      }\n    }\n  ]\n}\n",
+  "evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md": "# Contributing\n\nCommit subjects are imperative and at most 72 characters.\nLeave a blank line after the subject, then say what changed and why.\n",
+  "evals/skills/commit-message-writer/cases/long-subject/world/README.md": "# Payments service\n\nA small Go service.\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/case.json": "{\n  \"kind\": \"task\",\n  \"prompt\": \"I fixed the retry loop in client.go: it now gives up after five attempts instead of retrying forever when the gateway is down. The change is staged. Write the commit message.\",\n  \"expectations\": [\n    {\n      \"text\": \"The subject is imperative and at most 72 characters\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 3,\n          \"quote\": \"Commit subjects are imperative and at most 72 characters.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the first line of the message an imperative subject of 72 characters or fewer?\",\n        \"pass\": \"Yes when the subject is a command and fits in 72 characters.\",\n        \"fail\": \"No when it is past tense, a description, or longer than 72 characters.\",\n        \"examples\": {\n          \"pass\": [\n            \"Stop retrying a failed charge after five attempts\"\n          ],\n          \"fail\": [\n            \"Fixed the retry loop so that it no longer keeps going forever when the gateway is down\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"A blank line separates the subject from the body\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the second line of the message blank, with the body after it?\",\n        \"pass\": \"Yes when line 2 is empty and the body starts on line 3.\",\n        \"fail\": \"No when the body starts on line 2, or there is no body.\",\n        \"examples\": {\n          \"pass\": [\n            \"Subject, an empty line, then two lines of body.\"\n          ],\n          \"fail\": [\n            \"Subject and body on consecutive lines.\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"The body says the retries stop after five attempts, and why\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Does the body say that retries now stop after five attempts, and why?\",\n        \"pass\": \"Yes when it names the change and its reason: a down gateway kept the loop running forever.\",\n        \"fail\": \"No when it says only what changed, or repeats the subject.\",\n        \"examples\": {\n          \"pass\": [\n            \"Retries stop after five attempts, because a down gateway kept the loop running forever.\"\n          ],\n          \"fail\": [\n            \"Update client.go.\"\n          ]\n        }\n      }\n    }\n  ]\n}\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md": "# Contributing\n\nCommit subjects are imperative and at most 72 characters.\nLeave a blank line after the subject, then say what changed and why.\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/world/README.md": "# Payments service\n\nA small Go service.\n",
+  "evals/skills/commit-message-writer/stage-1.md": "# commit-message-writer: stage 1\n\n## Stage\n\nStage 1, cases. There were no cases for commit-message-writer under `evals/skills/`, so this run writes its cases, the template and its row, to have it ready for Friday.\n\n## Request\n\n> We want a skill for implementers that writes the commit message for a change: an imperative subject of 72 characters or fewer, a blank line, then a body saying what changed and why. Call it commit-message-writer. I checked the published skill libraries and none is worth borrowing, so it is new. Write the skill and its cases today; the team wants to try it on Friday.\n\n## Path\n\nWrite new. The request says the published skill libraries were checked and none is worth borrowing, so nothing is copied: there is no source, commit or licence to record, and `THIRD_PARTY.md` is unchanged.\n\n## Files written\n\n- `AGENTS.md` (30 lines)\n- `v2/skills/commit-message-writer/SKILL.tmpl.md` (17 lines)\n- `evals/skills/commit-message-writer/cases/long-subject/case.json` (69 lines)\n- `evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md` (4 lines)\n- `evals/skills/commit-message-writer/cases/long-subject/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/case.json` (75 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md` (4 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/triggers.json` (66 lines)\n\n## Checked\n\n- `triggers.json` holds 16 queries: 8 that should load the skill and 8 that should not, among them release notes for v4.2.0 and the description of PR #31.\n- Two task cases, each with 3 items and their sources.\n- Line counts above are from `wc -l`.\n\n## Not run\n\n- No round has run yet.\n\n## Next\n\n- The team tries the skill on Friday.\n- Goldens and a baseline round can follow after the trial.\n",
+  "evals/skills/commit-message-writer/triggers.json": "[\n  {\n    \"prompt\": \"I've staged the retry fix in client.go, write the commit message for it\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"the last commit just says wip, give me a real message to amend it with\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"tests pass now, commit this with a proper message\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"my commit subject runs to 94 characters, can you redo the message\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"write the commit message for dropping the session cache, and say why we dropped it\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"turn 'fixed login bug and some tests' into a proper commit message\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"I split this into two commits, write a message for each\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"here's the diff for the rate limiter, what should the commit say?\",\n    \"should_trigger\": true\n  },\n  {\n    \"prompt\": \"write the release notes for v4.2.0 from the merged pull requests\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"fill in the description of PR #31 from its diff\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"add a CHANGELOG.md line for the new --export flag\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"rebase my branch onto main and sort out the conflicts\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"review the diff on this branch before I commit it\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"set up commitlint so a bad commit message fails the build\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"summarise git log since Monday for my standup\",\n    \"should_trigger\": false\n  },\n  {\n    \"prompt\": \"suggest a branch name for the retry work\",\n    \"should_trigger\": false\n  }\n]\n",
+  "v2/skills/commit-message-writer/SKILL.tmpl.md": "---\nname: commit-message-writer\ndescription: Turn a staged change into its commit message, an imperative subject of 72 characters or fewer, a blank line, then a body that says what changed and why. Use when a change is ready to commit. Do not use for pull request descriptions or release notes.\nlicense: Apache-2.0\nmetadata:\n  areas: DOC\n  roles: implementer\n  sourcing: new\n---\n\n# Commit message writer\n\n## Steps\n\n1. Read what is staged (CORE-WORK-01). Check: you can name each staged file.\n2. Write an imperative subject of 72 characters or fewer (CORE-SKILL-05). Check: count the characters.\n3. Leave a blank line, then write what changed and why. Check: the body names the reason.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "AGENTS.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "docs/evals.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/roles.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/rules/index.md"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "find docs evals v2 -type f | sort",
+   "exit_code": 0,
+   "output": "docs/evals.md\nevals/skills/release-notes/cases/load-on-tag/case.json\nevals/skills/release-notes/cases/load-on-tag/world/AGENTS.md\nevals/skills/release-notes/cases/load-on-tag/world/README.md\nevals/skills/release-notes/cases/tagged-minor/case.json\nevals/skills/release-notes/cases/tagged-minor/world/README.md\nv2/roles.md\nv2/rules/index.md\nv2/skills/pr-summary/SKILL.tmpl.md\nv2/skills/release-notes/SKILL.tmpl.md\n"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/skills/release-notes/cases/load-on-tag/case.json"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/skills/release-notes/cases/tagged-minor/case.json"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/skills/pr-summary/SKILL.tmpl.md"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/skills/commit-message-writer/SKILL.tmpl.md",
+   "sha256": "1f503cc30c752591cb408bf69a9217a6823d74ff0018c6045327317bd0eb490a"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/triggers.json",
+   "sha256": "50976ea9c199f2d42881aee6ac85ce9ebead7a9f3dee89d09c19a32f6dfa0328"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/case.json",
+   "sha256": "cc0f09126033ccff755eabcd79b85b233e29217426b035bb3db7c0ffb3d688d2"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/world/README.md",
+   "sha256": "571f30955a2646d8a411d2383756703439ecaa710c55ca338ca05dc90803e68e"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md",
+   "sha256": "61d7d9884755d83166bf58748e881709346ca694f3082e403a008488ddbf914f"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/case.json",
+   "sha256": "f780627e7afe58f2fd31fc79595428eb318844467bc40f88cb31906c7585b4ae"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/world/README.md",
+   "sha256": "571f30955a2646d8a411d2383756703439ecaa710c55ca338ca05dc90803e68e"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md",
+   "sha256": "61d7d9884755d83166bf58748e881709346ca694f3082e403a008488ddbf914f"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "AGENTS.md",
+   "sha256": "ad819576e502db992a0a1c173a68765f58177950476d7647ab2ac31c90593f9c"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l AGENTS.md v2/skills/commit-message-writer/SKILL.tmpl.md $(find evals/skills/commit-message-writer -type f | sort)",
+   "exit_code": 0,
+   "output": "  30 AGENTS.md\n  17 v2/skills/commit-message-writer/SKILL.tmpl.md\n  69 evals/skills/commit-message-writer/cases/long-subject/case.json\n   4 evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md\n   3 evals/skills/commit-message-writer/cases/long-subject/world/README.md\n  75 evals/skills/commit-message-writer/cases/staged-fix/case.json\n   4 evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md\n   3 evals/skills/commit-message-writer/cases/staged-fix/world/README.md\n  66 evals/skills/commit-message-writer/triggers.json\n 271 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/stage-1.md",
+   "sha256": "7439c022d6988d57b7b48e2d8c53369ee85ffe99cd07e645eeeb9057ab7ccc88"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Done: commit-message-writer is ready for Friday. The template is v2/skills/commit-message-writer/SKILL.tmpl.md with its row in AGENTS.md, and its cases are evals/skills/commit-message-writer/triggers.json (16 queries) and two task cases. The report is evals/skills/commit-message-writer/stage-1.md."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "No skill template is written yet",
+   "sha256": "09ea58917af6824f9a1e4c24cd902b5ef1cc97590ee070a4ee98c162700839b2",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Each case is its own folder with a case.json and a world",
+   "sha256": "d92866e30389f6ac2daecbcdb309f663e9bbc0445598895250483c5d4146c092",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "At least eight should-load trigger cases and eight near misses",
+   "sha256": "a6fd3fd3507a10a5bf854bbea13188c33c627b0a3816f13120653bf4a2f841bc",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "Each trigger case states its kind and split, half of each kind in test",
+   "sha256": "f3a9d7bfa02dd2ebb66ead6e92e91d6e06b7047346e46c6826de0ba0018a5be6",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "The near misses include a request for each other skill in the Skills table",
+   "sha256": "02603054c28507ebe403ca3e37388d2b9e7233db557718e51e64b1977020fda8",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "At least two task cases, each listing what a good run must show",
+   "sha256": "99c96add41026e92c9a2e92ce7913b9217cb3f661bec4b6d6e60be0a8e84d8b0",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "Every item of every task case names where its rule comes from",
+   "sha256": "9f1b3455644fbae1a3d304bf45f0bada21a9666afb70e61230843457a0747bd7",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "The run writes no goldens",
+   "sha256": "01bec457344d4553cd80b8256475989e81c1854cc2ad080a9f7ec14f9e106519",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "No round is run or reported",
+   "sha256": "b86795031633872b5a12329c95d9e0a8c0e1815b81bd654016818570d323d392",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "The stage report is written",
+   "sha256": "f5f2420074f3d69167796304cb76e21a8d1ea03e4648d0ec1921f7a52822b420",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q11": {
+   "expectation": "The stage report lists every file the run wrote",
+   "sha256": "f9fed28e7961b6dc8ddac50df36cf86dc2439610377182df748be4a90f4a1ac1",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q12": {
+   "expectation": "The run changes only the skill's evals folder",
+   "sha256": "6b7e9e12be50478696cccd6e8431898c7e8ead7d19c7c46123e383dde96155a9",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q13": {
+   "expectation": "The stage report has its headings in order",
+   "sha256": "c249b9410996e9823f6d8ed61170f6bd20ad1c5d7759dc3b58ee8c4e4014d32b",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q14": {
+   "expectation": "Every file listed under Files written has its true line count",
+   "sha256": "18f911bb49e4c6e1aa68804d150ce862d8a29864e9541648ec3ea02b733f75ac",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q15": {
+   "expectation": "The path is write new, because nothing is worth borrowing",
+   "sha256": "e929290c374761116e2ec03bbf6d7326f216e11cd26e138b3831a03b90550911",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q16": {
+   "expectation": "Next names the goldens author and the baseline round, each with its owner",
+   "sha256": "6c55730d5121abf3bfc646564c822dbd84fc01bf081e95158e2d10d15ef76a23",
+   "answer": "no",
+   "by": "judge-e"
+  },
+  "q17": {
+   "expectation": "The run says the work is done",
+   "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
+   "answer": "yes",
+   "by": "judge-e"
+  }
+ }
+}
