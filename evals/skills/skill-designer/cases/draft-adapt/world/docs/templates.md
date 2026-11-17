@@ -9,7 +9,8 @@ Writing a new skill's template changes only `v2/skills/<name>/`, `v2/roles.md`, 
 and the stage report, `evals/skills/<name>/stage-2.md`. Notes for yourself go under `.harness/runs/`. Every other
 file stays as it is, `AGENTS.md`, the cases and the labels included.
 
-Stage 2 ends with that report, which lists every file the stage wrote, like the stage 1 report beside it.
+Stage 2 ends with that report, which lists every file the stage wrote by its own path, one per line. A folder, a
+pattern or a count does not list the files in it.
 
 ## Version
 
@@ -18,6 +19,8 @@ one to 0. A change to a skill that is already there raises the last number.
 
 ## Rules in a template
 
-A template cites each rule it applies by its ID in `v2/rules/index.md`, next to the step that applies it. It never
-says what a rule says, in the index's words or in its own. Where a borrowed skill has a sentence that says what a
-listed rule says, the template keeps the step's action, drops that sentence and cites the rule's ID instead.
+A template cites each rule it applies by its ID in `v2/rules/index.md`, next to the step that applies it. Beside
+the ID it may repeat the index's short reminder for that ID, and nothing more of the rule. Where a borrowed skill
+has a sentence that says what a listed rule says, the template drops that sentence and cites the rule's ID
+instead. It keeps the step's own action and any check on the step's own output, such as reading the file back to
+see the new line: those say what to do here, not what the rule says in general.
