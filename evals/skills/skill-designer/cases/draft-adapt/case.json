@@ -146,12 +146,12 @@
         "args": {
           "file": "v2/skills/changelog-writer/SKILL.tmpl.md",
           "index": "v2/rules/index.md",
-          "pattern": "CORE-[A-Z]+-[0-9]+"
+          "pattern": "[A-Z]+(?:-[A-Z]+)+-[0-9]+"
         }
       },
       "judged": {
         "question": "Does v2/skills/changelog-writer/SKILL.tmpl.md cite at least one rule ID, and is every rule ID it cites listed in v2/rules/index.md?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, it cites at least one CORE- ID, and v2/rules/index.md lists every CORE- ID it cites.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, it cites at least one rule ID such as CORE-WORK-01, and v2/rules/index.md lists every rule ID it cites, whatever its prefix.",
         "fail": "No when it cites no rule ID, or cites one the index does not list, made up or taken from elsewhere. Whether a rule's duty is written out is not asked here. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["1. Read the branch's commits (CORE-WORK-01)."],

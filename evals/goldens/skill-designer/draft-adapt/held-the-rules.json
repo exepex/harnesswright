@@ -180,7 +180,7 @@
   },
   "q7": {
    "expectation": "Every rule ID the template cites is one the index lists",
-   "sha256": "c69ab2e8dc0527c296d52818b898ee3d27e29ac6147ca3accb869946c87af63d",
+   "sha256": "c8fce4a64358e5f5db7a1db8b8b89dfa563c9586edc638fa97379e7391870350",
    "answer": "yes",
    "by": "judge-i"
   },
