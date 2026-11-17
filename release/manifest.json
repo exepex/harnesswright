@@ -1,9 +1,9 @@
 {
-  "rulebook-version": "0.4.2",
+  "rulebook-version": "0.5.0",
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "bb7fb4179dea7bed3dd16b21b598cdd267c9f45ddba272b9e37d4146e3771bad",
+      "content-hash": "4905c2288f287ea908811d38d139f6c9334643bd85fd340ab08638032fb1d4f8",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -20,9 +20,9 @@
       "roles": [
         "claims writer"
       ],
-      "rulebook-version": "0.4.2",
+      "rulebook-version": "0.5.0",
       "size-floors": 4881,
-      "size-rest": 18447
+      "size-rest": 18344
     },
     "skill-designer": {
       "areas": [
@@ -30,7 +30,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "f0b0c0311bd4db191413ed3860eaebafbc06aa671965c27650253ec58ad154aa",
+      "content-hash": "bb2c8de684581dbf14d56036c4482c155356f54124ee6d31285e4b0319eb5a68",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -41,10 +41,10 @@
         "CORE-SKILL-24",
         "CORE-SKILL-25",
         "CORE-SKILL-27",
-        "CORE-TEMPLATE-01",
         "CORE-TEMPLATE-02",
         "CORE-TEMPLATE-03",
         "CORE-TEMPLATE-04",
+        "CORE-TEMPLATE-05",
         "CORE-WORK-01",
         "CORE-WORK-02",
         "CORE-WORK-03",
@@ -75,9 +75,9 @@
       "roles": [
         "skill designer"
       ],
-      "rulebook-version": "0.4.2",
-      "size-floors": 14440,
-      "size-rest": 26868
+      "rulebook-version": "0.5.0",
+      "size-floors": 14988,
+      "size-rest": 27387
     }
   }
 }

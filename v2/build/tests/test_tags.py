@@ -42,7 +42,7 @@ class TagTest(unittest.TestCase):
             handle.write(line + "\n")
 
     def test_the_shared_faults_are_there(self):
-        self.assertEqual([len(faults(h)) for h in ("Template lines", "Release lines", "Plain lines")], [18, 12, 4])
+        self.assertEqual([len(faults(h)) for h in ("Template lines", "Release lines", "Plain lines")], [20, 13, 4])
 
     def test_the_build_fails_each_bad_template_line_and_names_it(self):
         lines = (self.root / SKILL).read_text(encoding="utf-8").count("\n")
@@ -62,7 +62,7 @@ class TagTest(unittest.TestCase):
         self.assertEqual(check_rules.Check(self.root, self.release).run(), [])
         skill = self.release / "golden-skill/SKILL.md"
         at = f"release/golden-skill/SKILL.md:{skill.read_text(encoding='utf-8').count(chr(10)) + 1}: "
-        reasons = ("holds a rule tag the build did not write out", "a `Rules:` line holds only", "is bare")
+        reasons = ("holds a rule tag the build did not write out", "a `Rules:` line holds only", "stands outside a")
         for line in faults("Release lines"):
             with self.subTest(line=line):
                 self.setUp()

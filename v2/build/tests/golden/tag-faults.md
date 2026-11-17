@@ -26,6 +26,8 @@ Report what you ran {{rule CORE-WORK-01}}.
 Report what you ran {rule:CORE-WORK-01}.
 Report what you ran {{RULE:CORE-WORK-01}}.
 Report what you ran {{rule:CORE-WORK-01}.
+Report what you ran {{rules:CORE-WORK-01}}.
+Report what you ran (CORE-WORK-01).
 
 ## Release lines
 
@@ -41,6 +43,7 @@ Rules:  CORE-WORK-01 (Report only what you verified)
 Rules: CORE-NONE-01 (Not a rule)
 Rules: report CORE-WORK-01 (Report only what you verified)
 Rules:
+Report what you ran (CORE-WORK-01 (Report only what you verified)).
 
 ## Plain lines
 

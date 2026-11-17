@@ -9,6 +9,8 @@ license: Apache-2.0
 
 # Demo skill
 
-1. Read the rules text first, as CORE-TEMPLATE-04 asks.
-2. Report only what you checked (CORE-WORK-01).
+1. Read the rules text first.
+   Rules: {{rule:CORE-TEMPLATE-04}}
+2. Report only what you checked.
+   Rules: {{rule:CORE-WORK-01}}
 3. Follow [the guide](references/guide.md).

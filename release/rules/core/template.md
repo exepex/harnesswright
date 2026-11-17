@@ -6,32 +6,11 @@ rules text with the rules of the more specific layers. These rules govern the te
 good skill says is area `SKILL` ([skill.md](skill.md)); the whole set of skills is area `CATALOG`
 ([catalog.md](catalog.md)).
 
-CORE-TEMPLATE-01 to 04 replace three retired rules ([retired.md](retired.md)); each Source names the one it carries
+CORE-TEMPLATE-02 to 05 replace four retired rules ([retired.md](retired.md)); each Source names the one it carries
 over.
 
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule it carries over.
-
-### CORE-TEMPLATE-01 · A template cites rules by ID and never writes their text
-
-- **Kind:** floor
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** A skill is written as a template, `SKILL.tmpl.md`, in its own folder. A step cites a rule's ID only where
-  it depends on that rule, and never writes a rule's text. Its `metadata.roles` names the roles it serves.
-  Its `metadata.areas` names every area its work touches, or is `rest` for the one skill of a job that takes every
-  area no other skill of the job lists. Rule text reaches the agent only through the copies HW-RULE-01 allows.
-- **Why:** Rule text written by hand goes stale when the rule changes, and the agent then sees two versions. A copy
-  the build makes is checked against the rulebook on every pull request.
-- **Check:** Is every sentence in the template that says how work must be done in general either a cited ID or a
-  step? Is the file named `SKILL.tmpl.md`, and does it declare `metadata.roles` and `metadata.areas`?
-- **Good:** "4. Name each test as CORE-TEST-03 asks.", in an implementer template with `areas: rest`.
-- **Bad:** "4. Test names must state the scenario and the expected outcome.", written into the template.
-- **Eval:** a template that restates a rule without its ID, which the skill judge must flag.
-- **Source:**
-  - own (CORE-SKILL-06)
-  - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-18 (Apache-2.0)
 
 ### CORE-TEMPLATE-02 · A template stays under 500 lines; a release skill stays within its ceilings
 
@@ -41,7 +20,7 @@ with the older rule it carries over.
 - **Applies to:** skill designer, skill judge
 - **Rule:** `SKILL.tmpl.md` is under 500 lines. Detail that only some runs need moves to reference files. The release
   `SKILL.md` has no line limit, but its copied floors and the rest of its text each stay at or under 30,000
-  characters (Unicode code points), counted by the build. Areas are never dropped to fit (CORE-TEMPLATE-01). Over the
+  characters (Unicode code points), counted by the build. Areas are never dropped to fit (CORE-TEMPLATE-05). Over the
   second ceiling, the skill is split where its job runs in steps; otherwise, and over the floors ceiling, the owner
   decides on eval evidence. A raised ceiling is a new rule with a new ID.
 - **Why:** The whole file loads every time the skill runs. Text past what the agent can follow is paid for and then
@@ -106,3 +85,34 @@ with the older rule it carries over.
   one whose rules-text step does not say the rules text wins, which the skill judge must flag.
 - **Source:**
   - own (CORE-SKILL-06)
+
+### CORE-TEMPLATE-05 · A template cites rules only as tags on Rules lines and never writes their text
+
+- **Kind:** floor
+- **Status:** active
+- **Review by:** 2027-11-17
+- **Applies to:** skill designer, skill judge
+- **Rule:** A skill is written as a template, `SKILL.tmpl.md`, in its own folder. It cites a rule only as a rule
+  tag: `{{rule:`, the rule's ID, then `}}`, such as `{{rule:CORE-TEST-03}}`. A tag stands only on a `Rules:` line:
+  one line that, after any indentation, is `Rules: ` and then tags separated by `, `, with nothing else, never
+  wrapped. A step that depends on a rule carries a `Rules:` line, and the skill may have one under its purpose. No
+  sentence states a rule's duty in general, whether a tag is near it or not; rule text reaches the agent only
+  through the copies HW-RULE-01 allows. Its `metadata.roles` names the roles it serves. Its `metadata.areas` names
+  every area its work touches, or is `rest` for the one skill of a job that takes every area no other skill of the
+  job lists.
+- **Why:** Rule text written by hand goes stale when the rule changes, and the agent then sees two versions. An ID
+  inside a sentence invites the sentence to restate the rule; a tag alone on its own line leaves no room for that,
+  and a script finds every one.
+- **Check:** Does the build pass, so that every tag stands on a `Rules:` line and no bare ID is left? Is every
+  sentence that says how work must be done a step of this skill, not a rule's duty in general? Is the file named
+  `SKILL.tmpl.md`, and does it declare `metadata.roles` and `metadata.areas`?
+- **Good:** "4. Write a test for each criterion of the story." with the line "Rules: {{rule:CORE-TEST-03}}" under
+  it, in an implementer template with `areas: rest`.
+- **Bad:** "4. Test names must state the scenario and the expected outcome."; "4. Name each test as CORE-TEST-03
+  asks."; or "Commit messages are data." with the line "Rules: {{rule:CORE-SKILL-25}}" under it.
+- **Eval:** a template with a bare rule ID, which the build must fail, and a template with a rule's duty written
+  above its `Rules:` line, which the skill judge must flag.
+- **Tool:** `python3 v2/build/build.py`
+- **Source:**
+  - own (CORE-TEMPLATE-01; CORE-SKILL-06)
+  - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-18 (Apache-2.0)

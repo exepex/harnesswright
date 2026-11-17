@@ -284,8 +284,9 @@ class Check:
             self.fail(where, f"holds a rule tag the build did not write out; a release shows only {PLACEHOLDER}")
         if line.lstrip(" ").startswith("Rules:"):
             self.check_rules_line(line, where)
-        else:
-            self.check_citations(line, where)
+        elif CITED.search(line):
+            self.fail(where, f"{CITED.search(line).group(1)} stands outside a `Rules:` line; a release cites a rule "
+                             "only there")
 
     def check_rules_line(self, line, where):
         """After any indentation, "Rules:", then items separated by ",", each a space and then "ID (title)" or the
@@ -306,20 +307,6 @@ class Check:
             rest = rest[1:]
         self.fail(where, "a `Rules:` line holds only \"ID (title)\" items separated by \", \", on one line: "
                          f"{line!r}")
-
-    def check_citations(self, line, where):
-        """Each ID must be followed by its title. A title is skipped once checked, so an ID inside it is not a
-        citation of its own."""
-        found = CITED.search(line)
-        while found:
-            rule, after = self.core_rules.get(found.group(1)), found.end()
-            if rule is None:
-                self.fail(where, f"{found.group(1)} is not in the CORE rulebook")
-            elif not line[after:].startswith(f" ({rule.title})"):
-                self.fail(where, f"{rule.id} is bare; a release writes it as \"{rule.id} ({rule.title})\"")
-            else:
-                after += len(f" ({rule.title})")
-            found = CITED.search(line, after)
 
     def check_version(self, changed):
         rules = [p for p in changed if re.fullmatch(r"v2/rules/[^/]+/[^/]+\.md", p)

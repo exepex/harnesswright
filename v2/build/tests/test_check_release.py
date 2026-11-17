@@ -179,13 +179,13 @@ class CheckReleaseTest(unittest.TestCase):
                 self.assertFails(expected)
 
     def test_recorded_sizes_over_the_ceiling_fail(self):
-        self.edit(SKILL, 'size-rest: "2274"', 'size-rest: "30001"')
+        self.edit(SKILL, 'size-rest: "2293"', 'size-rest: "30001"')
         self.assertFails("size-rest is 30001, over the ceiling of 30000")
         self.setUp()
         self.edit(SKILL, 'size-floors: "284"', 'size-floors: "30001"')
         self.assertFails("size-floors is 30001, over the ceiling of 30000")
         self.setUp()
-        self.edit(SKILL, 'size-rest: "2274"', 'size-rest: "30000"')
+        self.edit(SKILL, 'size-rest: "2293"', 'size-rest: "30000"')
         self.assertNoFailure("over the ceiling")
 
     def test_a_skill_md_outside_the_agent_skills_format_fails(self):
@@ -218,7 +218,7 @@ class CheckReleaseTest(unittest.TestCase):
     def test_the_skill_text_is_recounted_and_the_skill_md_has_no_line_limit(self):
         self.edit(SKILL, "1. Keep each test", "1. Always keep each test")
         self.assertFails("metadata.content-hash is")
-        self.assertFails("metadata.size-rest is '2274'; its text gives '2281'")
+        self.assertFails("metadata.size-rest is '2293'; its text gives '2300'")
         self.setUp()
         with open(self.release / "golden-skill/SKILL.md", "a", encoding="utf-8") as handle:
             handle.write("More.\n" * 500)
@@ -250,15 +250,15 @@ class CheckReleaseTest(unittest.TestCase):
         self.assertEqual(self.check(base)[1], [
             "golden-skill: changed; added CORE-DP-NAMES, CORE-TEST-011, CORE-TEST-04; "
             "removed CORE-WORK-02, CORE-TEST-02; "
-            "size-floors 500 -> 284; size-rest 2274 -> 2274; FLOOR REMOVED: CORE-WORK-02; FLOORS SHRANK",
+            "size-floors 500 -> 284; size-rest 2293 -> 2293; FLOOR REMOVED: CORE-WORK-02; FLOORS SHRANK",
             "old-skill: removed skill; added none; removed none; size-floors 1 -> 0; size-rest 2 -> 0; FLOORS SHRANK"])
         entry["copied-ids"], entry["size-floors"] = manifest["skills"]["golden-skill"]["copied-ids"], 285
         del base["skills"]["old-skill"]
         summary = self.check(base)[1]
-        self.assertTrue(summary[0].endswith("size-floors 285 -> 284; size-rest 2274 -> 2274; FLOORS SHRANK"), summary)
+        self.assertTrue(summary[0].endswith("size-floors 285 -> 284; size-rest 2293 -> 2293; FLOORS SHRANK"), summary)
         entry["size-floors"], entry["content-hash"] = 284, "0" * 64
         self.assertEqual(self.check(base)[1], [
-            "golden-skill: changed; added none; removed none; size-floors 284 -> 284; size-rest 2274 -> 2274"])
+            "golden-skill: changed; added none; removed none; size-floors 284 -> 284; size-rest 2293 -> 2293"])
 
     def test_the_command_line_prints_the_summary_and_each_failure(self):
         base = self.tmp / "base.json"

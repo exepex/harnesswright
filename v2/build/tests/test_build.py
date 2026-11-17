@@ -70,9 +70,9 @@ class BuildTest(unittest.TestCase):
             "license: Apache-2.0", "---",
             "<!-- Generated from v2/skills/demo-skill/SKILL.tmpl.md at version 0.1.0. Do not edit. -->",
             "", "# Demo skill", "", "## Rules for this skill"])
-        self.assertEqual(lines[-4:], [
-            "1. Read the rules text first, as CORE-TEMPLATE-04 (A skill's first step reads its rules text) asks.",
-            "2. Report only what you checked (CORE-WORK-01 (Report only what you verified)).",
+        self.assertEqual(lines[-6:], [
+            "1. Read the rules text first.", "   Rules: CORE-TEMPLATE-04 (A skill's first step reads its rules text)",
+            "2. Report only what you checked.", "   Rules: CORE-WORK-01 (Report only what you verified)",
             "3. Follow [the guide](references/guide.md).", ""])
         self.assertNotIn("\n\n\n", "\n".join(lines))
 
@@ -91,10 +91,10 @@ class BuildTest(unittest.TestCase):
     def test_names_that_hold_an_id_are_not_citations(self):
         guide = self.skill / "references" / "guide.md"
         names = ("See `xCORE-WORK-02`, `CORE-WORK-03-old`, [a](CORE-WORK-04.md), [b](refs/CORE-WORK-05), "
-                 "v1.CORE-WORK-06, CORE-WORK-02a and CORE-WORK-03/x; cite CORE-WORK-07.\n")
-        guide.write_text(names, encoding="utf-8")
+                 "v1.CORE-WORK-06, CORE-WORK-02a and CORE-WORK-03/x.\n")
+        guide.write_text(names + "Rules: {{rule:CORE-WORK-07}}\n", encoding="utf-8")
         text = build.build(self.root)["demo-skill/references/guide.md"]
-        self.assertTrue(text.endswith(names.replace("CORE-WORK-07.", "CORE-WORK-07 (Do not stop silently).")))
+        self.assertTrue(text.endswith(names + "Rules: CORE-WORK-07 (Do not stop silently)\n"))
 
     def add_spare_skill(self):
         spare = self.root / "v2" / "skills" / "spare-skill"
@@ -114,7 +114,7 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn("CORE-DP-TEST-STACK", json.loads(build.build(self.root)["manifest.json"])["skills"]
                          ["demo-skill"]["copied-ids"])
         template = self.skill / "SKILL.tmpl.md"
-        template.write_text(template.read_text(encoding="utf-8") + "4. Pick tools as CORE-DP-TEST-STACK says.\n")
+        template.write_text(template.read_text(encoding="utf-8") + "4. Pick the test tools.\n   Rules: {{rule:CORE-DP-TEST-STACK}}\n")
         files = build.build(self.root)
         self.assertIn("CORE-DP-TEST-STACK", json.loads(files["manifest.json"])["skills"]["demo-skill"]["copied-ids"])
         self.assertIn("<!-- rule CORE-DP-TEST-STACK -->", files["demo-skill/SKILL.md"])
@@ -135,7 +135,7 @@ class BuildTest(unittest.TestCase):
         meta = data["metadata"]
         copied = entry["copied-ids"]
         self.assertEqual(meta["copied-ids"], ", ".join(copied))
-        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-01", "CORE-TEMPLATE-04"):
+        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-05", "CORE-TEMPLATE-04"):
             self.assertIn(rule_id, copied)
             self.assertEqual(text.count(f"<!-- rule {rule_id} -->"), 1)
         self.assertEqual(len(copied), text.count("<!-- rule "))
@@ -161,8 +161,8 @@ class BuildTest(unittest.TestCase):
         files = build.build(self.root)
         self.assertEqual(files["demo-skill/references/guide.md"],
                          "<!-- Generated from v2/skills/demo-skill/references/guide.md at version 0.1.0. Do not edit."
-                         " -->\n\nWrite the template as CORE-TEMPLATE-01 (A template cites rules by ID and never "
-                         "writes their text) asks.\n")
+                         " -->\n\nWrite the template.\nRules: CORE-TEMPLATE-05 (A template cites rules only as tags on "
+                         "Rules lines and never writes their text)\n")
         self.assertEqual(files["demo-skill/scripts/helper.py"], (FIXTURE / "scripts" / "helper.py").read_bytes())
         for module in build.SHIPPED:
             self.assertEqual(files[f"demo-skill/scripts/{module}"], (ROOT / "v2" / "build" / module).read_bytes())
@@ -170,7 +170,7 @@ class BuildTest(unittest.TestCase):
     def test_licence_files_and_reference_citations(self):
         (self.skill / "LICENSE-MIT.txt").write_text("MIT text\n", encoding="utf-8")
         self.add_point("skill designer")
-        (self.skill / "references" / "guide.md").write_text("Pick tools as CORE-DP-TEST-STACK says.\n")
+        (self.skill / "references" / "guide.md").write_text("Rules: {{rule:CORE-DP-TEST-STACK}}\n")
         files = build.build(self.root)
         self.assertEqual(files["demo-skill/LICENSE-MIT.txt"], b"MIT text\n")
         self.assertIn("CORE-DP-TEST-STACK", json.loads(files["manifest.json"])["skills"]["demo-skill"]["copied-ids"])
@@ -226,8 +226,12 @@ class BuildTest(unittest.TestCase):
         def template():
             return self.skill / "SKILL.tmpl.md"
         cases = [
-            (lambda: template().write_text(original + "4. See CORE-NONE-01.\n"), "cites CORE-NONE-01, which is not"),
-            (lambda: (self.skill / "references" / "guide.md").write_text("CORE-NONE-02\n"), "guide.md:1: cites CORE"),
+            (lambda: template().write_text(original + "4. See it.\n   Rules: {{rule:CORE-NONE-01}}\n"),
+             "cites CORE-NONE-01, which is not"),
+            (lambda: (self.skill / "references" / "guide.md").write_text("Rules: {{rule:CORE-NONE-02}}\n"),
+             "guide.md:1: cites CORE"),
+            (lambda: template().write_text(original + "4. Report what ran (CORE-WORK-01).\n"),
+             "SKILL.tmpl.md:[0-9]+: cites CORE-WORK-01 outside a tag"),
             (lambda: template().write_text(original.replace("rest\n", "rest\n  copied-ids: x\n")),
              "metadata.copied-ids is written by the build"),
             (lambda: template().rename(self.skill / "OTHER.md"), "has no SKILL.tmpl.md"),
@@ -243,7 +247,8 @@ class BuildTest(unittest.TestCase):
             (lambda: (self.root / "v2" / "VERSION").write_text("0.1.0\n0.2.0\n"), "must hold one version line"),
             (lambda: shutil.copytree(FIXTURE, self.root / "v2" / "skills" / "spare-skill"), "not the folder name"),
             (self.add_spare_skill, "spare-skill is in no job"),
-            (lambda: template().write_text(original + "4. Use CORE-SKILL-02.\n"), "CORE-SKILL-02 is not active"),
+            (lambda: template().write_text(original + "4. Use it.\n   Rules: {{rule:CORE-SKILL-02}}\n"),
+             "CORE-SKILL-02 is not active"),
         ]
         for change, message in cases:
             with self.subTest(message=message):

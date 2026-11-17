@@ -226,17 +226,17 @@ class CheckRulesTest(unittest.TestCase):
         self.assertFails("release/golden-skill: has no SKILL.md")
 
     def test_a_bare_or_unknown_id_in_a_release_fails(self):
-        self.edit("release/golden-skill/SKILL.md", "CORE-TEST-011 (A test checks one behaviour) says",
-                  "CORE-TEST-011 says")
-        self.assertFails("SKILL.md:79: CORE-TEST-011 is bare")
+        self.edit("release/golden-skill/SKILL.md", "1. Keep each test to one behaviour.",
+                  "1. Keep each test to one behaviour (CORE-TEST-011 (A test checks one behaviour)).")
+        self.assertFails("SKILL.md:79: CORE-TEST-011 stands outside a `Rules:` line")
         self.setUp()
         self.edit("release/golden-skill/references/guide.md", "(A test names its scenario)", "(Wrong title)")
-        self.assertFails("references/guide.md:3: CORE-TEST-01 is bare")
+        self.assertFails("references/guide.md:4: a `Rules:` line holds only")
         self.setUp()
         with open(self.release / "golden-skill/SKILL.md", "a", encoding="utf-8") as handle:
-            handle.write("See CORE-TEST-09 (Nothing) and JAVA-TEST-01 (Use AssertJ).\n")
-        self.assertFails("CORE-TEST-09 is not in the CORE rulebook")
-        self.assertFails("JAVA-TEST-01 is not in the CORE rulebook")
+            handle.write("Rules: CORE-TEST-09 (Nothing)\nSee JAVA-TEST-01 (Use AssertJ).\n")
+        self.assertFails("SKILL.md:87: a `Rules:` line holds only")
+        self.assertFails("SKILL.md:88: JAVA-TEST-01 stands outside")
 
     def test_an_id_inside_a_checked_title_is_not_a_citation(self):
         self.edit("root/v2/rules/core/test.md", "### CORE-TEST-01 · A test names its scenario",
