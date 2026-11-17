@@ -268,6 +268,8 @@ class Check:
         for number, line in enumerate(lines[:start], start=1):
             if TAG_LEFT.search(line):
                 self.fail(f"{where}:{number}", f"holds a rule tag the build did not write out: {line!r}")
+            elif CITED.search(line) and not line.startswith("  copied-ids: "):
+                self.fail(f"{where}:{number}", f"the frontmatter names a rule ID only on its copied-ids line: {line!r}")
         inside = None
         for number, line in enumerate(lines[start:], start=start + 1):
             begin, end = BEGIN.fullmatch(line), END.fullmatch(line)
@@ -289,14 +291,14 @@ class Check:
                              "only there")
 
     def check_rules_line(self, line, where):
-        """After any indentation, "Rules:", then items separated by ",", each a space and then "ID (title)" or the
-        form {{rule:<ID>}}, and nothing else on the line."""
+        """After any indentation, "Rules:", then items separated by ",", each a space and then "ID (title)", and
+        nothing else on the line."""
         rest = line.lstrip(" ")[len("Rules:"):]
         while rest.startswith(" "):
             rest = rest[1:]
             found = ITEM.match(rest)
             rule = self.core_rules.get(found.group(1)) if found else None
-            item = PLACEHOLDER if rest.startswith(PLACEHOLDER) else rule and f"{rule.id} ({rule.title})"
+            item = rule and f"{rule.id} ({rule.title})"
             if not item or not rest.startswith(item):
                 break
             rest = rest[len(item):]

@@ -123,9 +123,8 @@ class BuildTest(unittest.TestCase):
         self.add_point("implementer")
         template = self.skill / "SKILL.tmpl.md"
         template.write_text(template.read_text(encoding="utf-8").replace("tests.", "tests, CORE-DP-TEST-STACK."))
-        files = build.build(self.root)
-        self.assertNotIn("CORE-DP-TEST-STACK", json.loads(files["manifest.json"])["skills"]["demo-skill"]["copied-ids"])
-        self.assertIn("build tests, CORE-DP-TEST-STACK.\n", files["demo-skill/SKILL.md"])
+        with self.assertRaisesRegex(build.tags.TagError, "SKILL.tmpl.md:3: the frontmatter holds no rule tag and"):
+            build.build(self.root)
 
     def test_copied_rules_and_metadata(self):
         files = build.build(self.root)

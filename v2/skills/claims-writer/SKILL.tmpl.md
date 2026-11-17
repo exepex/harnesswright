@@ -20,8 +20,7 @@ failure handling are added. The list of changes is in `THIRD_PARTY.md` at the ro
 
 The claims writer runs when a story is finished, as its own step after the implementer. It writes the claims: the
 file that tells the story judge, for each requirement the story covers, whether it is met and the evidence that
-proves it. The judge never sees how the work was done, so the claims and the change are all it has. Every claim
-rests on evidence from this run.
+proves it. The judge never sees how the work was done, so the claims and the change are all it has.
 
 Rules: {{rule:CORE-WORK-01}}, {{rule:CORE-WORK-02}}, {{rule:CORE-SKILL-25}}
 
@@ -123,7 +122,7 @@ Check: every requirement and test type has planned evidence or a planned open pr
 ### 4. Run each command fresh and read its output
 
 Run every planned command now, in full. Read the whole output: the exit code, and how many tests ran, failed and
-were skipped. A check that cannot run here is not a failure of the change; record what did not run and why.
+were skipped. Note each command that could not run here, and why.
 
 Rules: {{rule:CORE-WORK-02}}, {{rule:CORE-WORK-03}}
 

@@ -5,12 +5,12 @@ Standard library only, build only: this module is not shipped with a skill (buil
 one allowed shape. A `Rules:` line is one line that, after any indentation by spaces, is `Rules: ` and then one or
 more tags separated by ", ", with nothing else. It never wraps: a wrapped line leaves a tag outside a `Rules:` line,
 or a line that ends with a comma, and both fail. The tag `{{rule:<ID>}}` holds no rule ID; it shows the form
-itself, so the build leaves it as it is, on a `Rules:` line or anywhere else. Any other `{` followed by `rule` as a
+itself, so the build leaves it as it is anywhere but a `Rules:` line, which holds only real tags. Any other `{` followed by `rule` as a
 word, in any case and with any spaces between, is a mistyped tag and fails; other braces, such as JSON, are text.
 
 The build writes each tag as "ID (title)". A rule ID anywhere else in the body, outside a tag, fails: a rule is
 cited only by a tag (CORE-TEMPLATE-05). An ID inside a word, a file name or a path is not a citation. The
-frontmatter cites nothing; it may hold no tag.
+frontmatter cites nothing: it holds no tag and no rule ID.
 
 check_rules.py checks the release with its own reader, so a fault here cannot hide itself.
 """
@@ -25,7 +25,7 @@ ID = rf"(?:{rulebook.DP_ID.pattern}|{rulebook.RULE_ID.pattern})"
 CITATION = re.compile(rf"(?<![\w/.-]){ID}(?![\w/-]|\.\w)")
 PLACEHOLDER = "{{rule:<ID>}}"
 TAG = re.compile(rf"\{{\{{rule:({ID})\}}\}}")
-ITEM = rf"(?:\{{\{{rule:{ID}\}}\}}|{re.escape(PLACEHOLDER)})"
+ITEM = rf"\{{\{{rule:{ID}\}}\}}"
 RULES_LINE = re.compile(rf" *Rules: {ITEM}(?:, {ITEM})*")
 MISTYPED = re.compile(r"\{\s*rule\b", re.IGNORECASE)  # the start of a tag; left over, it has no allowed shape
 
@@ -44,10 +44,10 @@ def ids(text):
 
 
 def check_frontmatter(lines, where):
-    """The frontmatter holds no tag: the build writes it out as it is, so a tag there would reach the release."""
+    """The frontmatter holds no tag and no rule ID: the build writes it out as it is, and cites nothing there."""
     for number, line in enumerate(lines, start=1):
-        if MISTYPED.search(line):
-            raise TagError(f"{where}:{number}: the frontmatter holds no rule tag: {line!r}")
+        if MISTYPED.search(line) or CITATION.search(line):
+            raise TagError(f"{where}:{number}: the frontmatter holds no rule tag and no rule ID: {line!r}")
 
 
 def expand(text, titles, where, first=1):
@@ -65,8 +65,8 @@ def expand(text, titles, where, first=1):
         number = first + index
         if is_rules_line(line):
             if not RULES_LINE.fullmatch(line):
-                raise TagError(f"{where}:{number}: a `Rules:` line holds only rule tags such as {PLACEHOLDER}, "
-                               f"separated by \", \", on one line: {line!r}")
+                raise TagError(f"{where}:{number}: a `Rules:` line holds only rule tags, {PLACEHOLDER} with a real "
+                               f"ID, separated by \", \", on one line: {line!r}")
             lines[index] = TAG.sub(title, line)
             continue
         if TAG.search(line):

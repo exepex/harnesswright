@@ -14,13 +14,13 @@ metadata:
 
 Adapted from Anthropic's skill-creator (`anthropics/skills@ca45fc4`, `skills/skill-creator`, Apache-2.0, Copyright
 2026 Anthropic, PBC). harnesswright changed it: the work runs in stages, evals come before the skill, rules are cited
-by ID, and goldens, rounds and judging are left to others. The list of changes is in `THIRD_PARTY.md` at the root of
+by tag, and goldens, rounds and judging are left to others. The list of changes is in `THIRD_PARTY.md` at the root of
 the harnesswright repository.
 
 ## Purpose and limits
 
-A skill's evals come before it, and they need goldens and rounds that other agents make, so this skill works in
-stages. Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
+This skill works in stages, because the goldens and rounds that a skill's evals need are made by other agents.
+Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
 and ends with a stage report.
 
 Rules: {{rule:CORE-SKILL-01}}, {{rule:CORE-SKILL-24}}, {{rule:CORE-SKILL-25}}
@@ -151,35 +151,27 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
 1. Note the label's no-skill pass rate. For an improvement, list the failed cases from the round report and, for
    each, the part of the template that caused it.
 2. For a new skill, write `v2/skills/<name>/SKILL.tmpl.md`:
-   - frontmatter: only `name`, `description`, `license`, `compatibility` and `metadata`. `metadata` names the
-     `roles` and `areas`; a borrowed skill's also names its `source` (`<repository>@<commit> <path>`),
-     `source-licence` and `sourcing`;
+   - the frontmatter, with `roles` and `areas` under `metadata`, and for a borrowed skill also its `source`
+     (`<repository>@<commit> <path>`), `source-licence` and `sourcing`;
      Rules: {{rule:CORE-TEMPLATE-03}}
-   - a description of what it does and when to use it and not, in its own words, never a case prompt, within the
-     budget of all descriptions;
+   - the description, in its own words, never a case prompt;
      Rules: {{rule:CORE-SKILL-03}}, {{rule:CORE-CATALOG-01}}
-   - purpose, limits and inputs, a first step that reads the rules texts, numbered steps that each end with a
-     check, failure handling, the output's format, one good and one bad example;
-     Rules: {{rule:CORE-SKILL-04}}, {{rule:CORE-TEMPLATE-04}}, {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-07}}
-     Rules: {{rule:CORE-SKILL-08}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-10}}
-   - rules only as rule tags on `Rules:` lines. Write a tag as `{{rule:<ID>}}` with the rule's ID in place of
-     `<ID>`. Put a `Rules:` line under each step that depends on a rule, and at most one under the purpose. A
-     `Rules:` line holds only tags separated by `, ` and never wraps: start a second `Rules:` line instead. Tag only
-     IDs the project's rules index lists; an ID that only this skill's own rules hold is not tagged. No sentence
-     states a rule's duty, with or without a tag near it. On the adapt path, remove each source sentence that a
-     listed rule covers, and tag that rule under the step whose output it governs. In this file the build has
-     already written each tag out as "ID (title)"; a template never holds that form or a bare ID. For example:
+   - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
+     Rules: {{rule:CORE-SKILL-04}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-04}}, {{rule:CORE-SKILL-08}}
+     Rules: {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-07}}
+   - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
+     a `Rules:` line under the step that depends on it, or under the purpose. Tag only IDs the project's rules index
+     lists. On the adapt path, remove each source sentence that a listed rule covers, and tag that rule under the
+     step whose output it governs. The skill you are reading is a release file: the build wrote each of its tags
+     out as "ID (title)". In a template, write neither that form nor a bare ID. A step and its line look like this,
+     with real IDs in place of `<ID>`:
 
-     ```markdown
-     2. Write the summary of the change for the reviewer.
-        Rules: {{rule:<ID>}}, {{rule:<ID>}}
-     ```
+     `2. Write the summary of the change for the reviewer.`
+     `   Rules: {{rule:<ID>}}, {{rule:<ID>}}`
 
      Rules: {{rule:CORE-TEMPLATE-05}}
-   - no host tool name and no model name, and the capability named where a step needs a host feature; a script
-     for logic that must agree everywhere, each with a fallback; bundled files named from the skill folder, each
-     linked with when to read it.
-     Rules: {{rule:CORE-SKILL-18}}, {{rule:CORE-SKILL-19}}, {{rule:CORE-SKILL-20}}, {{rule:CORE-SKILL-21}}
+   - any scripts the skill runs, and its bundled files, each linked with when to read it.
+     Rules: {{rule:CORE-SKILL-18}}, {{rule:CORE-SKILL-20}}, {{rule:CORE-SKILL-21}}, {{rule:CORE-SKILL-19}}
      Rules: {{rule:CORE-SKILL-27}}, {{rule:CORE-SKILL-12}}
 3. For an adopted or adapted source, keep its licence and copyright notice in a file in `v2/skills/<name>/`, and
    add a `THIRD_PARTY.md` section with the repository, commit, path, licence and sourcing, and what changed.
@@ -198,7 +190,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
 
    Report each command's exit code and the lines that matter. A command that is missing or fails is reported as it
    ran: never write that the release is built when no build passed.
-7. Count the template's lines: fewer than 500.
+7. Count the template's lines.
    Rules: {{rule:CORE-TEMPLATE-02}}
 
 Check: you wrote nothing outside the stage's files; every rule tag in the template is on a `Rules:` line and names
