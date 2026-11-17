@@ -5,17 +5,9 @@ application code.
 
 ## Making a skill
 
-1. A skill starts with its evals. Its cases go under `evals/skills/<name>/cases/`, one folder per case, each with
-   a `case.json` and a `world/` folder. Nobody writes the skill's `SKILL.tmpl.md` until its cases have goldens and
-   a baseline round without the skill has run.
-2. Each skill gets at least eight trigger cases that should load it and eight near misses that should not. Each
-   trigger case says whether it should load the skill and whether it is in the train or the test split, and half
-   of each kind are in the test split.
-3. Each skill gets at least two task cases, and each task case lists what a good run must show.
-4. The goldens for a case are written by someone who did not write the case.
-5. The eval owner runs every round. Nobody runs a round on cases they wrote, and nobody reports a result for a
-   round that has not run.
-6. A template cites the rules it applies by the IDs in `v2/rules/index.md` and never copies their text.
+A skill starts with its evals. How its cases are laid out, the order of the work and who does each part are in
+[docs/evals.md](docs/evals.md). A template cites the rules it applies by the IDs in `v2/rules/index.md` and never
+copies their text.
 
 ## Borrowing
 
@@ -33,4 +25,5 @@ application code.
 
 | Skill | Path | Use when |
 |---|---|---|
+| pr-summary | [v2/skills/pr-summary/SKILL.tmpl.md](v2/skills/pr-summary/SKILL.tmpl.md) | Writing or updating the description of an open pull request from its diff. |
 | release-notes | [v2/skills/release-notes/SKILL.tmpl.md](v2/skills/release-notes/SKILL.tmpl.md) | Writing the release notes for a tagged version from its merged pull requests. |
