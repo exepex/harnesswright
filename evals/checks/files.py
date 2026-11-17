@@ -5,9 +5,18 @@ made: never from what the host said it did.
 - `changes_only_in`: every path the run changed matches one of the globs in `allowed` (`*` crosses folders). A
   folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
+- `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
+  or changed, `file` itself and the run's own `.harness/runs/` files left out. One rule reads the names. Outside code
+  spans, Markdown emphasis is read as the text it holds: a run of one to three `*`, not after a letter or
+  digit, that opens before a non-space and closes, with the same run, after one and not before a letter or digit.
+  The text is then cut into tokens, each a longest run of the world's path characters (letters,
+  digits, `. _ + @ -`), `/` or `*`. A token names the path it equals once a leading `./` and trailing full stops are
+  dropped. A token that holds a `*` is a pattern and names no file, nor does a folder or a count.
 """
 
-from cases import is_path  # the one shape of a world path, as cases and the lint use it
+import re
+
+from cases import PATH_PART, is_path  # the one shape of a world path, as cases and the lint use it
 from checks import Check, is_globs, matches
 
 STATES = ("exists", "absent", "unchanged", "changed")
@@ -36,9 +45,48 @@ def changes_only_in(bundle, allowed):
     return "pass", f"the run changed {len(bundle.changes)} paths, all inside {allowed}"
 
 
+# The one shape a name may take, an allow list (HW-AG-09): the world's own path alphabet, `/` and `*`.
+TOKEN = re.compile("[" + PATH_PART.pattern.removeprefix("[").removesuffix("-]+") + "/*-]+")
+CODE = re.compile(r"(`+)(?:.|\n)*?\1")  # a code span holds no emphasis
+EMPHASIS = re.compile(r"(?<![A-Za-z0-9])(\*{1,3})(?=\S)(.+?)(?<=\S)\1(?![A-Za-z0-9])")
+
+
+def _named(text):
+    """The paths a text names, read by the module's one rule."""
+    parts, at = [], 0
+    for span in CODE.finditer(text):  # code spans as written, the prose between them with its emphasis read
+        parts += [_unemphasised(text[at:span.start()]), span.group(0)]
+        at = span.end()
+    parts.append(_unemphasised(text[at:]))
+    return {name for token in TOKEN.findall("\n".join(parts))
+            if (name := token.rstrip(".").removeprefix("./")) and "*" not in name}
+
+
+def _unemphasised(prose):
+    while (read := EMPHASIS.sub(r"\2", prose)) != prose:
+        prose = read
+    return prose
+
+
+def lists_every_change(bundle, file):
+    text = bundle.text(file)
+    if text is None or file not in bundle.changes:
+        return "fail", f"{file} is not a file the run wrote"
+    written = sorted(path for path in bundle.changes if path != file and not path.startswith(".harness/runs/")
+                     and bundle.text(path) is not None)
+    named = _named(text)
+    missing = [path for path in written if path not in named]
+    if missing:
+        return "fail", f"{file} does not name {len(missing)} of the {len(written)} files the run wrote: " \
+                       f"{', '.join(missing[:20])}"
+    return "pass", f"{file} names each of the {len(written)} files the run wrote by its own path"
+
+
 CHECKS = {
     "file_state": Check(file_state, {"path": is_path, "state": lambda v: v in STATES},
                         about="the file at a path exists, is absent, is unchanged, or was changed"),
     "changes_only_in": Check(changes_only_in, {"allowed": is_globs},
                              about="the run changed only paths matching the allowed globs"),
+    "lists_every_change": Check(lists_every_change, {"file": is_path},
+                                about="a file the run wrote names every file the run added or changed by its path"),
 }

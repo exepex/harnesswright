@@ -137,8 +137,8 @@
    "by": "judge-h"
   },
   "q15": {
-   "expectation": "Files written lists every file the run wrote",
-   "sha256": "3af5f32c4b66a7ebbb7fdee8e1fdc6c72eb47700f8ce6d7d250b417a262a4686",
+   "expectation": "The stage report lists every file the run wrote",
+   "sha256": "64f4d84093e902a4d02d63c9c794f94d910e45ec1567a7b20a4e3442ce695d34",
    "answer": "no",
    "by": "judge-h"
   },

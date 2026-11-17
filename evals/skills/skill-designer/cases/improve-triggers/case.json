@@ -1,6 +1,11 @@
 {
   "prompt": "release-notes came out unsupported in its last round. The round report is evals/results/release-notes-round-2.md and the label is evals/results/release-notes.json. Fix the skill.",
   "kind": "task",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
   "tools": ["python3"],
   "expectations": [
     {
@@ -282,15 +287,16 @@
       }
     },
     {
-      "text": "Files written lists every file the run wrote",
+      "text": "The stage report lists every file the run wrote",
       "source": "format",
+      "check": {"name": "lists_every_change", "args": {"file": "evals/skills/release-notes/stage-2.md"}},
       "judged": {
-        "question": "Does the Files written section of evals/skills/release-notes/stage-2.md list every file the run added or changed?",
-        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and no file the run wrote is missing from that list. The report itself and the run's own files under .harness/runs/ need not be listed.",
-        "fail": "No when the run wrote a file the list leaves out. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Does evals/skills/release-notes/stage-2.md list every file the run added or changed, each by its own path? A folder, a pattern such as v2/skills/release-notes/*, or a count names none of the files in it.",
+        "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
+        "fail": "No when a file the run wrote is not named by its own path, even if a folder, pattern or count covers it. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["The template and v2/VERSION written, and both listed."],
-          "fail": ["The template written and listed, but v2/VERSION left out."]
+          "fail": ["The template written and listed, but v2/VERSION left out.", "A line 'v2/skills/release-notes/ (1 file)' in place of the template's path."]
         }
       }
     },
