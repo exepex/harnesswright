@@ -6,9 +6,9 @@ metadata:
   areas: rest
   copied-ids: "CORE-WORK-01, CORE-DP-NAMES, CORE-TEST-01, CORE-TEST-011, CORE-TEST-04"
   rulebook-version: "0.3.1"
-  content-hash: "ef9bdad8b40f43330611ba60f4781606c977c32d94e34d73eddc158f24cddb6c"
+  content-hash: "c1b1c84bd877d33bec2a3ca01d7f38ed0447746dba9e40325bda1e4d341a5142"
   size-floors: "284"
-  size-rest: "2056"
+  size-rest: "2274"
 ---
 <!-- Generated from v2/skills/golden-skill/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
 
@@ -79,3 +79,6 @@ The binding in your rules text wins; the default applies only when unbound.
 1. Keep each test to one behaviour, as CORE-TEST-011 (A test checks one behaviour) says.
 2. Name tests in the style CORE-DP-NAMES (How tests are named) binds.
 3. See [the guide](references/guide.md); the file `CORE-TEST-01.md` is a name, not a citation.
+4. Write the test, then report what you ran.
+   Rules: CORE-TEST-011 (A test checks one behaviour), CORE-WORK-01 (Report only what you verified)
+5. In a template, a rule is cited as `{{rule:<ID>}}` on a `Rules:` line.

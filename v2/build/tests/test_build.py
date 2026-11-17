@@ -227,7 +227,7 @@ class BuildTest(unittest.TestCase):
             return self.skill / "SKILL.tmpl.md"
         cases = [
             (lambda: template().write_text(original + "4. See CORE-NONE-01.\n"), "cites CORE-NONE-01, which is not"),
-            (lambda: (self.skill / "references" / "guide.md").write_text("CORE-NONE-02\n"), "guide.md: cites CORE"),
+            (lambda: (self.skill / "references" / "guide.md").write_text("CORE-NONE-02\n"), "guide.md:1: cites CORE"),
             (lambda: template().write_text(original.replace("rest\n", "rest\n  copied-ids: x\n")),
              "metadata.copied-ids is written by the build"),
             (lambda: template().rename(self.skill / "OTHER.md"), "has no SKILL.tmpl.md"),

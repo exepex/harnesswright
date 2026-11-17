@@ -5,7 +5,7 @@
       "areas": [
         "TEST"
       ],
-      "content-hash": "ef9bdad8b40f43330611ba60f4781606c977c32d94e34d73eddc158f24cddb6c",
+      "content-hash": "c1b1c84bd877d33bec2a3ca01d7f38ed0447746dba9e40325bda1e4d341a5142",
       "copied-ids": [
         "CORE-WORK-01",
         "CORE-DP-NAMES",
@@ -20,7 +20,7 @@
       ],
       "rulebook-version": "0.3.1",
       "size-floors": 284,
-      "size-rest": 2056
+      "size-rest": 2274
     }
   }
 }
