@@ -35,6 +35,7 @@ Built by reading, because no index script exists yet for v2. Not verified (HW-RU
 | CORE-TEMPLATE-02 | A template stays under 500 lines; a release skill stays within its ceilings | floor | active | [template.md](template.md) |
 | CORE-TEMPLATE-03 | Template and release frontmatter use only standard fields, within their limits | floor | active | [template.md](template.md) |
 | CORE-TEMPLATE-04 | A skill's first step reads its rules text | floor | active | [template.md](template.md) |
+| CORE-TEMPLATE-05 | A template cites rules only as tags on Rules lines and never writes their text | floor | active | [template.md](template.md) |
 | CORE-CATALOG-01 | All descriptions together fit a budget | principle | active | [catalog.md](catalog.md) |
 | CORE-WORK-01 | Report only what you verified | floor | active | [work.md](work.md) |
 | CORE-WORK-02 | Done means proven, with fresh evidence | floor | active | [work.md](work.md) |

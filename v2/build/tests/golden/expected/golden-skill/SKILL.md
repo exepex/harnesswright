@@ -6,9 +6,9 @@ metadata:
   areas: rest
   copied-ids: "CORE-WORK-01, CORE-DP-NAMES, CORE-TEST-01, CORE-TEST-011, CORE-TEST-04"
   rulebook-version: "0.3.1"
-  content-hash: "c1b1c84bd877d33bec2a3ca01d7f38ed0447746dba9e40325bda1e4d341a5142"
+  content-hash: "f6c011519181e691c16be22e1ac4a0c6a409034774ea31a78d936ee8fb5f3d58"
   size-floors: "284"
-  size-rest: "2274"
+  size-rest: "2293"
 ---
 <!-- Generated from v2/skills/golden-skill/SKILL.tmpl.md at version 0.3.1. Do not edit. -->
 
@@ -76,8 +76,10 @@ The binding in your rules text wins; the default applies only when unbound.
 - **Bad (do not do this):** One case that asserts two outcomes.
 <!-- end CORE-TEST-04 -->
 
-1. Keep each test to one behaviour, as CORE-TEST-011 (A test checks one behaviour) says.
-2. Name tests in the style CORE-DP-NAMES (How tests are named) binds.
+1. Keep each test to one behaviour.
+   Rules: CORE-TEST-011 (A test checks one behaviour)
+2. Name each test in the project's style.
+   Rules: CORE-DP-NAMES (How tests are named)
 3. See [the guide](references/guide.md); the file `CORE-TEST-01.md` is a name, not a citation.
 4. Write the test, then report what you ran.
    Rules: CORE-TEST-011 (A test checks one behaviour), CORE-WORK-01 (Report only what you verified)

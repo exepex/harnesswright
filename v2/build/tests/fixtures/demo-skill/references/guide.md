@@ -1,1 +1,2 @@
-Write the template as CORE-TEMPLATE-01 asks.
+Write the template.
+Rules: {{rule:CORE-TEMPLATE-05}}

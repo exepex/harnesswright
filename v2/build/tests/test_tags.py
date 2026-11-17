@@ -42,7 +42,7 @@ class TagTest(unittest.TestCase):
             handle.write(line + "\n")
 
     def test_the_shared_faults_are_there(self):
-        self.assertEqual([len(faults(h)) for h in ("Template lines", "Release lines", "Plain lines")], [18, 12, 4])
+        self.assertEqual([len(faults(h)) for h in ("Template lines", "Release lines", "Plain lines")], [21, 14, 4])
 
     def test_the_build_fails_each_bad_template_line_and_names_it(self):
         lines = (self.root / SKILL).read_text(encoding="utf-8").count("\n")
@@ -62,7 +62,7 @@ class TagTest(unittest.TestCase):
         self.assertEqual(check_rules.Check(self.root, self.release).run(), [])
         skill = self.release / "golden-skill/SKILL.md"
         at = f"release/golden-skill/SKILL.md:{skill.read_text(encoding='utf-8').count(chr(10)) + 1}: "
-        reasons = ("holds a rule tag the build did not write out", "a `Rules:` line holds only", "is bare")
+        reasons = ("holds a rule tag the build did not write out", "a `Rules:` line holds only", "stands outside a")
         for line in faults("Release lines"):
             with self.subTest(line=line):
                 self.setUp()
@@ -90,6 +90,17 @@ class TagTest(unittest.TestCase):
         failures = check_rules.Check(self.root, self.release).run()
         self.assertEqual([f.split(": ")[0] for f in failures], ["release/golden-skill/SKILL.md:3"])
 
+    def test_a_rule_id_in_the_frontmatter_fails_both_readers_but_copied_ids_is_allowed(self):
+        self.setUp()
+        template, skill = self.root / SKILL, self.release / "golden-skill/SKILL.md"
+        for path in (template, skill):
+            text = path.read_text(encoding="utf-8")
+            path.write_text(text.replace("Never used as a real skill.", "Follows CORE-WORK-01.", 1))
+        with self.assertRaisesRegex(build.tags.TagError, "SKILL.tmpl.md:3: the frontmatter holds no rule tag and"):
+            build.build(self.root)
+        failures = check_rules.Check(self.root, self.release).run()
+        self.assertEqual([f.split(": ")[0] for f in failures], ["release/golden-skill/SKILL.md:3"])
+
     def test_a_title_with_a_comma_builds_and_passes_the_release_check(self):
         work = self.root / "v2/rules/core/work.md"
         work.write_text(work.read_text(encoding="utf-8").replace(
@@ -100,8 +111,8 @@ class TagTest(unittest.TestCase):
                       "verified, and say how)\n", text)
         self.assertEqual(check_rules.Check(self.root, self.release).run(), [])
 
-    def test_the_form_itself_is_left_as_it_is(self):
-        line = "Rules: {{rule:<ID>}}, {{rule:<ID>}}"
+    def test_the_form_itself_is_left_as_it_is_in_code(self):
+        line = "     `   Rules: {{rule:<ID>}}, {{rule:<ID>}}`"
         self.append(self.root / SKILL, line)
         self.assertTrue(build.build(self.root)["golden-skill/SKILL.md"].endswith(f"\n{line}\n"))
         self.append(self.release / "golden-skill/SKILL.md", line)

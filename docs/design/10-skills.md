@@ -39,7 +39,8 @@ A skill is production grade only when it has all of these:
    types, plus cases where it must not trigger.
 3. **Inputs:** what the skill needs, and what to do when an input is missing.
 4. **Steps:** numbered and specific, each one checkable.
-5. **Standards by ID:** the rules it applies are cited by rule ID, not repeated.
+5. **Standards by tag:** the rules it applies are cited only as rule tags, `{{rule:<ID>}}`, on one-line `Rules:`
+   lines, never repeated (CORE-TEMPLATE-05). The build fails any other citation.
 6. **Verification:** how the agent proves it did the task: a command, a test, a check.
 7. **Failure handling:** what to do when a step fails, and when to stop and ask one clear question.
 8. **Output:** written in the matching contract from [06 · Contracts](06-contracts.md).
