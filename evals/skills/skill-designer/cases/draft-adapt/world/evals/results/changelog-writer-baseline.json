@@ -9,7 +9,7 @@
    "claude-code": {
     "baseline_pass_rate": 0.4444,
     "false_done": {
-     "without_skill": {
+     "no_skill": {
       "decided": 9,
       "false_done": 3,
       "rate": 0.3333,
@@ -21,7 +21,7 @@
      "planted": 14
     },
     "format_conformance": {
-     "without_skill": {
+     "no_skill": {
       "decided": 27,
       "passed": 4,
       "rate": 0.1481,
@@ -30,9 +30,9 @@
     },
     "gaps": [
      "test trigger cases: none",
-     "adds-fix-entry, with_skill: 0 scored run(s), 3 needed",
-     "keeps-unreleased-order, with_skill: 0 scored run(s), 3 needed",
-     "no-entry-for-docs-only, with_skill: 0 scored run(s), 3 needed"
+     "adds-fix-entry, skill: 0 scored run(s), 3 needed",
+     "keeps-unreleased-order, skill: 0 scored run(s), 3 needed",
+     "no-entry-for-docs-only, skill: 0 scored run(s), 3 needed"
     ],
     "golden_accuracy": {
      "asked": 135,
@@ -46,25 +46,25 @@
     },
     "host_version": "2.1.320 (Claude Code)",
     "inferred_evidence": {
-     "without_skill": 0
+     "no_skill": 0
     },
     "inferred_loads": 0,
     "label": "incomplete",
     "lift": null,
     "runs": {
-     "adds-fix-entry, with_skill": 0,
-     "adds-fix-entry, without_skill": 3,
-     "keeps-unreleased-order, with_skill": 0,
-     "keeps-unreleased-order, without_skill": 3,
-     "no-entry-for-docs-only, with_skill": 0,
-     "no-entry-for-docs-only, without_skill": 3
+     "adds-fix-entry, skill": 0,
+     "adds-fix-entry, no_skill": 3,
+     "keeps-unreleased-order, skill": 0,
+     "keeps-unreleased-order, no_skill": 3,
+     "no-entry-for-docs-only, skill": 0,
+     "no-entry-for-docs-only, no_skill": 3
     },
     "task_cases": 3,
     "task_pass_rate": null,
     "trigger_accuracy": null,
     "trigger_cases": 0,
     "void_rate": {
-     "without_skill": {
+     "no_skill": {
       "rate": 0.0,
       "tries": 9,
       "voids": 0
