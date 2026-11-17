@@ -6,9 +6,10 @@ made: never from what the host said it did.
   folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
 - `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
-  or changed, `file` itself and the run's own `.harness/` files left out. A path is named where it stands alone,
-  with no path character (letter, digit, `_`, `.`, `/`, `-`) on either side, a full stop that ends a sentence
-  aside, so a folder, a pattern or a count names none of the files in it.
+  or changed, `file` itself and the run's own `.harness/` files left out. A path is named only between allowed
+  bounds: before it the text's start, a space, or one of `` ` ( [ " ' < | ``; after it the text's end, a space, one
+  of `` ` ) ] " ' > | , ; : ``, or a full stop that ends a sentence. A path in `*` emphasis is named too. So a
+  folder, a pattern such as `path*`, or a count names none of the files in it.
 """
 
 import re
@@ -42,8 +43,8 @@ def changes_only_in(bundle, allowed):
     return "pass", f"the run changed {len(bundle.changes)} paths, all inside {allowed}"
 
 
-PATH_CHARS = r"[A-Za-z0-9_./-]"
-AFTER = r"(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_./-])"  # a full stop that ends a sentence is no path character
+BEFORE = r"(?:^|(?<=[\s`(\[\"'<|]))"  # the only bounds a named path may have, an allow list (HW-AG-09)
+AFTER = r"(?=$|[\s`)\]\"'>|,;:]|\.(?:\s|$))"
 
 
 def lists_every_change(bundle, file):
@@ -53,7 +54,7 @@ def lists_every_change(bundle, file):
     written = sorted(path for path in bundle.changes if path != file and not path.startswith(".harness/")
                      and bundle.text(path) is not None)
     missing = [path for path in written
-               if not re.search(f"(?<!{PATH_CHARS}){re.escape(path)}{AFTER}", text)]
+               if not re.search(f"{BEFORE}{re.escape(path)}{AFTER}|(?<=\\*){re.escape(path)}(?=\\*)", text)]
     if missing:
         return "fail", f"{file} does not name {len(missing)} of the {len(written)} files the run wrote: " \
                        f"{', '.join(missing[:20])}"
