@@ -6,7 +6,7 @@ made: never from what the host said it did.
   folder added or removed is allowed too when it holds only allowed changes, so `.harness` may be made to hold
   `.harness/*`; a file replaced by a folder, or an empty folder, is a change like any other.
 - `lists_every_change`: the file at `file`, written by the run, names by its own whole path every file the run added
-  or changed, `file` itself and the run's own `.harness/` files left out. One rule reads the names. Outside code
+  or changed, `file` itself and the run's own `.harness/runs/` files left out. One rule reads the names. Outside code
   spans, Markdown emphasis (a run of one to three `*` that opens before a non-space and closes after one) is read as
   the text it holds. The text is then cut into tokens, each a longest run of the world's path characters (letters,
   digits, `. _ + @ -`), `/` or `*`. A token names the path it equals once a leading `./` and trailing full stops are
@@ -71,7 +71,7 @@ def lists_every_change(bundle, file):
     text = bundle.text(file)
     if text is None or file not in bundle.changes:
         return "fail", f"{file} is not a file the run wrote"
-    written = sorted(path for path in bundle.changes if path != file and not path.startswith(".harness/")
+    written = sorted(path for path in bundle.changes if path != file and not path.startswith(".harness/runs/")
                      and bundle.text(path) is not None)
     named = _named(text)
     missing = [path for path in written if path not in named]
