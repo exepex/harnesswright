@@ -6,8 +6,8 @@ application code.
 ## Making a skill
 
 A skill starts with its evals. How its cases are laid out, the order of the work and who does each part are in
-[docs/evals.md](docs/evals.md). A template cites the rules it applies by the IDs in `v2/rules/index.md` and never
-copies their text.
+[docs/evals.md](docs/evals.md). A template cites each rule it applies by a tag on a `Rules:` line, with an ID from
+`v2/rules/index.md`, and never copies the rule's words.
 
 ## Borrowing
 

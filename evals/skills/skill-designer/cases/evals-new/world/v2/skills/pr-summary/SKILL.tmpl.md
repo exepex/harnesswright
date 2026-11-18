@@ -12,6 +12,8 @@ metadata:
 
 ## Steps
 
-1. Read the diff against the base branch (CORE-WORK-01). Check: every changed file is accounted for.
-2. Write what changed and why, one bullet per area (CORE-SKILL-05). Check: no bullet repeats a commit subject.
+1. Read the diff against the base branch. Check: every changed file is accounted for.
+   Rules: {{rule:CORE-WORK-01}}
+2. Write what changed and why, one bullet per area. Check: no bullet repeats a commit subject.
+   Rules: {{rule:CORE-SKILL-05}}
 3. Replace the pull request's description. Check: the description names how a reviewer can try the change.

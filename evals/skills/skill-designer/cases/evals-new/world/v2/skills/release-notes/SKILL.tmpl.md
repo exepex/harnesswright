@@ -12,6 +12,8 @@ metadata:
 
 ## Steps
 
-1. List the pull requests merged since the previous tag (CORE-WORK-01). Check: each has a number and a title.
-2. Group them under Added, Changed and Fixed (CORE-SKILL-05). Check: every pull request is in one group.
+1. List the pull requests merged since the previous tag. Check: each has a number and a title.
+   Rules: {{rule:CORE-WORK-01}}
+2. Group them under Added, Changed and Fixed. Check: every pull request is in one group.
+   Rules: {{rule:CORE-SKILL-05}}
 3. Write `docs/releases/<version>.md`. Check: the file names the version and its date.
