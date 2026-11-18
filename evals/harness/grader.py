@@ -12,8 +12,10 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   from another. The folder is removed after the try, once everything the run made outside it has passed
   `evidence.reported`, the one way every run's output is scrubbed and checked for canaries, so a grader leaves no
   credential and a canary stops the round.
-- `sheet(message)`: the grading file in a final message: the message is one JSON object, alone or as the one
-  fenced block it holds, and nothing else. A line break inside a string is read as it stands.
+- `sheet(message)`: the grading file in a final message: the JSON object the message ends with, after any closing
+  fence. Text before it is ignored, since a grader may say a sentence or open a fence first; text after it refuses.
+  A line break inside a string is read as it stands. Each try keeps its final message, scrubbed and cut to `KEPT`
+  characters, so the next refusal can be read from the store.
 - `panel(page, asked, graders, tiebreak)`: one page's answers from a panel of graders, by one rule: a question's
   answer is the one two graders gave. Two graders grade the page, on two different hosts when both are available
   (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
@@ -30,7 +32,6 @@ Standard library only.
 
 import hashlib
 import json
-import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -45,32 +46,40 @@ import scrub as scrubs
 PROMPT = Path(__file__).resolve().parents[1] / "grading" / "prompt.md"
 PAGE, QUESTIONS = "page.md", "questions.json"
 TRIES = 2  # a refused sheet or a failed host gets one more try, as a voided slot gets one remake
-FENCED = re.compile(r"```(?:json)?[ \t]*\r?\n(.*)\r?\n```", re.S | re.I)
+KEPT = 4000  # characters of a refused message the grade record keeps
 
 
 class Graded:
     """One page's grading: `sheet`, the accepted answer sheet whole, with its quotes, or None; `answers` ({id: "yes"
-    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `logs`, the action log
-    of each try's host run, in order, for the round's record and its faults; and `costs`, each try's seconds and
-    token counts by model as the host reported them (`host.Result`), in the same order."""
+    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `refused`, beside each of
+    `tries`, that try's final message, scrubbed and cut to `KEPT` characters, or None when the host failed; `logs`,
+    the action log of each try's host run, in order, for the round's record and its faults; and `costs`, each try's
+    seconds and token counts by model as the host reported them (`host.Result`), in the same order."""
 
-    def __init__(self, sheet, tries, logs, costs=()):
+    def __init__(self, sheet, tries, logs, costs=(), refused=None):
         self.sheet, self.tries, self.logs, self.costs = sheet, tries, logs, list(costs)
+        self.refused = [None] * len(tries) if refused is None else list(refused)
         self.answers = None if sheet is None else {answer["id"]: answer["answer"] for answer in sheet["answers"]}
 
 
 def sheet(message):
-    """The grading file a final message holds, or None. The message, stripped, is one JSON object, or one fenced
-    block that holds one, and nothing else."""
+    """The grading file a final message holds, or None: the JSON object the stripped message ends with, after any
+    closing fence. It starts at the first `{` from which one JSON value runs to the end. Text before it, an opening
+    fence among it, is ignored; a fence inside a quote is part of the quote."""
     if not isinstance(message, str):
         return None
     text = message.strip()
-    fenced = FENCED.fullmatch(text)
-    try:
-        found = json.loads(fenced.group(1) if fenced else text, strict=False)
-    except json.JSONDecodeError:
-        return None
-    return found if isinstance(found, dict) else None
+    if text.endswith("```"):
+        text = text[:-3].rstrip()
+    decoder = json.JSONDecoder(strict=False)
+    for start in (i for i, char in enumerate(text) if char == "{"):
+        try:
+            found, end = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            continue
+        if end == len(text):
+            return found if isinstance(found, dict) else None
+    return None
 
 
 def place():
@@ -100,7 +109,7 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         return Graded({"answers": []}, [], [])
     ids = [question["id"] for question in asked]
     text = PROMPT.read_text() if prompt is None else prompt
-    tries, logs, costs = [], [], []
+    tries, logs, costs, refused = [], [], [], []
     for _ in range(TRIES):
         made, world = folder(page, asked)
         contained = ran = None
@@ -120,13 +129,16 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         costs.append({"seconds": result.seconds, "tokens": result.tokens})
         if ran["failure"]:
             tries.append(f"the host failed: {ran['failure']}")
+            refused.append(None)
             continue
         found = sheet(ran["final_message"])
-        problems = ["the final message is not one JSON object"] if found is None else grading.check(found, ids, page)
+        problems = (["the final message does not end with one JSON object"] if found is None
+                    else grading.check(found, ids, page))
         if not problems:
-            return Graded(found, tries, logs, costs)
+            return Graded(found, tries, logs, costs, refused)
         tries.append(clean.text("; ".join(problems), "grader/problems"))
-    return Graded(None, tries, logs, costs)
+        refused.append((ran["final_message"] or "")[:KEPT])  # scrubbed by evidence.reported
+    return Graded(None, tries, logs, costs, refused)
 
 
 class Panel:
@@ -151,7 +163,7 @@ def panel(page, asked, graders, tiebreak):
         if graded[number].answers is None:
             fresh, failed = grade_one(page, asked), graded[number]
             graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs,
-                                    failed.costs + fresh.costs)
+                                    failed.costs + fresh.costs, failed.refused + fresh.refused)
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
     disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways

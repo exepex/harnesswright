@@ -24,16 +24,40 @@ GOOD = {"answers": [{"id": "q1", "answer": "yes", "evidence": "Done."},
 
 
 class Sheet(unittest.TestCase):
-    def test_a_sheet_is_one_json_object_alone_or_in_its_one_fenced_block(self):
+    def test_a_sheet_is_the_json_object_the_message_ends_with_alone_or_in_a_fenced_block(self):
         text = json.dumps(GOOD)
+        other = json.dumps({"answers": []})
         for message in (text, f"  {text}\n", f"```json\n{text}\n```", f"```\n{text}\n```",
-                        f"```JSON \r\n{text}\r\n```"):
+                        f"```JSON \r\n{text}\r\n```", "Here it is: " + text,
+                        f"The page has no changes, so most answers are no.\n\n{text}",
+                        f"Braces {{ and }} and a {{\"half\": object first.\n{text}",
+                        f"An example first: {other}\nNow the sheet:\n{text}",
+                        f"I read the page.\n```json\n{text}\n```",
+                        f"```json\n{other}\n```\nThat was wrong. The sheet:\n```json\n{text}\n```",
+                        f"```json\n{other}\n{text}\n```", f"```json\nNote: {text}\n```", f"{text}\n```"):
             with self.subTest(message=message):
                 self.assertEqual(grader.sheet(message), GOOD)
-        for message in (None, "", "Here it is: " + text, f"```json\n{text}\n```\nDone.", "[1, 2]", "yes",
-                        f"```json\n{text}\n```\n```json\n{text}\n```"):
+        for message in (None, "", f"```json\n{text}\n```\nDone.", f"{text}\nDone.",
+                        "[1, 2]", "yes", f"Sheet: [{text}]", f"```json\n{text}\n```\n```"):
             with self.subTest(message=message):
                 self.assertIsNone(grader.sheet(message))
+
+    def test_a_fence_inside_a_quote_is_part_of_the_quote(self):
+        fenced = {"answers": [{"id": "q1", "answer": "yes", "evidence": "The page shows:\n```\nmake test\n```"}]}
+        raw = json.dumps(fenced, indent=2).replace("\\n", "\n")  # line breaks in the quote as they stand
+        self.assertIn("\n```\n", raw)
+        for message in (raw, f"```json\n{raw}\n```", f"The sheet:\n```json\n{raw}\n```"):
+            with self.subTest(message=message):
+                self.assertEqual(grader.sheet(message), fenced)
+
+    def test_an_earlier_object_is_text_before_the_sheet(self):
+        """Only the object the message ends with is read: here an empty sheet, which grading.check then refuses."""
+        self.assertEqual(grader.sheet(f"{json.dumps(GOOD)} {json.dumps({'answers': []})}"), {"answers": []})
+
+    def test_the_grader_repro_messages_with_a_sentence_first_are_read(self):
+        """The shape the sd-root-cause grader repro kept: a sentence, a blank line, then the sheet."""
+        message = ("The run wrote nothing, so the page shows no file and no command.\n\n" + json.dumps(GOOD, indent=2))
+        self.assertEqual(grader.sheet(message), GOOD)
 
     def test_a_line_break_inside_a_quote_is_read_as_it_stands(self):
         found = grader.sheet('{"answers": [{"id": "q1", "answer": "yes", "evidence": "The limit is\n100."}]}')
@@ -104,6 +128,7 @@ class Panel(unittest.TestCase):
             self.assertEqual((tiebreak.asked, len(found.graded)), ([], 2))
             self.assertEqual(graders[0].asked, [["q1", "q2", "q3"]] * 2)  # its host's fresh grader stood in once
             self.assertEqual(found.graded[0].tries, ["the host failed: x"] * 2)
+            self.assertEqual(found.graded[0].refused, [None] * 2)  # the stand-in keeps both tries' messages
 
     def test_a_fresh_grader_of_its_host_stands_in_for_an_ungraded_grader(self):
         def once(**answers):
@@ -195,11 +220,17 @@ class FakeGrader(TempCase):
         self.assertIn("not answered: q2", graded.tries[0])
         self.assertEqual(len(set(made)), grader.TRIES)
         self.assertEqual((graded.sheet, len(graded.logs)), (None, grader.TRIES))
+        self.assertEqual(graded.refused, [json.dumps(bad)] * grader.TRIES)
 
     def test_a_final_message_that_is_not_a_sheet_is_refused(self):
         graded, _ = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])
         self.assertIsNone(graded.answers)
-        self.assertEqual(graded.tries, ["the final message is not one JSON object"] * grader.TRIES)
+        self.assertEqual(graded.tries, ["the final message does not end with one JSON object"] * grader.TRIES)
+        self.assertEqual(graded.refused, ["Done."] * grader.TRIES)
+
+    def test_a_refused_message_is_kept_cut_to_its_first_kept_characters(self):
+        graded, _ = self.grade([{"do": "say", "text": "x" * (grader.KEPT + 50)}])
+        self.assertEqual(graded.refused, ["x" * grader.KEPT] * grader.TRIES)
 
     def test_what_a_grader_prints_or_says_keeps_no_credential(self):
         key = "fake-key-0123456789abcdef"
@@ -209,7 +240,8 @@ class FakeGrader(TempCase):
                                 {"do": "say", "text": json.dumps(bad)}], adapter=signed, env={"FAKE_API_KEY": key})
         self.assertIsNone(graded.answers)
         self.assertEqual(graded.logs[0][0]["output"], "[redacted]\n")
-        self.assertNotIn(key, json.dumps([graded.logs, graded.tries]))
+        self.assertNotIn(key, json.dumps([graded.logs, graded.tries, graded.refused]))
+        self.assertEqual(len(graded.refused), grader.TRIES)
 
     def test_a_canary_a_grader_kept_in_its_home_stops_the_round(self):
         token = "HWCANARY-0123456789abcdef"  # the command builds it, so only the home file holds it whole

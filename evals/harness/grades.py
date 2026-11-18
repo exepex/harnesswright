@@ -15,9 +15,9 @@ on that question, with why.
 - Every page the gate grades leaves one record, written through the round's scrub to the attempt's own folder,
   `<store>/<round>/grades/<attempt>/runs/<key>.json` or `.../goldens/<skill>/<case>/<golden>.json`, so no attempt
   replaces another's: the hashes of the page and its questions, the questions asked, the panel's answers, those left
-  unanswered, the agreement, and each grader's host, model, sheet, failed tries and costs, the tie-breaker last. A
-  golden's record adds its settled answers; a run's names its skill and case, keeps only its trusted answers and
-  names the untrusted questions, with why.
+  unanswered, the agreement, and each grader's host, model, sheet, failed tries, refused messages and costs, the
+  tie-breaker last. A golden's record adds its settled answers; a run's names its skill and case, keeps only its
+  trusted answers and names the untrusted questions, with why.
 - The gate's outcome names, per case, each question some page was asked: None when its grading is trusted, or why
   not. A grader that breaks its jail, or a golden that cannot be built, stops the round.
 
@@ -115,11 +115,13 @@ def _path(folder, name):
 def _record(page, asked, panel, pair, top, r):
     """What a page's panel found, as the store keeps it: the hashes of the page and its questions
     (`grader.digest`), the questions asked, the panel's answers, those left unanswered, the agreement, and each
-    grader's host, model, sheet, failed tries and each try's seconds and token counts, the tie-breaker last."""
+    grader's host, model, sheet, failed tries, refused messages and each try's seconds and token counts, the
+    tie-breaker last."""
     hosts = [*pair, top][:len(panel.graded)]
     return {**grader.digest(page, asked), "asked": [q["id"] for q in asked], "answers": panel.answers,
             "unanswered": panel.unanswered, "agreed": panel.agreed,
-            "graders": [{"host": host, "model": r.model(host), "sheet": g.sheet, "tries": g.tries, "costs": g.costs}
+            "graders": [{"host": host, "model": r.model(host), "sheet": g.sheet, "tries": g.tries,
+                         "refused": g.refused, "costs": g.costs}
                         for host, g in zip(hosts, panel.graded)]}
 
 
