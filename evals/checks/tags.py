@@ -9,9 +9,10 @@ between), and no rule ID outside a tag. The form itself, `{{rule:<ID>}}`, holds 
 `Rules:` line. An ID inside a word, a file name or a path is not a citation. The frontmatter (the leading `---`
 block) holds no tag and no rule ID.
 
-- `rule_tags`: the skill's template, `SKILL.tmpl.md` in the world folder `folder`, and every other `.md` file under
+- `rule_tags`: the skill's template, `SKILL.tmpl.md` in the world folder `folder`, and every other `.md` entry under
   that folder after the run (its references, which the build reads the same way) follow that rule; the frontmatter
-  rule applies to the template. Together they tag at least one rule; every tagged ID is listed in the world file
+  rule applies to the template. An entry there that is a link or a folder fails, as the build would read what it
+  points at and the check cannot. Together they tag at least one rule; every tagged ID is listed in the world file
   `index` as it was before the run (an index the run changed fails, so a run cannot list its own IDs); and for each
   group of IDs in `require`, at least one of the group is tagged. An ID is a whole match of `pattern`.
 """
@@ -56,7 +57,10 @@ def rule_tags(bundle, folder, index, pattern, require=()):
             return "fail", f"{template}:{number}: the frontmatter holds no rule tag and no rule ID: {line[:120]!r}"
     tagged = []
     others = sorted(path for path in bundle.files if path.startswith(f"{folder}/") and path.endswith(".md")
-                    and path != template and bundle.text(path) is not None)
+                    and path != template)
+    unread = [path for path in others if bundle.text(path) is None]
+    if unread:  # a link or a folder: the build would read what it points at, so the check cannot vouch for it
+        return "fail", f"{unread[0]} is not a plain file, so its rule tags cannot be read"
     for file, body, first in [(template, lines[start:], start + 1)] + [(p, bundle.text(p).split("\n"), 1)
                                                                       for p in others]:
         fault = _body_fault(file, body, first, pattern, cited, known, index, tagged)
