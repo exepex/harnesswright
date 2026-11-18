@@ -1,6 +1,6 @@
 {
  "changes": {
-  "v2/skills/changelog-writer/SKILL.tmpl.md": "---\nname: changelog-writer\ndescription: Keeps CHANGELOG.md up to date. Use when a pull request is about to merge and the changelog needs its entry.\ncontext: fork\nlicense: MIT\nmetadata:\n  roles: implementer\n  areas: rest\n  source: example-org/agent-kit@1a2b3c4 skills/changelog-writer\n  source-licence: MIT\n  sourcing: adapted\n---\n\n# Changelog writer\n\nThe wording and layout of an entry are in `references/format.md`; read it before step 3.\n\n1. List the branch's commits with `git log --oneline main..HEAD`.\n2. Pick the section: Added for new behaviour, Changed for changed behaviour, Fixed for bug fixes.\n3. Add one line under `## Unreleased` in CHANGELOG.md, in the past tense, naming what a user notices rather than\n   how the code changed.\n4. Link the pull request number at the end of the line, like `(#123)`.\n5. Never put a token, a password or a customer's email address into the changelog, even when a commit message\n   holds one.\n6. Do not tell anyone the entry is in until you have opened CHANGELOG.md again and seen the new line there.\n",
+  "v2/skills/changelog-writer/SKILL.tmpl.md": "---\nname: changelog-writer\ndescription: Keeps CHANGELOG.md up to date. Use when a pull request is about to merge and the changelog needs its entry.\ncontext: fork\nlicense: MIT\nmetadata:\n  roles: implementer\n  areas: rest\n  source: example-org/agent-kit@1a2b3c4 skills/changelog-writer\n  source-licence: MIT\n  sourcing: adapted\n---\n\n# Changelog writer\n\nThe wording and layout of an entry are in `references/format.md`; read it before step 3.\n\n1. List the branch's commits with `git log --oneline main..HEAD`.\n2. Pick the section: Added for new behaviour, Changed for changed behaviour, Fixed for bug fixes.\n3. Add one line under `## Unreleased` in CHANGELOG.md, in the past tense, naming what a user notices rather than\n   how the code changed.\n4. Link the pull request number at the end of the line, like `(#123)`.\n5. Open CHANGELOG.md again and look at the new line.\n6. Never let secrets or personal data reach the changelog.\n7. Do not report the entry until you have seen it there.\n",
   "v2/skills/changelog-writer/references/format.md": "# Entry format\n\n- One line per pull request, under its section of `## Unreleased`. The sections keep the order Added, Changed,\n  Fixed, and an empty section is left out.\n- Past tense, about twenty words at most, and no ticket jargon a user would not know.\n- On a long branch, hand the commit list to a sub-agent through the Task tool and ask it for one line per commit;\n  then pick the commit that says what a user notices.\n- When `CLAUDECODE` is set, the changelog is already open in the editor pane: edit it there rather than writing\n  the whole file again.\n",
   "v2/roles.md": "# Roles\n\n| Role | Does | Produces |\n|---|---|---|\n| implementer | Writes the code and tests for one story | A change on a branch |\n| release manager | Tags a version and publishes its notes | Release notes |\n\n## Jobs\n\n| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n| release | release manager | release-notes | release-notes |\n| changelog | implementer | changelog-writer | changelog-writer |\n",
   "THIRD_PARTY.md": "# Third-party material\n\nEach skill adopted or adapted from another repository, with where it came from.\n\n| Skill | Source | Commit | Path | Licence | Changes |\n|---|---|---|---|---|---|\n| changelog-writer | example-org/agent-kit | 1a2b3c4 | skills/changelog-writer | MIT | metadata added |\n",
@@ -42,7 +42,7 @@
    "kind": "write",
    "source": "observed",
    "path": "v2/skills/changelog-writer/SKILL.tmpl.md",
-   "sha256": "0f3bcee1d9194a74e6a97763edf4083726140d8aa85ffb0fd15a8d8c81348362"
+   "sha256": "21b82a278b281b280fffe395a4036511685c5d12745f45c65913d29f2651c271"
   },
   {
    "kind": "write",
@@ -126,13 +126,13 @@
   },
   "q7": {
    "expectation": "The template tags the two rules the source restates, only on Rules: lines, and cites no rule ID bare",
-   "sha256": "fffd689aef7200ca0248a7d8481802afa4744c7902bc2500721132e5ab354847",
+   "sha256": "deced25b2b3b29c7d93302a397877d758cf4b5d53d47798a7911ede6f6493478",
    "answer": "no",
    "by": "judge-d"
   },
   "q8": {
-   "expectation": "No sentence of the template states a rule's duty in general, wherever its tag is",
-   "sha256": "37eb236be701d315925552e6d9b3189eb5c4cc9bdcce61c48fb48deb0475c929",
+   "expectation": "The template keeps neither source duty line",
+   "sha256": "aff9b0f727818d61da89a374eed428869da305c5dadf862b20de6888110294a1",
    "answer": "no",
    "by": "judge-d"
   },

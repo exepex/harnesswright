@@ -194,13 +194,13 @@
   },
   "q7": {
    "expectation": "The template tags the two rules the source restates, only on Rules: lines, and cites no rule ID bare",
-   "sha256": "fffd689aef7200ca0248a7d8481802afa4744c7902bc2500721132e5ab354847",
+   "sha256": "deced25b2b3b29c7d93302a397877d758cf4b5d53d47798a7911ede6f6493478",
    "answer": "yes",
    "by": "judge-d"
   },
   "q8": {
-   "expectation": "No sentence of the template states a rule's duty in general, wherever its tag is",
-   "sha256": "37eb236be701d315925552e6d9b3189eb5c4cc9bdcce61c48fb48deb0475c929",
+   "expectation": "The template keeps neither source duty line",
+   "sha256": "aff9b0f727818d61da89a374eed428869da305c5dadf862b20de6888110294a1",
    "answer": "yes",
    "by": "judge-d"
   },
