@@ -399,7 +399,7 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 | `frontmatter` | Each line is a field given once or part of one: `required`, only `allowed`, with `values` |
 | `ends_with_one_question` | The text holds exactly one question, and ends with it |
 | `shares_words` | The text shares a run of `run` words with the world file `source`, or none (`shared`) |
-| `no_shared_words` | No file the run wrote in the `written` globs shares a run of `run` words with the world file `source` |
+| `no_shared_words` | No file the run wrote in the `written` globs shares a run of `run` words with the world file `source`, or only with its `lines`, read as one text |
 | `field_words` | The frontmatter field `field` holds at most `most` words |
 | `line_counts` | The `section` lists only `` - `path` (N lines) `` or `(deleted)` lines, each true |
 | `line_references` | Each `` `path:N(-M)` `` span of the writer's own prose that names the world points at real lines |

@@ -83,6 +83,9 @@ class Library(TempCase):
                            ("shares_words", {"source": "a", "run": 0, "shared": True}),
                            ("frontmatter", {"required": [], "file": "a"}),
                            ("no_shared_words", {"source": "a", "run": 8, "written": []}),
+                           ("no_shared_words", {"source": "a", "run": 6, "written": ["b"], "lines": [3, 2]}),
+                           ("no_shared_words", {"source": "a", "run": 6, "written": ["b"], "lines": [0]}),
+                           ("no_shared_words", {"source": "a", "run": 6, "written": ["b"], "lines": []}),
                            ("field_words", {"field": "description", "most": 0})):
             with self.subTest(check=name), self.assertRaisesRegex(checks.CheckError, "of their shape"):
                 checks.decide(name, bundle, args)

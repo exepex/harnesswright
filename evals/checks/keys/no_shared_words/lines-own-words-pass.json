@@ -1,0 +1,18 @@
+{
+  "args": {
+    "source": "incoming/SKILL.md",
+    "run": 6,
+    "written": [
+      "evals/skills/pr/*"
+    ],
+    "lines": [
+      2,
+      3
+    ]
+  },
+  "outcome": "pass",
+  "after": {
+    "incoming/SKILL.md": "Keep the draft short.\nNever paste a ticket number into the summary line at all.\nAsk the reviewer for a second look before you merge it.\nEnd with a thank you to the reviewer for the time spent here.\n",
+    "evals/skills/pr/stage-1.md": "Check: the summary holds no ticket reference, and a reviewer looked again."
+  }
+}
