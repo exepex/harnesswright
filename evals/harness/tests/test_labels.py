@@ -78,14 +78,20 @@ class Outcomes(unittest.TestCase):
         self.assertEqual(labels.trigger_outcome(should, both), (True, False))
 
 
-def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, should=True):
+def formatted(passed=9, decided=10, undecided=0):
+    """The format conformance of the with-skill arm, as the label's measures hold it."""
+    return {"format_conformance": {"with_skill": {"rate": None, "passed": passed, "decided": decided,
+                                                  "undecided": undecided}}}
+
+
+def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, should=True, form=(9, 10, 0)):
     cases = {"t": case(), "g": case("trigger", should_trigger=should, split="test")}
     scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [bool(o) for o in baseline],
               ("g", "with_skill"): [bool(o) for o in trigger]}
     if train is not None:
         cases["x"] = case("trigger", should_trigger=True, split="train")
         scored[("x", "with_skill")] = train
-    return labels.summary(cases, scored)
+    return {**labels.summary(cases, scored), **(formatted(*form) if form else {})}
 
 
 def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
@@ -95,7 +101,7 @@ def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
               ("t", "previous_version"): [bool(o) for o in before], ("g", "with_skill"): [True] * 3}
     tally = {arm: {"false_done": f, "decided": d, "undecided": 0}
              for arm, (f, d) in (("with_skill", done), ("previous_version", done_before))}
-    return labels.summary(cases, scored, previous=True), tally
+    return {**labels.summary(cases, scored, previous=True), **formatted()}, tally
 
 
 class Previous(unittest.TestCase):
@@ -143,8 +149,8 @@ class Decide(unittest.TestCase):
         self.assertEqual(measured(trigger=(1, 1, 0, 0), should=False)["trigger_accuracy"], 0.0)  # loaded twice of 4
 
     def test_a_skill_with_no_task_case_or_no_test_trigger_case_is_incomplete_with_every_doubt_named(self):
-        no_triggers = labels.summary({"t": case()}, {("t", "with_skill"): [True] * 3,
-                                                     ("t", "without_skill"): [False] * 3})
+        no_triggers = {**labels.summary({"t": case()}, {("t", "with_skill"): [True] * 3,
+                                                        ("t", "without_skill"): [False] * 3}), **formatted()}
         self.assertEqual(labels.decide(no_triggers, ["t, with_skill, run 4: not scored (void)"]),
                          {"label": "incomplete", "gaps": ["test trigger cases: none",
                                                           "t, with_skill, run 4: not scored (void)"]})
@@ -162,6 +168,24 @@ class Decide(unittest.TestCase):
         found = labels.decide(measured(), [], None, "the reference host claude-code's result is not settled")
         self.assertEqual(found, {"label": "inconclusive",
                                  "gaps": ["the reference host claude-code's result is not settled"]})
+
+    def test_format_conformance_below_its_floor_is_unsupported_and_an_undecided_answer_does_not_pass(self):
+        self.assertEqual(labels.decide(measured(form=(17, 20, 0)), []), {"label": "unsupported", "gaps": [
+            "format conformance 85% below 90% (17 of 20, 0 undecided)"]})
+        self.assertEqual(labels.decide(measured(form=(18, 19, 1)), []), {"label": "verified", "gaps": []})  # 90%
+        self.assertEqual(labels.decide(measured(form=(17, 19, 1)), [])["gaps"],
+                         ["format conformance 85% below 90% (17 of 20, 1 undecided)"])
+
+    def test_the_format_floor_never_replaces_the_lift(self):
+        found = labels.decide(measured(baseline=(1, 1, 1), form=(10, 10, 0)), [])
+        self.assertEqual(found["label"], "inconclusive")
+        self.assertIn("no lift", found["gaps"][0])
+
+    def test_a_format_floor_not_measured_keeps_the_label_inconclusive(self):
+        for form in (None, (0, 0, 0)):
+            with self.subTest(form=form):
+                self.assertEqual(labels.decide(measured(form=form), []), {"label": "inconclusive", "gaps": [
+                    "format conformance: no format expectation was asked in the with-skill arm"]})
 
     def test_a_missed_threshold_is_unsupported_with_each_gap_named(self):
         found = labels.decide(measured(task=(1, 1, 0), trigger=(0, 0, 1)), [], measured(), None)
@@ -245,15 +269,17 @@ class Gate(Pages):
             return run(r)
         steps = (("probe", probe), ("run", run_previous), ("check", gates.check_gate),
                  ("grade", grades.grade_gate), ("label", labels.label_gate))
-        with mock.patch.object(labels, "missing", lambda found: []):  # the fixture has no trigger case
-            self.go(steps, grade=done_or_pond)
+        with mock.patch.object(labels, "missing", lambda found: []), \
+                mock.patch.dict(labels.THRESHOLDS, {"format_conformance": 1.01}):  # the stored format count decides
+            self.go(steps, grade=done_or_pond)  # (the fixture has no trigger case)
         [path] = (self.store / "r1" / "labels").iterdir()
         entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
         self.assertEqual((entry["task_pass_rate"], entry["previous_pass_rate"]), (0.6667, 1.0))
         self.assertEqual((entry["label"], entry["gaps"]), ("inconclusive", [
             "the reference host claude-code was not run", "task pass rate 67% below 90%",
             "task pass rate 67% below the previous version's 100%",
-            "false-done rate 1 of 3 above the previous version's 0 of 3"]))
+            "false-done rate 1 of 3 above the previous version's 0 of 3",
+            "format conformance 100% below 101% (3 of 3, 0 undecided)"]))
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()

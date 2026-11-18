@@ -124,6 +124,7 @@ change, are:
 | Trigger accuracy on each host | At least 90% of should-trigger and should-not-trigger cases |
 | Runs behind each result | At least 3 successful runs per trigger query, per task and per baseline task |
 | Lift over the baseline | Task pass rate with the skill above the rate without it |
+| Format conformance with the skill | At least 90% of the skill's format expectations passed, one not decided counting as failed; a floor on top of the lift, never in its place |
 
 ## The skill designer
 

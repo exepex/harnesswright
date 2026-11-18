@@ -31,8 +31,9 @@ is named, and so is a reference result that is not settled, and either keeps the
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
     not run, or it is itself in doubt), or the skill shows no lift over the baseline;
-  - `unsupported` when the task pass rate, the gap to the reference host or the trigger accuracy misses its
-    threshold, or the skill is worse than its previous version, with each gap named;
+  - `unsupported` when the task pass rate, the gap to the reference host, the trigger accuracy or the with-skill
+    arm's format conformance misses its threshold, or the skill is worse than its previous version, with each gap
+    named. Format conformance is a floor on top of the lift, never in its place (`format_gaps`);
   - `verified` otherwise.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub.
 
@@ -48,7 +49,8 @@ import measures
 import prices
 from runs import PREVIOUS
 
-THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0}
+THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0,
+              "format_conformance": 0.9}
 EPSILON = 1e-9
 
 
@@ -143,13 +145,30 @@ def versus(measures, false_done):
     return gaps, doubted
 
 
+def format_gaps(measures, thresholds=THRESHOLDS):
+    """(gaps, doubts) of the with-skill arm's format conformance in `measures` (the label's measures, with
+    `format_conformance` of `measures.measures`). A format expectation no check or trusted answer decided counts as
+    not passed. No format answer at all, or no format count, is a doubt: the floor was not measured."""
+    tally = (measures.get("format_conformance") or {}).get("with_skill")
+    asked = tally["decided"] + tally["undecided"] if tally else 0
+    if not asked:
+        return [], ["format conformance: no format expectation was asked in the with-skill arm"]
+    if tally["passed"] / asked < thresholds["format_conformance"] - EPSILON:
+        return [f"format conformance {tally['passed'] / asked:.0%} below {thresholds['format_conformance']:.0%} "
+                f"({tally['passed']} of {asked}, {tally['undecided']} undecided)"], []
+    return [], []
+
+
 def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS, false_done=None):
     """{"label", "gaps"} of one skill on one host from its `measures` (`summary`) and `unsettled`, the named reasons
     its result is in doubt (runs not scored, goldens missed). For a host other than the reference host, `reference`
     is the reference host's measures when its result is settled, and `reference_doubt` says why it is not.
-    `false_done` is the false-done tally of each arm, for the comparison with a previous version (`versus`)."""
+    `false_done` is the false-done tally of each arm, for the comparison with a previous version (`versus`).
+    `measures` holds the with-skill arm's format conformance too, for its floor (`format_gaps`)."""
     earlier = versus(measures, false_done or {})[0]
+    formatted, unmeasured = format_gaps(measures, thresholds)
     doubted = doubts(measures, unsettled, false_done or {}, thresholds) + ([reference_doubt] if reference_doubt else [])
+    doubted += unmeasured
     if missing(measures):
         return {"label": "incomplete", "gaps": missing(measures) + doubted}
     gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
@@ -160,7 +179,7 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
         gaps.append(f"task pass rate {reference['task_pass_rate'] - task_rate:.0%} below the reference host")
     if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
         gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
-    gaps += earlier
+    gaps += earlier + formatted
     if doubted:
         return {"label": "inconclusive", "gaps": doubted + gaps}
     if gaps:
@@ -248,7 +267,8 @@ def labels(folder, attempt, record, cases, price_file):
                              inferred_loads=inferred.get((host, skill), 0),
                              false_done={arm: measures.share(tally["false_done"], tally["decided"], **tally)
                                          for arm, tally in sorted(false_done.get((host, skill), {}).items())},
-                             **decide(measured[host], doubted[host], reference if other else None,
+                             **decide({**measured[host], **rest.get((host, skill), {})}, doubted[host],
+                                      reference if other else None,
                                       reference_doubt if other else None,
                                       false_done=false_done.get((host, skill), {})))
             found["skills"][skill][host] = entry
