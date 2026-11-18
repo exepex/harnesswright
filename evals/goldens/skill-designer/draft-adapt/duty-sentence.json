@@ -207,7 +207,7 @@
   },
   "q8": {
    "expectation": "No sentence of the template states a rule's duty in general, wherever its tag is",
-   "sha256": "fd550465bfe77078595c7b637fcdf183671c76f94f3b181f65c6b994ed6e7753",
+   "sha256": "37eb236be701d315925552e6d9b3189eb5c4cc9bdcce61c48fb48deb0475c929",
    "answer": "no",
    "by": "judge-d"
   },

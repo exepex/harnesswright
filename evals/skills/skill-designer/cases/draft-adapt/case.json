@@ -181,8 +181,7 @@
         "examples": {
           "pass": [
             "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}",
-            "4. Check: CHANGELOG.md, read again, shows the new line.\n   Rules: {{rule:CORE-SKILL-07}}",
-            "6. Keep any token, password or customer's email address out of the line.\n   Rules: {{rule:CORE-WORK-06}}"
+            "4. Check: CHANGELOG.md, read again, shows the new line.\n   Rules: {{rule:CORE-SKILL-07}}"
           ],
           "fail": [
             "The source's step 5 kept word for word, followed by a Rules: line that tags CORE-WORK-06.",
