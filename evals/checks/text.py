@@ -24,7 +24,9 @@ check reads only the kinds it names, and a line it cannot read as one of the sha
   as `shares_words` compares them. A `.json` file that parses (after any byte order mark) is read as its decoded
   keys and strings, as a reader sees them, so an escape such as `\\n` never joins two words; the source is read
   the same way. A file the run did not touch is not read, any other entry it wrote there (a link) fails, and no
-  written file at all passes, so a case pairs it with a check that the run wrote.
+  written file at all passes, so a case pairs it with a check that the run wrote. With `lines` (line numbers from
+  1, in order), only those lines of the source count, as written and read as one text, so a run of words that
+  crosses from one named line into the next still counts; a source shorter than the last named line fails.
 - `field_words`: the frontmatter, read as `frontmatter` reads it, has the field `field`, and its value holds at most
   `most` words, counted as `shares_words` counts them: the field's own value, read as `frontmatter` reads it, and
   every indented line under it, as written (in a `>` or `|` block a `#` is text).
@@ -222,11 +224,19 @@ def _words(bundle, path):
     return text
 
 
-def no_shared_words(bundle, source, run, written):
+def no_shared_words(bundle, source, run, written, lines=None):
     original = bundle.text(source)
     if original is None:
         return "fail", f"{source} does not exist"
-    runs = set(_runs(_words(bundle, source), run))
+    if lines:  # the named lines, as written, read as one text: a run may cross from one line into the next
+        count = original.count("\n") + (not original.endswith("\n") and original != "")  # a last line counts
+        held = original.split("\n")[:count]
+        if lines[-1] > count:
+            return "fail", f"{source} has {len(held)} lines, not line {lines[-1]}"
+        named = f"{source} lines {', '.join(map(str, lines))}"
+        runs = set(_runs("\n".join(held[n - 1] for n in lines), run))
+    else:
+        named, runs = source, set(_runs(_words(bundle, source), run))
     touched = sorted(path for path in bundle.changes if path != source and matches(path, written)
                      and path in bundle.files)
     other = [path for path in touched if bundle.text(path) is None and bundle.files[path] != "dir"]
@@ -236,8 +246,8 @@ def no_shared_words(bundle, source, run, written):
     for path in read:
         common = next((words for words in _runs(_words(bundle, path), run) if words in runs), None)
         if common:
-            return "fail", f"{path} shares {run} words with {source}: {' '.join(common)[:200]}"
-    return "pass", f"none of the {len(read)} files the run wrote in {written} shares a run of {run} words with {source}"
+            return "fail", f"{path} shares {run} words with {named}: {' '.join(common)[:200]}"
+    return "pass", f"none of the {len(read)} files the run wrote in {written} shares a run of {run} words with {named}"
 
 
 def _section(read, heading):
@@ -321,6 +331,12 @@ def is_count(value, low=1, high=None):
     return isinstance(value, int) and not isinstance(value, bool) and low <= value and (high is None or value <= high)
 
 
+def is_lines(value):
+    """Line numbers of a file, from 1, each once and in order."""
+    return (isinstance(value, list) and bool(value) and all(is_count(v) for v in value)
+            and all(a < b for a, b in zip(value, value[1:])))
+
+
 def cites_listed_ids(bundle, index, pattern, file=None):
     text, name = _text(bundle, file)
     listed = bundle.text(index)
@@ -353,7 +369,8 @@ CHECKS = {
     "shares_words": Check(shares_words, {"source": is_path, "run": is_count, "shared": lambda v: isinstance(v, bool),
                                          **FILE},
                           optional=("file",), about="the text shares a run of words with a source file, or none"),
-    "no_shared_words": Check(no_shared_words, {"source": is_path, "run": is_count, "written": is_globs},
+    "no_shared_words": Check(no_shared_words, {"source": is_path, "run": is_count, "written": is_globs,
+                                               "lines": is_lines}, optional=("lines",),
                              about="no file the run wrote in these globs shares a run of words with a source file"),
     "field_words": Check(field_words, {"field": is_text, "most": is_count, **FILE}, optional=("file",),
                          about="a frontmatter field holds at most this many words"),
