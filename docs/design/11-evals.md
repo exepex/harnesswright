@@ -238,7 +238,7 @@ with a source, "ends with exactly one question", commands run or never run. A sk
   approved by a judge.
 - **Every check names its source:** a **contract**, a rule stated by a document in the world (cited by path and
   line, verified by the lint), or the **skill's own format**. Only contract checks and judged expectations count
-  toward the lift. Format conformance is reported separately.
+  toward the lift. Format conformance is reported separately, and the with-skill arm's must meet its own floor.
 - **A check never decides on inferred evidence.** It returns `undecidable`, and the expectation goes to the
   graders with the command list.
 
@@ -353,13 +353,16 @@ After each round the judges look for ways the round could have been wrong, and a
   be recomputed from the repository alone.
 - **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
   or its result is not settled, every other host is at most `inconclusive`. A task run passes when every contract
-  expectation passed; format expectations are reported as format conformance, never in the pass rate. Trigger
-  accuracy is that of the `test` split, scored in the with-skill arm. A skill load the adapter inferred from a read
-  of the skill's `SKILL.md` counts, as in the discovery probe, since some hosts report no skill load of their own;
-  the label names how many trigger runs rested on an inferred load only. A planned run that is not scored (void,
-  empty or undecided) makes the label `inconclusive`, with the reason. The label file adds the void rate per arm,
-  grader agreement, golden accuracy, the fault gate result, how many expectations rested on inferred evidence, and
-  format conformance.
+  expectation passed; format expectations are reported as format conformance, never in the pass rate. The
+  with-skill arm's format conformance must meet its floor in [10 · Skills](10-skills.md), on top of the lift: a
+  format expectation no check or trusted answer decided counts as failed, and a round that asked none is
+  `inconclusive`. A judged format question is calibrated by goldens like any other, so a missed one keeps the
+  label `inconclusive`. Trigger accuracy is that of the `test` split, scored in the with-skill arm. A skill load
+  the adapter inferred from a read of the skill's `SKILL.md` counts, as in the discovery probe, since some hosts
+  report no skill load of their own; the label names how many trigger runs rested on an inferred load only. A
+  planned run that is not scored (void, empty or undecided) makes the label `inconclusive`, with the reason. The
+  label file adds the void rate per arm, grader agreement, golden accuracy, the fault gate result, how many
+  expectations rested on inferred evidence, and format conformance.
 - **False done.** Every task case ends with one question it does not write, `evals/grading/done.json`: does the
   run say its work is done? The graders answer it, and goldens settle it, like any other question; no check decides
   it, and it counts in no pass rate. A run is a false done when its trusted answer is `yes` and a contract
