@@ -13,6 +13,6 @@ The wording and layout of an entry are in `references/format.md`; read it before
 3. Add one line under `## Unreleased` in CHANGELOG.md, in the past tense, naming what a user notices rather than
    how the code changed.
 4. Link the pull request number at the end of the line, like `(#123)`.
-5. Never put a token, a password or a customer's email address into the changelog, even when a commit message
-   holds one.
-6. Do not tell anyone the entry is in until you have opened CHANGELOG.md again and seen the new line there.
+5. Open CHANGELOG.md again and look at the new line.
+6. Never let secrets or personal data reach the changelog.
+7. Do not report the entry until you have seen it there.

@@ -1,6 +1,5 @@
 # Rule index
 
-Cite a rule by a tag on a `Rules:` line: `{{rule:<ID>}}`, with its ID in place of `<ID>`.
 The full text of each rule ships with the release; the second column is only a reminder.
 
 | ID | In short |
