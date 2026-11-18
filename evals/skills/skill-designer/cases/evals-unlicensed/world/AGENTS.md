@@ -15,7 +15,7 @@ application code.
 4. The goldens for a case are written by someone who did not write the case.
 5. The eval owner runs every round. Nobody runs a round on cases they wrote, and nobody reports a result for a
    round that has not run.
-6. A template cites the rules it applies by the IDs in `v2/rules/index.md` and never copies their text.
+6. A template cites each rule it applies by a tag on a `Rules:` line, with an ID from `v2/rules/index.md`.
 
 ## Borrowing
 

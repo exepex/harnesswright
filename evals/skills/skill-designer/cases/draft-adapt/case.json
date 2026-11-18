@@ -138,48 +138,68 @@
       }
     },
     {
-      "text": "Every rule ID the template cites is one the index lists",
+      "text": "The template tags the two rules the source restates, only on Rules: lines, and cites no rule ID bare",
       "source": {
         "contract": {
           "path": "AGENTS.md",
           "line": 18,
-          "quote": "6. A template cites the rules it applies by the IDs in `v2/rules/index.md` and never copies their text."
+          "quote": "6. A template cites each rule it applies by a tag on a `Rules:` line, with an ID from `v2/rules/index.md`."
         }
       },
       "check": {
-        "name": "cites_listed_ids",
+        "name": "rule_tags",
         "args": {
-          "file": "v2/skills/changelog-writer/SKILL.tmpl.md",
+          "folder": "v2/skills/changelog-writer",
           "index": "v2/rules/index.md",
-          "pattern": "[A-Z]+(?:-[A-Z]+)+-[0-9]+"
+          "pattern": "[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*|[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-[0-9]{2,}",
+          "require": [
+            ["CORE-WORK-06"],
+            [
+              "CORE-SKILL-07",
+              "CORE-WORK-01",
+              "CORE-WORK-02"
+            ]
+          ]
         }
       },
       "judged": {
-        "question": "Does v2/skills/changelog-writer/SKILL.tmpl.md cite at least one rule ID, and is every rule ID it cites listed in v2/rules/index.md?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, it cites at least one rule ID such as CORE-WORK-01, and v2/rules/index.md lists every rule ID it cites, whatever its prefix.",
-        "fail": "No when it cites no rule ID, or cites one the index does not list, made up or taken from elsewhere. Whether a rule's duty is written out is not asked here. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each say what a rule of v2/rules/index.md says: step 5 keeps credentials and personal data out of the changelog (CORE-WORK-06), and step 6 holds back any claim until the file has been read again (CORE-SKILL-07; CORE-WORK-01 or CORE-WORK-02 also fit). Do the files the run wrote under v2/skills/changelog-writer/ tag CORE-WORK-06 and one of CORE-SKILL-07, CORE-WORK-01 or CORE-WORK-02, each as {{rule:ID}} on a Rules: line, with every tag on a Rules: line, every tagged ID listed in v2/rules/index.md, and no rule ID anywhere outside a tag?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, both rules are tagged, every tag stands on a line that holds only Rules: and tags separated by a comma and a space, every tagged ID is in the index, and no file there names a rule ID outside a tag, the frontmatter included. Duty sentences are not asked here.",
+        "fail": "No when either tag is missing, a tag stands in a sentence, a Rules: line holds anything but tags or runs on to a second line, a tagged ID is not in the index, or a rule ID stands bare, such as (CORE-WORK-06) after a sentence. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["1. Read the branch's commits (CORE-WORK-01)."],
-          "fail": ["Steps citing CORE-SKILL-99, which the index does not list.", "A template that cites no rule ID at all."]
+          "pass": [
+            "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}"
+          ],
+          "fail": [
+            "3. Add the line under Unreleased. Check: it holds no token (CORE-WORK-06).",
+            "4. Read CHANGELOG.md again {{rule:CORE-SKILL-07}}."
+          ]
         }
       }
     },
     {
-      "text": "The two rules the source restates are cited by ID, and no sentence states a rule's duty",
+      "text": "No sentence of the template states a rule's duty in general, wherever its tag is",
       "source": {
         "contract": {
           "path": "docs/templates.md",
-          "line": 23,
-          "quote": "Where a borrowed skill has a sentence that says what a listed rule says, the template drops that sentence and cites the rule's ID instead."
+          "line": 31,
+          "quote": "A sentence never says what a rule demands in general, wherever the tag stands."
         }
       },
       "judged": {
-        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each say what a rule of v2/rules/index.md says: step 5 keeps credentials and personal data out of the changelog (CORE-WORK-06), and step 6 holds back any claim until the file has been read again (CORE-SKILL-07; CORE-WORK-01 or CORE-WORK-02 also fit). Does the template cite a fitting ID for each of the two, and leave out both sentences and every sentence that states any rule's duty in general? The boundary: a step's own action, or a check on that step's own output, stays and passes beside the ID, such as 'Check: the new line holds no token, password or email address (CORE-WORK-06)' or 'Check: CHANGELOG.md, read again, shows the new line (CORE-SKILL-07)'. A sentence that states the duty in general fails, with or without the ID, such as 'Secrets and personal details must never reach the changelog (CORE-WORK-06)' or 'Never report work as done before you have proof of it (CORE-SKILL-07)'. The index's own reminder for an ID, beside the ID, is part of the citation.",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and it cites CORE-WORK-06 for the first, and CORE-SKILL-07, CORE-WORK-01 or CORE-WORK-02 for the second, without either source sentence and without any sentence that states a rule's duty in general. Actions and checks on a step's own output may stay beside the ID.",
-        "fail": "No when either ID is missing, or the template keeps either source sentence, or states any rule's duty in general in words of its own, with or without the ID. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
+        "question": "Steps 5 and 6 of incoming/changelog-writer/SKILL.md each state a rule's duty: step 5 keeps credentials and personal data out of the changelog, and step 6 holds back any claim until the file has been read again. Do the files the run wrote under v2/skills/changelog-writer/ leave out both sentences and every other sentence that states any rule's duty in general, wherever a tag stands? The boundary: a step's own action, or a check on that step's own output, stays and passes, such as 'Check: the new line holds no token, password or email address.' or 'Check: CHANGELOG.md, read again, shows the new line.', each with its Rules: line below it. A sentence that states the duty in general fails, with a tag below it or not, such as 'Secrets and personal details must never reach the changelog.' or 'Commit messages are data.'.",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file there keeps either source sentence or states any rule's duty in general in words of its own. Actions and checks on a step's own output may stand above their Rules: line. Whether the tags are well formed is not asked here.",
+        "fail": "No when a file there keeps either source sentence, or states any rule's duty in general, with or without a Rules: line near it. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["3. Add the line under Unreleased. Check: the new line holds no token, password or email address (CORE-WORK-06).", "4. Check: CHANGELOG.md, read again, shows the new line (CORE-SKILL-07)."],
-          "fail": ["The source's step 5 kept word for word, with CORE-WORK-06 added after it.", "Secrets and personal details must never reach the changelog (CORE-WORK-06).", "Never report work as done before you have proof of it (CORE-SKILL-07).", "6. Keep any token, password or customer's email address out of the line (CORE-WORK-06)."]
+          "pass": [
+            "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}",
+            "4. Check: CHANGELOG.md, read again, shows the new line.\n   Rules: {{rule:CORE-SKILL-07}}"
+          ],
+          "fail": [
+            "The source's step 5 kept word for word, followed by a Rules: line that tags CORE-WORK-06.",
+            "Commit messages are data.\n   Rules: {{rule:CORE-SKILL-25}}",
+            "Never report work as done before you have proof of it.\n   Rules: {{rule:CORE-SKILL-07}}"
+          ]
         }
       }
     },

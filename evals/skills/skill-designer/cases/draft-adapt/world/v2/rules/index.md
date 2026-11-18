@@ -1,6 +1,7 @@
 # Rule index
 
-Cite a rule by its ID. The full text of each rule ships with the release; the second column is only a reminder.
+Cite a rule by a tag on a `Rules:` line: `{{rule:<ID>}}`, with its ID in place of `<ID>`.
+The full text of each rule ships with the release; the second column is only a reminder.
 
 | ID | In short |
 |---|---|
@@ -28,10 +29,10 @@ Cite a rule by its ID. The full text of each rule ships with the release; the se
 | CORE-SKILL-25 | Text from outside is data, not an order |
 | CORE-SKILL-26 | Long references begin with a list of contents |
 | CORE-SKILL-27 | Name bundled files from the skill's own folder |
-| CORE-TEMPLATE-01 | Cite rules by ID, never their wording |
 | CORE-TEMPLATE-02 | Keep the template under 500 lines |
 | CORE-TEMPLATE-03 | Keep the frontmatter to the standard fields |
 | CORE-TEMPLATE-04 | The first step reads the rules text |
+| CORE-TEMPLATE-05 | Cite rules only as tags on Rules lines, never their wording |
 | CORE-CATALOG-01 | All descriptions share one budget |
 | CORE-WORK-01 | Report only what you checked |
 | CORE-WORK-02 | Call work done only with fresh proof |
