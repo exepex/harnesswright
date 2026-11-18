@@ -8,13 +8,13 @@ metadata:
   source: anthropics/skills@ca45fc496a3436251f191354091d557da31c15b5 skills/skill-creator
   source-licence: Apache-2.0
   sourcing: adapted
-  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-01, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
-  rulebook-version: "0.5.0"
-  content-hash: "1b75f332fa517220d72184b5bc01afc4e89e2f6cbe318d8ef16a3d0db655e972"
-  size-floors: "15825"
-  size-rest: "26750"
+  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
+  rulebook-version: "0.5.1"
+  content-hash: "d141b508d2ebf359a2d90dec1c5be90ccb50a38ca0ea38db11171b36c637f6af"
+  size-floors: "15071"
+  size-rest: "26761"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.5.0. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.5.1. Do not edit. -->
 
 # Skill designer
 
@@ -127,25 +127,13 @@ metadata:
 - **Bad (do not do this):** "Run `python3 scripts/check.py`." It fails when the agent works from the repository root.
 <!-- end CORE-SKILL-27 -->
 
-<!-- rule CORE-TEMPLATE-01 -->
-#### CORE-TEMPLATE-01 · A template cites rules by ID and never writes their text
-
-- **Kind:** floor
-- **Rule:** A skill is written as a template, `SKILL.tmpl.md`, in its own folder. A step cites a rule's ID only where
-  it depends on that rule, and never writes a rule's text. Its `metadata.roles` names the roles it serves.
-  Its `metadata.areas` names every area its work touches, or is `rest` for the one skill of a job that takes every
-  area no other skill of the job lists. Rule text reaches the agent only through the copies HW-RULE-01 allows.
-- **Good:** "4. Name each test as CORE-TEST-03 asks.", in an implementer template with `areas: rest`.
-- **Bad (do not do this):** "4. Test names must state the scenario and the expected outcome.", written into the template.
-<!-- end CORE-TEMPLATE-01 -->
-
 <!-- rule CORE-TEMPLATE-02 -->
 #### CORE-TEMPLATE-02 · A template stays under 500 lines; a release skill stays within its ceilings
 
 - **Kind:** floor
 - **Rule:** `SKILL.tmpl.md` is under 500 lines. Detail that only some runs need moves to reference files. The release
   `SKILL.md` has no line limit, but its copied floors and the rest of its text each stay at or under 30,000
-  characters (Unicode code points), counted by the build. Areas are never dropped to fit (CORE-TEMPLATE-01). Over the
+  characters (Unicode code points), counted by the build. Areas are never dropped to fit (CORE-TEMPLATE-05). Over the
   second ceiling, the skill is split where its job runs in steps; otherwise, and over the floors ceiling, the owner
   decides on eval evidence. A raised ceiling is a new rule with a new ID.
 - **Good:** A 180-line template whose release skill reports 6,000 characters of floors and 21,000 of other text.
@@ -192,10 +180,10 @@ metadata:
   tag: `{{rule:`, the rule's ID, then `}}`, such as `{{rule:CORE-TEST-03}}`. A tag stands only on a `Rules:` line:
   one line that, after any indentation, is `Rules: ` and then tags separated by `, `, with nothing else, never
   wrapped. A step that depends on a rule carries a `Rules:` line, and the skill may have one under its purpose. No
-  sentence states a rule's duty in general, whether a tag is near it or not; rule text reaches the agent only
-  through the copies HW-RULE-01 allows. Its `metadata.roles` names the roles it serves. Its `metadata.areas` names
-  every area its work touches, or is `rest` for the one skill of a job that takes every area no other skill of the
-  job lists.
+  sentence states a rule's duty in general, whether a tag is near it or not: text near a tag says what this skill
+  does, never how work must be done in general. Rule text reaches the agent only through the copies HW-RULE-01 allows.
+  Its `metadata.roles` names the roles it serves. Its `metadata.areas` names every area its work touches, or is
+  `rest` for the one skill of a job that takes every area no other skill of the job lists.
 - **Good:** "4. Write a test for each criterion of the story." with the line "Rules: {{rule:CORE-TEST-03}}" under
   it, in an implementer template with `areas: rest`.
 - **Bad (do not do this):** "4. Test names must state the scenario and the expected outcome."; "4. Name each test as CORE-TEST-03
@@ -597,7 +585,8 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
      Rules: CORE-SKILL-03 (The description says what the skill does and when to use it), CORE-CATALOG-01 (All descriptions together fit a budget)
    - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
      Rules: CORE-SKILL-04 (A skill states its purpose, limits and inputs), CORE-SKILL-10 (One good and one bad example), CORE-TEMPLATE-04 (A skill's first step reads its rules text), CORE-SKILL-08 (A skill says what to do when a step fails)
-     Rules: CORE-SKILL-05 (Steps are numbered, imperative and checkable), CORE-SKILL-09 (Output follows its contract), CORE-SKILL-07 (A skill proves its own result before it reports)
+     Rules: CORE-SKILL-05 (Steps are numbered, imperative and checkable), CORE-SKILL-09 (Output follows its contract), CORE-SKILL-07 (A skill proves its own result before it reports), CORE-SKILL-18 (A skill names no host tool and no model)
+     Rules: CORE-SKILL-19 (A step that needs a host feature names the capability)
    - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
      a `Rules:` line under the step that depends on it, or under the purpose. Tag only IDs the project's rules index
      lists. On the adapt path, remove each source sentence that a listed rule covers, and tag that rule under the
@@ -610,7 +599,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
 
      Rules: CORE-TEMPLATE-05 (A template cites rules only as tags on Rules lines and never writes their text)
    - any scripts the skill runs, and its bundled files, each linked with when to read it.
-     Rules: CORE-SKILL-18 (A skill names no host tool and no model), CORE-SKILL-20 (Logic that must agree everywhere is a script), CORE-SKILL-21 (Every script step has a no-script fallback), CORE-SKILL-19 (A step that needs a host feature names the capability)
+     Rules: CORE-SKILL-20 (Logic that must agree everywhere is a script), CORE-SKILL-21 (Every script step has a no-script fallback)
      Rules: CORE-SKILL-27 (Bundled files are named from the skill folder), CORE-SKILL-12 (Each reference is linked from SKILL.md, with when to read it)
 3. For an adopted or adapted source, keep its licence and copyright notice in a file in `v2/skills/<name>/`, and
    add a `THIRD_PARTY.md` section with the repository, commit, path, licence and sourcing, and what changed.

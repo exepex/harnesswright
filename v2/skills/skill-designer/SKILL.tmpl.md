@@ -158,7 +158,8 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
      Rules: {{rule:CORE-SKILL-03}}, {{rule:CORE-CATALOG-01}}
    - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
      Rules: {{rule:CORE-SKILL-04}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-04}}, {{rule:CORE-SKILL-08}}
-     Rules: {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-07}}
+     Rules: {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-07}}, {{rule:CORE-SKILL-18}}
+     Rules: {{rule:CORE-SKILL-19}}
    - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
      a `Rules:` line under the step that depends on it, or under the purpose. Tag only IDs the project's rules index
      lists. On the adapt path, remove each source sentence that a listed rule covers, and tag that rule under the
@@ -171,7 +172,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
 
      Rules: {{rule:CORE-TEMPLATE-05}}
    - any scripts the skill runs, and its bundled files, each linked with when to read it.
-     Rules: {{rule:CORE-SKILL-18}}, {{rule:CORE-SKILL-20}}, {{rule:CORE-SKILL-21}}, {{rule:CORE-SKILL-19}}
+     Rules: {{rule:CORE-SKILL-20}}, {{rule:CORE-SKILL-21}}
      Rules: {{rule:CORE-SKILL-27}}, {{rule:CORE-SKILL-12}}
 3. For an adopted or adapted source, keep its licence and copyright notice in a file in `v2/skills/<name>/`, and
    add a `THIRD_PARTY.md` section with the repository, commit, path, licence and sourcing, and what changed.
