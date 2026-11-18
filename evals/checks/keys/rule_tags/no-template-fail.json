@@ -1,0 +1,14 @@
+{
+  "args": {
+    "folder": "v2/skills/x",
+    "index": "v2/rules/index.md",
+    "pattern": "CORE-[A-Z]+-[0-9]+"
+  },
+  "outcome": "fail",
+  "before": {
+    "v2/rules/index.md": "| ID | In short |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n| CORE-WORK-01 | Report what you checked |\n"
+  },
+  "after": {
+    "v2/rules/index.md": "| ID | In short |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n| CORE-WORK-01 | Report what you checked |\n"
+  }
+}

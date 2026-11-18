@@ -1,10 +1,10 @@
 # Rule tag faults
 
-Shared examples for every reader of rule tags: the build (`tags.py`), the release check (`check_rules.py`) and,
-later, the eval kit. Good examples are the golden skill itself (`root/` and `expected/`) and the plain lines below.
-Each line below a `##` heading is one example, written for the golden CORE layer. The build must fail each template
-line; the release check must fail each release line; each plain line must build unchanged and pass the release
-check. Blank lines and this text are not examples.
+Shared examples for every reader of rule tags: the build (`tags.py`), the release check (`check_rules.py`) and the
+eval kit (`evals/checks/tags.py`). Good examples are the golden skill itself (`root/` and `expected/`) and the plain
+lines below. Each line below a `##` heading is one example, written for the golden CORE layer. The build and the
+eval kit must fail each template line; the release check must fail each release line; each plain line must build
+unchanged, pass the release check and pass the eval kit. Blank lines and this text are not examples.
 
 ## Template lines
 

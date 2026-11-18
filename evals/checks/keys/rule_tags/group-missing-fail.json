@@ -1,0 +1,24 @@
+{
+  "args": {
+    "folder": "v2/skills/x",
+    "index": "v2/rules/index.md",
+    "pattern": "CORE-[A-Z]+-[0-9]+",
+    "require": [
+      [
+        "CORE-WORK-06"
+      ],
+      [
+        "CORE-SKILL-07",
+        "CORE-WORK-01"
+      ]
+    ]
+  },
+  "outcome": "fail",
+  "before": {
+    "v2/rules/index.md": "| ID | In short |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n| CORE-WORK-01 | Report what you checked |\n"
+  },
+  "after": {
+    "v2/rules/index.md": "| ID | In short |\n|---|---|\n| CORE-WORK-06 | Keep keys out |\n| CORE-SKILL-07 | Read it back |\n| CORE-WORK-01 | Report what you checked |\n",
+    "v2/skills/x/SKILL.tmpl.md": "---\nname: x\ndescription: Add a changelog line. Use when a fix merges.\n---\n\n# X\n\n1. Add the line under Unreleased. Check: it holds no token or email address.\n   Rules: {{rule:CORE-WORK-06}}\n2. Read CHANGELOG.md again. Check: it shows the new line.\n   Rules: {{rule:CORE-WORK-06}}\n"
+  }
+}
