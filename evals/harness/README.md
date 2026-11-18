@@ -404,11 +404,15 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 | `line_counts` | The `section` lists only `` - `path` (N lines) `` or `(deleted)` lines, each true |
 | `line_references` | Each `` `path:N(-M)` `` span of the writer's own prose that names the world points at real lines |
 | `cites_listed_ids` | The text cites at least one ID matching `pattern`, and every one is listed in the world file `index` |
+| `rule_tags` | The template `file` holds rule tags only on `Rules:` lines and no bare ID, tags at least one rule, every tag is in the world file `index`, and each `require` group has one tagged |
 
 The text checks read the world file `file` after the run, or the final message when `file` is left out. A text
 that does not exist fails. Those that read Markdown read it through one reader, `text.lines`, which gives every
 line one kind: frontmatter, fenced code or prose. `shares_words` reads only words, and it reads the source after
 the run, so a case pairs it, and `no_shared_words`, with `file_state` `unchanged` on the source.
+
+`rule_tags` keeps its own reader of rule tags (`evals/checks/tags.py`), apart from the build's and the release
+check's; all three are tested against the same bad lines, `v2/build/tests/golden/tag-faults.md`.
 
 ## Harness faults
 
