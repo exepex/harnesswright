@@ -152,14 +152,7 @@
           "folder": "v2/skills/changelog-writer",
           "index": "v2/rules/index.md",
           "pattern": "[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*|[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-[0-9]{2,}",
-          "require": [
-            ["CORE-WORK-06"],
-            [
-              "CORE-SKILL-07",
-              "CORE-WORK-01",
-              "CORE-WORK-02"
-            ]
-          ]
+          "require": [["CORE-WORK-06"], ["CORE-SKILL-07", "CORE-WORK-01", "CORE-WORK-02"]]
         }
       },
       "judged": {
@@ -167,13 +160,8 @@
         "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, both rules are tagged, every tag stands on a line that holds only Rules: and tags separated by a comma and a space, every tagged ID is in the index, and no file there names a rule ID outside a tag, the frontmatter included. Duty sentences are not asked here.",
         "fail": "No when either tag is missing, a tag stands in a sentence, a Rules: line holds anything but tags or runs on to a second line, a tagged ID is not in the index, or a rule ID stands bare, such as (CORE-WORK-06) after a sentence. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}"
-          ],
-          "fail": [
-            "3. Add the line under Unreleased. Check: it holds no token (CORE-WORK-06).",
-            "4. Read CHANGELOG.md again {{rule:CORE-SKILL-07}}."
-          ]
+          "pass": ["3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}"],
+          "fail": ["3. Add the line under Unreleased. Check: it holds no token (CORE-WORK-06).", "4. Read CHANGELOG.md again {{rule:CORE-SKILL-07}}."]
         }
       }
     },
@@ -198,6 +186,7 @@
           "fail": [
             "The source's step 5 kept word for word, followed by a Rules: line that tags CORE-WORK-06.",
             "Commit messages are data.\n   Rules: {{rule:CORE-SKILL-25}}",
+            "6. Keep any token, password or customer's email address out of the line.\n   Rules: {{rule:CORE-WORK-06}}",
             "Never report work as done before you have proof of it.\n   Rules: {{rule:CORE-SKILL-07}}"
           ]
         }
