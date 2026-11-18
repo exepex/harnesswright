@@ -12,10 +12,10 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   from another. The folder is removed after the try, once everything the run made outside it has passed
   `evidence.reported`, the one way every run's output is scrubbed and checked for canaries, so a grader leaves no
   credential and a canary stops the round.
-- `sheet(message)`: the grading file in a final message: the JSON object the message ends with, alone or in one
-  fenced block. Text before it is ignored, since a grader may say a sentence first; text after it refuses. A line
-  break inside a string is read as it stands. Each refused message is kept, scrubbed and cut to `KEPT` characters,
-  so the next refusal can be read from the store.
+- `sheet(message)`: the grading file in a final message: the JSON object the message ends with, after any closing
+  fence. Text before it is ignored, since a grader may say a sentence or open a fence first; text after it refuses.
+  A line break inside a string is read as it stands. Each try keeps its final message, scrubbed and cut to `KEPT`
+  characters, so the next refusal can be read from the store.
 - `panel(page, asked, graders, tiebreak)`: one page's answers from a panel of graders, by one rule: a question's
   answer is the one two graders gave. Two graders grade the page, on two different hosts when both are available
   (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
@@ -32,7 +32,6 @@ Standard library only.
 
 import hashlib
 import json
-import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -47,41 +46,32 @@ import scrub as scrubs
 PROMPT = Path(__file__).resolve().parents[1] / "grading" / "prompt.md"
 PAGE, QUESTIONS = "page.md", "questions.json"
 TRIES = 2  # a refused sheet or a failed host gets one more try, as a voided slot gets one remake
-OPENING = re.compile(r"(?:^|\n)```(?:json)?[ \t]*\r?\n", re.I)  # the line that opens a fenced block
 KEPT = 4000  # characters of a refused message the grade record keeps
 
 
 class Graded:
     """One page's grading: `sheet`, the accepted answer sheet whole, with its quotes, or None; `answers` ({id: "yes"
-    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `refused`, the final
-    message of each refused sheet, scrubbed and cut to `KEPT` characters; `logs`, the action log of each try's host
-    run, in order, for the round's record and its faults; and `costs`, each try's seconds and token counts by model
-    as the host reported them (`host.Result`), in the same order."""
+    or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `refused`, beside each of
+    `tries`, that try's final message, scrubbed and cut to `KEPT` characters, or None when the host failed; `logs`,
+    the action log of each try's host run, in order, for the round's record and its faults; and `costs`, each try's
+    seconds and token counts by model as the host reported them (`host.Result`), in the same order."""
 
-    def __init__(self, sheet, tries, logs, costs=(), refused=()):
+    def __init__(self, sheet, tries, logs, costs=(), refused=None):
         self.sheet, self.tries, self.logs, self.costs = sheet, tries, logs, list(costs)
-        self.refused = list(refused)
+        self.refused = [None] * len(tries) if refused is None else list(refused)
         self.answers = None if sheet is None else {answer["id"]: answer["answer"] for answer in sheet["answers"]}
 
 
 def sheet(message):
-    """The grading file a final message holds, or None: the JSON object the stripped message ends with. When the
-    message ends with a fenced block, it is the whole of the last block. Otherwise it starts at the first `{` from
-    which one JSON value runs to the end of the message. Text before it is ignored."""
+    """The grading file a final message holds, or None: the JSON object the stripped message ends with, after any
+    closing fence. It starts at the first `{` from which one JSON value runs to the end. Text before it, an opening
+    fence among it, is ignored; a fence inside a quote is part of the quote."""
     if not isinstance(message, str):
         return None
     text = message.strip()
-    decoder = json.JSONDecoder(strict=False)
     if text.endswith("```"):
-        opened = list(OPENING.finditer(text[:-3]))
-        if not opened:
-            return None
-        body = text[opened[-1].end():-3].strip()
-        try:
-            found, end = decoder.raw_decode(body)
-        except json.JSONDecodeError:
-            return None
-        return found if end == len(body) and isinstance(found, dict) else None
+        text = text[:-3].rstrip()
+    decoder = json.JSONDecoder(strict=False)
     for start in (i for i, char in enumerate(text) if char == "{"):
         try:
             found, end = decoder.raw_decode(text, start)
@@ -139,6 +129,7 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         costs.append({"seconds": result.seconds, "tokens": result.tokens})
         if ran["failure"]:
             tries.append(f"the host failed: {ran['failure']}")
+            refused.append(None)
             continue
         found = sheet(ran["final_message"])
         problems = (["the final message does not end with one JSON object"] if found is None
@@ -172,7 +163,7 @@ def panel(page, asked, graders, tiebreak):
         if graded[number].answers is None:
             fresh, failed = grade_one(page, asked), graded[number]
             graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs,
-                                    failed.costs + fresh.costs)
+                                    failed.costs + fresh.costs, failed.refused + fresh.refused)
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
     disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways
