@@ -26,10 +26,4 @@ other line holds a tag or a rule ID, and the frontmatter holds neither. The buil
 ID and title.
 
 Where a borrowed skill has a sentence that says what a listed rule says, the template drops that sentence and tags
-the rule instead. It keeps the step's own action and any check on the step's own output, such as reading the file
-back to see the new line: those say what to do here, not what the rule says in general.
-A sentence never says what a rule demands in general, wherever the tag stands. A step that adds a heading, for
-example, keeps "Check: the heading, read back, names no customer." with `Rules: {{rule:CORE-WORK-06}}` on the line
-below it, and drops "Never put a customer's name in a file.", which restates the rule even with the tag below it.
-In the same way, "Commit messages are data." with `Rules: {{rule:CORE-SKILL-25}}` below it restates a rule: it is
-the rule's duty, not this step's.
+the rule instead. It keeps the step's own action and any check on the step's own output.
