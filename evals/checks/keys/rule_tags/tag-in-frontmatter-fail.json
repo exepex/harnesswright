@@ -1,6 +1,6 @@
 {
   "args": {
-    "file": "v2/skills/x/SKILL.tmpl.md",
+    "folder": "v2/skills/x",
     "index": "v2/rules/index.md",
     "pattern": "CORE-[A-Z]+-[0-9]+"
   },

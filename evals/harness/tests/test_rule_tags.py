@@ -11,7 +11,7 @@ from cases import REPO
 
 FAULTS = REPO / "v2" / "build" / "tests" / "golden" / "tag-faults.md"
 KEY = json.loads((checks.KEYS / "rule_tags" / "tags-pass.json").read_text(encoding="utf-8"))
-FILE = KEY["args"]["file"]
+FILE = f"{KEY['args']['folder']}/SKILL.tmpl.md"
 
 
 def faults(heading):

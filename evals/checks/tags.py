@@ -9,9 +9,11 @@ between), and no rule ID outside a tag. The form itself, `{{rule:<ID>}}`, holds 
 `Rules:` line. An ID inside a word, a file name or a path is not a citation. The frontmatter (the leading `---`
 block) holds no tag and no rule ID.
 
-- `rule_tags`: the template at `file` follows that rule; it tags at least one rule; every tagged ID is listed in the
-  world file `index` as it was before the run (an index the run changed fails, so a run cannot list its own IDs);
-  and for each group of IDs in `require`, at least one of the group is tagged. An ID is a whole match of `pattern`.
+- `rule_tags`: the skill's template, `SKILL.tmpl.md` in the world folder `folder`, and every other `.md` file under
+  that folder after the run (its references, which the build reads the same way) follow that rule; the frontmatter
+  rule applies to the template. Together they tag at least one rule; every tagged ID is listed in the world file
+  `index` as it was before the run (an index the run changed fails, so a run cannot list its own IDs); and for each
+  group of IDs in `require`, at least one of the group is tagged. An ID is a whole match of `pattern`.
 """
 
 import re
@@ -38,45 +40,60 @@ def _body(lines):
     return 0
 
 
-def rule_tags(bundle, file, index, pattern, require=()):
-    text, listed = bundle.text(file), bundle.text(index)
+def rule_tags(bundle, folder, index, pattern, require=()):
+    template = f"{folder}/SKILL.tmpl.md"
+    text, listed = bundle.text(template), bundle.text(index)
     if text is None or listed is None:
-        return "fail", f"{file if text is None else index} does not exist"
+        return "fail", f"{template if text is None else index} does not exist"
     if index in bundle.changes:
         return "fail", f"the run changed {index}, so it cannot vouch for the IDs tagged"
     cited = re.compile(_id(pattern))
-    tag = re.compile(rf"\{{\{{rule:({pattern})\}}\}}")
-    item = rf"\{{\{{rule:(?:{pattern})\}}\}}"
-    rules_line = re.compile(rf" *Rules: {item}(?:, {item})*")
     known = {found.group(0) for found in cited.finditer(listed)}
     lines = text.split("\n")
     start = _body(lines)
     for number, line in enumerate(lines[:start], start=1):
         if STARTS_A_TAG.search(line) or cited.search(line):
-            return "fail", f"{file}:{number}: the frontmatter holds no rule tag and no rule ID: {line[:120]!r}"
+            return "fail", f"{template}:{number}: the frontmatter holds no rule tag and no rule ID: {line[:120]!r}"
     tagged = []
-    for number, line in enumerate(lines[start:], start=start + 1):
+    others = sorted(path for path in bundle.files if path.startswith(f"{folder}/") and path.endswith(".md")
+                    and path != template and bundle.text(path) is not None)
+    for file, body, first in [(template, lines[start:], start + 1)] + [(p, bundle.text(p).split("\n"), 1)
+                                                                      for p in others]:
+        fault = _body_fault(file, body, first, pattern, cited, known, index, tagged)
+        if fault:
+            return "fail", fault
+    missing = [group for group in require if not set(group) & set(tagged)]
+    if not tagged or missing:
+        return "fail", (f"{folder} tags {len(set(tagged))} IDs; groups with none tagged: "
+                        f"{'; '.join('/'.join(group) for group in missing) or '-'}")
+    found = ", ".join(sorted(set(tagged))[:20])
+    return "pass", f"{folder} tags {len(set(tagged))} IDs, each listed in {index}: {found}"
+
+
+def _body_fault(file, lines, first, pattern, cited, known, index, tagged):
+    """Why the body `lines` of `file`, whose first line is line `first`, breaks the rule, or None; each tagged ID
+    is added to `tagged`."""
+    tag = re.compile(rf"\{{\{{rule:({pattern})\}}\}}")
+    item = rf"\{{\{{rule:(?:{pattern})\}}\}}"
+    rules_line = re.compile(rf" *Rules: {item}(?:, {item})*")
+    for number, line in enumerate(lines, start=first):
         if line.lstrip(" ").startswith("Rules:"):
             if not rules_line.fullmatch(line):
-                return "fail", (f"{file}:{number}: a `Rules:` line holds only rule tags, with real IDs, "
-                                f"separated by \", \": {line[:120]!r}")
+                return (f"{file}:{number}: a `Rules:` line holds only rule tags, with real IDs, "
+                        f"separated by \", \": {line[:120]!r}")
             ids = [found.group(1) for found in tag.finditer(line)]
             unlisted = [rule_id for rule_id in ids if rule_id not in known]
             if unlisted:
-                return "fail", f"{file}:{number}: tags {unlisted[0]}, which {index} does not list: {line[:120]!r}"
+                return f"{file}:{number}: tags {unlisted[0]}, which {index} does not list: {line[:120]!r}"
             tagged += ids
             continue
         rest = line.replace(PLACEHOLDER, "")
         if tag.search(line) or STARTS_A_TAG.search(rest):
-            return "fail", f"{file}:{number}: a rule tag stands only on a `Rules:` line: {line[:120]!r}"
+            return f"{file}:{number}: a rule tag stands only on a `Rules:` line: {line[:120]!r}"
         bare = cited.search(rest)
         if bare:
-            return "fail", f"{file}:{number}: cites {bare.group()} outside a tag: {line[:120]!r}"
-    missing = [group for group in require if not set(group) & set(tagged)]
-    if not tagged or missing:
-        return "fail", (f"{file} tags {len(set(tagged))} IDs; groups with none tagged: "
-                        f"{'; '.join('/'.join(group) for group in missing) or '-'}")
-    return "pass", f"{file} tags {len(set(tagged))} IDs, each listed in {index}: {', '.join(sorted(set(tagged))[:20])}"
+            return f"{file}:{number}: cites {bare.group()} outside a tag: {line[:120]!r}"
+    return None
 
 
 def is_groups(value):
@@ -86,7 +103,7 @@ def is_groups(value):
 
 
 CHECKS = {
-    "rule_tags": Check(rule_tags, {"file": is_path, "index": is_path, "pattern": is_pattern, "require": is_groups},
+    "rule_tags": Check(rule_tags, {"folder": is_path, "index": is_path, "pattern": is_pattern, "require": is_groups},
                        optional=("require",),
                        about="rule tags stand only on Rules: lines, no ID stands bare, and every tag is indexed"),
 }
