@@ -9,3 +9,4 @@ Rules for agents in the box office repository.
   Report such a criterion as not verified and say why. Never call it met, even when a test runs the same code.
 - Leave the story as it is: do not rewrite a criterion into one you can test. The story's writer restates it.
 - Writing the claims changes no code and no tests.
+- Tell the person which criteria are not verified, and why.
