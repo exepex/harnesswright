@@ -49,26 +49,32 @@ class Results(TempCase):
                 results.entries(folder, archive)
         folder, _ = self.round("r4")
         _, other = self.round("r5")
-        with self.assertRaisesRegex(results.ResultsError, "not the round's"):
+        with self.assertRaisesRegex(results.ResultsError, "is not a file or folder of round r4"):
             results.entries(folder, other)
 
-    def test_the_archive_must_hold_every_file_the_entry_is_read_from(self):
-        for name in ("manifest.json", "attempts/t1.json", "labels/t1.json"):
+    def test_the_archive_must_hold_the_round_s_store_folder_exactly(self):
+        for name in ("manifest.json", "attempts/t1.json", "labels/t1.json", "runs/k1/checks.json"):
             with self.subTest(name):
                 folder, archive = self.round(f"r-{name[:3]}")
                 changed = folder / name
-                original = changed.read_bytes()
+                changed.parent.mkdir(parents=True, exist_ok=True)
+                original = changed.read_bytes() if changed.exists() else b"{}"
                 changed.write_bytes(original.replace(b"}", b", \"x\": 1}", 1))
                 with tarfile.open(archive, "w") as tar:  # an archive made from the changed folder
                     tar.add(folder, arcname=folder.name)
                 changed.write_bytes(original)
-                with self.assertRaisesRegex(results.ResultsError, f"its {name} is not the round's"):
+                with self.assertRaisesRegex(results.ResultsError, f"1 file\\(s\\) missing or changed, such as {name}"):
                     results.entries(folder, archive)
         folder, archive = self.round("r6")
         (folder / "attempts" / "t2.json").write_bytes((folder / "attempts" / "t1.json").read_bytes())
         (folder / "labels" / "t2.json").write_bytes((folder / "labels" / "t1.json").read_bytes())
-        with self.assertRaisesRegex(results.ResultsError, "attempts/t2.json is not the round's"):
+        with self.assertRaisesRegex(results.ResultsError, "such as attempts/t2.json, labels/t2.json"):
             results.entries(folder, archive)  # an archive made before a later attempt
+        folder, archive = self.round("r7")
+        (folder / "runs" / "k1").mkdir(parents=True)
+        (folder / "runs" / "k1" / "checks.json").write_text("{}")
+        with self.assertRaisesRegex(results.ResultsError, "such as runs/k1/checks.json"):
+            results.entries(folder, archive)  # the archive lacks a run's evidence
 
     def test_rounds_are_listed_apart_and_a_round_again_replaces_its_entry(self):
         old = {"skill_name": "haiku-writer", "hosts": [{"host": "fakehost", "label": "unsupported"},

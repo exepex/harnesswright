@@ -4,9 +4,9 @@ each skill on each host can be checked against the round's archive.
 One rule: a results entry is a copy, never a new judgement. For each skill the round labelled, it keeps the round's
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
-hashed, and the file name and sha256 of the round's store archive. The archive must hold, byte for byte, every file
-the entry was read from, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
-read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
+hashed, and the file name and sha256 of the round's store archive. The archive must hold the round's store folder
+exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is read only when
+its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
@@ -56,39 +56,58 @@ def finished(folder):
     return attempts[-1], Path(folder, "labels", attempts[-1].name)
 
 
+def _folder_files(folder):
+    """{path in the round's folder: sha256} of every file under `folder`. A link is refused."""
+    found = {}
+    for path in sorted(folder.rglob("*")):
+        if path.is_symlink():
+            raise ResultsError(f"{path}: a round's store holds no links")
+        if path.is_file():
+            found[path.relative_to(folder).as_posix()] = _sha256(path)
+    return found
+
+
+def _archive_files(archive, round_name):
+    """{path in the round's folder: sha256} of every file the tar file `archive` holds under `<round>/`."""
+    found = {}
+    try:
+        with tarfile.open(archive) as tar:
+            for member in tar.getmembers():
+                inside = member.name.startswith(f"{round_name}/") or member.name == round_name
+                if not inside or not (member.isfile() or member.isdir()):
+                    raise ResultsError(f"{archive}: {member.name} is not a file or folder of round {round_name}")
+                if member.isfile():
+                    digest, handle = hashlib.sha256(), tar.extractfile(member)
+                    for block in iter(lambda: handle.read(1 << 20), b""):
+                        digest.update(block)
+                    found[member.name[len(round_name) + 1:]] = digest.hexdigest()
+    except (OSError, tarfile.TarError) as error:
+        raise ResultsError(f"{archive}: not the archive of round {round_name}: {error}") from None
+    return found
+
+
 def entries(folder, archive):
     """{skill: results entry} of the finished round in `folder`, whose store archive is the tar file `archive`.
 
-    One rule: every file the entry is read from (the manifest, the last attempt record, its label file) must be in
-    the archive with the same bytes, so the archive named is the one that recomputes each label."""
+    One rule: the archive holds the round's store folder exactly, every file with the same bytes and no other, so
+    the archive named holds everything that recomputes each label (its runs, checks and grades too)."""
     folder, archive = Path(folder), Path(archive)
     attempt_path, labels_path = finished(folder)
-    sources = [Path("manifest.json"), attempt_path.relative_to(folder), labels_path.relative_to(folder)]
-    read = {}
-    for source in sources:
-        try:
-            read[source] = (folder / source).read_bytes()
-        except OSError as error:
-            raise ResultsError(f"{folder / source}: cannot be read: {error}") from None
     try:
-        record, attempt, labels = (json.loads(read[source]) for source in sources)
-    except ValueError as error:
-        raise ResultsError(f"{folder}: a round file is not JSON: {error}") from None
+        manifest = (folder / "manifest.json").read_bytes()
+        record, attempt, labels = json.loads(manifest), _read(attempt_path), _read(labels_path)
+    except (OSError, ValueError) as error:
+        raise ResultsError(f"{folder}: a round file cannot be read: {error}") from None
     kit = next(g for g in attempt["gates"] if g["gate"] == "kit check")["outcome"].get("approved")
     if kit != record["kit"]:
         raise ResultsError(f"{folder}: its kit check named kit {kit}, not the manifest's {record['kit']}")
-    try:
-        with tarfile.open(archive) as tar:
-            names = set(tar.getnames())
-            for source in sources:
-                name = f"{record['round']}/{source.as_posix()}"
-                member = tar.extractfile(name) if name in names else None
-                if member is None or member.read() != read[source]:
-                    raise ResultsError(f"{archive}: its {source.as_posix()} is not the round's (missing or changed)")
-    except (OSError, tarfile.TarError) as error:
-        raise ResultsError(f"{archive}: not the archive of round {record['round']}: {error}") from None
+    held, archived = _folder_files(folder), _archive_files(archive, record["round"])
+    differ = sorted(set(held) ^ set(archived) | {p for p in set(held) & set(archived) if held[p] != archived[p]})
+    if differ:
+        raise ResultsError(f"{archive}: not round {record['round']}'s store folder byte for byte; "
+                           f"{len(differ)} file(s) missing or changed, such as {', '.join(differ[:3])}")
     common = {"round": record["round"], "attempt": labels["attempt"], "commit": labels["commit"],
-              "manifest_sha256": hashlib.sha256(read[sources[0]]).hexdigest(), "kit": record["kit"],
+              "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"],
               "archive": {"file": archive.name, "sha256": _sha256(archive)}, "not_run": NOT_RUN,
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     return {skill: {**common, "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
