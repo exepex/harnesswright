@@ -98,6 +98,16 @@ its work is done? It is graded and calibrated by goldens like any other question
 label gives, per arm, the false-done rate: runs whose trusted answer is `yes` while a contract expectation failed,
 of the runs where both are decided, with the runs not decided counted apart.
 
+`python3 evals/harness/rounds.py results ROUND --store DIR --archive TAR` copies a finished round into
+`evals/results/<skill>.json` for each skill it labelled (`results.py`): each host's label file entry whole, with the
+round's name, attempt, commit, manifest hash, kit hash, reference host, price date and thresholds, and the name and
+sha256 of `TAR`, the archive of the round's store folder. It refuses a round whose last attempt did not pass every
+gate, or whose kit check named another kit than its manifest's. `TAR` must hold the round's store folder exactly,
+every file with the same bytes and no other, so it holds every run, check and grade that recomputes each label.
+Rounds are listed apart, never combined; the same round again replaces its entry. Labels from the phase 2 runner
+stay under `phase_2_runner` for each host no round has run yet. Each entry says `not_run: skill-fault gate`
+until that gate exists.
+
 ## Cross-model grading
 
 `regrade.py` grades every page a finished round graded again, once per grader route (doc 11, Cross-model grading).
