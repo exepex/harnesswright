@@ -370,10 +370,13 @@ def _seen(case, record, blob):
 
 
 def _shown(case, record, blob, names):
-    """The names that the view of `record` (its record and every blob) or its page holds."""
+    """The names that the view of `record` (its record and every blob) or its page holds, each as a whole name: by
+    the view's own rule, not inside a longer name such as `rules-text-<skill>.core.md`, a file the run itself made.
+    The test is written here, not taken from `world.names`, so a fault in that pattern cannot hide itself."""
     seen, blobs, page = _seen(case, record, blob)
     text = json.dumps(seen, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
-    return [name for name in names if name in text + page]
+    return [name for name in names
+            if re.search(f"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])", text + page)]
 
 
 PLANTS = {
