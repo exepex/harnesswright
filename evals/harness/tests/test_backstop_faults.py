@@ -7,6 +7,7 @@ from unittest import mock
 
 from test_faults import Fake
 from test_host import JAIL
+from test_world import AGENTS, INDEX
 
 import backstop
 import backstop_faults
@@ -25,6 +26,14 @@ class Copied(Fake):
                 outcome = faults.run(COPIED, setup, seed=3, place=place)
                 self.assertEqual((outcome["caught"], outcome["reason"]), (True, None))
                 self.assertEqual(len(outcome["bundles"]), 1)
+
+    def test_a_trigger_case_whose_world_is_read_only_is_planted_in_its_message_only(self):
+        setup = self.setup_of(data={"kind": "trigger", "should_trigger": True, "split": "test", "index": INDEX},
+                              files={"AGENTS.md": AGENTS})
+        outcomes = [faults.run(COPIED, setup, seed) for seed in range(4)]
+        self.assertEqual({(o["place"], o["caught"]) for o in outcomes}, {("message", True)})
+        with self.assertRaisesRegex(faults.FaultError, "not one of its places"):
+            faults.run(COPIED, setup, 1, place="file")
 
     def test_the_passage_is_the_skill_s_own_text_long_enough_to_void(self):
         setup = self.setup_of()

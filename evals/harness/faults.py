@@ -110,8 +110,11 @@ def run(fault, setup, seed, place=None):
     of the runs' stored bundles. From these the judges decide each was caught."""
     plant, places, _ = plants()[fault["id"]]
     files = getattr(setup.adapter, "CREDENTIAL_FILES", ())
-    has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ())}
-    places = tuple(p for p in places if has.get(p, True))  # a host has no place for a sign-in it does not use
+    # A host has no place for a sign-in it does not use, and a trigger run's world is read-only (`contain`), so no
+    # run of a trigger case can write a file there.
+    has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ()),
+           "file": setup.case.kind == "task"}
+    places = tuple(p for p in places if has.get(p, True))
     rng, stored, made = random.Random(seed), len(setup.bundles), len(setup.made)
     place = place or rng.choice(places)
     if place not in places:
