@@ -205,6 +205,14 @@ class Runs(Round):
         listed = json.loads((Path(made["bundle"]).parent / "backstop.json").read_text())["short"]
         self.assertEqual({length for _, length, _ in listed}, {10})
 
+    def test_what_a_without_skill_run_leaves_in_its_world_never_stops_the_backstop(self):
+        self.prompt(json.dumps([{"do": "command", "command": "mkfifo pipe"}, {"do": "say", "text": "Done."}]))
+        record = self.plan()
+        made = self.run_one(record, "without_skill")  # the skill's runs come from the proved arm, not the world after
+        self.assertEqual(made["status"], "made")
+        bundle, _ = evidence.load(made["bundle"])
+        self.assertIn("pipe", bundle["diff"])
+
     def test_a_repository_that_moved_on_from_the_round_commit_is_refused(self):
         record = self.plan()
         (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text("---\nname: haiku-writer\ndescription: "

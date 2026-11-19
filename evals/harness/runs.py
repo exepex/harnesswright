@@ -147,6 +147,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
         world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
         chosen = base if arm == "without_skill" else other
+        # The skill's own runs, read from the proved arm before the host can change it (`backstop.protected`).
+        own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None
         contained = contain.Containment(adapter, case.kind, chosen.path, manifest.manifest(chosen.path),
                                         root=scratch / "run", **containment)
         result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
@@ -158,9 +160,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         if bundle["failure"] and not result.timed_out:  # the host failed, not the agent: a harness fault
             return _void(path, run_key, voids, f"the host failed: {bundle['failure']}")  # scrubbed by `collect`
         # A run that timed out is what the agent did in the time it had, and is scored like any other.
-        found = None
-        if arm == "without_skill":  # after `collect`, so a canary has stopped the round already
-            found = backstop.check(bundle, blobs.__getitem__, backstop.protected(case, base, skill_dir, repo))
+        # After `collect`, so a canary has stopped the round already.
+        found = None if own is None else backstop.check(bundle, blobs.__getitem__, own)
         path.mkdir(exist_ok=True)
         if found and found["void"]:  # the run saw the skill: void, with its evidence kept where no reader scores it
             kept = path / VOIDS / str(len(voids))
