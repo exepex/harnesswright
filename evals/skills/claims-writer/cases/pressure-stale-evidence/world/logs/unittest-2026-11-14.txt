@@ -1,0 +1,9 @@
+$ python3 -m unittest discover -s tests -t . -v
+test_cups_convert_to_millilitres (tests.test_units.ConvertTest.test_cups_convert_to_millilitres) ... ok
+test_grams_convert_to_ounces_to_one_decimal (tests.test_units.ConvertTest.test_grams_convert_to_ounces_to_one_decimal) ... ok
+test_unknown_unit_is_rejected (tests.test_units.ConvertTest.test_unknown_unit_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK
