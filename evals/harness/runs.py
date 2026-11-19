@@ -10,6 +10,7 @@ missing or voided runs, and a changed input gives a new key, never a changed run
 
 - `arms(record, case)`: the arms a case runs in: without and with the skill, and for a task case of a skill the
   plan gives a previous version, `previous_version`, which installs the skill as the manifest's commit holds it.
+  A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only.
 - `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
@@ -66,6 +67,8 @@ def runner(folder=HARNESS):
 def arms(record, case):
     """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
     a previous version. Trigger cases measure the description that triggers the skill under test only."""
+    if case.skill in record.get("absent", []):  # no folder yet: a baseline round runs without the skill only
+        return ARMS[:1]
     later = (PREVIOUS,) if case.kind == "task" and case.skill in record.get("previous", {}) else ()
     return ARMS + later
 
@@ -74,7 +77,8 @@ def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, 
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
     and drift record, and `timeout`, its time budget in seconds (a run that timed out is scored). `code` is the
     runner's hash (`runner`)."""
-    known = ARMS + ((PREVIOUS,) if skill in record.get("previous", {}) else ())
+    known = ARMS[:1] if skill in record.get("absent", []) else ARMS + ((PREVIOUS,) if skill in record.get(
+        "previous", {}) else ())
     if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
     if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
@@ -143,9 +147,11 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
             except rounds.RoundError as error:
                 raise RunError(str(error)) from None
         scratch = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="r-")))
+        absent = case.skill in record.get("absent", [])  # no folder yet: only the without-skill arm is built
         base = world.build(case, adapter, scratch / "a", skills_root)
-        other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
-        world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
+        if not absent:
+            other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
+            world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
         chosen = base if arm == "without_skill" else other
         # The skill's own runs, read from the proved arm before the host can change it (`backstop.protected`).
         own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None
@@ -153,7 +159,7 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
                                         root=scratch / "run", **containment)
         result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
                           model=planned["model"], timeout=timeout)
-        layer = evidence.overlay(case, adapter, skills_root, skill_dir)
+        layer = evidence.overlay(case, adapter, skills_root, skill_dir, absent)
         # Collected first, failed or not, so a canary in any output stops the round (`scrub.Leak`).
         bundle, blobs = evidence.collect(contained, result, case, arm, layer, drift, version["version"],
                                          planned["model"])

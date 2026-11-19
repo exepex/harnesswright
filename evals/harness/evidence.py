@@ -37,10 +37,12 @@ class EvidenceError(RuntimeError):
     """A bundle cannot be made or stored as this module says. The round stops."""
 
 
-def overlay(case, adapter, skills_root=None, skill_dir=None):
+def overlay(case, adapter, skills_root=None, skill_dir=None, absent=False):
     """What the with-skill arm of `case` adds to the without-skill arm: the skill, the paths it is installed at (its
     declared folder and the host's discovery copy), its index file and row, and the index file's entry in the
-    without-skill arm (all three None without an index)."""
+    without-skill arm (all three None without an index). A skill with no folder yet (`absent`) adds nothing."""
+    if absent:
+        return {"skill": case.skill, "paths": [], "index": None, "row": None, "index_without": None}
     skill = worlds.plan(case, adapter, True, skills_root, skill_dir)[-1]  # the plan installs the skill last
     index = case.index["file"] if case.index else None
     without = worlds.expected(case, worlds.plan(case, adapter, False, skills_root, skill_dir))[0]

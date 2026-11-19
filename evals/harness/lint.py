@@ -284,6 +284,8 @@ def protected(case, places, copied, skill_dir, upstream=(), repo=REPO, sizes=fro
     one of them."""
     project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
                        + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | set(sizes))
+    if skill_dir is None:  # a skill with no folder yet (a baseline round) has no text of its own to protect
+        return project, set()
     files, _ = skill_files(skill_dir, case.skill)
     return project, all_runs((data.decode("utf-8", "replace") for data in files.values()), {RUN}) - project
 
@@ -355,9 +357,12 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
 
 def lint_case(case, adapter, out, skills_root, skill_dir=None, upstream=(), kit=(), repo=REPO, cases=()):
     """Lint `case` as it will run: build both arms in the empty folder `out` with `skill_dir`, the skill folder the
-    run uses, prove them, and lint the without-skill arm. Raise CaseError when the case cannot run."""
+    run uses, prove them, and lint the without-skill arm. A skill with no folder yet has only that arm. Raise
+    CaseError when the case cannot run."""
     skill_dir = Path(skill_dir) if skill_dir else library(skills_root).get(case.skill)
     base = world.build(case, adapter, Path(out) / "without", skills_root)
+    if skill_dir is None:  # no folder yet: only the without-skill arm runs (rounds.plan, `absent`)
+        return lint(case, base, None, upstream, kit, repo, cases)
     with_arm = world.build(case, adapter, Path(out) / "with", skills_root, True, skill_dir)
     world.prove(case, adapter, base, with_arm, skills_root, skill_dir)
     return lint(case, base, skill_dir, upstream, kit, repo, cases)
