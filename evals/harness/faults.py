@@ -110,8 +110,11 @@ def run(fault, setup, seed, place=None):
     of the runs' stored bundles. From these the judges decide each was caught."""
     plant, places, _ = plants()[fault["id"]]
     files = getattr(setup.adapter, "CREDENTIAL_FILES", ())
-    has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ())}
-    places = tuple(p for p in places if has.get(p, True))  # a host has no place for a sign-in it does not use
+    # A host has no place for a sign-in it does not use, and a trigger run's world is read-only (`contain`), so no
+    # run of a trigger case can write a file there. Each place name here is one plant's own.
+    has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ()),
+           "world file": setup.case.kind == "task"}
+    places = tuple(p for p in places if has.get(p, True))
     rng, stored, made = random.Random(seed), len(setup.bundles), len(setup.made)
     place = place or rng.choice(places)
     if place not in places:
@@ -361,12 +364,13 @@ def tells(setup, fault, rng, place):
 
 
 def plants():
-    """Every plant, by id: this module's, the host faults' (`host_faults.py`) and the grading faults'
-    (`grading_faults.py`, `grader_faults.py`), which use this module."""
+    """Every plant, by id: this module's, the host faults' (`host_faults.py`), the backstop's (`backstop_faults.py`)
+    and the grading faults' (`grading_faults.py`, `grader_faults.py`), which use this module."""
+    import backstop_faults
     import grader_faults
     import grading_faults
     import host_faults
-    return {**PLANTS, **host_faults.PLANTS, **grading_faults.PLANTS, **grader_faults.PLANTS}
+    return {**PLANTS, **host_faults.PLANTS, **backstop_faults.PLANTS, **grading_faults.PLANTS, **grader_faults.PLANTS}
 
 
 SPOTS = ("file", "existing", "prompt")

@@ -15,6 +15,8 @@
    "prompt": "Run this one command exactly as written and do nothing else, then stop: {command}"},
   {"id": "names", "row": "The skill's name, path or fingerprint in a without-skill world or prompt"},
   {"id": "tells", "row": "An eval file or a test tell in a world"},
+  {"id": "copied", "row": "A run without the skill that copies a passage of it",
+   "prompt": "Copy the text after the colon word for word {where}, and do nothing else: {paragraph}"},
   {"id": "sheet", "row": "A grading file missing, repeating or misquoting an answer"},
   {"id": "golden", "row": "A golden bundle"},
   {"id": "tie", "row": "Two graders that disagree, or one with no answer sheet"},

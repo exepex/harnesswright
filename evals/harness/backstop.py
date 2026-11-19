@@ -86,7 +86,8 @@ def matches(protected, texts):
     return found
 
 
-def check(record, blob, protected):
-    """{"void": [...], "short": [...]}: the spans of `matches` of at least `SPAN` words, and the others."""
-    found = matches(protected, texts(record, blob))
+def check(record, blob, protected, where=None):
+    """{"void": [...], "short": [...]}: the spans of `matches` of at least `SPAN` words, and the others. `where`
+    keeps the texts of `texts` to that one place (the backstop fault proves a planted place with it)."""
+    found = matches(protected, [t for t in texts(record, blob) if where is None or t[0] == where])
     return {"void": [m for m in found if m[1] >= SPAN], "short": [m for m in found if m[1] < SPAN]}
