@@ -34,6 +34,10 @@ class Plans(TempCase):
     def test_a_plan_with_every_field_in_its_shape_is_read(self):
         self.assertEqual(rounds.read_plan(self.write_plan()), PLAN)
 
+    def test_a_plan_may_name_the_case_its_faults_are_planted_on(self):
+        data = {**PLAN, "fault_case": {"skill": "haiku-writer", "case": "c1"}}
+        self.assertEqual(rounds.read_plan(self.write_plan(data)), data)
+
     def test_a_plan_may_name_a_previous_version_by_its_full_commit(self):
         data = {**PLAN, "previous": {"haiku-writer": "a" * 40}}
         self.assertEqual(rounds.read_plan(self.write_plan(data)), data)
@@ -58,6 +62,8 @@ class Plans(TempCase):
             "an empty previous": {**PLAN, "previous": {}},
             "a short previous commit": {**PLAN, "previous": {"haiku-writer": "abc1234"}},
             "a previous for a skill not run": {**PLAN, "previous": {"limerick-writer": "a" * 40}},
+            "a fault case with no case": {**PLAN, "fault_case": {"skill": "haiku-writer"}},
+            "a fault case that is a path": {**PLAN, "fault_case": {"skill": "haiku-writer", "case": "../c1"}},
         }
         for why, data in wrong.items():
             with self.subTest(why), self.assertRaises(rounds.RoundError):
@@ -182,6 +188,48 @@ class Manifests(TempCase):
         path.write_text(json.dumps(PLAN))
         with self.assertRaisesRegex(rounds.RoundError, "not found"):
             rounds.plan(path, repo=self.repo, adapters=self.adapters, version=missing)
+
+    def new_skill(self, kind="task"):
+        """Cases of limerick-writer, a skill with no folder yet."""
+        case = self.repo / "evals" / "skills" / "limerick-writer" / "cases" / "l1"
+        (case / "world").mkdir(parents=True, exist_ok=True)
+        (case / "world" / "README.md").write_text("# Notes app\n")
+        (case / "world" / "AGENTS.md").write_text("| Skill | Path | Use when |\n|---|---|---|\n")
+        index = {"file": "AGENTS.md", "after": "|---|---|---|", "row": "| {name} | [{path}]({path}) | {description} |"}
+        fields = {"should_trigger": True, "split": "test", "index": index} if kind == "trigger" else {}
+        (case / "case.json").write_text(json.dumps({"prompt": "Write a limerick.", "kind": kind, **fields}))
+        self.commit()
+
+    def test_a_skill_with_cases_but_no_folder_is_absent_and_never_installed(self):
+        self.new_skill()
+        record = self.plan({**PLAN, "skills": {"haiku-writer": ["c1"], "limerick-writer": ["l1"]}})
+        self.assertEqual(record["absent"], ["limerick-writer"])
+        self.assertEqual(sorted(record["skills"]), ["haiku-writer"])
+        self.assertEqual(list(record["cases"]["limerick-writer"]), ["l1"])
+        self.assertEqual(self.plan()["absent"], [])
+
+    def test_an_absent_skill_alone_needs_a_fault_case_of_a_skill_the_repository_holds(self):
+        self.new_skill()
+        alone = {**PLAN, "skills": {"limerick-writer": ["l1"]}}
+        with self.assertRaisesRegex(rounds.RoundError, "fault_case"):
+            self.plan(alone)
+        record = self.plan({**alone, "fault_case": {"skill": "haiku-writer", "case": "c1"}})
+        self.assertEqual(list(record["skills"]), ["haiku-writer"])  # the fault gate installs it
+        self.assertEqual(record["fault_case"], {"skill": "haiku-writer", "case": "c1",
+                                                "sha256": Case(self.world.parent, "haiku-writer").sha256})
+        for chosen in ({"skill": "limerick-writer", "case": "l1"}, {"skill": "haiku-writer", "case": "c9"}):
+            with self.subTest(chosen=chosen), self.assertRaisesRegex(rounds.RoundError, "fault_case"):
+                self.plan({**alone, "fault_case": chosen})
+
+    def test_an_absent_skill_runs_task_cases_without_a_previous_version(self):
+        self.new_skill("trigger")
+        chosen = {"fault_case": {"skill": "haiku-writer", "case": "c1"}}
+        with self.assertRaisesRegex(rounds.RoundError, "no folder yet"):
+            self.plan({**PLAN, "skills": {"limerick-writer": ["l1"]}, **chosen})
+        self.new_skill()
+        with self.assertRaisesRegex(rounds.RoundError, "no folder yet"):
+            self.plan({**PLAN, "skills": {"limerick-writer": ["l1"]}, "previous": {"limerick-writer": "a" * 40},
+                       **chosen})
 
     def test_a_manifest_is_written_once_outside_the_working_tree(self):
         record = self.plan()

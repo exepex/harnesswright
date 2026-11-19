@@ -66,6 +66,16 @@ class Goldens(TempCase):
             self.assertIn(shown, page)
         self.assertNotIn("A notes app.", page)  # a command's output never reaches a grader, as in every run
 
+    def test_a_golden_of_a_skill_with_no_folder_yet_is_a_run_without_the_skill(self):
+        new = self.case({"README.md": "A notes app.\n"}, {"expectations": EXPECT}, skill="limerick-writer")
+        self.write("g.json", GOLDEN)
+        [golden] = goldens.load(new, self.folder)
+        record, _ = goldens.bundle(golden, new, fake_adapter(), self.tmp / "out", DRIFT, "fakehost 1.0", "fast",
+                                   self.tmp / "skills")  # the grade gate builds every golden so
+        self.assertEqual(record["overlay"], {"skill": "limerick-writer", "paths": [], "index": None, "row": None,
+                                             "index_without": None})
+        self.assertEqual(sorted(record["diff"]), ["README.md", "notes.txt"])
+
     def test_a_golden_s_text_is_seen_through_the_same_view_as_a_run_s(self):
         log = [*LOG[:2], {"kind": "message", "source": "observed", "text": "Read .harness/active/SKILL.md.\nDone."}]
         record, blobs = self.built({**GOLDEN, "log": log})

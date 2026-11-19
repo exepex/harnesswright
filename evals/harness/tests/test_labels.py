@@ -155,6 +155,14 @@ class Decide(unittest.TestCase):
                          {"label": "incomplete", "gaps": ["test trigger cases: none",
                                                           "t, with_skill, run 4: not scored (void)"]})
 
+    def test_a_skill_with_no_folder_yet_gives_its_baseline_and_is_incomplete(self):
+        found = labels.summary({"t": case()}, {("t", "without_skill"): [True, False, False]}, absent=True)
+        self.assertEqual((found["absent"], found["baseline_pass_rate"], found["task_pass_rate"], found["runs"]),
+                         (True, 0.3333, None, {"t, without_skill": 3}))
+        decided = labels.decide({**found, **formatted()}, [])
+        self.assertEqual(decided["label"], "incomplete")
+        self.assertEqual(decided["gaps"][:2], ["the skill: no folder yet, a baseline round", "test trigger cases: none"])
+
     def test_every_doubt_is_named_and_keeps_the_label_inconclusive(self):
         found = labels.decide(measured(task=(1, 1)), [])
         self.assertEqual(found, {"label": "inconclusive", "gaps": ["t, with_skill: 2 scored run(s), 3 needed"]})
