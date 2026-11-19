@@ -45,9 +45,13 @@ def copied(setup, fault, rng, place):
     found = backstop.check(record, blob, own)
     if not found["void"]:
         return f"the backstop did not void the run: its longest match was {_longest(found)} words"
+    # The gate itself must void the planted place alone: the run's record kept to that one text, so a void found
+    # only in another text (the prompt echoed in the transcript or the action log) is a miss.
     where = f"world/{planted['file']}" if place == "world file" else "final message"
-    at = [(w, text) for w, text in backstop.texts(record, blob) if w == where]
-    if not any(length >= backstop.SPAN for _, length, _ in backstop.matches(own, at)):
+    alone = {**record, "transcript": {}, "log": [], "final_message": record["final_message"] if place == "message" else "",
+             "diff": {path: change for path, change in record["diff"].items()
+                      if place == "world file" and path == planted["file"]}}
+    if not backstop.check(alone, blob, own)["void"]:
         return f"the backstop voided the run, but not for the passage at {where}: {found['void'][0][0]}"
     return None
 

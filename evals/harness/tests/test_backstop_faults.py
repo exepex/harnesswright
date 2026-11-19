@@ -56,6 +56,21 @@ class Copied(Fake):
         self.assertFalse(outcome["caught"])
         self.assertIn("did not void the run", outcome["reason"])
 
+    def test_a_backstop_that_voids_only_for_another_text_is_a_miss(self):
+        setup = self.setup_of()
+        real = backstop.check
+
+        def blind(record, blob, own):  # a backstop that never reads changed files
+            return real({**record, "diff": {}}, blob, own)
+
+        setup.prompts = {"copied": lambda planted: json.dumps([
+            {"do": "say", "text": planted["paragraph"]},
+            {"do": "write", "path": planted["file"], "text": planted["paragraph"]}])}
+        with mock.patch.object(backstop, "check", blind):
+            outcome = faults.run(COPIED, setup, seed=3, place="world file")
+        self.assertFalse(outcome["caught"])
+        self.assertIn("not for the passage at world/", outcome["reason"])
+
     def test_a_void_for_another_text_is_a_miss(self):
         setup = self.setup_of()
         setup.prompts = {"copied": lambda planted: json.dumps([{"do": "say", "text": planted["paragraph"]}])}
