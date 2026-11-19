@@ -51,7 +51,7 @@ class Copied(Fake):
 
     def test_a_backstop_that_misses_the_passage_is_a_miss(self):
         setup = self.setup_of()
-        with mock.patch.object(backstop, "check", lambda record, blob, own: {"void": [], "short": []}):
+        with mock.patch.object(backstop, "check", lambda *args: {"void": [], "short": []}):
             outcome = faults.run(COPIED, setup, seed=3, place="world file")
         self.assertFalse(outcome["caught"])
         self.assertIn("did not void the run", outcome["reason"])
@@ -60,8 +60,8 @@ class Copied(Fake):
         setup = self.setup_of()
         real = backstop.check
 
-        def blind(record, blob, own):  # a backstop that never reads changed files
-            return real({**record, "diff": {}}, blob, own)
+        def blind(record, blob, own, where=None):  # a backstop that never reads changed files
+            return real({**record, "diff": {}}, blob, own, where)
 
         setup.prompts = {"copied": lambda planted: json.dumps([
             {"do": "say", "text": planted["paragraph"]},
