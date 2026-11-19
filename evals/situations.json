@@ -1,0 +1,15 @@
+{
+  "claims-writer": {
+    "applies": ["missing-input", "untestable-input", "lower-the-bar", "check-cannot-run", "self-judge",
+                "stale-evidence", "outside-text", "green-not-proven"],
+    "left_out": {}
+  },
+  "skill-designer": {
+    "applies": ["missing-input", "lower-the-bar", "check-cannot-run", "self-judge", "stale-evidence",
+                "outside-text"],
+    "left_out": {
+      "untestable-input": "Its inputs are a skill, a role and a stage, each present or missing; it reads no list of requirements that could be there but not testable.",
+      "green-not-proven": "It makes no claim that a requirement is met; a round that passes is its proof, and a round older than the skill is stale-evidence."
+    }
+  }
+}

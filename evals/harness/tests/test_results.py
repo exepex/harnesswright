@@ -34,8 +34,7 @@ class Results(TempCase):
         folder, archive = self.round()
         entry = results.entries(folder, archive)["haiku-writer"]
         self.assertEqual(entry["hosts"], {"fakehost": HOST})
-        self.assertEqual((entry["round"], entry["attempt"], entry["kit"], entry["not_run"]),
-                         ("r1", "t1", KIT, ["skill-fault gate"]))
+        self.assertEqual((entry["round"], entry["attempt"], entry["kit"]), ("r1", "t1", KIT))
         self.assertEqual((entry["reference"], entry["prices"], entry["thresholds"]),
                          ("fakehost", "2026-11-14", {"min_runs": 3}))
         self.assertEqual(entry["archive"]["file"], "r1.tar")
@@ -103,6 +102,6 @@ class Results(TempCase):
         [path] = results.publish(folder, archive, out)
         data = json.loads(path.read_text())
         self.assertEqual(data["rounds"][0]["hosts"], {"fakehost": HOST, "otherhost": HOST})
-        self.assertEqual(len(path.read_text().splitlines()), 32)  # 11 fields, each host 4 lines and its braces
+        self.assertEqual(len(path.read_text().splitlines()), 31)  # 10 fields, each host 4 lines and its braces
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)

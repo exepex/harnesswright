@@ -17,12 +17,16 @@ Plan file fields (`PLAN`), each with the one shape it may take; anything else is
 - `previous` (optional): `{skill: commit}`, for a skill of `skills`, the full commit of its previous version. Its
   task cases then run in a third arm, `previous_version`, with the skill as that commit holds it (`previous`).
 - `fault_case` (optional): `{"skill", "case"}`, a case of a skill the repository holds, on which the fault gate
-  plants its faults. Needed when every skill of the plan is absent.
+  plants its faults. Needed when no case of the plan is of a skill the repository holds and runs in both arms.
 
 A skill of `skills` with cases but no folder yet is `absent` in the manifest: its first baseline round, which runs
 its task cases without the skill only (`runs.arms`). It may have no trigger case and no previous version, and its
 label is at most `incomplete`. The fault gate plants on a case of a skill the repository holds, since every fault
-needs a skill's files.
+needs a skill's files, and that runs in both arms.
+
+The manifest records, for each skill, the situations `evals/situations.json` says its cases must cover (`listed`,
+null when the file does not list the skill) and the situation of each of its cases (doc 11, Pressure situations).
+A `check-cannot-run` case runs with the skill only (`runs.arms`), so a skill with no folder yet cannot run one.
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -231,18 +235,27 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
         held = skills.folders(repo)
         found["absent"] = sorted(name for name in data["skills"] if name not in held)  # cases, no folder yet
         for name in found["absent"]:
-            if name in data.get("previous", {}) or any(c.kind != "task" for c in known_cases[name].values()):
+            if name in data.get("previous", {}) or any(c.kind != "task" or c.situation in cases.SKILL_ONLY
+                                                       for c in known_cases[name].values()):
                 raise RoundError(f"{path}: {name} has no folder yet, so its round runs task cases without it only")
+        listed = cases.situations(Path(repo) / "evals" / "situations.json")  # a kit part, hashed with the kit
+        found["situations"] = {name: {"listed": listed.get(name), "cases": {
+            i: c.situation for i, c in sorted(known.items()) if c.situation}} for name, known in known_cases.items()}
         installed = set(data["skills"]) - set(found["absent"]) | siblings  # a sibling must be held
         if "fault_case" in data:  # the fault gate installs its skill too
             chosen = data["fault_case"]
             folder = Path(repo) / "evals" / "skills" / chosen["skill"] / "cases" / chosen["case"]
             if chosen["skill"] not in held or not folder.is_dir() or folder.is_symlink():
                 raise RoundError(f"{path}: fault_case is not a case of a skill the repository holds")
-            found["fault_case"] = {**chosen, "sha256": cases.Case(folder, chosen["skill"]).sha256}
+            planted_on = cases.Case(folder, chosen["skill"])
+            if planted_on.situation in cases.SKILL_ONLY:  # the fault gate needs both arms of its case
+                raise RoundError(f"{path}: fault_case runs with the skill only, so no fault can be planted on it")
+            found["fault_case"] = {**chosen, "sha256": planted_on.sha256}
             installed.add(chosen["skill"])
-        elif len(found["absent"]) == len(data["skills"]):
-            raise RoundError(f"{path}: every skill of the plan has no folder yet, so it names a fault_case")
+        elif not any(name not in found["absent"] and c.situation not in cases.SKILL_ONLY
+                     for name, known in known_cases.items() for c in known.values()):
+            # the fault gate plants on a case that runs in both arms, of a skill the repository holds
+            raise RoundError(f"{path}: no case of a skill with a folder runs in both arms, so it names a fault_case")
         found["skills"] = {name: skill(repo, name) for name in sorted(installed)}  # every skill an arm installs
         found["previous"] = {}
         for name, earlier in sorted(data.get("previous", {}).items()):

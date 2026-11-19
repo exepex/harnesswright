@@ -48,8 +48,8 @@ class Gated(Round):
 class Order(unittest.TestCase):
     def test_every_planned_run_once_with_cases_and_arms_interleaved(self):
         record = {"cases": {"s": {"c1": "", "c2": ""}}, "plan": {"runs": 2}}
-        task = SimpleNamespace(kind="task", skill="s")
-        found = list(gates.order(record, ["h"], {("s", "c1"): task, ("s", "c2"): task}))
+        found = list(gates.order(record, ["h"], {("s", i): SimpleNamespace(kind="task", skill="s", id=i)
+                                                 for i in ("c1", "c2")}))
         self.assertEqual(len(found), len(set(found)))
         self.assertEqual(len(found), 8)
         pairs = [found[i:i + 2] for i in range(0, 8, 2)]
@@ -59,8 +59,8 @@ class Order(unittest.TestCase):
 
     def test_a_previous_version_adds_a_third_arm_to_task_cases_only_and_each_arm_goes_first_in_turn(self):
         record = {"cases": {"s": {"c1": "", "t1": ""}}, "plan": {"runs": 3}, "previous": {"s": {}}}
-        cases = {("s", "c1"): SimpleNamespace(kind="task", skill="s"),
-                 ("s", "t1"): SimpleNamespace(kind="trigger", skill="s")}
+        cases = {("s", "c1"): SimpleNamespace(kind="task", skill="s", id="c1"),
+                 ("s", "t1"): SimpleNamespace(kind="trigger", skill="s", id="t1")}
         found = list(gates.order(record, ["h"], cases))
         self.assertEqual(len(found), len(set(found)))
         task = [f for f in found if f[2] == "c1"]

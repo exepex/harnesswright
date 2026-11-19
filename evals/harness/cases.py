@@ -31,6 +31,8 @@ case.json fields:
   "source_sha256": "..."}]`. `source_sha256` is the source's hash when it was copied. A source is a file at the
   repository root, such as `AGENTS.md`: a project document. Every folder holds skill text, its sources, the
   measuring kit or harnesswright's own design and formats, which a project using a skill does not have.
+- `situation`: in a task case only, the pressure it puts on the agent (doc 11, Pressure situations), one of
+  `SITUATIONS`. A case of `check-cannot-run` runs with the skill only (`SKILL_ONLY`); every other runs in both arms.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -54,6 +56,7 @@ import manifest
 
 REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
+SITUATION_FILE = REPO / "evals" / "situations.json"  # the situations each skill's cases must cover
 KINDS = ("trigger", "task")
 # The arms a case runs in. A grader must never learn its run's arm, so no world, prompt or page may hold these names.
 ARMS = ("without_skill", "with_skill")
@@ -68,6 +71,11 @@ NOT_PARTS = (".", "..", ".git")
 COMMAND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
 CHECK_NAME = re.compile(r"[a-z][a-z0-9_]*")
 ROW_FIELDS = ("name", "path", "description")
+# The pressure situations a task case may put on the agent (doc 11), and the one a plain agent cannot fail, since the
+# check it forbids is the skill's own: it runs with the skill only, and counts in no pass rate, lift or false done.
+SITUATIONS = ("missing-input", "untestable-input", "lower-the-bar", "check-cannot-run", "self-judge",
+              "stale-evidence", "outside-text", "green-not-proven")
+SKILL_ONLY = ("check-cannot-run",)
 
 
 class CaseError(ValueError):
@@ -186,9 +194,11 @@ SCHEMA = {
                "a list of {world, source, source_sha256}: two paths, the source a file at the repository root, "
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
+    "situation": (lambda v: v in SITUATIONS, f"one of {SITUATIONS}"),
 }
 REQUIRED = {"task": ("prompt", "kind"), "trigger": ("prompt", "kind", "should_trigger", "split", "index")}
 TRIGGER_ONLY = ("should_trigger", "split")
+TASK_ONLY = ("situation",)
 DEFAULTS = {"siblings": [], "tools": [], "expectations": [], "commits": [], "copies": [], "allow_words": {}}
 
 
@@ -206,6 +216,8 @@ def check(data, case_id, skill=None):
             problems.append(f"a {kind or 'case'} needs {key}")
     if kind == "task":
         problems += [f"{key} is only for trigger cases" for key in TRIGGER_ONLY if key in data]
+    elif kind == "trigger":
+        problems += [f"{key} is only for task cases" for key in TASK_ONLY if key in data]
     siblings = data.get("siblings") if isinstance(data.get("siblings"), list) else []
     if len(set(map(str, siblings))) != len(siblings):
         problems.append("siblings must not repeat")
@@ -282,6 +294,30 @@ def done(path=DONE):
             and is_expectation({**data, "source": "format"})):
         raise CaseError(f"{path.name}: the done question is {{text, source: \"done\", judged}} and nothing else")
     return data
+
+
+def situations(path=SITUATION_FILE):
+    """{skill: [situations that apply to it]} from the situation file, a kit part the judges approve: for each skill,
+    `applies`, the situations its cases must cover, and `left_out`, each other situation with the reason a judge
+    accepted. Every situation of `SITUATIONS` is in exactly one of the two, so none is left out unseen. With no file,
+    no skill is listed, so every label stays `incomplete`."""
+    if not Path(path).exists():
+        return {}
+    try:
+        data = json.loads(Path(path).read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CaseError(f"{Path(path).name}: {error}") from None
+    if not isinstance(data, dict):
+        raise CaseError(f"{Path(path).name}: must be an object of skills")
+    found = {}
+    for skill, entry in sorted(data.items()):
+        shaped = record(applies=list_of(lambda v: v in SITUATIONS), left_out=lambda v: isinstance(v, dict) and all(
+            is_text(reason) for reason in v.values()))(entry)
+        if not (is_name(skill) and shaped and sorted([*entry["applies"], *entry["left_out"]]) == sorted(SITUATIONS)):
+            raise CaseError(f"{Path(path).name}: {skill} must give {{applies: [situations], left_out: {{situation: "
+                            f"reason}}}}, with each of {SITUATIONS} in exactly one")
+        found[skill] = sorted(entry["applies"])
+    return found
 
 
 def load_cases(skill, root=None):
