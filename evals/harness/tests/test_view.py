@@ -10,6 +10,7 @@ from test_world import AGENTS, INDEX
 
 import evidence
 import host
+import shell
 import test_evidence
 import view
 import world
@@ -89,6 +90,37 @@ class Views(TempCase):
                       host.entry("read", "inferred", path=skill), host.entry("skill", "inferred", name="haiku-writer"),
                       host.entry("read", "inferred", path="docs/guide.md"), host.entry("message", text="Done.")]}
         self.assertEqual(view.view(record, None)[0]["log"], [host.entry("message", text="Done.")])
+
+    def test_a_command_is_shown_without_its_pipelines_that_name_the_skill_and_tells_no_arm(self):
+        tests = "python3 -m unittest discover -s tests -t . 2>&1; echo exit=$?"
+        check = "python3 skills/haiku-writer/scripts/check.py notes.txt"
+        def logged(command, *reads):
+            return [host.entry("command", command=command, exit_code=0, output="OK"),
+                    *(host.entry("read", "inferred", path=path) for path in reads), host.entry("message", text="Done.")]
+        plain = view.view(self.record(logged(tests, "tests/a.py")), None)[0]["log"]
+        self.assertEqual(plain[0]["command"], tests)  # a without-skill run never names the skill: shown as it ran
+        for command in (f"{tests}; {check}", f"{check}; echo \"exit $?\"; {tests}", f"{tests} && {check} | tail -n 2"):
+            with self.subTest(command=command):  # the same page, with no trace of the cut and no read it alone made
+                self.assertEqual(view.view(self.record(logged(command, "tests/a.py", "notes.txt")), None)[0]["log"],
+                                 plain)
+
+    def test_a_command_with_no_other_pipeline_or_no_clean_cut_is_dropped(self):
+        tests = "python3 -m unittest discover -s tests -t ."
+        for command in ("python3 skills/haiku-writer/x.py; echo exit=$?",  # nothing else is left
+                        f"cd skills/haiku-writer && ls; {tests}",  # a cut cd would move the next program
+                        f"S=skills/haiku-writer; ls $S; {tests}", f"{tests}; echo $(cat skills/haiku-writer/a)",
+                        f"{tests}\ncat skills/haiku-writer/a", f"{tests}; cat <<EOF > skills/haiku-writer/a"):
+            log = [host.entry("command", command=command, exit_code=0, output=""), host.entry("message", text="Done.")]
+            with self.subTest(command=command):
+                self.assertEqual(view.view(self.record(log), None)[0]["log"], [host.entry("message", text="Done.")])
+        for command in ("a 2>&1; echo e=$? ", " a && b | c ;d", "a 'x;y' \"$HOME z\" > o"):  # a cut of nothing is none
+            self.assertEqual(shell.cut(command, lambda part: False), command)
+
+    @staticmethod
+    def record(log):
+        return {"overlay": {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md"},
+                "folders": {}, "own_files": [], "files_after": {}, "diff": {}, "final_message": None, "case": None,
+                "mode": "task", "log": log}
 
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)

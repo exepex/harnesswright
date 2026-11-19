@@ -2,7 +2,7 @@
 that the host did not observe makes them `undecidable` (`checks.Bundle.entries`).
 
 - `command_ran`: a program matching the regular expression `pattern` ran (`ran` true), or was never run nor tried
-  (`ran` false). The pattern is matched where a program starts (`programs`): at the start of the command, after an
+  (`ran` false). The pattern is matched where a program starts (`shell.programs`): at the start of the command, after an
   operator outside quotes (`&&`, `||`, `;`, `|`), after any `NAME=value` words, and the same way inside the script
   of a shell's `-c` flag (`bash -lc 'go test ./...'`). A command with a line break is read only from its start, since
   a later line may be a heredoc's text. So a program's quoted argument, such as the words a search looks for
@@ -21,6 +21,7 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
 import re
 
 from checks import Check, Undecidable, is_pattern
+from shell import programs  # the one splitter the grader view also cuts commands by
 
 # The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
 # A quoted string holds only a plain word's characters and blanks, since a program such as bash -c may run it as a
@@ -32,37 +33,6 @@ TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
 CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
-
-
-# Where a program starts: after an operator outside quotes, then after any NAME=value words. A shell's -c script is
-# a command of its own.
-OPERATOR = re.compile(r"&&|\|\||[;|]")
-ASSIGNMENT = re.compile(r"""(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|[^\s'"])*[ \t]+)*""")
-SHELL_SCRIPT = re.compile(r"(?:\S*/)?(?:bash|sh|zsh|dash)[ \t]+-[A-Za-z]*c[ \t]+('[^']*'|\"[^\"]*\")")
-
-
-def programs(command):
-    """The text from each place a program starts in `command` to its end."""
-    starts, quote, i = [0], None, 0
-    while "\n" not in command and i < len(command):  # a line break may begin a heredoc, so only the start counts
-        char = command[i]
-        if quote:
-            quote = None if char == quote else quote
-        elif char in "'\"":
-            quote = char
-        elif match := OPERATOR.match(command, i):
-            i = match.end()
-            starts.append(i)
-            continue
-        i += 1
-    found = []
-    for start in starts:
-        text = command[start:].lstrip(" \t")
-        text = text[ASSIGNMENT.match(text).end():]
-        found.append(text)
-        if script := SHELL_SCRIPT.match(text):
-            found += programs(script.group(1)[1:-1])
-    return found
 
 
 def command_ran(bundle, pattern, ran, exit_code=None):
