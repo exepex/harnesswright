@@ -1,0 +1,9 @@
+# .harness/profile.yaml
+harnesswright:
+  version: "0.5.1"
+  folder: skills/
+
+toolchain:
+  test: python3 -m unittest discover -s tests -t .
+
+scripts: forbidden                  # the team decided: no helper script of an agent skill runs here
