@@ -33,7 +33,9 @@ class Copied(Fake):
         outcomes = [faults.run(COPIED, setup, seed) for seed in range(4)]
         self.assertEqual({(o["place"], o["caught"]) for o in outcomes}, {("message", True)})
         with self.assertRaisesRegex(faults.FaultError, "not one of its places"):
-            faults.run(COPIED, setup, 1, place="file")
+            faults.run(COPIED, setup, 1, place="world file")
+        view = next(e for e in faults.load() if e["id"] == "view")  # another plant's `file` place is still offered
+        self.assertIn("file", {faults.run(view, setup, seed)["place"] for seed in range(16)})
 
     def test_the_passage_is_the_skill_s_own_text_long_enough_to_void(self):
         setup = self.setup_of()
@@ -50,14 +52,14 @@ class Copied(Fake):
     def test_a_backstop_that_misses_the_passage_is_a_miss(self):
         setup = self.setup_of()
         with mock.patch.object(backstop, "check", lambda record, blob, own: {"void": [], "short": []}):
-            outcome = faults.run(COPIED, setup, seed=3, place="file")
+            outcome = faults.run(COPIED, setup, seed=3, place="world file")
         self.assertFalse(outcome["caught"])
         self.assertIn("did not void the run", outcome["reason"])
 
     def test_a_void_for_another_text_is_a_miss(self):
         setup = self.setup_of()
         setup.prompts = {"copied": lambda planted: json.dumps([{"do": "say", "text": planted["paragraph"]}])}
-        outcome = faults.run(COPIED, setup, seed=3, place="file")  # said, never written to the file
+        outcome = faults.run(COPIED, setup, seed=3, place="world file")  # said, never written to the file
         self.assertFalse(outcome["caught"])
         self.assertIn("not for the passage at world/", outcome["reason"])
 

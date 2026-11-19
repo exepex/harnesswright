@@ -18,7 +18,7 @@ import world
 from faults import Missed, _run
 
 LONGEST = 40  # words of the passage: long enough to void, short enough for any host to copy whole
-PLACES = {"file": "into a new file named {file}", "message": "as your whole reply"}
+PLACES = {"world file": "into a new file named {file}", "message": "as your whole reply"}
 
 
 def passage(setup, own, rng):
@@ -45,7 +45,7 @@ def copied(setup, fault, rng, place):
     found = backstop.check(record, blob, own)
     if not found["void"]:
         return f"the backstop did not void the run: its longest match was {_longest(found)} words"
-    where = f"world/{planted['file']}" if place == "file" else "final message"
+    where = f"world/{planted['file']}" if place == "world file" else "final message"
     at = [(w, text) for w, text in backstop.texts(record, blob) if w == where]
     if not any(length >= backstop.SPAN for _, length, _ in backstop.matches(own, at)):
         return f"the backstop voided the run, but not for the passage at {where}: {found['void'][0][0]}"

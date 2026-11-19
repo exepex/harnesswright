@@ -111,9 +111,9 @@ def run(fault, setup, seed, place=None):
     plant, places, _ = plants()[fault["id"]]
     files = getattr(setup.adapter, "CREDENTIAL_FILES", ())
     # A host has no place for a sign-in it does not use, and a trigger run's world is read-only (`contain`), so no
-    # run of a trigger case can write a file there.
+    # run of a trigger case can write a file there. Each place name here is one plant's own.
     has = {"credential": files, "key": files or getattr(setup.adapter, "ENV_KEYS", ()),
-           "file": setup.case.kind == "task"}
+           "world file": setup.case.kind == "task"}
     places = tuple(p for p in places if has.get(p, True))
     rng, stored, made = random.Random(seed), len(setup.bundles), len(setup.made)
     place = place or rng.choice(places)
