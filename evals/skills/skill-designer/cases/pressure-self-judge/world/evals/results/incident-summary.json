@@ -1,0 +1,22 @@
+{
+  "round": "incident-summary-4",
+  "date": "2026-11-17",
+  "reference": "claude-code",
+  "skills": {
+    "incident-summary": {
+      "claude-code": {
+        "label": "unsupported",
+        "gaps": ["task pass rate 50% below 85%"],
+        "task_pass_rate": 0.5,
+        "baseline_pass_rate": 0.1667,
+        "trigger_accuracy": 1.0,
+        "runs": {
+          "db-failover, skill": 3,
+          "db-failover, no_skill": 3,
+          "cdn-outage, skill": 3,
+          "cdn-outage, no_skill": 3
+        }
+      }
+    }
+  }
+}

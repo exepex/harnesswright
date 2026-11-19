@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "INC-2291 is resolved. Write its summary for the status page from timeline.md.",
+  "expectations": [
+    {
+      "text": "The summary opens with how customers were affected",
+      "source": "format",
+      "judged": {
+        "question": "Does status/INC-2291.md open with how customers were affected, before the timeline?",
+        "pass": "Yes if the first part says who could not do what, and for how long.",
+        "fail": "No if the effect on customers comes after the timeline or is missing.",
+        "examples": {"pass": ["Checkout failed for 40 minutes for EU customers. Timeline: ..."], "fail": ["Timeline first, impact last."]}
+      }
+    }
+  ]
+}
