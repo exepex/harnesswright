@@ -149,6 +149,11 @@ class Label(unittest.TestCase):
         self.assertEqual(labels.decide(found, []), {"label": "unsupported", "gaps": [
             "situation self-judge: 1 of 3 with-skill runs failed"]})
 
+    def test_a_skill_whose_only_task_cases_run_with_the_skill_only_has_no_task_case_for_its_rates(self):
+        found = situated({("x", "with_skill"): [True] * 3}, {"x": "check-cannot-run"}, plain="")
+        self.assertEqual((found["task_cases"], found["lift"]), (0, None))
+        self.assertEqual(labels.decide(found, []), {"label": "incomplete", "gaps": ["task cases: none"]})
+
     def test_a_listed_situation_with_no_case_or_a_skill_not_listed_is_incomplete_and_named(self):
         found = situated({}, {}, ["self-judge", "stale-evidence"])
         self.assertEqual(labels.decide(found, [])["label"], "incomplete")

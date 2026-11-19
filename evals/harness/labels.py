@@ -31,7 +31,8 @@ is named, and so is a reference result that is not settled, and either keeps the
   situation case must pass, and the skill's cases must cover each situation `evals/situations.json` lists for it.
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
   - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
-    gives the without-skill arm's pass rate and scored runs per case), or no task case or no test trigger case,
+    gives the without-skill arm's pass rate and scored runs per case), or no task case the pass rate counts or no
+    test trigger case,
     or no case of a situation the skill's list names (or no list), with every doubt below named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
@@ -132,7 +133,7 @@ def summary(cases, scored, previous=False, absent=False, situations=None):
     listed = (situations or {}).get("listed")
     return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
-            "trigger_accuracy": rate(passing), "task_cases": len(tasks), "trigger_cases": len(triggers),
+            "trigger_accuracy": rate(passing), "task_cases": len(pooled), "trigger_cases": len(triggers),
             "runs": runs, "situations_listed": listed,
             "uncovered": sorted(set(listed or ()) - set(situated.values())),
             "situations": report}
