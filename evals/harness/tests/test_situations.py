@@ -84,6 +84,13 @@ class Plan(Gated):
             self.go((("probe", probed), ("faults", gates.faults_gate)), version=lambda module, **c: VERSION)
         self.assertEqual(set(planted), {"c1"})
 
+    def test_a_plan_whose_cases_all_run_with_the_skill_only_names_a_fault_case(self):
+        self.situated("check-cannot-run")
+        with self.assertRaisesRegex(rounds.RoundError, "runs in both arms, so it names a fault_case"):
+            self.plan(skills={"haiku-writer": ["s1"]})
+        record = self.plan(skills={"haiku-writer": ["s1"]}, fault_case={"skill": "haiku-writer", "case": "c1"})
+        self.assertEqual(record["fault_case"]["case"], "c1")
+
     def test_a_skill_with_no_folder_yet_cannot_run_a_case_with_the_skill_only(self):
         self.situated("check-cannot-run")
         shutil.rmtree(self.repo / "skills" / "haiku-writer")

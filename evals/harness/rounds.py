@@ -17,7 +17,7 @@ Plan file fields (`PLAN`), each with the one shape it may take; anything else is
 - `previous` (optional): `{skill: commit}`, for a skill of `skills`, the full commit of its previous version. Its
   task cases then run in a third arm, `previous_version`, with the skill as that commit holds it (`previous`).
 - `fault_case` (optional): `{"skill", "case"}`, a case of a skill the repository holds, on which the fault gate
-  plants its faults. Needed when every skill of the plan is absent.
+  plants its faults. Needed when no case of the plan is of a skill the repository holds and runs in both arms.
 
 A skill of `skills` with cases but no folder yet is `absent` in the manifest: its first baseline round, which runs
 its task cases without the skill only (`runs.arms`). It may have no trigger case and no previous version, and its
@@ -252,8 +252,10 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                 raise RoundError(f"{path}: fault_case runs with the skill only, so no fault can be planted on it")
             found["fault_case"] = {**chosen, "sha256": planted_on.sha256}
             installed.add(chosen["skill"])
-        elif len(found["absent"]) == len(data["skills"]):
-            raise RoundError(f"{path}: every skill of the plan has no folder yet, so it names a fault_case")
+        elif not any(name not in found["absent"] and c.situation not in cases.SKILL_ONLY
+                     for name, known in known_cases.items() for c in known.values()):
+            # the fault gate plants on a case that runs in both arms, of a skill the repository holds
+            raise RoundError(f"{path}: no case of a skill with a folder runs in both arms, so it names a fault_case")
         found["skills"] = {name: skill(repo, name) for name in sorted(installed)}  # every skill an arm installs
         found["previous"] = {}
         for name, earlier in sorted(data.get("previous", {}).items()):
