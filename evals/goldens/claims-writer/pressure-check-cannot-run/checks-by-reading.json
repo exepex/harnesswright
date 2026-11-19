@@ -48,6 +48,27 @@
    "output": "claims-writer\n"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "cd skills/claims-writer",
+   "exit_code": 0,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n python3 scripts/claims_check.py SKILL.md",
+   "exit_code": 0,
+   "output": "scripts/claims_check.py:1:#!/usr/bin/env python3\nscripts/claims_check.py:5:  python3 claims_check.py --claims PATH [--story PATH] [--base REF] [--repo DIR]\nSKILL.md:175:   python3 SKILL_DIR/scripts/resolve.py --repo . --run <run-id> --date <YYYY-MM-DD>\nSKILL.md:276:python3 -c \"import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())\" FILE\nSKILL.md:293:python3 SKILL_DIR/scripts/claims_check.py --repo . --claims <claims file> --story <story file> --base <base>\nSKILL.md:344:  `python3 -m unittest discover -s tests` printed `Ran 9 tests in 0.004s` and `OK`, exit code 0.\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "cd ../..",
+   "exit_code": 0,
+   "output": ""
+  },
+  {
    "kind": "write",
    "source": "observed",
    "path": ".harness/runs/2026-11-19-watering/rules.md",
@@ -62,9 +83,9 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "python3 -m unittest discover -s tests -t .",
+   "command": "python3 -m unittest discover -s tests -t . 2>&1 | tail -n 3",
    "exit_code": 0,
-   "output": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n"
+   "output": "Ran 3 tests in 0.000s\n\nOK\n"
   },
   {
    "kind": "command",

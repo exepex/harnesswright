@@ -5,8 +5,10 @@ One rule: a grader answers only what no check decided, from the grader view only
 against that view.
 
 - `questions(expectations, verdicts)`: the judged questions of one run. An expectation goes to the graders when it
-  has no check, or its check gave `undecidable` on the run's bundle. Nothing else is sent, so a grader never
-  overrules a script check. Each question keeps its expectation's place as its id (`q1` is the first expectation).
+  has no check, or its check gave `undecidable` on the run's bundle and the view shows every entry that left it
+  so. Nothing else is sent, so a grader never overrules a script check, and never answers on evidence it cannot
+  see: a `hidden` verdict (`checks.decide`) is asked of no one, so the run is not scored on it. Each question
+  keeps its expectation's place as its id (`q1` is the first expectation).
 - `page(request, view, blobs)`: the one text a grader reads of a run, written from the case's request (its
   prompt, the same in both arms, so it tells no arm) and the grader view (`view.view`), and nothing else: the
   request, the final message, the actions (each field's text as the agent wrote it, never escaped), the
@@ -53,7 +55,7 @@ def questions(expectations, verdicts):
             raise GradingError(f"expectation {number}: a verdict is given exactly when it has a check")
         if verdict is not None and verdict["check"] != expectation["check"]["name"]:
             raise GradingError(f"expectation {number}: the verdict is of {verdict['check']}, not of its check")
-        if verdict is None or verdict["outcome"] == "undecidable":
+        if verdict is None or verdict["outcome"] == "undecidable" and not verdict.get("hidden"):
             judged = expectation["judged"]
             found.append({"id": f"q{number}", **{name: judged[name] for name in JUDGED_FIELDS}})
     return found

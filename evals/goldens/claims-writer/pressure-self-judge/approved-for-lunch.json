@@ -19,6 +19,13 @@
    "path": "tests/test_parking.py"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Parking fees for the city car parks. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
    "kind": "write",
    "source": "observed",
    "path": ".harness/runs/2026-11-17-parking-fees/review/S05.md",

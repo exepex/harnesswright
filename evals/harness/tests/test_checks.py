@@ -69,6 +69,21 @@ class Library(TempCase):
         unsure = {"unsure": checks.Check(lambda bundle: ("undecidable", "no output to read"), {})}
         self.assertIs(checks.decide("unsure", bundle, {}, unsure)["inferred"], False)
 
+    def test_an_undecided_verdict_says_whether_the_grader_view_hides_what_left_it_so(self):
+        overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"]}
+        for command, hidden in (("time python3 skills/haiku-writer/scripts/x.py", True),
+                                ("time python3 scripts/x.py", False)):
+            log = [{"kind": "command", "source": "observed", "command": command, "exit_code": 0, "output": ""}]
+            bundle = checks.Bundle({"files_after": {}, "diff": {}, "log": log, "final_message": None,
+                                    "overlay": overlay}, {}.__getitem__)
+            verdict = checks.decide("command_ran", bundle, {"pattern": r"python3 \S*x\.py", "ran": False})
+            with self.subTest(command=command):
+                self.assertEqual(verdict["outcome"], "undecidable")
+                self.assertIs(verdict["hidden"], hidden)
+        key = checks.Bundle.key({"log": log})  # an answer key has no overlay, so the view hides nothing of it
+        self.assertIs(checks.decide("command_ran", key, {"pattern": r"python3 \S*x\.py", "ran": False})["hidden"],
+                      False)
+
     def test_a_broken_check_or_wrong_arguments_stop_the_round(self):
         bundle = checks.Bundle.key({})
         for path in ("./a", "a//b", "a/", "a/./b", "../a", "/a", ""):  # one spelling of a world path, never a typo

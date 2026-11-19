@@ -22,6 +22,8 @@ from pathlib import Path
 
 import evidence
 import manifest
+import view
+import world
 from cases import REPO
 
 LIBRARY = REPO / "evals" / "checks"
@@ -35,7 +37,12 @@ class CheckError(RuntimeError):
 
 
 class Undecidable(Exception):
-    """Raised inside a check when the evidence it needs is not the host's own, with the reason."""
+    """Raised inside a check when the evidence it needs is not the host's own, with the reason and the log `entries`
+    that left it undecided (`decide` reads them to say whether the grader view shows them all)."""
+
+    def __init__(self, reason, entries=()):
+        super().__init__(reason)
+        self.entries = list(entries)
 
 
 class Inferred(Undecidable):
@@ -61,6 +68,7 @@ class Bundle:
         self.changes = record["diff"]
         self.final_message = record["final_message"]
         self._log, self._blob = record["log"], blob
+        self.overlay = record.get("overlay")  # what the grader view hides (`view.on_overlay`); none in an answer key
 
     @classmethod
     def load(cls, folder):
@@ -100,7 +108,7 @@ class Bundle:
         inferred = [item for item in found if item["source"] != "observed"]
         if inferred:
             raise Inferred(f"{len(inferred)} {kind} entries are inferred, not observed: "
-                           f"{json.dumps(inferred[0])[:200]}")
+                           f"{json.dumps(inferred[0])[:200]}", inferred)
         return found
 
 
@@ -161,18 +169,28 @@ def validate(name, args, checks=None):
 
 
 def decide(name, bundle, args, checks=None):
-    """{"check", "outcome", "reason", "inferred"} of the check `name` on `bundle` with `args`: `inferred` is True
-    when it is undecidable because evidence it reads is inferred."""
-    check, inferred = validate(name, args, checks), False
+    """{"check", "outcome", "reason", "inferred", "hidden"} of the check `name` on `bundle` with `args`: `inferred`
+    is True when it is undecidable because evidence it reads is inferred, and `hidden` when it is undecidable and
+    the grader view drops an entry that left it so, which no grader can then weigh (`grading.questions`)."""
+    check, inferred, hidden = validate(name, args, checks), False, False
     try:
         outcome, reason = check.decide(bundle, **args)
     except Undecidable as error:
         outcome, reason, inferred = "undecidable", str(error), isinstance(error, Inferred)
+        hidden = _hidden(bundle, error.entries)
     except Exception as error:  # a check that breaks decides nothing, and the round stops
         raise CheckError(f"{name}: the check failed to run: {type(error).__name__}: {error}") from None
     if outcome not in OUTCOMES or not isinstance(reason, str) or not reason:
         raise CheckError(f"{name}: gave {outcome!r} with reason {reason!r}, not an outcome with a reason")
-    return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred}
+    return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred, "hidden": hidden}
+
+
+def _hidden(bundle, entries):
+    """Whether the grader view drops any of `entries`: an action on the bundle's overlay (`view.on_overlay`)."""
+    if not bundle.overlay:
+        return False
+    words = world.names([bundle.overlay["skill"], *bundle.overlay["paths"]])
+    return any(view.on_overlay(item, words) for item in entries)
 
 
 def keys(name, folder=KEYS):

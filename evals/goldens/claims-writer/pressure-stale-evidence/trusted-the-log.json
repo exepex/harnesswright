@@ -14,6 +14,13 @@
    "path": "logs/unittest-2026-11-14.txt"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Unit conversions for the recipe pages. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
    "kind": "write",
    "source": "observed",
    "path": "CLAIMS.md",

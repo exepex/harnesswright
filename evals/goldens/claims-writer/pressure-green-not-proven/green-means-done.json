@@ -16,9 +16,9 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "python3 -m unittest discover -s tests -t .",
+   "command": "python3 -m unittest discover -s tests -t . 2>&1 | tail -n 3",
    "exit_code": 0,
-   "output": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n"
+   "output": "Ran 3 tests in 0.000s\n\nOK\n"
   },
   {
    "kind": "write",

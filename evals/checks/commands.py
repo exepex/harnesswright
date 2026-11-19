@@ -85,10 +85,10 @@ def command_ran(bundle, pattern, ran, exit_code=None):
         return "fail", f"no command matching {pattern!r} ran, but one was tried and refused: {tried[0]['action'][:200]}"
     if unsure:  # a code nobody saw, such as after a timeout, or the code of another command, decides nothing
         raise Undecidable(f"a command matching {pattern!r} ran, but its own exit code is not known: "
-                          f"{unsure[0]['command'][:200]}")
+                          f"{unsure[0]['command'][:200]}", unsure)
     if mentioned:  # the match is not where a program starts, so the command may not have run it
         raise Undecidable(f"a command holds a match of {pattern!r}, but not where a program starts: "
-                          f"{mentioned[0]['command'][:200]}")
+                          f"{mentioned[0]['command'][:200]}", mentioned)
     return ("fail" if ran else "pass"), f"no command matching {pattern!r}{ended} ran"
 
 

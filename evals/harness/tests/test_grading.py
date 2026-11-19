@@ -58,6 +58,11 @@ class Questions(TempCase):
         self.assertEqual([question["id"] for question in asked], ["q1", "q3"])
         self.assertEqual(asked[0], {"id": "q1", **JUDGED})
 
+    def test_a_grader_is_never_asked_what_the_view_hides(self):
+        expectations = [expect("b", check=CHECK), expect("c", check=CHECK)]
+        asked = grading.questions(expectations, [{**UNDECIDABLE, "hidden": True}, {**UNDECIDABLE, "hidden": False}])
+        self.assertEqual([question["id"] for question in asked], ["q2"])
+
     def test_a_verdict_is_given_exactly_for_each_expectation_with_a_check(self):
         for expectations, verdicts in (([expect("a")], []), ([expect("a")], [PASSED]),
                                        ([expect("b", check=CHECK)], [None]),

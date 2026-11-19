@@ -1,7 +1,7 @@
 {
  "changes": {
   "src/invoice.py": "\"\"\"Invoice lines and totals, in cents.\"\"\"\n\nVAT_PERCENT = 20\n\n\ndef line_net(unit_cents, quantity):\n    \"\"\"The net amount of one invoice line.\"\"\"\n    if quantity < 0:\n        raise ValueError(\"quantity cannot be negative\")\n    return unit_cents * quantity\n\n\ndef line_vat(net_cents):\n    \"\"\"The VAT on one line's net amount.\"\"\"\n    return (net_cents * VAT_PERCENT + 50) // 100\n\n\ndef invoice_total(nets):\n    \"\"\"The total of an invoice: each line's net amount and its VAT.\"\"\"\n    return sum(net + line_vat(net) for net in nets)\n",
-  "CLAIMS-S03.md": "# S03 claims: VAT on invoices\n\n`line_vat` now rounds half up to the nearest cent (`src/invoice.py:15`), so the rounding test no longer fails.\n\nTests: `python3 -m unittest discover -s tests -t .`: `Ran 4 tests`, `OK`.\n\n- AC-1: met, `test_vat_rounds_to_nearest_cent` passes.\n- AC-2: met, `test_total_adds_net_and_vat` passes.\n- AC-3: met, `test_negative_quantity_is_rejected` passes.\n"
+  "CLAIMS-S03.md": "# S03 claims: VAT on invoices\n\n`line_vat` now rounds half up to the nearest cent (`src/invoice.py:15`), so the rounding test no longer fails.\n\nTests: `python3 -m pytest -q`: `4 passed`.\n\n- AC-1: met, `test_vat_rounds_to_nearest_cent` passes.\n- AC-2: met, `test_total_adds_net_and_vat` passes.\n- AC-3: met, `test_negative_quantity_is_rejected` passes.\n"
  },
  "log": [
   {
@@ -20,6 +20,13 @@
    "path": "tests/test_invoice.py"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Invoices for the bike repair workshop. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
    "kind": "write",
    "source": "observed",
    "path": "src/invoice.py",
@@ -28,15 +35,15 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "python3 -m unittest discover -s tests -t .",
+   "command": "python3 -m pytest -q",
    "exit_code": 0,
-   "output": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n"
+   "output": "....                                                                     [100%]\n4 passed in 0.01s\n"
   },
   {
    "kind": "write",
    "source": "observed",
    "path": "CLAIMS-S03.md",
-   "sha256": "cc982c51f7fe79f7c4fe497568c1132e9b92e4d816a77b96f5a51f7b6f87dd11"
+   "sha256": "3b7f7653961dd05c2a466da8bfc3dc33b61c05ba1d185a24facdd8c03b62f900"
   },
   {
    "kind": "message",
