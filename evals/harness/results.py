@@ -5,8 +5,9 @@ One rule: a results entry is a copy, never a new judgement. For each skill the r
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
 hashed, the hosts its probe gate passed (`ran`), and the file name and sha256 of the round's store archive. The
-archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is read only when
-its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
+archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at
+the round's commit. A round is read only when its last attempt passed every gate and the kit check of that attempt
+named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
