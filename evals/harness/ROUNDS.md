@@ -105,7 +105,7 @@ sha256 of `TAR`, the archive of the round's store folder. It refuses a round who
 gate, or whose kit check named another kit than its manifest's. `TAR` must hold the round's store folder exactly,
 every file with the same bytes and no other, so it holds every run, check and grade that recomputes each label.
 Rounds are listed apart, never combined; the same round again replaces its entry. Labels from the phase 2 runner
-stay under `phase_2_runner` for each host no round has labelled yet. Each entry says `not_run: skill-fault gate`
+stay under `phase_2_runner` for each host no round has run yet. Each entry says `not_run: skill-fault gate`
 until that gate exists.
 
 ## Cross-model grading

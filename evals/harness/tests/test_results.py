@@ -14,13 +14,13 @@ GATES = ["kit check", "lint", "probe", "faults", "run", "check", "grade", "label
 
 
 class Results(TempCase):
-    def round(self, name="r1", passed=True, approved=KIT, skills=None):
+    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None):
         folder = self.tmp / "store" / name
         (folder / "attempts").mkdir(parents=True)
         (folder / "labels").mkdir()
         (folder / "manifest.json").write_text(json.dumps({"round": name, "kit": KIT}))
-        gates = [{"gate": g, "passed": passed or g != "label", "outcome": {"approved": approved} if g == GATES[0]
-                  else {}} for g in GATES]
+        outcomes = {"kit check": {"approved": approved}, "probe": {"passed": ran or ["fakehost"], "not run": {}}}
+        gates = [{"gate": g, "passed": passed or g != "label", "outcome": outcomes.get(g, {})} for g in GATES]
         (folder / "attempts" / "t1.json").write_text(json.dumps({"gates": gates}))
         (folder / "labels" / "t1.json").write_text(json.dumps({
             "attempt": "t1", "commit": "c" * 40, "round": name, "reference": "fakehost", "prices": "2026-11-14",
@@ -87,6 +87,10 @@ class Results(TempCase):
         eighth = results.merge(tenth, "haiku-writer", {**first, "round": "r-8"})
         self.assertEqual([r["round"] for r in eighth["rounds"]], ["r-8", "r-10", "r1", "r2"])
         self.assertEqual(data["phase_2_runner"], [{"host": "otherhost", "label": "verified"}])  # not measured yet
+        planned = results.entries(*self.round("r3", skills={"haiku-writer": {"fakehost": HOST, "otherhost": {
+            "label": "incomplete", "gaps": ["not run: its probe failed"]}}}))["haiku-writer"]
+        kept = results.merge(data, "haiku-writer", planned)  # planned on otherhost, which did not run: kept
+        self.assertEqual(kept["phase_2_runner"], [{"host": "otherhost", "label": "verified"}])
         again = results.merge(data, "haiku-writer", {**first, "attempt": "t9"})
         self.assertEqual([(r["round"], r["attempt"]) for r in again["rounds"]], [("r1", "t9"), ("r2", "t1")])
         with self.assertRaises(results.ResultsError):
@@ -99,6 +103,6 @@ class Results(TempCase):
         [path] = results.publish(folder, archive, out)
         data = json.loads(path.read_text())
         self.assertEqual(data["rounds"][0]["hosts"], {"fakehost": HOST, "otherhost": HOST})
-        self.assertEqual(len(path.read_text().splitlines()), 31)  # 10 fields, each host 4 lines and its braces
+        self.assertEqual(len(path.read_text().splitlines()), 32)  # 11 fields, each host 4 lines and its braces
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)

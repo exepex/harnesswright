@@ -4,14 +4,14 @@ each skill on each host can be checked against the round's archive.
 One rule: a results entry is a copy, never a new judgement. For each skill the round labelled, it keeps the round's
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
-hashed, and the file name and sha256 of the round's store archive. The archive must hold the round's store folder
+hashed, the hosts its probe gate passed (`ran`), and the file name and sha256 of the round's store archive. The archive must hold the round's store folder
 exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is read only when
 its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
   round is replaced; other rounds are kept, each listed apart, never combined. Labels from the phase 2 runner stay,
-  under `phase_2_runner`, for each host no round of this harness has labelled yet.
+  under `phase_2_runner`, for each host no round of this harness has run yet.
 - `write(path, data)`: the results file, one line per field of each host entry, so a round stays short.
 
 Standard library only.
@@ -106,8 +106,9 @@ def entries(folder, archive):
     if differ:
         raise ResultsError(f"{archive}: not round {record['round']}'s store folder byte for byte; "
                            f"{len(differ)} file(s) missing or changed, such as {', '.join(differ[:3])}")
+    ran = next(g for g in attempt["gates"] if g["gate"] == "probe")["outcome"]["passed"]  # the hosts it ran
     common = {"round": record["round"], "attempt": labels["attempt"], "commit": labels["commit"],
-              "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"],
+              "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"], "ran": ran,
               "archive": {"file": archive.name, "sha256": _sha256(archive)}, "not_run": NOT_RUN,
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     return {skill: {**common, "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
@@ -127,7 +128,7 @@ def merge(current, skill, entry):
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
     rounds.sort(key=_order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
-    measured = {host for r in rounds for host in r["hosts"]}
+    measured = {host for r in rounds for host in r["ran"]}  # a host the round planned but did not run keeps it
     data = {"skill": skill, "rounds": rounds}
     kept = [h for h in old if h["host"] not in measured]
     return {**data, "phase_2_runner": kept} if kept else data
@@ -138,7 +139,7 @@ def write(path, data):
     lines = ["{", f'  "skill": {json.dumps(data["skill"])},', '  "rounds": [']
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
-        for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "archive", "not_run", "reference",
+        for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
                     "prices", "thresholds"):
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")
         lines.append('      "hosts": {')
