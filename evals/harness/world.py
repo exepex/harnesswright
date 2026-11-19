@@ -285,14 +285,15 @@ def _replay(case, installs, near):
 
 
 def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
-    """Raise CaseError unless both arms are exactly what the case says. Return the proof record.
+    """Raise CaseError unless both arms are exactly what the case says. Return the proof record. A skill with no
+    folder yet has no with-skill arm (`with_arm` None): its one arm is proved alone.
 
     Each arm is read from disk again. Its manifest must equal the one rebuilt from the written world and the plan,
     entry for entry, the index file included. Its `.git` must equal the one written again from the case, entry for
     entry: none of any kind without commits. git never runs on an arm to prove it.
     """
     read, heads = {}, {}
-    for arm, with_skill in ((base, False), (with_arm, True)):
+    for arm, with_skill in ((base, False), (with_arm, True))[:2 if with_arm else 1]:
         files, git = arm.read()
         installs = plan(case, adapter, with_skill, skills_root, skill_dir)
         want, _ = expected(case, installs)
@@ -306,5 +307,7 @@ def prove(case, adapter, base, with_arm, skills_root=None, skill_dir=None):
         if git != want_git:
             raise CaseError(f"the {arm.arm} arm's git history is not what the case declares")
         read[arm.arm] = want
-    return {"without_skill": manifest.digest(read["without_skill"]), "with_skill": manifest.digest(read["with_skill"]),
-            "git_heads": heads, "added": sorted(set(read["with_skill"]) - set(read["without_skill"]))}
+    added = read.get("with_skill", read["without_skill"])
+    return {"without_skill": manifest.digest(read["without_skill"]),
+            "with_skill": manifest.digest(added) if with_arm else None,
+            "git_heads": heads, "added": sorted(set(added) - set(read["without_skill"]))}

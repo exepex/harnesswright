@@ -149,9 +149,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         scratch = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="r-")))
         absent = case.skill in record.get("absent", [])  # no folder yet: only the without-skill arm is built
         base = world.build(case, adapter, scratch / "a", skills_root)
-        if not absent:
-            other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
-            world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
+        other = None if absent else world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
+        world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
         chosen = base if arm == "without_skill" else other
         # The skill's own runs, read from the proved arm before the host can change it (`backstop.protected`).
         own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None

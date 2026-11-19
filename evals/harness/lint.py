@@ -361,9 +361,8 @@ def lint_case(case, adapter, out, skills_root, skill_dir=None, upstream=(), kit=
     CaseError when the case cannot run."""
     skill_dir = Path(skill_dir) if skill_dir else library(skills_root).get(case.skill)
     base = world.build(case, adapter, Path(out) / "without", skills_root)
-    if skill_dir is None:  # no folder yet: only the without-skill arm runs (rounds.plan, `absent`)
-        return lint(case, base, None, upstream, kit, repo, cases)
-    with_arm = world.build(case, adapter, Path(out) / "with", skills_root, True, skill_dir)
+    # A skill with no folder yet has only the without-skill arm (rounds.plan, `absent`), proved alone.
+    with_arm = world.build(case, adapter, Path(out) / "with", skills_root, True, skill_dir) if skill_dir else None
     world.prove(case, adapter, base, with_arm, skills_root, skill_dir)
     return lint(case, base, skill_dir, upstream, kit, repo, cases)
 
