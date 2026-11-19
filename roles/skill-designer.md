@@ -7,10 +7,10 @@ separate judge decides whether it is released.
 | Field | Value |
 |---|---|
 | Model class | `deep` |
-| Reads | The skill request, existing skills in `skills/`, candidate skills from other repositories, standards, the design documents |
+| Reads | The skill request, existing skills in `release/` and their templates in `v2/skills/`, candidate skills from other repositories, standards, the design documents |
 | Produces | A skill folder in `skills/`, its evals in `evals/skills/`, eval results per host, claims for the judge |
 | Writes | Skills, evals, the skills index in `AGENTS.md` and `THIRD_PARTY.md` only |
-| Skill | [skill-designer](../skills/skill-designer/SKILL.md) |
+| Skill | [skill-designer](../release/skill-designer/SKILL.md) |
 
 ## Job
 
