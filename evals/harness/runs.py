@@ -159,7 +159,7 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
                                         root=scratch / "run", **containment)
         result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
                           model=planned["model"], timeout=timeout)
-        layer = evidence.overlay(case, adapter, skills_root, skill_dir, absent)
+        layer = evidence.overlay(case, adapter, skills_root, skill_dir)
         # Collected first, failed or not, so a canary in any output stops the round (`scrub.Leak`).
         bundle, blobs = evidence.collect(contained, result, case, arm, layer, drift, version["version"],
                                          planned["model"])

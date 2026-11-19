@@ -26,6 +26,7 @@ from pathlib import Path, PurePosixPath
 import host
 import manifest
 import scrub as scrubs
+import skills
 import world as worlds
 from cases import REPO
 
@@ -37,11 +38,13 @@ class EvidenceError(RuntimeError):
     """A bundle cannot be made or stored as this module says. The round stops."""
 
 
-def overlay(case, adapter, skills_root=None, skill_dir=None, absent=False):
+def overlay(case, adapter, skills_root=None, skill_dir=None):
     """What the with-skill arm of `case` adds to the without-skill arm: the skill, the paths it is installed at (its
     declared folder and the host's discovery copy), its index file and row, and the index file's entry in the
-    without-skill arm (all three None without an index). A skill with no folder yet (`absent`) adds nothing."""
-    if absent:
+    without-skill arm (all three None without an index). A skill with no folder yet adds nothing: its round runs
+    without it only (`rounds.plan`, `absent`), and every reader of an overlay (runs, faults, goldens) takes it here."""
+    known = skills.library(skills_root) if skills_root else skills.folders(REPO)
+    if skill_dir is None and case.skill not in known:
         return {"skill": case.skill, "paths": [], "index": None, "row": None, "index_without": None}
     skill = worlds.plan(case, adapter, True, skills_root, skill_dir)[-1]  # the plan installs the skill last
     index = case.index["file"] if case.index else None
