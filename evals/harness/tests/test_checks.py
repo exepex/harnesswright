@@ -71,7 +71,7 @@ class Library(TempCase):
 
     def test_an_undecided_verdict_says_whether_the_grader_view_hides_what_left_it_so(self):
         overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"]}
-        tests, script = "python3 -m unittest discover -s tests", "time python3 skills/haiku-writer/scripts/x.py"
+        tests, script = "python3 -m unittest discover -s tests", "timeout 60 python3 skills/haiku-writer/scripts/x.py"
         script_ran = {"pattern": r"python3 \S*x\.py", "ran": False}
         for command, args, hidden in (
                 (script, script_ran, True), ("time python3 scripts/x.py", script_ran, False),

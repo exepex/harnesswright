@@ -3,6 +3,7 @@ arm."""
 
 import json
 import unittest
+from pathlib import PurePosixPath
 
 from helpers import TempCase
 from test_evidence import JAIL
@@ -62,7 +63,8 @@ class Views(TempCase):
     def test_the_same_run_in_either_arm_gives_the_same_view(self):
         shown, blobs = self.views(LISTED)
         commands = [item["command"] for item in shown["log"] if item["kind"] == "command"]
-        self.assertEqual(commands, [LISTED[1]["command"], LISTED[2]["command"]])  # what the agent ran, no output
+        # what the agent ran, no output, without the pipeline that names the folder only the overlay made
+        self.assertEqual(commands, ["pwd && ls -a; find . | sort && wc -l AGENTS.md", LISTED[2]["command"]])
         self.assertEqual(shown["final_message"], "Done.")
         self.assertEqual(shown["log"][0]["sha256"], host.sha256("hi\n"))
         self.assertEqual(sorted(shown["diff"]), ["AGENTS.md", "copy.md", "notes.txt"])
@@ -116,11 +118,46 @@ class Views(TempCase):
         for command in ("a 2>&1; echo e=$? ", " a && b | c ;d", "a 'x;y' \"$HOME z\" > o"):  # a cut of nothing is none
             self.assertEqual(shell.cut(command, lambda part: False), command)
 
+    def test_what_depends_on_a_removed_pipeline_goes_with_it(self):
+        tests, check = "python3 -m unittest discover -s tests -t .", "python3 skills/haiku-writer/c.py"
+        for command, left in ((f"{check} && {tests}", None),  # the tests ran only if the hidden program passed
+                              (f"{check}; test $? -eq 0 && {tests}", None),
+                              (f"{tests}; diff -r skills/haiku-writer b && echo same; ls", f"{tests}; ls"),
+                              (f"test -f skills/haiku-writer/a && echo yes || echo no; {tests}", tests),
+                              (f"{tests} || {check}; ls", f"{tests}; ls"),
+                              ("time cd skills/haiku-writer; ls", None), ("printf -v V skills/haiku-writer; ls", None)):
+            log = [host.entry("command", command=command, exit_code=0, output="")]
+            with self.subTest(command=command):
+                self.assertEqual([item["command"] for item in view.view(self.record(log), None)[0]["log"]],
+                                 [left] if left else [])
+
+    def test_a_folder_only_the_overlay_made_is_on_the_overlay_and_a_world_s_own_is_not(self):
+        tests, skill = "python3 -m unittest discover -s tests -t .", "file " + "0" * 64
+        for paths, command in ((["skills/haiku-writer"], "ls skills skills/*"),
+                               ([".claude/skills/haiku-writer"], "find . -not -path './.claude/*' | head"),
+                               ([".claude/skills/haiku-writer"], "ls -R .claude/skills")):
+            folders = {str(folder): "dir" for folder in PurePosixPath(paths[0]).parents if str(folder) != "."}
+            mine = {paths[0]: "dir", f"{paths[0]}/SKILL.md": skill, **folders}
+            for own, left in (({}, tests), ({paths[0].rsplit("/", 1)[0] + "/notes.md": skill}, f"{command}; {tests}"),
+                              (None, tests)):  # a world without the skill finds the same folders
+                log = [host.entry("command", command=f"{command}; {tests}", exit_code=0, output="")]
+                record = {**self.record(log, paths, {} if own is None else {**mine, **own}),
+                          "final_message": "I looked in skills and .claude."}
+                with self.subTest(command=command, own=own):  # a world's own folder of that name stays on the page
+                    shown = view.view(record, lambda digest: b"x\n")[0]
+                    self.assertEqual(shown["log"][0]["command"], left)
+                    self.assertEqual(shown["final_message"], "I looked in skills and .claude.")  # text keeps its rule
+        found = view.overlay_names({"skill": "haiku-writer", "paths": ["skills/haiku-writer"]},
+                                   {"skills": "dir", "skills/haiku-writer": "dir"}, {}).search
+        self.assertTrue(found("ls ./skills"))
+        for command in ("cat src/skills.py docs/skills-guide.md", "ls evals/skills ../skills"):
+            self.assertFalse(found(command))  # a folder is named only as a path from the world
+
     @staticmethod
-    def record(log):
-        return {"overlay": {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md"},
-                "folders": {}, "own_files": [], "files_after": {}, "diff": {}, "final_message": None, "case": None,
-                "mode": "task", "log": log}
+    def record(log, paths=("skills/haiku-writer",), files_after=None):
+        return {"overlay": {"skill": "haiku-writer", "paths": list(paths), "index": "AGENTS.md"},
+                "folders": {}, "own_files": [], "files_after": files_after or {}, "diff": {}, "final_message": None,
+                "case": None, "mode": "task", "log": log}
 
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)

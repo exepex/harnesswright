@@ -24,7 +24,6 @@ from pathlib import Path
 import evidence
 import manifest
 import view
-import world
 from cases import REPO
 
 LIBRARY = REPO / "evals" / "checks"
@@ -191,7 +190,7 @@ def _hidden(bundle, check, args, entries):
     the check, given that entry alone as the view shows it (`view.shown`), would decide."""
     if not bundle.overlay:
         return False
-    words = world.names([bundle.overlay["skill"], *bundle.overlay["paths"]])
+    words = view.overlay_names(bundle.overlay, bundle.files, bundle.changes)
     for item in entries:
         seen = view.shown(item, words)
         if seen is None:

@@ -6,8 +6,9 @@ the grader view (`view.py`) share, so the two never disagree on it.
   the same way inside the script of a shell's `-c` flag. A command with a line break is read only from its start,
   since a later line may be a heredoc's text.
 - `cut(command, drop)`: the command without each of its pipelines that `drop` takes, or None when no clean cut is
-  possible. A cut leaves only what an agent could have typed: a removed pipeline takes the operator before it with
-  it (after it, for the first), and the pipelines right after it that read its exit code (`$?`). A command is cut
+  possible. A cut removes each pipeline `drop` takes and everything that depends on a removed pipeline: what reads
+  its exit code (`$?`) or is joined to it by `&&` or `||`, down the chain. Each takes the operator before it with it
+  (after it, for the first), so no operator is left at a seam. A command is cut
   only when it has one shape (`CUTTABLE`), in which the splitter's reading of quotes is exact, and every program it
   removes leaves the shell as it found it (`STATELESS`), so no later program reads a folder, a variable or an
   output it set.
@@ -31,9 +32,9 @@ CUTTABLE = re.compile(rf"(?:{QUOTED}|{OUTSIDE})*")
 # Programs that change no state of the shell, such as its folder or its variables. A program run by its path counts.
 STATELESS = frozenset((
     "awk", "basename", "cat", "cmp", "cp", "cut", "diff", "dirname", "du", "echo", "env", "file", "find", "go",
-    "grep", "head", "ls", "md5sum", "mkdir", "mv", "nl", "node", "printf", "python", "python3", "readlink",
-    "realpath", "rm", "sed", "sha256sum", "sort", "stat", "tail", "test", "time", "timeout", "touch", "tr", "tree",
-    "uniq", "wc", "xargs"))
+    "grep", "head", "ls", "md5sum", "mkdir", "mv", "nl", "node", "python", "python3", "readlink",
+    "realpath", "rm", "sed", "sha256sum", "sort", "stat", "tail", "test", "timeout", "touch", "tr", "tree", "uniq",
+    "wc", "xargs"))
 
 
 def _starts(command):
@@ -88,7 +89,8 @@ def cut(command, drop):
             units.append([operator, command[start:end], [command[start:end]]])
     kept, gone, blank = [], False, ""  # blank: the blanks before a pipeline's operator, as its own text ends
     for operator, text, parts in units:
-        gone = drop(text) or (gone and "$?" in text)  # what reads the code of a removed pipeline goes with it
+        # what depends on a removed pipeline goes with it: it reads its $?, or && or || join it, down the chain
+        gone = drop(text) or (gone and (operator in ("&&", "||") or "$?" in text))
         if gone and not all(_stateless(part) for part in parts):
             return None
         if not gone:
