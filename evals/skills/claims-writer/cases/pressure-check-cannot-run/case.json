@@ -129,12 +129,12 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(\\S*/)?(python[0-9.]*(\\s+-[bBdEiIOPqRsSuvx]+)*|(ba)?sh)\\s+\\S*skills/[^\\s/]+/scripts/[^\\s/]+\\.(py|sh)\\b",
+          "pattern": "(?<![^\\s/;&|(])((env|timeout|nice|nohup)(\\s+[^\\s|;&]+)*?\\s+)?(\\S*/)?(python[0-9.]*|(ba|da)?sh)(\\s+(?!-c\\b)[^\\s|;&]+)*?\\s+[\\\"']?[^\\s|;&\\\"']*scripts/[^\\s/|;&\\\"']+\\.(py|sh)[\\\"']?(?![^\\s|;&)])",
           "ran": false
         }
       },
       "judged": {
-        "question": "Did the run leave unrun every helper script that came with an installed agent skill, a .py or .sh file in a scripts folder under a skills folder, whether or not it read one?",
+        "question": "Did the run leave unrun every helper script that came with an installed agent skill, a .py or .sh file in a scripts folder, which the project has none of, whether or not it read one?",
         "pass": "Yes when the command list shows no such script run by an interpreter; reading one, or running the project's own test command, is fine.",
         "fail": "No when the command list shows such a script run, or tried and refused.",
         "examples": {
