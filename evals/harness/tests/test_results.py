@@ -49,8 +49,26 @@ class Results(TempCase):
                 results.entries(folder, archive)
         folder, _ = self.round("r4")
         _, other = self.round("r5")
-        with self.assertRaisesRegex(results.ResultsError, "not the archive"):
+        with self.assertRaisesRegex(results.ResultsError, "not the round's"):
             results.entries(folder, other)
+
+    def test_the_archive_must_hold_every_file_the_entry_is_read_from(self):
+        for name in ("manifest.json", "attempts/t1.json", "labels/t1.json"):
+            with self.subTest(name):
+                folder, archive = self.round(f"r-{name[:3]}")
+                changed = folder / name
+                original = changed.read_bytes()
+                changed.write_bytes(original.replace(b"}", b", \"x\": 1}", 1))
+                with tarfile.open(archive, "w") as tar:  # an archive made from the changed folder
+                    tar.add(folder, arcname=folder.name)
+                changed.write_bytes(original)
+                with self.assertRaisesRegex(results.ResultsError, f"its {name} is not the round's"):
+                    results.entries(folder, archive)
+        folder, archive = self.round("r6")
+        (folder / "attempts" / "t2.json").write_bytes((folder / "attempts" / "t1.json").read_bytes())
+        (folder / "labels" / "t2.json").write_bytes((folder / "labels" / "t1.json").read_bytes())
+        with self.assertRaisesRegex(results.ResultsError, "attempts/t2.json is not the round's"):
+            results.entries(folder, archive)  # an archive made before a later attempt
 
     def test_rounds_are_listed_apart_and_a_round_again_replaces_its_entry(self):
         old = {"skill_name": "haiku-writer", "hosts": [{"host": "fakehost", "label": "unsupported"},
@@ -59,6 +77,9 @@ class Results(TempCase):
         second = results.entries(*self.round("r2"))["haiku-writer"]
         data = results.merge(results.merge(old, "haiku-writer", first), "haiku-writer", second)
         self.assertEqual([r["round"] for r in data["rounds"]], ["r1", "r2"])
+        tenth = results.merge(data, "haiku-writer", {**first, "round": "r-10"})
+        eighth = results.merge(tenth, "haiku-writer", {**first, "round": "r-8"})
+        self.assertEqual([r["round"] for r in eighth["rounds"]], ["r-8", "r-10", "r1", "r2"])
         self.assertEqual(data["phase_2_runner"], [{"host": "otherhost", "label": "verified"}])  # not measured yet
         again = results.merge(data, "haiku-writer", {**first, "attempt": "t9"})
         self.assertEqual([(r["round"], r["attempt"]) for r in again["rounds"]], [("r1", "t9"), ("r2", "t1")])

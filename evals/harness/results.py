@@ -4,8 +4,9 @@ each skill on each host can be checked against the round's archive.
 One rule: a results entry is a copy, never a new judgement. For each skill the round labelled, it keeps the round's
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
-hashed, and the file name and sha256 of the round's store archive. Anyone with the archive recomputes each label with `labels.py` at the round's commit. A round is read only
-when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
+hashed, and the file name and sha256 of the round's store archive. The archive must hold, byte for byte, every file
+the entry was read from, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
+read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
@@ -44,7 +45,7 @@ def _sha256(path):
 
 
 def finished(folder):
-    """(attempt record, label file) of the round's last attempt, which must have passed every gate."""
+    """The paths of the round's last attempt record and its label file. That attempt must have passed every gate."""
     attempts = sorted(Path(folder, "attempts").glob("*.json"))
     if not attempts:
         raise ResultsError(f"{folder}: the round has no attempt")
@@ -52,31 +53,51 @@ def finished(folder):
     gates = attempt.get("gates") or []
     if not gates or gates[-1].get("gate") != "label" or not all(g.get("passed") for g in gates):
         raise ResultsError(f"{attempts[-1]}: the last attempt did not pass every gate through the label gate")
-    return attempt, _read(Path(folder, "labels", attempts[-1].name))
+    return attempts[-1], Path(folder, "labels", attempts[-1].name)
 
 
 def entries(folder, archive):
-    """{skill: results entry} of the finished round in `folder`, whose store archive is the tar file `archive`."""
+    """{skill: results entry} of the finished round in `folder`, whose store archive is the tar file `archive`.
+
+    One rule: every file the entry is read from (the manifest, the last attempt record, its label file) must be in
+    the archive with the same bytes, so the archive named is the one that recomputes each label."""
     folder, archive = Path(folder), Path(archive)
-    manifest = Path(folder, "manifest.json").read_bytes()
-    record = json.loads(manifest)
-    attempt, labels = finished(folder)
+    attempt_path, labels_path = finished(folder)
+    sources = [Path("manifest.json"), attempt_path.relative_to(folder), labels_path.relative_to(folder)]
+    read = {}
+    for source in sources:
+        try:
+            read[source] = (folder / source).read_bytes()
+        except OSError as error:
+            raise ResultsError(f"{folder / source}: cannot be read: {error}") from None
+    try:
+        record, attempt, labels = (json.loads(read[source]) for source in sources)
+    except ValueError as error:
+        raise ResultsError(f"{folder}: a round file is not JSON: {error}") from None
     kit = next(g for g in attempt["gates"] if g["gate"] == "kit check")["outcome"].get("approved")
     if kit != record["kit"]:
         raise ResultsError(f"{folder}: its kit check named kit {kit}, not the manifest's {record['kit']}")
     try:
         with tarfile.open(archive) as tar:
-            member = tar.extractfile(f"{record['round']}/manifest.json")
-            archived = member.read() if member else None
-    except (OSError, KeyError, tarfile.TarError) as error:
+            names = set(tar.getnames())
+            for source in sources:
+                name = f"{record['round']}/{source.as_posix()}"
+                member = tar.extractfile(name) if name in names else None
+                if member is None or member.read() != read[source]:
+                    raise ResultsError(f"{archive}: its {source.as_posix()} is not the round's (missing or changed)")
+    except (OSError, tarfile.TarError) as error:
         raise ResultsError(f"{archive}: not the archive of round {record['round']}: {error}") from None
-    if archived != manifest:
-        raise ResultsError(f"{archive}: its manifest is not the round's")
     common = {"round": record["round"], "attempt": labels["attempt"], "commit": labels["commit"],
-              "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"],
+              "manifest_sha256": hashlib.sha256(read[sources[0]]).hexdigest(), "kit": record["kit"],
               "archive": {"file": archive.name, "sha256": _sha256(archive)}, "not_run": NOT_RUN,
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     return {skill: {**common, "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
+
+
+def _order(entry):
+    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10)."""
+    stem, _, number = entry["round"].rpartition("-")
+    return (stem, int(number)) if number.isdigit() else (entry["round"], -1)
 
 
 def merge(current, skill, entry):
@@ -85,7 +106,7 @@ def merge(current, skill, entry):
     if current and current.get("skill", current.get("skill_name")) != skill:
         raise ResultsError(f"the results file is not {skill}'s")
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
-    rounds.sort(key=lambda r: r["round"])
+    rounds.sort(key=_order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
     measured = {host for r in rounds for host in r["hosts"]}
     data = {"skill": skill, "rounds": rounds}

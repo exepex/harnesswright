@@ -297,13 +297,16 @@ def main(argv=None):
             print(write(plan(args.plan, host_paths=args.host_paths), args.store))
         elif args.command == "results":
             import results
-            for path in results.publish(Path(args.store) / args.round, args.archive, REPO / "evals" / "results"):
-                print(path)
+            try:
+                written = results.publish(Path(args.store) / args.round, args.archive, REPO / "evals" / "results")
+            except results.ResultsError as error:
+                raise RoundError(error) from None
+            print("\n".join(map(str, written)))
         else:
             import gates  # it imports this module, so only when a round runs
             attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)
             print(json.dumps(attempt, indent=1, sort_keys=True))
-    except (RoundError, ValueError) as error:  # results.ResultsError is a ValueError
+    except RoundError as error:
         print(f"round: {error}", file=sys.stderr)
         return 1
     return 0
