@@ -7,22 +7,24 @@ separate judge decides whether it is released.
 | Field | Value |
 |---|---|
 | Model class | `deep` |
-| Reads | The skill request, existing skills in `skills/`, candidate skills from other repositories, standards, the design documents |
-| Produces | A skill folder in `skills/`, its evals in `evals/skills/`, eval results per host, claims for the judge |
-| Writes | Skills, evals, the skills index in `AGENTS.md` and `THIRD_PARTY.md` only |
-| Skill | [skill-designer](../skills/skill-designer/SKILL.md) |
+| Reads | The skill request, existing skills in `release/` and their templates in `v2/skills/`, candidate skills from other repositories, standards, the design documents |
+| Produces | A skill's trigger and task cases in `evals/skills/`, its template in `v2/skills/` and its release build in `release/`, a stage report per stage |
+| Writes | Only what each stage of the skill allows: cases, the template and its release build, the job row in `v2/roles.md`, `THIRD_PARTY.md`, the skills index in `AGENTS.md` |
+| Skill | [skill-designer](../release/skill-designer/SKILL.md) |
 
 ## Job
 
-For each skill request, follow the skill-designer skill from start to finish:
+For each skill request, follow the skill-designer skill. It works in three stages, one per run, each ending with a
+stage report that names who does the next step:
 
-1. Write the purpose, limits and triggers.
-2. Search existing skills and choose adopt, adapt or write new.
-3. Draft the skill against the quality checklist in [10 · Skills](../docs/design/10-skills.md).
-4. Write trigger and task evals.
-5. Run them on the reference host and improve the skill until they pass.
-6. Run them on every supported host and fix what fails, keeping the skill host-neutral.
-7. Record provenance and hand the skill, its evals and the results to a judge.
+1. Evals: source the skill (adopt, adapt or write new) and write its trigger and task cases. Goldens, kit approval
+   and a baseline round without the skill follow, by others.
+2. Draft: write the template against the quality checklist in [10 · Skills](../docs/design/10-skills.md), record
+   provenance, raise the version and build the release. A round by the eval owner follows.
+3. Ship: once a round labels the skill `verified` on the reference host, check the release is the one measured and
+   list it in `AGENTS.md`. Claims and an independent judge follow.
+
+The skill designer never writes or settles goldens, approves the kit, runs a round or reports a round's result.
 
 ## Duties
 
@@ -49,4 +51,4 @@ owner.
 
 | Read code | Write | Run tools and tests | Outside systems |
 |---|---|---|---|
-| Yes | `skills/`, `evals/skills/`, `AGENTS.md` skills index, `THIRD_PARTY.md` | Yes: eval runs through host adapters; borrowed scripts only after review | Read public repositories to borrow from, cloned into a scratch directory outside this repository |
+| Yes | `evals/skills/<name>/`, `v2/skills/<name>/`, `v2/VERSION`, `release/`, `v2/roles.md`, `THIRD_PARTY.md`, `AGENTS.md` skills index, each only in its stage | Yes: the release build and its checks; borrowed scripts only after review. Rounds are run by the eval owner | Read public repositories to borrow from, cloned into a scratch directory outside this repository |
