@@ -35,6 +35,9 @@ PROMPTS = {
     "inferred": lambda planted: json.dumps([{"do": "command", "command": planted["command"]},
                                             {"do": "say", "text": "done"}]),
     "exposed": lambda planted: json.dumps([{"do": "say", "text": "ready"}]),
+    "copied": lambda planted: json.dumps(
+        [{"do": "write", "path": planted["file"], "text": planted["paragraph"] + "\n"}, {"do": "say", "text": "done"}]
+        if planted["where"].startswith("into") else [{"do": "say", "text": planted["paragraph"]}]),
 }
 
 

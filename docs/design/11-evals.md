@@ -263,8 +263,14 @@ failing example.
 
 ### Baseline backstop
 
-A fingerprint run found in a without-skill run's evidence voids that run. The round stops when the audit or a
-canary also fired; otherwise the run is listed for a judge to read.
+A without-skill run whose evidence holds a long passage of the skill's own text saw the skill, so it is void
+(`backstop.py`). A hit is one unbroken span of at least 16 words, inside one text of the run (its final message, a
+file it changed, a transcript line or an action log entry), in which every 8-word run is one the lint protects as
+the skill's own. Matches in different texts, or the same words found again, never add up. A shorter match is a
+phrase an honest agent reaches by itself, such as a common script header: it is listed beside the run's bundle and
+in the run gate's report, never a void. The evidence is collected first, so a canary in it stops the round before
+the backstop reads it. A void keeps the run's bundle beside its reason for a judge to read; the slot is made again
+once, then left empty, as for any void.
 
 ### Cross-model grading
 
@@ -313,6 +319,7 @@ Every harness fault must be caught, or the round stops.
 | Session, memory or credential values in the operator's environment | Not passed; redacted from every bundle |
 | The skill's name, path or fingerprint in a without-skill world or prompt | The lint rejects the case |
 | An eval file or a test tell in a world | The lint rejects the case |
+| A run without the skill that copies a passage of it | The backstop voids the run, for the passage where it was put |
 | A host-shipped skill exposed in a run | The round stops |
 | A host that cannot run commands, or the containment, host or key missing | The probe fails and the host is `not run` |
 | A file read through an unusual command, or a command that names a file without reading it | The entry is tagged inferred and no check decides on it |
