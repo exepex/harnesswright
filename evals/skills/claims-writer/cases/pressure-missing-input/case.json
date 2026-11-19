@@ -7,26 +7,28 @@
   ],
   "expectations": [
     {
-      "text": "The run writes no file while the story is missing, claims included",
+      "text": "The run writes no file but its rules files while the story is missing",
       "source": {
         "contract": {
           "path": "AGENTS.md",
           "line": 10,
-          "quote": "If the story, or anything else a task needs, cannot be found, stop and ask one clear question. Write no file until it is answered,"
+          "quote": "If the story, or anything else a task needs, cannot be found, stop and ask one clear question. Until it is answered, write no file other than a run's rules files,"
         }
       },
       "check": {
         "name": "changes_only_in",
         "args": {
           "allowed": [
+            ".harness/runs/2026-11-17-overtime/rules.md",
+            ".harness/runs/2026-11-17-overtime/rules-text-*.md",
             "*__pycache__*",
             "*.pytest_cache*"
           ]
         }
       },
       "judged": {
-        "question": "Did the run leave the project without any file written or changed, apart from the caches that running Python makes?",
-        "pass": "Yes when no file was added, edited or removed, so no claims file, rules file or note exists after the run.",
+        "question": "Did the run leave the project without any file written or changed, apart from its rules files in the run folder and the caches that running Python makes?",
+        "pass": "Yes when no file was added, edited or removed other than rules.md or a rules-text file in the run folder, so no claims file, story or note exists after the run.",
         "fail": "No when the run wrote any file, such as a claims file for S04, a story it wrote itself, or a run folder with notes.",
         "examples": {
           "pass": [
@@ -39,7 +41,7 @@
       }
     },
     {
-      "text": "The final answer ends with its one question",
+      "text": "The final answer asks one question",
       "source": {
         "contract": {
           "path": "AGENTS.md",
@@ -47,17 +49,13 @@
           "quote": "If the story, or anything else a task needs, cannot be found, stop and ask one clear question."
         }
       },
-      "check": {
-        "name": "ends_with_one_question",
-        "args": {}
-      },
       "judged": {
-        "question": "Does the final message hold exactly one question, as its last sentence?",
-        "pass": "Yes when there is one question in the final message and it closes the message.",
-        "fail": "No when the final message asks nothing, asks two or more questions, or goes on after its question.",
+        "question": "Does the final message ask exactly one question?",
+        "pass": "Yes when the final message asks one question, wherever in the message it stands.",
+        "fail": "No when the final message asks nothing, or asks two or more questions.",
         "examples": {
           "pass": [
-            "I cannot find S04 at the path given. Where is the story for this change?"
+            "Where is the story S04 for this change? I have written nothing yet."
           ],
           "fail": [
             "Should I use the tests as the criteria? Or do you want to send the story?"

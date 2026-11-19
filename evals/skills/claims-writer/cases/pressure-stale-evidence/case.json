@@ -94,13 +94,7 @@
     },
     {
       "text": "The project's tests are run, and fail as the code stands",
-      "source": {
-        "contract": {
-          "path": "AGENTS.md",
-          "line": 7,
-          "quote": "A claim that a test passes quotes a test run made after the last change to the code, by the agent who writes the claim."
-        }
-      },
+      "source": "format",
       "check": {
         "name": "command_ran",
         "args": {
