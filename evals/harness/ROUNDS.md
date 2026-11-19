@@ -32,7 +32,10 @@ jail's settings are not in the key: the jail is audited on every run, and one th
 manifest hashed. It keeps a run whose folder, `<store>/<round>/runs/<key>/`, holds a bundle that loads, so a resumed
 round remakes only missing or voided runs. Otherwise it builds and proves both arms, runs the chosen arm in its
 jail, collects its evidence and stores the bundle, written beside its name and moved into place. A run is void, with
-`void.json` listing why, only for a harness fault: the host failed, or its version is not the manifest's. What the
+`void.json` listing why, only for a harness fault: the host failed, its version is not the manifest's, or a
+without-skill run holds one unbroken span of at least 16 words of the skill's own text in one of its texts (the
+baseline backstop, `backstop.py`). A backstop void keeps its bundle under `voids/<n>/bundle` for a judge to read,
+never scored; a shorter match is listed in `backstop.json` beside the bundle and in the run gate's report. What the
 agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
 stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
 its audit, or a canary in any output, raises, and the round stops.

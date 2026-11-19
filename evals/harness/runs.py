@@ -14,7 +14,9 @@ missing or voided runs, and a changed input gives a new key, never a changed run
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
-  `void.json` holding why, only for a harness fault: the host failed, or its version is not the manifest's. What the
+  `void.json` holding why, only for a harness fault: the host failed, its version is not the manifest's, or a
+  without-skill run's evidence holds a long passage of the skill's own text (`backstop.check`), whose bundle is then
+  kept under `voids/<n>/` for a judge and never scored; shorter matches go to `backstop.json` beside the bundle. What the
   agent did, a run that timed out included, is never a void. A voided slot gets one remake; voided again, it stays
   empty. `void.json` keeps every void of the slot, a remade one too, for the void rate. A jail that fails its audit
   or a canary in the output raises: the round stops. A run is made only from the repository at the round's commit,
@@ -32,6 +34,7 @@ from pathlib import Path
 
 import contextlib
 
+import backstop
 import contain
 import evidence
 import host
@@ -44,9 +47,9 @@ from cases import ARMS, PREVIOUS, REPO
 
 HARNESS = Path(__file__).resolve().parent
 # The runner code that affects a run: its jail and gate, the host contract, the world builder and the evidence.
-RUNNER = ("audit.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "manifest.py", "powers.py",
-          "runs.py", "scrub.py", "skills.py", "world.py")
-BUNDLE, VOID = "bundle", "void.json"
+RUNNER = ("audit.py", "backstop.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "lint.py",
+          "manifest.py", "powers.py", "runs.py", "scrub.py", "skills.py", "textruns.py", "world.py")
+BUNDLE, VOID, VOIDS, SHORT = "bundle", "void.json", "voids", "backstop.json"
 TIMEOUT = 900  # seconds a run may take, unless the caller names another
 TRIES = 2  # a voided slot gets at most one remake (doc 11, Blocked actions and voids)
 
@@ -144,6 +147,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         other = world.build(case, adapter, scratch / "b", skills_root, True, skill_dir)
         world.prove(case, adapter, base, other, skills_root, skill_dir)  # the arms differ only by the skill
         chosen = base if arm == "without_skill" else other
+        # The skill's own runs, read from the proved arm before the host can change it (`backstop.protected`).
+        own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None
         contained = contain.Containment(adapter, case.kind, chosen.path, manifest.manifest(chosen.path),
                                         root=scratch / "run", **containment)
         result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
@@ -155,10 +160,22 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         if bundle["failure"] and not result.timed_out:  # the host failed, not the agent: a harness fault
             return _void(path, run_key, voids, f"the host failed: {bundle['failure']}")  # scrubbed by `collect`
         # A run that timed out is what the agent did in the time it had, and is scored like any other.
+        # After `collect`, so a canary has stopped the round already.
+        found = None if own is None else backstop.check(bundle, blobs.__getitem__, own)
         path.mkdir(exist_ok=True)
+        if found and found["void"]:  # the run saw the skill: void, with its evidence kept where no reader scores it
+            kept = path / VOIDS / str(len(voids))
+            shutil.rmtree(kept, ignore_errors=True)
+            kept.parent.mkdir(exist_ok=True)
+            evidence.store(bundle, blobs, kept / BUNDLE)
+            where, length, span = found["void"][0]
+            return _void(path, run_key, voids, f"fingerprint hit: {length} words of the skill's own text in {where}: "
+                                               f"{span[:200]}")
         made = path / f".{BUNDLE}.{os.getpid()}"
         shutil.rmtree(made, ignore_errors=True)
         evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
+        if found is not None:
+            (path / SHORT).write_text(json.dumps({"short": found["short"]}, indent=1) + "\n")
         os.rename(made, path / BUNDLE)
     return {"key": run_key, "status": "made", "bundle": str(stored(path)[1])}
 
