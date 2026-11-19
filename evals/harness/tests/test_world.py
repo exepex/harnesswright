@@ -55,6 +55,16 @@ class Arms(TempCase):
         self.assertEqual(len(rows), 1)
         self.assertTrue(rows[0].startswith("| haiku-writer | [skills/haiku-writer/SKILL.md]"))
 
+    def test_a_skill_with_no_folder_yet_has_its_one_arm_proved_alone(self):
+        self.skill()
+        case = self.case({"README.md": "Notes app.\n"}, skill="limerick-writer")
+        base = world.build(case, Adapter, self.tmp / "base", self.tmp / "skills")
+        proof = world.prove(case, Adapter, base, None, self.tmp / "skills")
+        self.assertEqual((proof["with_skill"], proof["added"]), (None, []))
+        (base.path / "extra.md").write_text("not in the case\n")
+        with self.assertRaisesRegex(cases.CaseError, r"without_skill arm is not what the case says: .*extra.md"):
+            world.prove(case, Adapter, base, None, self.tmp / "skills")
+
     def test_rows_go_at_the_end_of_their_table_and_keep_its_bytes(self):
         header = "| Skill | Path | Use when |"
         cases_ = {b"| Skill | Path | Use when |\n|---|\n| a |\n\nAfter.\n":
