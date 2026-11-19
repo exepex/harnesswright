@@ -1,0 +1,7 @@
+openapi: 3.0.3
+info: {title: Orders, version: 1.4.0}
+paths:
+  /v1/orders:
+    get: {deprecated: true, responses: {"200": {description: The orders}}}
+  /v2/orders:
+    get: {responses: {"200": {description: The orders}}}

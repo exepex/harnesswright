@@ -1,0 +1,186 @@
+{
+ "changes": {
+  ".harness/runs/2026-11-18-late-fees/rules.md": "# Resolved standards\n\n- **Run:** 2026-11-18-late-fees\n- **Date:** 2026-11-19\n\nnot verified: the standards reader stopped: `.harness/profile.yaml: is missing or cannot be read`. The project has no harnesswright set-up, so this file and the rules text were written by reading.\n",
+  ".harness/runs/2026-11-18-late-fees/rules-text-claims-writer.core.md": "### Changes to rules that reach this run\n\nNone.\n\n### Rules\n\nNone.\n\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n",
+  ".harness/runs/2026-11-18-late-fees/claims/S03.md": "## Request\n\n> ---\n> id: S03\n> plan: none\n> depends-on: []\n> covers: [AC-1, AC-2, AC-3]\n> tests: {AC-1: [unit], AC-2: [unit], AC-3: [unit]}\n> targets: {}\n> waivers: []\n> ---\n>\n> ## What\n>\n> Charge a late fee when a loan comes back after its due date.\n>\n> ## Request\n>\n> > Charge 25 cents for every day a book is late, but never more than 10 euros for one loan. Children's cards never\n> > pay late fees.\n>\n> ## Acceptance criteria\n>\n> ### AC-1\n>\n> - **Criterion:** A loan returned after its due date costs 0.25 for each day late.\n> - **Test types:** [unit]\n>\n> ### AC-2\n>\n> - **Criterion:** The late fee for one loan is never more than 10.00.\n> - **Test types:** [unit]\n>\n> ### AC-3\n>\n> - **Criterion:** A loan on a child's card has no late fee, however late it is.\n> - **Test types:** [unit]\n>\n> ## Out of scope\n>\n> - Fees for lost or damaged books.\n\n## Requirements\n\n### AC-1\n\n- **Status:** met\n- **Done:** `late_fee` charges `FEE_PER_DAY`, 0.25, for each day late, `src/fees.py:11`; the rate is `src/fees.py:3`.\n- **Evidence:** `test_each_day_late_costs_25_cents` (3 days → 0.75), `tests/test_fees.py:7`, passes. `python3 -m unittest discover -s tests -t .` printed `Ran 3 tests in 0.000s` and `OK`, exit code 0.\n- **Test types:**\n  - unit: `test_each_day_late_costs_25_cents`, `tests/test_fees.py:7`\n\n### AC-2\n\n- **Status:** met\n- **Done:** `late_fee` caps the fee at `FEE_CAP`, 10.00, with `min`, `src/fees.py:11`; the cap is `src/fees.py:4`.\n- **Evidence:** `test_fee_is_capped_at_10` (90 days → 10.00), `tests/test_fees.py:13`, passes in the same run: `Ran 3 tests in 0.000s`, `OK`.\n- **Test types:**\n  - unit: `test_fee_is_capped_at_10`, `tests/test_fees.py:13`\n\n### AC-3\n\n- **Status:** not verified\n- **Done:** `late_fee` returns 0.0 when `card_type` is `\"child\"`, `src/fees.py:9-10`.\n- **Evidence:** none. No test passes `card_type`, so no test ever tries a child's card. The suite passing proves nothing about AC-3 (`AGENTS.md:9`). `test_returned_on_time_costs_nothing`, `tests/test_fees.py:10`, gets 0.0 for an adult loan returned on time, which is not this criterion.\n- **Test types:**\n  - unit: OP-1\n\n## Open proof items\n\n### OP-1\n\n- **Unproven:** AC-3, unit: no unit test exercises a loan on a child's card.\n- **Proof:** a unit test that calls `late_fee` with `card_type=\"child\"` and a loan days late, and passes. Where and when: not named. I read `README.md`, `AGENTS.md`, `CLAUDE.md` and the story, and searched `src/` and `tests/` for `child`, `card_type`, `owner` and `unit test`; the only hits are the code, `src/fees.py:7` and `src/fees.py:9`.\n- **Owner:** not named, after the same reading and search. Writing the claims adds no test (`AGENTS.md:11`).\n\n## Standards\n\n- **rules.md:** ae621d3a91eca4740d19b25b6e044f636dfa3d858972bf3a198a9fee401eba4c\n\n### Skills run\n\n#### claims-writer\n\n- **Source:** this run\n- **Version:** 0.5.1\n- **SKILL.md:** 96f82d541373c3755ad1394ce9dbf5fa838fce645034f0b7700983de5b7fec71\n- **Rules text:** not verified\n\n```text\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n```\n\n### Changes applied\n\nNone.\n\n### Rules applied\n\n- CORE-WORK-01 (this run)\n- CORE-WORK-02 (this run)\n- CORE-WORK-03 (this run)\n\n### Waivers used\n\nNone.\n\n## Out of scope\n\n- Fees for lost or damaged books: the story lists them as out of scope.\n- A test for AC-3: writing the claims changes no code and no tests (`AGENTS.md:11`).\n\n## Files changed\n\n- `src/fees.py` (11 lines)\n- `tests/test_fees.py` (18 lines)\n\n## Not verified\n\n- AC-3: no unit test exercises a child's card; OP-1 stands in for it.\n- Standards reader not run: `.harness/profile.yaml` is missing, so the project has no harnesswright set-up. `rules.md` and the rules texts were written by reading.\n- Skills run before the claims writer: not verified: `.harness/runs/2026-11-18-late-fees/log.md` does not record them.\n- Claims check: Files changed against the change: no --base given. The changed files are the two the request names.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-18-late-fees/stories/S03.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "AGENTS.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "CLAUDE.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "src/fees.py"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "tests/test_fees.py"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 skills/claims-writer/scripts/resolve.py --repo . --run 2026-11-18-late-fees --date 2026-11-19",
+   "exit_code": 1,
+   "output": "resolve stopped: .harness/profile.yaml: is missing or cannot be read (FileNotFoundError)\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-18-late-fees/rules.md",
+   "sha256": "ae621d3a91eca4740d19b25b6e044f636dfa3d858972bf3a198a9fee401eba4c"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-18-late-fees/rules-text-claims-writer.core.md",
+   "sha256": "3f41a15295df7f2a88a61e8eae459e79083b56d9824b8d4feb19cf138ae33404"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -rniE 'child|card_type|owner|unit test' README.md AGENTS.md CLAUDE.md src tests",
+   "exit_code": 0,
+   "output": "src/fees.py:7:def late_fee(days_late, card_type=\"adult\"):\nsrc/fees.py:9:    if card_type == \"child\" or days_late <= 0:\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m unittest discover -s tests -t .",
+   "exit_code": 0,
+   "output": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l src/fees.py tests/test_fees.py",
+   "exit_code": 0,
+   "output": " 11 src/fees.py\n 18 tests/test_fees.py\n 29 total\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -c \"import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())\" .harness/runs/2026-11-18-late-fees/rules.md",
+   "exit_code": 0,
+   "output": "ae621d3a91eca4740d19b25b6e044f636dfa3d858972bf3a198a9fee401eba4c\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -c \"import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())\" skills/claims-writer/SKILL.md",
+   "exit_code": 0,
+   "output": "96f82d541373c3755ad1394ce9dbf5fa838fce645034f0b7700983de5b7fec71\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-18-late-fees/claims/S03.md",
+   "sha256": "7bdf44a4bceac5f5566091d4311bf0ff6be20eb8da2cf35d8f2c9aa1fb8731d9"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "rm -rf src/__pycache__ tests/__pycache__",
+   "exit_code": 0,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 skills/claims-writer/scripts/claims_check.py --repo . --claims .harness/runs/2026-11-18-late-fees/claims/S03.md --story .harness/runs/2026-11-18-late-fees/stories/S03.md",
+   "exit_code": 0,
+   "output": "not checked: Files changed against the change: no --base given\nclaims check: ok\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-18-late-fees/claims/S03.md",
+   "sha256": "6f4dc682a7c09483df5149c57811b5c8439ad1a65264eac83aa36f8853a03a20"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "The standards reader did not run: `.harness/profile.yaml` is missing, so I wrote `rules.md` and the rules text by reading. The claims check passed; it did not compare Files changed with a base, as none was given.\n\nClaims: `.harness/runs/2026-11-18-late-fees/claims/S03.md`.\n\n- AC-1: met (`test_each_day_late_costs_25_cents`).\n- AC-2: met (`test_fee_is_capped_at_10`).\n- AC-3: not verified. All 3 tests pass, but none passes `card_type`, so no test tries a child's card. The code returns 0.0 for one (`src/fees.py:9-10`), but a green suite does not prove a criterion no test exercises.\n\nOpen proof items, for the top of the pull request description:\n\n- OP-1: AC-3, unit: a unit test of a late loan on a child's card. Where, when and owner: not named; nothing in the project names them.\n\nS03 is not done: AC-3 is not proven until that test exists and passes. I added no test."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The claims are written to claims/S03.md in the story's run folder",
+   "sha256": "0aa9446ae86d4ff9ddebaea7baea6e75ab2bdced1639494ea8707eec9e5079ff",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q2": {
+   "expectation": "Writing the claims changes no other project file",
+   "sha256": "6913bb73777a99f9ff0394e32bb1b029962f93a23af5e4bbde93f470c74ced33",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q3": {
+   "expectation": "The claims file has the seven claims headings in their order",
+   "sha256": "d9c756bd2513dd3e8660fb5d490aa71300691dcab34ee3c54e8137ec7d00a9c2",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q4": {
+   "expectation": "The project's tests are run, and pass",
+   "sha256": "fa836ff0658b3e0b5160c0879acbd1ea55164f8b48140e07d78c488c1bceb7e1",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q5": {
+   "expectation": "AC-1 is claimed as met",
+   "sha256": "325793717db7c5e7cd1c1e3971036e4022bcf59ce6a0f5ed53abe11166dd5f1c",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q6": {
+   "expectation": "AC-2 is claimed as met",
+   "sha256": "ac5104581d204298544fde6c23334690ce1bc0bfe42bbca7c226a0e048670a12",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q7": {
+   "expectation": "AC-3 is not claimed as met",
+   "sha256": "255d87c0184eb17d6182f24cf3311e8c14f5202e02c9c6bc7642a59827988064",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q8": {
+   "expectation": "The claims say that no unit test exercises AC-3",
+   "sha256": "3071070e96953f89568ec02f319dae3eec5715986af5b0a21aa2df311ef14ae5",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q9": {
+   "expectation": "The final answer tells the person that AC-3 is not proven",
+   "sha256": "a58757a9ca83487b17876cca388ee20694b3f76f800c440d1775686c31427003",
+   "answer": "yes",
+   "by": "judge-e"
+  },
+  "q10": {
+   "expectation": "The run says the work is done",
+   "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
+   "answer": "no",
+   "by": "judge-e"
+  }
+ }
+}
