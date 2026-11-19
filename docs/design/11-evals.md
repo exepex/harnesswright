@@ -219,8 +219,11 @@ skill, the generated index row, the host discovery copy and everything else the 
 files after as well as from the diff. It shows each command as the command the agent ran, without its output or
 exit code, since the two arms are different worlds and what a world prints back tells the arm; outcomes such as
 "the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
-removed from the view's text. What the agent itself wrote or said about what it saw is its own output and stays
-visible. The full bundle is kept for checks, audits and judges.
+removed from the view's text. A command is cut where the command checks find its programs, so it loses only the
+pipelines on the overlay (naming the skill, its paths or a folder only the overlay made) and what depends on them,
+by `$?`, `&&` or `||`; it is dropped whole only when nothing else is left or no clean cut can be made.
+What the agent itself wrote or said about what it saw is its own output and stays visible. The full bundle is kept
+for checks, audits and judges.
 
 A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
 or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The
@@ -242,8 +245,8 @@ with a source, "ends with exactly one question", commands run or never run. A sk
 - **A check never decides on inferred evidence.** It returns `undecidable`, and the expectation goes to the
   graders with the command list.
 - **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
-  such as a command that names the skill's path, the expectation is asked of no one, and the run is not scored on
-  it.
+  such as a command that names the skill's path, or cuts away the part that left it so, the expectation is asked
+  of no one, and the run is not scored on it.
 
 An expectation may be judged only when no check can decide it.
 

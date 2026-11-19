@@ -273,26 +273,33 @@ def named(world, before, log):
         found.append(item)
         if not isinstance(item, dict) or item.get("kind") != "command" or not isinstance(item.get("command"), str):
             continue
-        words = re.split(rf"[{EDGE}]+", item["command"])
-        globs = [w for w in words if any(c in w for c in "*?[")]
-        bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path
-        paths = {form for glob in globs if "/" in glob for form in _read_from(root, glob)}
-        ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
         own = set()  # the inferred reads its adapter put right after it
         for later in log[number + 1:]:
             if not part_of_command(later):
                 break
             if later.get("kind") == "read":
                 own.add(os.path.normpath(str(later.get("path"))))
-        for path in files:
-            name = path.rsplit("/", 1)[-1]
-            whole = name in ends if not re.search(rf"[{EDGE}]", name) else re.search(
-                rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", item["command"])  # a name with an edge in it
-            matched = any(fnmatch.fnmatchcase(f"{root}/{path}", form) for form in paths) or any(
-                fnmatch.fnmatchcase(name, glob) for glob in bare)
-            if (whole or matched) and path not in own:
-                found.append(entry("read", "inferred", path=path))
+        names = naming(item["command"], root)
+        found += [entry("read", "inferred", path=path) for path in files if names(path) and path not in own]
     return found
+
+
+def naming(command, root):
+    """The one rule of `named`: a test of whether `command`, run in the world at `root`, names a world path. The
+    grader view keeps by it the reads of the part of a command it shows."""
+    words = re.split(rf"[{EDGE}]+", command)
+    globs = [w for w in words if any(c in w for c in "*?[")]
+    bare = [glob for glob in globs if "/" not in glob]  # matched by name; a glob with a folder, by path
+    paths = {form for glob in globs if "/" in glob for form in _read_from(root, glob)}
+    ends = {w[i + 1:] for w in words for i in range(-1, len(w)) if i < 0 or w[i] == "/"}  # each word after a /
+
+    def names(path):
+        name = path.rsplit("/", 1)[-1]
+        whole = name in ends if not re.search(rf"[{EDGE}]", name) else re.search(
+            rf"(?:^|[{EDGE}/]){re.escape(name)}(?=$|[{EDGE}])", command)  # a name with an edge in it
+        return bool(whole) or any(fnmatch.fnmatchcase(f"{root}/{path}", form) for form in paths) or any(
+            fnmatch.fnmatchcase(name, glob) for glob in bare)
+    return names
 
 
 def _read_from(root, glob):

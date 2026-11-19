@@ -6,7 +6,11 @@ known to be risky. Each rule is applied the same way in both arms, so the same r
 - **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
   copies of the skill, and the folders above them while they only hold them) and outside the host's own files.
 - **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path, command or
-  refused action names the skill or one of its paths (`on_overlay`). No without-skill run can act on the skill.
+  refused action names the skill, one of its paths, or a folder above them that only the overlay made
+  (`on_overlay`, `overlay_names`). The view hides what is on the overlay, not what sits beside it: a command is
+  shown without its pipelines on the overlay and what depends on them, cut where `shell.programs` splits it, and
+  is dropped whole only when nothing else is left or no clean cut can be made (`shown`, `shell.cut`). A read
+  inferred from a cut command goes when only the part cut away names it.
 - **What the agent did, not what the world showed it.** A command is shown by what the agent ran
   (`COMMAND_FIELDS`), never by its output or exit code: the arms are different worlds, so what a world prints back
   (a listing, a line count, a commit's size) tells the arm, however it is filtered. Doc 11 gives graders the command
@@ -28,11 +32,13 @@ Standard library only.
 import hashlib
 import os
 import re
+from pathlib import PurePosixPath
 
 import evidence
 import host
 import manifest
 import scrub
+import shell
 import world
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
@@ -44,6 +50,7 @@ def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
     words = world.names([overlay["skill"], *overlay["paths"]])
+    acts = overlay_names(overlay, record["files_after"], record["diff"])  # what puts an action on the overlay
     places, own = overlay["paths"], record["own_files"]
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
@@ -65,26 +72,32 @@ def view(record, blob):
             return overlay["index_without"]
         return "link " + text(entry[len("link "):], words, folders) if manifest.kind(entry) == "link" else entry
 
-    shown = {path: after(path, entry) for path, entry in record["files_after"].items()}
+    entries = {path: after(path, entry) for path, entry in record["files_after"].items()}
     old = {path: before(path, change["before"]) for path, change in record["diff"].items() if change["before"]}
     old = {path: entry for path, entry in old.items() if entry is not None}
-    new = {path: shown[path] for path, change in record["diff"].items() if change["after"]}
-    files = {path: entry for path, entry in shown.items()
+    new = {path: entries[path] for path, change in record["diff"].items() if change["after"]}
+    files = {path: entry for path, entry in entries.items()
              if path not in own and not evidence.covers(places, path, entry, entry)}
     changes = evidence.diff(old, new, places, own)
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
     root = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
-    follows, read = False, set()  # whether the entry follows a dropped command; the paths the view shows read
+    names = None  # right after a command the view drops, False; after one it cuts, what its shown part names
+    read = set()  # the paths the view shows read
     for item in record["log"]:
-        if follows and host.part_of_command(item):
-            continue  # it stands right after the command it came from, and goes with it
-        follows = False
-        if on_overlay(item, words):
-            follows = item["kind"] == "command"
+        if names is not None and host.part_of_command(item):
+            if names is False or item["kind"] != "read" or not names(item["path"]):
+                continue  # it stands right after the command it came from, and goes with the part not shown
+        else:
+            names = None
+        action = shown(item, acts)
+        if action is None:
+            names = False if item["kind"] == "command" else None
             continue
-        written = item.get("path")
+        if action is not item:  # a command cut to its pipelines that do not name the skill
+            names = _named_by(action["command"], item["command"], os.path.normpath(root) if root else ".")
+        item, written = action, item.get("path")
         item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
                 for name, value in item.items()}
         if item["kind"] == "read":  # a file's inferred read is shown once, the first time, the same in either arm
@@ -101,6 +114,38 @@ def view(record, blob):
     built = {"files_after": files, "diff": changes, "log": log,
              "final_message": None if final is None else text(final, words, folders)}
     return {name: built[name] if name in built else record[name] for name in FIELDS}, blobs
+
+
+def overlay_names(overlay, files_after, diff):
+    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`world.names`), and,
+    as a path, each folder above one of its paths that the overlay alone made: before the run it held nothing but
+    the overlay (`evidence.covers`), or was not there. A folder of that name the world holds itself does not count,
+    and both arms find the same folders, so the same run in either arm gives the same view."""
+    places = overlay["paths"]
+    before = {path: entry for path, entry in files_after.items() if path not in diff}
+    before.update({path: change["before"] for path, change in diff.items() if change["before"]})
+    above = {str(folder) for place in places for folder in PurePosixPath(place).parents if str(folder) != "."}
+    only = sorted(folder for folder in above
+                  if all(evidence.covers(places, path) for path in before if path.startswith(folder + "/")))
+    pattern = world.names([overlay["skill"], *places]).pattern
+    # a folder is named as a path from the world: at a word's start or after ./, whole or with a path below it
+    start, end = r"""(?<![^\s'"`;&|<>()=])(?:\./)?""", r"""(?=/|$|[\s'"`;&|<>()*])"""
+    folders = "".join(f"|{start}{re.escape(folder)}{end}" for folder in only)
+    return re.compile(pattern + folders, re.ASCII)
+
+
+def shown(item, words):
+    """A log entry as the view shows its action, or None when it shows none. An action on the overlay
+    (`on_overlay`) is dropped, except a command whose every pipeline that names the skill can be cut away
+    (`shell.cut`): it is shown as its other pipelines. Checks ask this of the view (`checks.decide`)."""
+    if not on_overlay(item, words):
+        return item
+    if item["kind"] != "command":
+        return None
+    command = shell.cut(item["command"], lambda part: bool(words.search(part)))
+    if not command or not command.strip(" \t"):
+        return None
+    return {**item, "command": command, "exit_code": None}  # the code was the whole command's, not its shown part's
 
 
 def on_overlay(item, words):
@@ -120,6 +165,13 @@ def text(value, words, folders):
     for folder in sorted(folders, key=len, reverse=True):
         value = value.replace(encode(folder), encode(folders[folder]))
     return value
+
+
+def _named_by(shown, command, root):
+    """Whether a read inferred from `command` stays with its `shown` part: unless only the part cut away names it
+    (`host.naming`), as a read its adapter inferred by its own reading belongs to no one part."""
+    kept, whole = host.naming(shown, root), host.naming(command, root)
+    return lambda path: kept(path) or not whole(path)
 
 
 def _relative(path, world):

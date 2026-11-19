@@ -11,6 +11,7 @@ arguments outside its list, raise CheckError: a broken check stops the round, it
 Standard library only.
 """
 
+import copy
 import fnmatch
 import hashlib
 import importlib.util
@@ -23,7 +24,6 @@ from pathlib import Path
 import evidence
 import manifest
 import view
-import world
 from cases import REPO
 
 LIBRARY = REPO / "evals" / "checks"
@@ -68,7 +68,7 @@ class Bundle:
         self.changes = record["diff"]
         self.final_message = record["final_message"]
         self._log, self._blob = record["log"], blob
-        self.overlay = record.get("overlay")  # what the grader view hides (`view.on_overlay`); none in an answer key
+        self.overlay = record.get("overlay")  # what the grader view hides (`view.shown`); none in an answer key
 
     @classmethod
     def load(cls, folder):
@@ -177,7 +177,7 @@ def decide(name, bundle, args, checks=None):
         outcome, reason = check.decide(bundle, **args)
     except Undecidable as error:
         outcome, reason, inferred = "undecidable", str(error), isinstance(error, Inferred)
-        hidden = _hidden(bundle, error.entries)
+        hidden = _hidden(bundle, check, args, error.entries)
     except Exception as error:  # a check that breaks decides nothing, and the round stops
         raise CheckError(f"{name}: the check failed to run: {type(error).__name__}: {error}") from None
     if outcome not in OUTCOMES or not isinstance(reason, str) or not reason:
@@ -185,12 +185,25 @@ def decide(name, bundle, args, checks=None):
     return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred, "hidden": hidden}
 
 
-def _hidden(bundle, entries):
-    """Whether the grader view drops any of `entries`: an action on the bundle's overlay (`view.on_overlay`)."""
+def _hidden(bundle, check, args, entries):
+    """Whether the grader view hides what left `check` undecided: it drops one of `entries`, or shows one so cut that
+    the check, given that entry alone as the view shows it (`view.shown`), would decide."""
     if not bundle.overlay:
         return False
-    words = world.names([bundle.overlay["skill"], *bundle.overlay["paths"]])
-    return any(view.on_overlay(item, words) for item in entries)
+    words = view.overlay_names(bundle.overlay, bundle.files, bundle.changes)
+    for item in entries:
+        seen = view.shown(item, words)
+        if seen is None:
+            return True
+        if seen is not item:
+            alone = copy.copy(bundle)
+            alone._log = [seen]
+            try:
+                check.decide(alone, **args)
+            except Undecidable:
+                continue
+            return True
+    return False
 
 
 def keys(name, folder=KEYS):
