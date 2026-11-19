@@ -25,6 +25,10 @@ VERSION = {"path": "/usr/bin/fakehost", "sha256": "0" * 64, "version": "fakehost
 WROTE = json.dumps([{"do": "write", "path": "poem.md", "text": "An old silent pond\n"}, {"do": "say", "text": "Done."}])
 DRIFT = {"own files": {"task": [], "trigger": []}}
 OTHER_DRIFT = {"own files": {"task": ["world/poem.md"], "trigger": []}}
+COPIED = ("Count the syllables of every line twice before you write it down, and keep the season word in the "
+          "first line so the reader knows the time of year")
+SKILL_TEXT = ("---\nname: haiku-writer\ndescription: Writes a haiku. Use when asked for a haiku.\n---\n\n# Haiku "
+              f"writer\n\n{COPIED}.\n")
 
 
 class Round(TempCase):
@@ -174,6 +178,32 @@ class Runs(Round):
         empty = self.run_one(record)  # voided twice, the slot stays empty and is not run again
         self.assertEqual(empty["status"], "empty")
         self.assertIn("the host failed", empty["reason"])
+
+    def test_a_without_skill_run_that_copies_the_skill_is_void_with_its_evidence_kept_then_empty(self):
+        (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text(SKILL_TEXT)
+        self.prompt(json.dumps([{"do": "write", "path": "poem.md", "text": COPIED}, {"do": "say", "text": "Done."}]))
+        record = self.plan()
+        void = self.run_one(record, "without_skill")
+        self.assertEqual(void["status"], "void")
+        self.assertIn("fingerprint hit", void["reason"])
+        folder = self.store / "r1" / "runs" / void["key"]
+        self.assertEqual(runs.stored(folder)[0], "void")  # the kept evidence is never read as a kept run
+        bundle, _ = evidence.load(folder / "voids" / "0" / "bundle")  # for a judge to read
+        self.assertIn("poem.md", bundle["diff"])
+        self.assertEqual(self.run_one(record, "without_skill")["status"], "void")  # one remake
+        self.assertEqual(sorted(p.name for p in (folder / "voids").iterdir()), ["0", "1"])
+        self.assertEqual(self.run_one(record, "without_skill")["status"], "empty")
+        self.assertEqual(self.run_one(record, "with_skill")["status"], "made")  # only the run without the skill
+
+    def test_a_short_match_of_the_skill_is_listed_beside_the_bundle_never_a_void(self):
+        (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text(SKILL_TEXT)
+        short = " ".join(COPIED.split()[:10])
+        self.prompt(json.dumps([{"do": "write", "path": "poem.md", "text": short}, {"do": "say", "text": "Done."}]))
+        record = self.plan()
+        made = self.run_one(record, "without_skill")
+        self.assertEqual(made["status"], "made")
+        listed = json.loads((Path(made["bundle"]).parent / "backstop.json").read_text())["short"]
+        self.assertEqual({length for _, length, _ in listed}, {10})
 
     def test_a_repository_that_moved_on_from_the_round_commit_is_refused(self):
         record = self.plan()

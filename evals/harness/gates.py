@@ -17,7 +17,8 @@ canaries and credentials of every containment its gates made, taken while its ho
   the round's seed chooses, and every one must be caught. The bundles of its runs are copied to the store.
 - `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
   the host's version measured just before it, so a host that changed during the round voids its runs. A run that
-  is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does.
+  is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does. The gate's
+  report gives why each slot is void or empty, and each without-skill run's shorter backstop matches.
 - `check`: every expectation that has a check is decided on the bundle of each kept or made run
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
@@ -223,6 +224,11 @@ def run_gate(r):
                           r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,
                      "key": result["key"], "status": result["status"]})
+        if result.get("reason"):  # why a slot is void or empty, such as a backstop hit, for a judge to read
+            made[-1]["reason"] = result["reason"]
+        short = Path(result["bundle"]).parent / runs.SHORT if result.get("bundle") else None
+        if short and short.is_file():  # the backstop's shorter matches, listed and never a void
+            made[-1]["backstop"] = json.loads(short.read_text())["short"]
         r.runs.append({**made[-1], "bundle": result.get("bundle")})
     return made
 
