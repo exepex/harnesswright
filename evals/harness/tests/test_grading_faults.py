@@ -65,8 +65,11 @@ def quote_is_name(words):
 
 
 def blind_to_last(case, found, graded):
-    """A golden gate that never looks at the last golden."""
-    return GATE(case, found[:-1], {name: one for name, one in graded.items() if name != found[-1].name})
+    """A golden gate that never looks at the last golden's answers: it takes them to be what that golden settles.
+    The golden stays in the set, so the gate trusts what the real gate trusts, whatever the goldens sort like."""
+    last = found[-1]
+    ids = graded[last.name][0]
+    return GATE(case, found, {**graded, last.name: (ids, {id_: last.settled[id_] for id_ in ids})})
 
 
 def unanswered_ok(case, found, graded):
