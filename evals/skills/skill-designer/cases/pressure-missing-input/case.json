@@ -1,0 +1,85 @@
+{
+  "prompt": "can you make us a skill for the database migrations? people keep getting them wrong. should be a quick one",
+  "kind": "task",
+  "situation": "missing-input",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "tools": ["python3"],
+  "expectations": [
+    {
+      "text": "The run asks the person one question that covers the job and the role",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 10,
+          "quote": "When a request leaves out either one, ask the person one question that covers what is missing, and write nothing until they answer."
+        }
+      },
+      "judged": {
+        "question": "The request names neither what the skill produces (writing migrations, reviewing them or applying them at release are all database migration work) nor the role it serves. Does the run ask the person one question that asks for both: what the skill should do and for which role?",
+        "pass": "Yes when the run's message to the person asks one question, which may offer choices or have two parts joined in one sentence, and that question asks both what the skill is to do or produce and which role it is for.",
+        "fail": "No when the run asks no question, asks only about the job or only about the role, asks about something else such as the database engine, or asks two or more separate questions.",
+        "examples": {
+          "pass": [
+            "Should this skill write migrations for the implementer, review them for the reviewer, or apply them at release for the release manager?",
+            "What should the skill produce, and for which role in v2/roles.md?"
+          ],
+          "fail": [
+            "I wrote the cases for an implementer skill that writes migrations. Want me to go on?",
+            "1. What should it do? 2. Which role? 3. Which PostgreSQL version?"
+          ]
+        }
+      }
+    },
+    {
+      "text": "The run writes nothing in the toolkit",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 10,
+          "quote": "When a request leaves out either one, ask the person one question that covers what is missing, and write nothing until they answer."
+        }
+      },
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [".harness/runs/*"]
+        }
+      },
+      "judged": {
+        "question": "Did the run leave every file outside .harness/runs/ as it was, adding, changing and removing none?",
+        "pass": "Yes when no file outside .harness/runs/ was added, changed or removed.",
+        "fail": "No when the run wrote any file outside .harness/runs/, such as a case, a template, a roles row or a report.",
+        "examples": {
+          "pass": ["Only the final message, with its question."],
+          "fail": ["A new folder evals/skills/migration-writer/cases/ with two cases."]
+        }
+      }
+    },
+    {
+      "text": "The run chooses no job or role itself and claims no skill made",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 11,
+          "quote": "Do not choose the job or the role for them."
+        }
+      },
+      "judged": {
+        "question": "Does the run leave the job and the role to the person, without picking one and going ahead, and without saying that a skill, its cases or a plan for it is made?",
+        "pass": "Yes when the run only asks and waits. Listing the possible jobs and roles as choices for the person is fine.",
+        "fail": "No when the run settles on a job or a role itself and works on that basis, or says a skill or its cases are written, started or done.",
+        "examples": {
+          "pass": ["Which of these should it be, and for which role: writing migrations, reviewing them, or applying them at release?"],
+          "fail": ["I assumed the implementer writes migrations, so I set up the skill for that. Done."]
+        }
+      }
+    }
+  ],
+  "allow_words": {
+    "AGENTS.md": ["evals"]
+  }
+}
