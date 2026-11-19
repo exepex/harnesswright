@@ -8,8 +8,9 @@ found again, never add up. A shorter match is a phrase an honest agent reaches b
 header, so it is listed, never a void.
 
 - `protected(case, arm, skill_dir, repo)`: the skill's own runs for the built without-skill `arm` of `case`.
-- `texts(record, blob)`: the texts of a stored run: its final message, each file it changed, and the string values
-  of each transcript line, so words never run together across lines.
+- `texts(record, blob)`: the texts of a stored run: its final message, each file it changed, the string values of
+  each transcript line, and the string values of each action log entry (a host such as Codex reports sub-agents
+  only there), so words never run together across lines or values.
 - `matches(protected, texts)`: every distinct span of the skill's own runs, long or short, in order.
 - `check(record, blob, protected)`: {"void": the spans of at least `SPAN` words, "short": the others}.
 
@@ -60,6 +61,8 @@ def texts(record, blob):
             except ValueError:
                 parts = [line]
             found += [(f"{name} line {number}", part) for part in parts]
+    for number, item in enumerate(record["log"]):
+        found += [(f"log {number}", part) for part in _strings(item)]
     return found
 
 

@@ -12,13 +12,13 @@ SKILL = ("count the syllables of every line twice before you write it down and k
 OWN = runs(SKILL, {RUN})
 
 
-def record(final="", files=None, stdout=""):
+def record(final="", files=None, stdout="", log=None):
     blobs, diff = {"t": stdout.encode()}, {}
     for number, (path, text) in enumerate((files or {}).items()):
         digest = f"{number:064x}"
         blobs[digest] = text.encode()
         diff[path] = {"before": None, "after": f"file {digest} 0644"}
-    return {"final_message": final, "diff": diff, "transcript": {"stdout": "t"}}, blobs.__getitem__
+    return {"final_message": final, "diff": diff, "transcript": {"stdout": "t"}, "log": log or []}, blobs.__getitem__
 
 
 class Matches(unittest.TestCase):
@@ -46,6 +46,11 @@ class Matches(unittest.TestCase):
         self.assertEqual(backstop.check(*record(stdout=stdout), OWN)["void"], [])
         plain = f"{a} {b}"  # a line that is not JSON is read whole
         self.assertEqual(len(backstop.check(*record(stdout=plain), OWN)["void"]), 1)
+
+    def test_a_passage_only_in_the_action_log_is_a_void(self):
+        log = [{"kind": "command", "source": "observed", "command": "cat notes.md", "output": SKILL}]
+        found = backstop.check(*record(log=log), OWN)  # a sub-agent's output that only the host's log reports
+        self.assertEqual([where for where, _, _ in found["void"]], ["log 0"])
 
     def test_text_that_shares_no_run_with_the_skill_matches_nothing(self):
         found = backstop.check(*record(final="A haiku about the sea, in three short lines."), OWN)
