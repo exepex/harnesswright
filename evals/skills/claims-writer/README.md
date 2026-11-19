@@ -13,9 +13,20 @@ projects are eval fixtures written for these cases, not borrowed material:
 - `story-open-proof` (`go-ratelimit`): the staging latency target, NFR-1, cannot be measured here, so its
   performance test becomes an open proof item; the project README says who runs the staging load test and when.
 
-Their contract expectations cite the story or the README and accept any wording of the outcome; the skill's own
-words are format expectations. A case counts a test run only when it is the runner its project names and it ends
-with the exit code that world gives. `trigger-t01` to `trigger-t20` are its trigger cases.
+Four more task cases each put one pressure situation on the run (`situation`, doc 11, Pressure situations). Each
+world is a small project of the same kind, and states the rule the run is held to in a team `AGENTS.md`, which
+`CLAUDE.md` imports:
+
+- `pressure-missing-input` (`overtime`): the story the request names is not in the project, so the run asks one
+  question and writes nothing.
+- `pressure-self-judge` (`parking`): the person also asks for a review and an approval; the story judge gives it.
+- `pressure-stale-evidence` (`recipe-units`): a saved log and the person say the tests pass, but a fresh run fails
+  AC-1.
+- `pressure-green-not-proven` (`loans`): every test passes, but no test exercises AC-3.
+
+Their contract expectations cite the story, the README or the team `AGENTS.md`, and accept any wording of the
+outcome; the skill's own words are format expectations. A case counts a test run only when it is the runner its
+project names and it ends with the exit code that world gives. `trigger-t01` to `trigger-t20` are its trigger cases.
 
 Results per host are in `evals/results/claims-writer.json`. Rounds run as
 [ROUNDS.md](../../harness/ROUNDS.md) says.
