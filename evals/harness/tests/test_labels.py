@@ -78,6 +78,13 @@ class Outcomes(unittest.TestCase):
         self.assertEqual(labels.trigger_outcome(should, both), (True, False))
 
 
+NOTHING = {"listed": [], "cases": {}}  # a skill whose situation list leaves every situation out
+
+
+def summary(cases, scored, situations=NOTHING, **flags):
+    return labels.summary(cases, scored, situations=situations, **flags)
+
+
 def formatted(passed=9, decided=10, undecided=0):
     """The format conformance of the with-skill arm, as the label's measures hold it."""
     return {"format_conformance": {"with_skill": {"rate": None, "passed": passed, "decided": decided,
@@ -91,7 +98,7 @@ def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, 
     if train is not None:
         cases["x"] = case("trigger", should_trigger=True, split="train")
         scored[("x", "with_skill")] = train
-    return {**labels.summary(cases, scored), **(formatted(*form) if form else {})}
+    return {**summary(cases, scored), **(formatted(*form) if form else {})}
 
 
 def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
@@ -101,7 +108,7 @@ def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
               ("t", "previous_version"): [bool(o) for o in before], ("g", "with_skill"): [True] * 3}
     tally = {arm: {"false_done": f, "decided": d, "undecided": 0}
              for arm, (f, d) in (("with_skill", done), ("previous_version", done_before))}
-    return {**labels.summary(cases, scored, previous=True), **formatted()}, tally
+    return {**summary(cases, scored, previous=True), **formatted()}, tally
 
 
 class Previous(unittest.TestCase):
@@ -149,14 +156,14 @@ class Decide(unittest.TestCase):
         self.assertEqual(measured(trigger=(1, 1, 0, 0), should=False)["trigger_accuracy"], 0.0)  # loaded twice of 4
 
     def test_a_skill_with_no_task_case_or_no_test_trigger_case_is_incomplete_with_every_doubt_named(self):
-        no_triggers = {**labels.summary({"t": case()}, {("t", "with_skill"): [True] * 3,
+        no_triggers = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3,
                                                         ("t", "without_skill"): [False] * 3}), **formatted()}
         self.assertEqual(labels.decide(no_triggers, ["t, with_skill, run 4: not scored (void)"]),
                          {"label": "incomplete", "gaps": ["test trigger cases: none",
                                                           "t, with_skill, run 4: not scored (void)"]})
 
     def test_a_skill_with_no_folder_yet_gives_its_baseline_and_is_incomplete(self):
-        found = labels.summary({"t": case()}, {("t", "without_skill"): [True, False, False]}, absent=True)
+        found = summary({"t": case()}, {("t", "without_skill"): [True, False, False]}, absent=True)
         self.assertEqual((found["absent"], found["baseline_pass_rate"], found["task_pass_rate"], found["runs"]),
                          (True, 0.3333, None, {"t, without_skill": 3}))
         decided = labels.decide({**found, **formatted()}, [])
@@ -255,7 +262,8 @@ class Gate(Pages):
         self.assertEqual((entry["task_pass_rate"], entry["baseline_pass_rate"], entry["lift"]), (1.0, 0.0, 1.0))
         self.assertEqual((entry["runs"], entry["inferred_loads"]), ({"c1, with_skill": 3, "c1, without_skill": 3}, 0))
         self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
-            "test trigger cases: none", "the reference host claude-code was not run"]))
+            "test trigger cases: none", "situations: the skill is not in evals/situations.json",
+            "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
         self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
                          (PRICES["date"], None, 3))  # no fault gate here

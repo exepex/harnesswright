@@ -10,7 +10,8 @@ missing or voided runs, and a changed input gives a new key, never a changed run
 
 - `arms(record, case)`: the arms a case runs in: without and with the skill, and for a task case of a skill the
   plan gives a previous version, `previous_version`, which installs the skill as the manifest's commit holds it.
-  A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only.
+  A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only, and a case
+  of a situation a plain agent cannot fail (`skill_only`) with it only.
 - `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
@@ -44,7 +45,7 @@ import manifest
 import rounds
 import skills
 import world
-from cases import ARMS, PREVIOUS, REPO
+from cases import ARMS, PREVIOUS, REPO, SKILL_ONLY
 
 HARNESS = Path(__file__).resolve().parent
 # The runner code that affects a run: its jail and gate, the host contract, the world builder and the evidence.
@@ -64,11 +65,18 @@ def runner(folder=HARNESS):
     return manifest.digest({name: manifest.entry(Path(folder) / name) for name in RUNNER})
 
 
+def skill_only(record, skill, case_id):
+    """True for a case of a situation a plain agent cannot fail (`cases.SKILL_ONLY`), which runs with the skill only."""
+    return record.get("situations", {}).get(skill, {}).get("cases", {}).get(case_id) in SKILL_ONLY
+
+
 def arms(record, case):
     """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
     a previous version. Trigger cases measure the description that triggers the skill under test only."""
     if case.skill in record.get("absent", []):  # no folder yet: a baseline round runs without the skill only
         return ARMS[:1]
+    if skill_only(record, case.skill, case.id):
+        return ARMS[1:]
     later = (PREVIOUS,) if case.kind == "task" and case.skill in record.get("previous", {}) else ()
     return ARMS + later
 
@@ -79,6 +87,8 @@ def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, 
     runner's hash (`runner`)."""
     known = ARMS[:1] if skill in record.get("absent", []) else ARMS + ((PREVIOUS,) if skill in record.get(
         "previous", {}) else ())
+    if skill_only(record, skill, case_id):
+        known = ARMS[1:]
     if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
     if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:

@@ -34,7 +34,7 @@ LIST = "evals/kit.json"
 CODE = "evals/harness"  # every part runs on the harness's code, however it loads it, so all of it is the kit's
 # The parts doc 11 names. A part that does not exist yet is added to the list when it does.
 PARTS = ("checks", "answer keys", "lint rules", "power table", "probes", "goldens", "grader prompt",
-         "fault catalogue")
+         "fault catalogue", "situations")
 RECORD = "kit-approval.json"
 
 

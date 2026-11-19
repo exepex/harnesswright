@@ -25,16 +25,21 @@ is named, and so is a reference result that is not settled, and either keeps the
   cases: its pass rate not below the previous version's, and its false-done rate not above it (plan decision 2,
   eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
   decided run in either arm, keep the label at most `inconclusive`.
+- Pressure situations (doc 11): a case of a situation a plain agent cannot fail (`cases.SKILL_ONLY`) runs with the
+  skill only and counts in no pass rate, lift or false-done rate. Each label gives every situation's pass and
+  false-done counts per arm, and the cases with no situation apart (`situations`). Every with-skill run of a
+  situation case must pass, and the skill's cases must cover each situation `evals/situations.json` lists for it.
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
   - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
     gives the without-skill arm's pass rate and scored runs per case), or no task case or no test trigger case,
-    with every doubt below named too;
+    or no case of a situation the skill's list names (or no list), with every doubt below named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
     not run, or it is itself in doubt), or the skill shows no lift over the baseline;
   - `unsupported` when the task pass rate, the gap to the reference host, the trigger accuracy or the with-skill
-    arm's format conformance misses its threshold, or the skill is worse than its previous version, with each gap
-    named. Format conformance is a floor on top of the lift, never in its place (`format_gaps`);
+    arm's format conformance misses its threshold, a with-skill run of a situation case failed, or the skill is
+    worse than its previous version, with each gap named. Format conformance is a floor on top of the lift, never
+    in its place (`format_gaps`);
   - `verified` otherwise.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub.
 
@@ -48,6 +53,7 @@ import evidence
 import grades
 import measures
 import prices
+from cases import SKILL_ONLY
 from runs import PREVIOUS
 
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0,
@@ -89,38 +95,58 @@ def rate(passed):
     return round(sum(passed) / len(passed), 4) if passed else None
 
 
-def summary(cases, scored, previous=False, absent=False):
+def summary(cases, scored, previous=False, absent=False, situations=None):
     """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
     by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
-    too. With `absent`, the skill has no folder yet and the round ran its task cases without it only."""
+    too. With `absent`, the skill has no folder yet and the round ran its task cases without it only. `situations`
+    is the manifest's record of the skill's situations (`rounds.plan`): a case a plain agent cannot fail
+    (`SKILL_ONLY`) counts in no pass rate or lift, and each situation is reported apart."""
+    situated = (situations or {}).get("cases", {})
     tasks = [i for i, case in cases.items() if case.kind == "task"]
+    pooled = [i for i in tasks if situated.get(i) not in SKILL_ONLY]
     triggers = [i for i, case in cases.items() if case.kind == "trigger" and case.split == "test"]
-    with_skill = [o for i in tasks for o in scored.get((i, "with_skill"), [])]
-    without = [o for i in tasks for o in scored.get((i, "without_skill"), [])]
+    with_skill = [o for i in pooled for o in scored.get((i, "with_skill"), [])]
+    without = [o for i in pooled for o in scored.get((i, "without_skill"), [])]
     passing = []
     for i in triggers:
         right = scored.get((i, "with_skill"), [])  # each run: did it do what the case says
         if right:  # the skill loaded in at least half the runs of a should-trigger case, in fewer of a should-not
             passing.append(2 * sum(right) >= len(right) if cases[i].should_trigger else 2 * sum(right) > len(right))
     task_arms = ("without_skill",) if absent else ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
-    runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in task_arms}
+    arms_of = {i: ("with_skill",) if situated.get(i) in SKILL_ONLY else task_arms for i in tasks}
+    runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in arms_of[i]}
     runs.update({f"{i}, with_skill": len(scored.get((i, "with_skill"), [])) for i in triggers})
     task_rate, baseline = rate(with_skill), rate(without)
-    earlier = {"previous_pass_rate": rate([o for i in tasks for o in scored.get((i, PREVIOUS), [])])} \
+    earlier = {"previous_pass_rate": rate([o for i in pooled for o in scored.get((i, PREVIOUS), [])])} \
         if previous else {}
     earlier.update({"absent": True} if absent else {})
+    groups = {}  # each situation's cases, and the cases with none apart, so earlier rounds stay comparable
+    for i in tasks:
+        groups.setdefault(situated.get(i) or "none", []).append(i)
+    report = {}
+    for name, ids in sorted(groups.items()):
+        report[name] = {"cases": ids}
+        for arm in arms_of[ids[0]]:  # a situation's cases share their arms
+            outcomes = [o for i in ids for o in scored.get((i, arm), [])]
+            report[name][arm] = {"passed": sum(outcomes), "runs": len(outcomes)}
+    listed = (situations or {}).get("listed")
     return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
             "trigger_accuracy": rate(passing), "task_cases": len(tasks), "trigger_cases": len(triggers),
-            "runs": runs}
+            "runs": runs, "situations_listed": listed,
+            "uncovered": sorted(set(listed or ()) - set(situated.values())),
+            "situations": report}
 
 
 def missing(measures):
-    """What is missing for any label: the skill itself (a baseline round of a skill with no folder yet), a task case
-    or a test trigger case."""
+    """What is missing for any label: the skill itself (a baseline round of a skill with no folder yet), a task case,
+    a test trigger case, or a case of each situation `evals/situations.json` lists for the skill (doc 11)."""
+    listed = measures.get("situations_listed")
     return ["the skill: no folder yet, a baseline round"] * bool(measures.get("absent")) + [
         f"{kind}: none" for kind, count in (("task cases", measures["task_cases"]),
-                                            ("test trigger cases", measures["trigger_cases"])) if not count]
+                                            ("test trigger cases", measures["trigger_cases"])) if not count] + (
+        ["situations: the skill is not in evals/situations.json"] if listed is None else
+        [f"situation {name}: no case" for name in measures.get("uncovered", [])])
 
 
 def doubts(measures, unsettled, false_done, thresholds=THRESHOLDS):
@@ -184,6 +210,11 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
         gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
     gaps += earlier + formatted
+    for name, group in sorted(measures.get("situations", {}).items()):  # the floor: every with-skill run passes
+        tally = group.get("with_skill")
+        if name != "none" and tally and tally["passed"] < tally["runs"]:
+            gaps.append(f"situation {name}: {tally['runs'] - tally['passed']} of {tally['runs']} with-skill runs "
+                        "failed")
     if doubted:
         return {"label": "inconclusive", "gaps": doubted + gaps}
     if gaps:
@@ -206,7 +237,7 @@ def labels(folder, attempt, record, cases, price_file):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
-    scored, unsettled, inferred, false_done = {}, {}, {}, {}
+    scored, unsettled, inferred, by_case = {}, {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
         if case.kind == "trigger" and made["arm"] != "with_skill":
@@ -227,8 +258,8 @@ def labels(folder, attempt, record, cases, price_file):
             answers = json.loads(graded.read_text())["answers"] if graded.is_file() else {}
             passed_, why = task_outcome(case, verdicts, answers)
             said = [answers.get(f"q{n}") for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"]
-            tally = false_done.setdefault((made["host"], made["skill"]), {}).setdefault(
-                made["arm"], {"false_done": 0, "decided": 0, "undecided": 0})
+            tally = by_case.setdefault((made["host"], made["skill"]), {}).setdefault(
+                (made["case"], made["arm"]), {"false_done": 0, "decided": 0, "undecided": 0})
             if passed_ is None or said != ["yes"] and said != ["no"]:
                 tally["undecided"] += 1
             else:
@@ -239,6 +270,8 @@ def labels(folder, attempt, record, cases, price_file):
             continue
         scored.setdefault((made["host"], made["skill"]), {}).setdefault((made["case"], made["arm"]), []).append(
             passed_)
+    false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
+                  for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,
              "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {}}
     rest = measures.measures(folder, attempt, gates, cases, price_file)
@@ -247,7 +280,12 @@ def labels(folder, attempt, record, cases, price_file):
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
         measured = {host: summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
-                                  skill in record.get("absent", [])) for host in passed}
+                                  skill in record.get("absent", []), record.get("situations", {}).get(skill))
+                    for host in passed}
+        for host in passed:  # each situation's false dones, per arm
+            for group in measured[host]["situations"].values():
+                for arm, tally in _tally(by_case.get((host, skill), {}), group["cases"].__contains__).items():
+                    group[arm]["false_done"] = measures.share(tally["false_done"], tally["decided"], **tally)
         doubted = {host: unsettled.get((host, skill), []) + [f"{name}: goldens missed ({why})"
                                                              for name, why in sorted(unreliable.items())]
                    for host in passed}
@@ -276,6 +314,21 @@ def labels(folder, attempt, record, cases, price_file):
                                       reference_doubt if other else None,
                                       false_done=false_done.get((host, skill), {})))
             found["skills"][skill][host] = entry
+    return found
+
+
+def _skill_only(record, skill, case_id):
+    return record.get("situations", {}).get(skill, {}).get("cases", {}).get(case_id) in SKILL_ONLY
+
+
+def _tally(per_case, keep):
+    """{arm: false-done tally} summed over the cases of `per_case` ({(case id, arm): tally}) that `keep` keeps."""
+    found = {}
+    for (case_id, arm), tally in sorted(per_case.items()):
+        if keep(case_id):
+            total = found.setdefault(arm, {"false_done": 0, "decided": 0, "undecided": 0})
+            for key in total:
+                total[key] += tally[key]
     return found
 
 

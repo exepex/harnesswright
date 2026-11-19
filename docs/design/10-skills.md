@@ -125,6 +125,7 @@ change, are:
 | Runs behind each result | At least 3 successful runs per trigger query, per task and per baseline task |
 | Lift over the baseline | Task pass rate with the skill above the rate without it |
 | Format conformance with the skill | At least 90% of the skill's format expectations passed, one not decided counting as failed; a floor on top of the lift, never in its place |
+| Each pressure situation with the skill | Every run passes ([11 · Evals](11-evals.md)); a pooled pass rate never hides one |
 
 ## The skill designer
 

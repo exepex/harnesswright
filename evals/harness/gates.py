@@ -180,9 +180,9 @@ def faults_gate(r):
     entries, rng = faults.load(r.repo / "evals" / "faults" / "harness.json"), random.Random(r.seed)
     found, missed = {}, []
     # Every fault needs a skill's files, so faults are planted on a case of a skill the repository holds: the plan's
-    # `fault_case`, or else one of the round's own, chosen by the seed.
+    # `fault_case`, or else one of the round's own that runs in both arms, chosen by the seed.
     chosen = r.record.get("fault_case")
-    held = sorted(k for k in r.cases if k[0] not in r.record.get("absent", []))
+    held = sorted(k for k in r.cases if k[0] not in r.record.get("absent", []) and not runs.skill_only(r.record, *k))
     for host, passed in r.hosts.items():
         if chosen:
             case = Case(r.repo / "evals" / "skills" / chosen["skill"] / "cases" / chosen["case"], chosen["skill"])
