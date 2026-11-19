@@ -1,6 +1,7 @@
 """The runs of a round: each is named by the hash of its inputs, stored once outside the working tree, kept when a
 round resumes, and void, then remade, only for a harness fault."""
 
+import functools
 import json
 import os
 import shutil
@@ -212,6 +213,25 @@ class Runs(Round):
         self.assertEqual(made["status"], "made")
         bundle, _ = evidence.load(made["bundle"])
         self.assertIn("pipe", bundle["diff"])
+
+    def test_a_skill_with_no_folder_yet_runs_without_the_skill_only(self):
+        new = self.repo / "evals" / "skills" / "limerick-writer" / "cases" / "l1"
+        shutil.copytree(self.case_dir, new)
+        record = self.plan(skills={"haiku-writer": ["c1"], "limerick-writer": ["l1"]})
+        case = Case(new, "limerick-writer")
+        self.assertEqual(runs.arms(record, case), ("without_skill",))
+        with self.assertRaises(runs.RunError):
+            runs.key(record, "limerick-writer", "l1", "with_skill", "fakehost", 1, DRIFT)
+        run = functools.partial(runs.run, record, self.store, case, host_name="fakehost", number=1,
+                                adapter=self.adapter, drift=DRIFT, version=VERSION, repo=self.repo, timeout=120,
+                                operator_env={"PATH": f"{self.tool}:/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url},
+                                operator_home=self.tmp / "operator", host_paths=[self.tool])
+        made = run(arm="without_skill")
+        self.assertEqual(made["status"], "made")
+        bundle, _ = evidence.load(made["bundle"])
+        self.assertEqual((bundle["arm"], bundle["case"]), ("without_skill", "l1"))
+        with self.assertRaises(runs.RunError):
+            run(arm="with_skill")
 
     def test_a_repository_that_moved_on_from_the_round_commit_is_refused(self):
         record = self.plan()

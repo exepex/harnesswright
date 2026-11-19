@@ -26,8 +26,9 @@ is named, and so is a reference result that is not settled, and either keeps the
   eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
   decided run in either arm, keep the label at most `inconclusive`.
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
-  - `incomplete` when the host was not run, or the skill has no task case or no test trigger case, with every
-    doubt below named too;
+  - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
+    gives the without-skill arm's pass rate and scored runs per case), or no task case or no test trigger case,
+    with every doubt below named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
     not run, or it is itself in doubt), or the skill shows no lift over the baseline;
@@ -88,10 +89,10 @@ def rate(passed):
     return round(sum(passed) / len(passed), 4) if passed else None
 
 
-def summary(cases, scored, previous=False):
+def summary(cases, scored, previous=False, absent=False):
     """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
     by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
-    too."""
+    too. With `absent`, the skill has no folder yet and the round ran its task cases without it only."""
     tasks = [i for i, case in cases.items() if case.kind == "task"]
     triggers = [i for i, case in cases.items() if case.kind == "trigger" and case.split == "test"]
     with_skill = [o for i in tasks for o in scored.get((i, "with_skill"), [])]
@@ -101,12 +102,13 @@ def summary(cases, scored, previous=False):
         right = scored.get((i, "with_skill"), [])  # each run: did it do what the case says
         if right:  # the skill loaded in at least half the runs of a should-trigger case, in fewer of a should-not
             passing.append(2 * sum(right) >= len(right) if cases[i].should_trigger else 2 * sum(right) > len(right))
-    task_arms = ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
+    task_arms = ("without_skill",) if absent else ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
     runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in task_arms}
     runs.update({f"{i}, with_skill": len(scored.get((i, "with_skill"), [])) for i in triggers})
     task_rate, baseline = rate(with_skill), rate(without)
     earlier = {"previous_pass_rate": rate([o for i in tasks for o in scored.get((i, PREVIOUS), [])])} \
         if previous else {}
+    earlier.update({"absent": True} if absent else {})
     return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
             "trigger_accuracy": rate(passing), "task_cases": len(tasks), "trigger_cases": len(triggers),
@@ -114,9 +116,11 @@ def summary(cases, scored, previous=False):
 
 
 def missing(measures):
-    """What is missing for any label: a task case or a test trigger case."""
-    return [f"{kind}: none" for kind, count in (("task cases", measures["task_cases"]),
-                                                ("test trigger cases", measures["trigger_cases"])) if not count]
+    """What is missing for any label: the skill itself (a baseline round of a skill with no folder yet), a task case
+    or a test trigger case."""
+    return ["the skill: no folder yet, a baseline round"] * bool(measures.get("absent")) + [
+        f"{kind}: none" for kind, count in (("task cases", measures["task_cases"]),
+                                            ("test trigger cases", measures["trigger_cases"])) if not count]
 
 
 def doubts(measures, unsettled, false_done, thresholds=THRESHOLDS):
@@ -242,8 +246,8 @@ def labels(folder, attempt, record, cases, price_file):
         own = {i: case for (s, i), case in cases.items() if s == skill}
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
-        measured = {host: summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}))
-                    for host in passed}
+        measured = {host: summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
+                                  skill in record.get("absent", [])) for host in passed}
         doubted = {host: unsettled.get((host, skill), []) + [f"{name}: goldens missed ({why})"
                                                              for name, why in sorted(unreliable.items())]
                    for host in passed}

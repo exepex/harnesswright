@@ -22,6 +22,13 @@ version names a skill it runs no task case of is refused. The manifest records t
 the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
 the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
 
+A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
+`absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
+the lint gate lints; a trigger case or a previous version for it is refused. Every fault needs a skill's files, so
+the fault gate plants on a case of a skill the repository holds: the plan's `fault_case`, which the manifest hashes
+and installs, or else one of the round's own cases of a held skill. A plan whose skills are all absent must name a
+`fault_case`.
+
 Each run of a round is one case, in one arm, on one host, with its number. `runs.key` names it by the hash of
 everything that decides it: the case, every skill an arm installs, the adapter, the host's version and model from
 the manifest, the arm, the number, the run's own settings (the drift record, which decides what evidence counts as
@@ -71,8 +78,8 @@ passes when the skill loaded exactly when the case says it should. A load the ad
 skill's `SKILL.md` counts, as the discovery probe counts it, since some hosts (Codex) report no skill load of their
 own; the label names how many trigger runs rested on an inferred load only. A trigger case passes when the skill
 loaded in at least half its runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is
-that of the `test` split. A host that was not run, or a skill with no task case or no test trigger case, is
-`incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
+that of the `test` split. A host that was not run, an absent skill (its label file still gives the baseline pass rate and
+the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
 no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
 `unsupported`, each gap named. A skill whose round ran its previous version must be at least as good as it on the
 same task cases: a pass rate below the previous version's, or a false-done rate above it, is `unsupported`, each
