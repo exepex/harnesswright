@@ -129,7 +129,7 @@
       "check": {
         "name": "command_ran",
         "args": {
-          "pattern": "(?<![^\\s/;&|(])((env|timeout|nice|nohup)(\\s+[^\\s|;&]+)*?\\s+)?(\\S*/)?(python[0-9.]*|(ba|da)?sh)(\\s+(?!-c\\b)[^\\s|;&]+)*?\\s+(-m\\s+(scripts\\.)?(claims_check|claims_standards|copyform|reach|repoprofile|resolve|rulebook|runfiles)(?![\\w.])|[\\\"']?([^\\s|;&\\\"']*/)?(claims_check|claims_standards|copyform|reach|repoprofile|resolve|rulebook|runfiles)\\.py[\\\"']?(?![^\\s|;&)]))",
+          "pattern": "(?<![^\\s/;&|(])((env|timeout|nice|nohup)(\\s+[^\\s|;&]+)*?\\s+)?(\\S*/)?(python[0-9.]*|(ba|da)?sh)(\\s+(?!-[A-Za-z]*c\\b)[^\\s|;&]+)*?\\s+(-m\\s+(scripts\\.)?(claims_check|claims_standards|copyform|reach|repoprofile|resolve|rulebook|runfiles)(?![\\w.])|[\\\"']?([^\\s|;&\\\"']*/)?(claims_check|claims_standards|copyform|reach|repoprofile|resolve|rulebook|runfiles)\\.py[\\\"']?(?![^\\s|;&)]))",
           "ran": false
         }
       },
