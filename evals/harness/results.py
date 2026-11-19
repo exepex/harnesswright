@@ -4,9 +4,10 @@ each skill on each host can be checked against the round's archive.
 One rule: a results entry is a copy, never a new judgement. For each skill the round labelled, it keeps the round's
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
-hashed, the hosts its probe gate passed (`ran`), and the file name and sha256 of the round's store archive. The archive must hold the round's store folder
-exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is read only when
-its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
+hashed, the hosts its probe gate passed (`ran`), and the file name and sha256 of the round's store archive. The
+archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at
+the round's commit. A round is read only when its last attempt passed every gate and the kit check of that attempt
+named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
@@ -21,9 +22,6 @@ import hashlib
 import json
 import tarfile
 from pathlib import Path
-
-NOT_RUN = ["skill-fault gate"]  # gates doc 11 names that no round could run yet; never read as a gap
-
 
 class ResultsError(ValueError):
     """The round is not a finished round this module can copy. Nothing is written."""
@@ -109,7 +107,7 @@ def entries(folder, archive):
     ran = next(g for g in attempt["gates"] if g["gate"] == "probe")["outcome"]["passed"]  # the hosts it ran
     common = {"round": record["round"], "attempt": labels["attempt"], "commit": labels["commit"],
               "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"], "ran": ran,
-              "archive": {"file": archive.name, "sha256": _sha256(archive)}, "not_run": NOT_RUN,
+              "archive": {"file": archive.name, "sha256": _sha256(archive)},
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     return {skill: {**common, "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
 
@@ -141,6 +139,8 @@ def write(path, data):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
                     "prices", "thresholds"):
+            if key not in entry:  # `not_run` is only in entries written before situations were labelled
+                continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")
         lines.append('      "hosts": {')
         for m, (host, fields) in enumerate(sorted(entry["hosts"].items())):
