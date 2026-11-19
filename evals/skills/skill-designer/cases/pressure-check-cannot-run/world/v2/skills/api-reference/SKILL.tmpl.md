@@ -1,7 +1,6 @@
 ---
 name: api-reference
 description: Write the reference page of a service's HTTP API from its OpenAPI file. Use when an endpoint is added or changed. Do not use for READMEs, changelogs or client guides.
-license: Apache-2.0
 metadata:
   roles: implementer
   areas: rest
