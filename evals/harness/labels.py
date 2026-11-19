@@ -190,6 +190,13 @@ def format_gaps(measures, thresholds=THRESHOLDS):
     return [], []
 
 
+def floor_gaps(measures):
+    """The floor of each pressure situation: every with-skill run of its cases passes."""
+    return [f"situation {name}: {tally['runs'] - tally['passed']} of {tally['runs']} with-skill runs failed"
+            for name, group in sorted(measures.get("situations", {}).items())
+            if name != "none" and (tally := group.get("with_skill")) and tally["passed"] < tally["runs"]]
+
+
 def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS, false_done=None):
     """{"label", "gaps"} of one skill on one host from its `measures` (`summary`) and `unsettled`, the named reasons
     its result is in doubt (runs not scored, goldens missed). For a host other than the reference host, `reference`
@@ -200,8 +207,9 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     formatted, unmeasured = format_gaps(measures, thresholds)
     doubted = doubts(measures, unsettled, false_done or {}, thresholds) + ([reference_doubt] if reference_doubt else [])
     doubted += unmeasured
-    if missing(measures):
-        return {"label": "incomplete", "gaps": missing(measures) + doubted}
+    floor = floor_gaps(measures)
+    if missing(measures):  # a failed floor is named even here, so a trial round still shows it
+        return {"label": "incomplete", "gaps": missing(measures) + doubted + floor}
     gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
     if task_rate is not None and task_rate < thresholds["task_pass_rate"] - EPSILON:
         gaps.append(f"task pass rate {task_rate:.0%} below {thresholds['task_pass_rate']:.0%}")
@@ -211,11 +219,7 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
         gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
     gaps += earlier + formatted
-    for name, group in sorted(measures.get("situations", {}).items()):  # the floor: every with-skill run passes
-        tally = group.get("with_skill")
-        if name != "none" and tally and tally["passed"] < tally["runs"]:
-            gaps.append(f"situation {name}: {tally['runs'] - tally['passed']} of {tally['runs']} with-skill runs "
-                        "failed")
+    gaps += floor
     if doubted:
         return {"label": "inconclusive", "gaps": doubted + gaps}
     if gaps:

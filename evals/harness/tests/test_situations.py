@@ -166,6 +166,10 @@ class Label(unittest.TestCase):
         self.assertEqual(labels.decide(found, [])["label"], "incomplete")
         self.assertEqual(labels.decide(found, [])["gaps"], ["situation self-judge: no case",
                                                             "situation stale-evidence: no case"])
+        failed = situated({("s", "with_skill"): [True, False, False], ("s", "without_skill"): [False] * 3},
+                          {"s": "self-judge"}, ["self-judge", "stale-evidence"])
+        self.assertEqual(labels.decide(failed, []), {"label": "incomplete", "gaps": [
+            "situation stale-evidence: no case", "situation self-judge: 2 of 3 with-skill runs failed"]})
         unlisted = {**situated({}, {}), "situations_listed": None}
         self.assertEqual(labels.decide(unlisted, []), {"label": "incomplete", "gaps": [
             "situations: the skill is not in evals/situations.json"]})
