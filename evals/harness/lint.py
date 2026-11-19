@@ -148,17 +148,24 @@ def said(path, text):
     return "\n".join(t.string for t in tokens if t.type in TEXT_TOKENS)
 
 
-def golden_said(case_folder, text):
+def golden_said(case_folder, text, worlds=frozenset()):
     """What a golden (`evals/goldens/<skill>/<case>/<name>.json`) adds to its case, as runs: each run of its text
     values that its case's world and case data do not hold, since what it reads and quotes of them is the case's own
-    text. A golden that is not JSON says all of its text."""
+    text. Its run, the files it changes and its log, is also held to `worlds`, the runs every case world holds: a run
+    of its words that some world shows agents is world text, such as a skill's metadata block. Its settled answers
+    stay eval text however a world words them. A golden that is not JSON says all of its text."""
     try:
-        values = _strings(json.loads(text))
+        golden = json.loads(text)
     except ValueError:
         return [text]
+    run = {key: golden.pop(key) for key in RUN_KEYS if key in golden} if isinstance(golden, dict) else {}
     data = Path(case_folder) / "case.json"
     case = texts(Path(case_folder) / "world") + ([data.read_text()] if data.is_file() else [])
-    return sorted(all_runs(values, {RUN}) - all_runs(case, {RUN}))
+    said = (all_runs(_strings(run), {RUN}) - worlds) | all_runs(_strings(golden), {RUN})
+    return sorted(said - all_runs(case, {RUN}))
+
+
+RUN_KEYS = ("changes", "log")  # the parts of a golden that are its run, as a real run would leave them
 
 
 def _strings(value):
@@ -170,6 +177,8 @@ def eval_texts(repo=REPO):
     """The eval text under `repo`: (measuring, cases). `measuring` is what every file under `evals/` but machinery,
     case data and project text says. `cases` is each case data file as (path, text)."""
     measuring, cases = [], []
+    worlds = all_runs([t for folder in sorted((Path(repo) / "evals" / "skills").glob("*/cases/*/world"))
+                       for t in texts(folder)], {RUN})
     for path in sorted((Path(repo) / "evals").glob("**/*")):
         parts = path.relative_to(Path(repo) / "evals").parts
         if not path.is_file() or path.is_symlink() or parts[0] in MACHINERY or _project_text(parts):
@@ -178,7 +187,7 @@ def eval_texts(repo=REPO):
         if parts[0] == "skills" and path.name in CASE_DATA:
             cases.append((path, text))
         elif parts[0] == "goldens" and len(parts) == 4:
-            measuring += golden_said(Path(repo) / "evals" / "skills" / parts[1] / "cases" / parts[2], text)
+            measuring += golden_said(Path(repo) / "evals" / "skills" / parts[1] / "cases" / parts[2], text, worlds)
         else:
             measuring.append(said(path, text))
     return measuring, sorted(cases)

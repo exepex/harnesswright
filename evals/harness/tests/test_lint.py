@@ -312,6 +312,25 @@ class Lint(TempCase):
         found = lint.all_runs(measuring, {lint.RUN})
         self.assertEqual(found, lint.all_runs([added, path], {lint.RUN}))  # its world's quote is the case's own text
 
+    def test_a_golden_run_may_repeat_any_world_but_its_answers_may_not(self):
+        evals = self.tmp / "repo" / "evals"
+        common = "metadata roles implementer areas rest sourcing new and the rest of the block here"
+        reason = "the run names no criterion at all so a grader reads every one as left out here"
+        for case, text in (("a", "A world of its own."), ("b", common)):
+            (evals / f"skills/x/cases/{case}/world").mkdir(parents=True)
+            (evals / f"skills/x/cases/{case}/world/README.md").write_text(text)
+        (evals / "goldens/x/a").mkdir(parents=True)
+        (evals / "goldens/x/a/g.json").write_text(json.dumps({"changes": {"s.md": common}, "log": [],
+                                                              "settled": {"q1": {"reason": common + " " + reason}}}))
+        measuring, _ = lint.eval_texts(self.tmp / "repo")
+        found = lint.all_runs(measuring, {lint.RUN})
+        self.assertTrue(lint.all_runs([reason], {lint.RUN}) <= found)
+        self.assertTrue(lint.all_runs([common], {lint.RUN}) <= found)  # in its answers, a world's words still count
+        (evals / "goldens/x/a/g.json").write_text(json.dumps({"changes": {"s.md": common}, "log": [],
+                                                              "settled": {"q1": {"reason": reason}}}))
+        measuring, _ = lint.eval_texts(self.tmp / "repo")
+        self.assertFalse(lint.all_runs([common], {lint.RUN}) & lint.all_runs(measuring, {lint.RUN}))
+
     def test_case_data_may_hold_the_prompt_but_never_the_world(self):
         prompt = "Write a short poem about the quiet harbour at dawn for the notes app."
         expected = OWN_TEXT.replace("syllables", "words")

@@ -191,7 +191,9 @@ text, since the case author writes it for this case.
   Other eval text may not.
 - A golden (`evals/goldens/SKILL/CASE/NAME.json`) is a run on its case's world, so what it reads and quotes of that
   world and the case data is the case's own text. Its eval text is the rest: each 8-word run of its text values
-  that its case's world and case data do not hold, such as the claims it writes (`lint.golden_said`).
+  that its case's world and case data do not hold, such as the claims it writes (`lint.golden_said`). Its run, the
+  files it changes and its log, is also held to every case world: a run of its words that any world shows agents,
+  such as a skill's metadata block, is world text. Its settled answers stay eval text however a world words them.
 - Every text of an expectation is expectation text: what it says, and its judged question, rules and examples.
 - Each contract is found where it is cited: its quote, of at least three words as the lint reads words, starts on
   line `line` of the world text file `path`, never a link, and may run on over the lines after it. A quote excuses
