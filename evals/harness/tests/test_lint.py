@@ -285,9 +285,8 @@ class Lint(TempCase):
 
     def test_eval_text_is_what_the_evals_say_about_skills(self):
         evals = self.tmp / "repo" / "evals"
-        paths = ("harness/README.md", "runner/core.py", "skills/x/checks/c.py", "skills/x/tasks.json",
-                 "skills/x/cases/a/case.json", "skills/x/cases/a/world/README.md", "skills/x/files/old/README.md",
-                 "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json",
+        paths = ("harness/README.md", "skills/x/checks/c.py", "skills/x/cases/a/case.json",
+                 "skills/x/cases/a/world/README.md", "skills/x/upstream/SKILL.md", "skills/x/answers/world/key.md", "faults/f.md", "results/r.json",
                  "goldens/g.md", "fixtures/notes/README.md")
         for path in paths:
             (evals / path).parent.mkdir(parents=True, exist_ok=True)
@@ -297,7 +296,7 @@ class Lint(TempCase):
         self.assertEqual([" ".join(lint.words(t)) for t in measuring],
                          ["faults f md", "goldens g md", "results r json", "skills x answers world key md",
                           "poem one poem"])
-        self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json", "skills/x/tasks.json"])
+        self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json"])
 
     def test_a_golden_says_only_what_it_adds_to_its_case(self):
         evals = self.tmp / "repo" / "evals"

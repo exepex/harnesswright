@@ -22,9 +22,11 @@ class Frontmatter(TempCase):
                                                                  "source-licence": "MIT"}})
 
     def test_the_real_skills_are_read(self):
-        for folder in sorted((cases.REPO / "skills").iterdir()):
-            with self.subTest(skill=folder.name):
-                _, meta = skills.skill_files(folder, folder.name)
+        found = skills.folders(cases.REPO)  # every skill of the repository, from the one reader of the list
+        self.assertTrue(found)
+        for name, folder in found.items():
+            with self.subTest(skill=name):
+                _, meta = skills.skill_files(folder, name)
                 self.assertGreater(len(meta["description"].split()), 20)
                 self.assertIsInstance(meta["metadata"], dict)
 

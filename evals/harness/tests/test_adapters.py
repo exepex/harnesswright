@@ -270,6 +270,26 @@ class Tokens(TempCase):
         self.assertIsNone(CLAUDE.tokens("", self.tmp))
 
 
+class Failures(unittest.TestCase):
+    def test_a_run_fails_only_for_what_the_host_reported_its_exit_or_the_clock(self):
+        lines = lambda *events: "\n".join(json.dumps(e) for e in events)
+        claude_done = lines({"type": "result", "result": "Done."})
+        self.assertIsNone(CLAUDE.run_failure(claude_done, 0, False))
+        self.assertEqual(CLAUDE.run_failure(lines({"type": "result", "is_error": True, "subtype": "error_max_turns"}),
+                                            0, False), "host reported an error: error_max_turns")
+        self.assertEqual(CLAUDE.run_failure(claude_done, None, True), "timed out")
+        self.assertEqual(CLAUDE.run_failure(claude_done, 2, False), "exit code 2")
+        self.assertEqual(CLAUDE.run_failure(lines({"type": "assistant"}), 0, False), "no result event")
+        retried = lines({"type": "error", "message": "Reconnecting... 2/5"}, {"type": "turn.completed"})
+        self.assertIsNone(CODEX.run_failure(retried, 0, False))  # a retry in a turn that completed is no failure
+        self.assertEqual(CODEX.run_failure(lines({"type": "error", "message": "no key"}), 1, False),
+                         "host reported error: no key")
+        self.assertEqual(CODEX.run_failure(lines({"type": "turn.failed", "error": {"message": "quota"}},
+                                                 {"type": "turn.completed"}), 0, False), "host reported turn.failed: quota")
+        self.assertEqual(CODEX.run_failure(retried, None, True), "timed out")
+        self.assertEqual(CODEX.run_failure(lines({"type": "turn.started"}), 0, False), "no turn.completed event")
+
+
 class RunEnv(TempCase):
     def test_an_adapters_fixed_variables_are_set_and_never_taken_from_the_operator(self):
         world = self.tmp / "world"

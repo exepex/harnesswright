@@ -1,16 +1,10 @@
 # Evals for skill-designer
 
-Trigger and task evals for [skills/skill-designer](../../../skills/skill-designer/SKILL.md), in the formats of
-[eval-formats.md](../../../skills/skill-designer/references/eval-formats.md).
+Trigger and task evals for the skill designer ([release/skill-designer](../../../release/skill-designer/SKILL.md)).
+Results per host are in `evals/results/skill-designer.json`. Rounds run as [ROUNDS.md](../../harness/ROUNDS.md)
+says.
 
-Each task runs in a fresh, disposable copy of this repository. `files/` holds the inputs. They are eval fixtures,
-not borrowed material: the licence holder, repositories and commits in them are invented for the tasks.
-`files/release-notes-unlicensed/scripts/collect.sh` must never be run; task 3 checks that it is not.
-`files/commit-message-writer` is the drafted skill that task 4 asks the designer to judge itself.
-
-Results per host are in `evals/results/skill-designer.json`. Run them with the eval runner in `evals/runner/`.
-
-`cases/` holds the cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)) for the coming skill
+`cases/` holds the cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)) for the skill
 designer template. It runs in stages, and each case measures one: stage 1 writes a skill's cases, stage 2 drafts
 the template once goldens and a baseline round exist. Each world is a small toolkit with its own hand-written
 `AGENTS.md`, so the contract expectations cite that file:
@@ -37,5 +31,3 @@ the template once goldens and a baseline round exist. Each world is a small tool
 - `trigger-t11` to `trigger-t20`: near misses that should not load it: judging a skill, rules, a role, a
   contract, application code and tests, a script, explaining a doc, a CI error, claims and a review; the odd
   ones are in the test split.
-
-`tasks.json`, `triggers.json` and `files/` stay for the old runner until rounds replace it.
