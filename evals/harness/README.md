@@ -184,7 +184,7 @@ text, since the case author writes it for this case.
   `cases/CASE/world/` folders hold project text and are left out. Python is read for its strings, f-string text
   and comments only, since its code is the same in any Python program. So a check copied with its strings and
   comments removed is not caught here; the judge who reads the world is the check for that.
-- Case data (`case.json`, `tasks.json`, `triggers.json`, and the case's own `case.json` wherever it lives) may
+- Case data (the case's own `case.json`, wherever it lives) may
   repeat what the run sees of the case outside its world (its prompt, commits and index row) and its world's paths.
   Other eval text may not.
 - A golden (`evals/goldens/SKILL/CASE/NAME.json`) is a run on its case's world, so what it reads and quotes of that

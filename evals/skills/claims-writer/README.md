@@ -1,7 +1,7 @@
 # Evals for claims-writer
 
-Trigger and task evals for [release/claims-writer](../../../release/claims-writer/SKILL.md), in the formats of
-[eval-formats.md](../../../skills/skill-designer/references/eval-formats.md).
+Trigger and task evals for [release/claims-writer](../../../release/claims-writer/SKILL.md), as cases of the eval
+harness ([11 · Evals](../../../docs/design/11-evals.md)).
 
 `cases/` holds the cases of the eval harness ([11 · Evals](../../../docs/design/11-evals.md)). Three task cases
 measure the claims writer, in the seven-section format of [contracts/claims.md](../../../contracts/claims.md), each
