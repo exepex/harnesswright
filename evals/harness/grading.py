@@ -7,7 +7,8 @@ against that view.
 - `questions(expectations, verdicts)`: the judged questions of one run. An expectation goes to the graders when it
   has no check, or its check gave `undecidable` on the run's bundle and the view shows every entry that left it
   so. Nothing else is sent, so a grader never overrules a script check, and never answers on evidence it cannot
-  see: a `hidden` verdict (`checks.decide`) is asked of no one, so the run is not scored on it. Each question keeps its expectation's place as its id (`q1` is the first expectation).
+  see: a `hidden` verdict (`checks.decide`) is asked of no one, so the run is not scored on it. Each question
+  keeps its expectation's place as its id (`q1` is the first expectation).
 - `page(request, view, blobs)`: the one text a grader reads of a run, written from the case's request (its
   prompt, the same in both arms, so it tells no arm) and the grader view (`view.view`), and nothing else: the
   request, the final message, the actions (each field's text as the agent wrote it, never escaped), the
