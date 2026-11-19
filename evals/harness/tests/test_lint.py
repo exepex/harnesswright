@@ -294,8 +294,7 @@ class Lint(TempCase):
         (evals / "skills/x/checks/c.py").write_text("import os\nassert f'poem {n}' in out  # one poem\n")
         measuring, data = lint.eval_texts(self.tmp / "repo")
         self.assertEqual([" ".join(lint.words(t)) for t in measuring],
-                         ["faults f md", "goldens g md", "results r json", "skills x answers world key md",
-                          "poem one poem"])
+                         ["faults f md", "goldens g md", "skills x answers world key md", "poem one poem"])
         self.assertEqual([text for _, text in data], ["skills/x/cases/a/case.json"])
 
     def test_a_golden_says_only_what_it_adds_to_its_case(self):

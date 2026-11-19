@@ -1,151 +1,80 @@
 {
-  "hosts": [
+  "skill": "skill-designer",
+  "rounds": [
     {
-      "baseline_min_runs": 3,
-      "baseline_pass_rate": 0.9167,
-      "gaps": [
-        "task pass rate 50% below 90%"
-      ],
-      "host": "claude-code",
-      "label": "unsupported",
-      "lift": -0.4167,
-      "model": "claude-sonnet-5-5",
-      "provenance": {
-        "baseline": {
-          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
-          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
-          "host_paths": [
-            "/home/claude/.claude"
-          ],
-          "host_version": "2.1.316 (Claude Code)",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "allowed, sandboxed",
-            "network": "blocked",
-            "reads": "any",
-            "setting": "acceptEdits, sandbox on, unsandboxed commands refused",
-            "writes": "workspace and scratch"
-          },
-          "requested_model": null,
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
-        },
-        "tasks": {
-          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
-          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
-          "host_paths": [
-            "/home/claude/.claude"
-          ],
-          "host_version": "2.1.316 (Claude Code)",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "allowed, sandboxed",
-            "network": "blocked",
-            "reads": "any",
-            "setting": "acceptEdits, sandbox on, unsandboxed commands refused",
-            "writes": "workspace and scratch"
-          },
-          "requested_model": null,
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
-        },
-        "triggers": {
-          "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
-          "host_paths": [
-            "/home/claude/.claude"
-          ],
-          "host_version": "2.1.316 (Claude Code)",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "refused",
-            "reads": "workspace",
-            "setting": "default permission mode, no one to approve",
-            "writes": "refused"
-          },
-          "requested_model": null,
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
+      "round": "skill-designer-8",
+      "attempt": "20261119T002212-jwbhplc3",
+      "commit": "53c6ea70a9eb8aaadb714b6ea8b32303b3efef44",
+      "manifest_sha256": "4b0f25a0e0b8fafe70aac8efdb04fc3a5b465533aa1a037cef857bef60353b72",
+      "kit": "58532c0729b2d36afb45d67533f078cd9fd2f648b57d90fb93ccb5fbbdcf5f19",
+      "ran": ["claude-code"],
+      "archive": {"file": "skill-designer-8.tar", "sha256": "532735e610b0d1dfd67a8a15bc5e86c689066c81b2258eeed273ba81c7a3dc0c"},
+      "not_run": ["skill-fault gate"],
+      "reference": "claude-code",
+      "prices": "2026-11-14",
+      "thresholds": {"format_conformance": 0.9, "max_gap": 0.1, "min_lift": 0.0, "min_runs": 3, "task_pass_rate": 0.9, "trigger_accuracy": 0.9},
+      "hosts": {
+        "claude-code": {
+          "baseline_pass_rate": 0.8333,
+          "cost": {"with_skill": {"money": 7.200503, "runs": 78, "seconds": 2278.807, "tokens": {"claude-sonnet-5-5": {"cache read": 9944044, "cache write": 1373775, "input": 11318865, "output": 276957}}, "uncounted": 0, "unpriced": 0, "untimed": 0, "voided": 0}, "without_skill": {"money": 4.467295, "runs": 78, "seconds": 1792.942, "tokens": {"claude-sonnet-5-5": {"cache read": 5560849, "cache write": 717084, "input": 6278789, "output": 211679}}, "uncounted": 0, "unpriced": 0, "untimed": 0, "voided": 0}},
+          "false_done": {"with_skill": {"decided": 12, "false_done": 0, "rate": 0.0, "undecided": 0}, "without_skill": {"decided": 12, "false_done": 0, "rate": 0.0, "undecided": 0}},
+          "faults": {"caught": 14, "planted": 14},
+          "format_conformance": {"with_skill": {"decided": 66, "passed": 64, "rate": 0.9697, "undecided": 0}, "without_skill": {"decided": 66, "passed": 19, "rate": 0.2879, "undecided": 0}},
+          "gaps": [],
+          "golden_accuracy": {"asked": 285, "rate": 1.0, "right": 285},
+          "grader_agreement": {"agreed": 276, "asked": 276, "rate": 1.0},
+          "host_version": "2.1.327 (Claude Code)",
+          "inferred_evidence": {"with_skill": 0, "without_skill": 0},
+          "inferred_loads": 1,
+          "label": "verified",
+          "lift": 0.1667,
+          "model": "claude-sonnet-5-5",
+          "runs": {"draft-adapt, with_skill": 3, "draft-adapt, without_skill": 3, "evals-new, with_skill": 3, "evals-new, without_skill": 3, "evals-unlicensed, with_skill": 3, "evals-unlicensed, without_skill": 3, "improve-triggers, with_skill": 3, "improve-triggers, without_skill": 3, "trigger-t01, with_skill": 3, "trigger-t03, with_skill": 3, "trigger-t05, with_skill": 3, "trigger-t07, with_skill": 3, "trigger-t09, with_skill": 3, "trigger-t11, with_skill": 3, "trigger-t13, with_skill": 3, "trigger-t15, with_skill": 3, "trigger-t17, with_skill": 3, "trigger-t19, with_skill": 3, "trigger-t21, with_skill": 3},
+          "task_cases": 4,
+          "task_pass_rate": 1.0,
+          "trigger_accuracy": 1.0,
+          "trigger_cases": 11,
+          "void_rate": {"with_skill": {"rate": 0.0, "tries": 78, "voids": 0}, "without_skill": {"rate": 0.0, "tries": 78, "voids": 0}}
         }
-      },
-      "task_min_runs": 3,
-      "task_pass_rate": 0.5,
-      "trigger_accuracy": 0.95,
-      "trigger_min_runs": 3,
-      "trigger_not_run": 0
+      }
     },
     {
-      "baseline_min_runs": 3,
-      "baseline_pass_rate": 0.0833,
-      "gaps": [],
-      "host": "codex",
-      "label": "verified",
-      "lift": 0.8334,
-      "model": "gpt-6.1-sol",
-      "provenance": {
-        "baseline": {
-          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
-          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
-          "host_paths": [],
-          "host_version": "codex-cli 0.166.0",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "allowed, sandboxed",
-            "network": "blocked",
-            "reads": "any",
-            "setting": "sandbox workspace-write",
-            "writes": "workspace, scratch and /tmp"
-          },
-          "requested_model": "gpt-6.1-sol",
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
-        },
-        "tasks": {
-          "base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0",
-          "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8",
-          "host_paths": [],
-          "host_version": "codex-cli 0.166.0",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "allowed, sandboxed",
-            "network": "blocked",
-            "reads": "any",
-            "setting": "sandbox workspace-write",
-            "writes": "workspace, scratch and /tmp"
-          },
-          "requested_model": "gpt-6.1-sol",
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
-        },
-        "triggers": {
-          "evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925",
-          "host_paths": [],
-          "host_version": "codex-cli 0.166.0",
-          "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted",
-          "permission_profile": {
-            "commands": "allowed, sandboxed",
-            "reads": "any",
-            "setting": "sandbox read-only",
-            "writes": "refused"
-          },
-          "requested_model": "gpt-6.1-sol",
-          "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a",
-          "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"
+      "round": "skill-designer-9",
+      "attempt": "20261118T213101-bq_3tvor",
+      "commit": "53c6ea70a9eb8aaadb714b6ea8b32303b3efef44",
+      "manifest_sha256": "746c5ffd6a9b45abaea5d8347ee949fd92354984465030164bcfb28ef872f9b8",
+      "kit": "58532c0729b2d36afb45d67533f078cd9fd2f648b57d90fb93ccb5fbbdcf5f19",
+      "ran": ["claude-code"],
+      "archive": {"file": "skill-designer-9.tar", "sha256": "3a50ace4614c483f7d5a105b565e58e39637a7676f53aef7aa56af787a70df97"},
+      "not_run": ["skill-fault gate"],
+      "reference": "claude-code",
+      "prices": "2026-11-14",
+      "thresholds": {"format_conformance": 0.9, "max_gap": 0.1, "min_lift": 0.0, "min_runs": 3, "task_pass_rate": 0.9, "trigger_accuracy": 0.9},
+      "hosts": {
+        "claude-code": {
+          "baseline_pass_rate": 0.75,
+          "cost": {"with_skill": {"money": 6.911461, "runs": 78, "seconds": 2082.831, "tokens": {"claude-sonnet-5-5": {"cache read": 9422338, "cache write": 1389945, "input": 10813291, "output": 249235}}, "uncounted": 0, "unpriced": 0, "untimed": 0, "voided": 0}, "without_skill": {"money": 4.368786, "runs": 78, "seconds": 1819.503, "tokens": {"claude-sonnet-5-5": {"cache read": 5365438, "cache write": 689190, "input": 6055472, "output": 210758}}, "uncounted": 0, "unpriced": 0, "untimed": 0, "voided": 0}},
+          "false_done": {"with_skill": {"decided": 12, "false_done": 0, "rate": 0.0, "undecided": 0}, "without_skill": {"decided": 12, "false_done": 0, "rate": 0.0, "undecided": 0}},
+          "faults": {"caught": 14, "planted": 14},
+          "format_conformance": {"with_skill": {"decided": 66, "passed": 65, "rate": 0.9848, "undecided": 0}, "without_skill": {"decided": 66, "passed": 16, "rate": 0.2424, "undecided": 0}},
+          "gaps": [],
+          "golden_accuracy": {"asked": 285, "rate": 1.0, "right": 285},
+          "grader_agreement": {"agreed": 276, "asked": 276, "rate": 1.0},
+          "host_version": "2.1.327 (Claude Code)",
+          "inferred_evidence": {"with_skill": 0, "without_skill": 0},
+          "inferred_loads": 1,
+          "label": "verified",
+          "lift": 0.25,
+          "model": "claude-sonnet-5-5",
+          "runs": {"draft-adapt, with_skill": 3, "draft-adapt, without_skill": 3, "evals-new, with_skill": 3, "evals-new, without_skill": 3, "evals-unlicensed, with_skill": 3, "evals-unlicensed, without_skill": 3, "improve-triggers, with_skill": 3, "improve-triggers, without_skill": 3, "trigger-t01, with_skill": 3, "trigger-t03, with_skill": 3, "trigger-t05, with_skill": 3, "trigger-t07, with_skill": 3, "trigger-t09, with_skill": 3, "trigger-t11, with_skill": 3, "trigger-t13, with_skill": 3, "trigger-t15, with_skill": 3, "trigger-t17, with_skill": 3, "trigger-t19, with_skill": 3, "trigger-t21, with_skill": 3},
+          "task_cases": 4,
+          "task_pass_rate": 1.0,
+          "trigger_accuracy": 1.0,
+          "trigger_cases": 11,
+          "void_rate": {"with_skill": {"rate": 0.0, "tries": 78, "voids": 0}, "without_skill": {"rate": 0.0, "tries": 78, "voids": 0}}
         }
-      },
-      "task_min_runs": 3,
-      "task_pass_rate": 0.9167,
-      "trigger_accuracy": 1.0,
-      "trigger_min_runs": 3,
-      "trigger_not_run": 0
+      }
     }
   ],
-  "reference_host": "claude-code",
-  "skill_name": "skill-designer",
-  "thresholds": {
-    "max_gap": 0.1,
-    "min_lift": 0.0,
-    "min_runs": 3,
-    "task_pass_rate": 0.9,
-    "trigger_accuracy": 0.9
-  }
+  "phase_2_runner": [{"baseline_min_runs": 3, "baseline_pass_rate": 0.0833, "gaps": [], "host": "codex", "label": "verified", "lift": 0.8334, "model": "gpt-6.1-sol", "provenance": {"baseline": {"base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0", "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8", "host_paths": [], "host_version": "codex-cli 0.166.0", "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted", "permission_profile": {"commands": "allowed, sandboxed", "network": "blocked", "reads": "any", "setting": "sandbox workspace-write", "writes": "workspace, scratch and /tmp"}, "requested_model": "gpt-6.1-sol", "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a", "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"}, "tasks": {"base_sha256": "e4b5752ecd91d5f0ecfe84a6d4dc5d3497d2844fde366dfa64663fe5cd0288f0", "evals_sha256": "70bfc698fabe5a85834849e15ccdbc6e9bfbc3321bd20d4342cacb182f7df2f8", "host_paths": [], "host_version": "codex-cli 0.166.0", "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted", "permission_profile": {"commands": "allowed, sandboxed", "network": "blocked", "reads": "any", "setting": "sandbox workspace-write", "writes": "workspace, scratch and /tmp"}, "requested_model": "gpt-6.1-sol", "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a", "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"}, "triggers": {"evals_sha256": "b2f998cd205e9ee550bc947dae0c4ee3fcc0faf17055ebface485b59e61ed925", "host_paths": [], "host_version": "codex-cli 0.166.0", "isolation": "jail: environment allow list, private HOME and TMPDIR, only the workspace mounted", "permission_profile": {"commands": "allowed, sandboxed", "reads": "any", "setting": "sandbox read-only", "writes": "refused"}, "requested_model": "gpt-6.1-sol", "runner_commit": "e7156ff02c423ef6d04f33ec6d7002729cd4bb4a", "skill_sha256": "2c03e8a4368bae7a26b6a0b2a4f9e37a38aa5e418a52d496d73a910f65aadaa1"}}, "task_min_runs": 3, "task_pass_rate": 0.9167, "trigger_accuracy": 1.0, "trigger_min_runs": 3, "trigger_not_run": 0}]
 }

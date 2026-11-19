@@ -180,7 +180,8 @@ text, since the case author writes it for this case.
   any place but the prompt, which may ask for it. An expectation of three to five words is matched whole. One of
   one or two words cannot be told apart from ordinary project words, so the judge who reads the world looks for it.
 - Eval text is text about skills and their cases, which tells an agent what is measured: every file under
-  `evals/` but `evals/harness/`, the general machinery, which says nothing about a skill. A new
+  `evals/` but `evals/harness/`, the general machinery, which says nothing about a skill, and `evals/results/`,
+  the counts and labels the harness writes after a round, which hold no case's prompt, question or answer. A new
   kit part counts without being listed. `evals/fixtures/` and a skill's `upstream/` and
   `cases/CASE/world/` folders hold project text and are left out. Python is read for its strings, f-string text
   and comments only, since its code is the same in any Python program. So a check copied with its strings and

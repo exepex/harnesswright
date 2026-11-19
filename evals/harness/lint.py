@@ -49,11 +49,13 @@ SHORTEST = 3
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
          "ground truth", "expected output")
 # Eval text (doc 11) is text about skills and their cases, which tells an agent what is measured: every file under
-# `evals/` but the folder of `MACHINERY`, the harness, which is general and says nothing about a skill.
+# `evals/` but the folders of `MACHINERY`: the harness, which is general and says nothing about a skill, and the
+# results, which the harness writes after a round and which hold its counts and labels, never a case's prompt,
+# question or answer.
 # A new kit part, such as goldens or the grader prompt, counts without being listed. `PROJECT_TEXT` folders, paths
 # under `evals/` where None is any name, hold text written for worlds. Case data is the files that hold cases; each
 # holds prompts and histories, which a sibling case may repeat.
-MACHINERY = ("harness",)
+MACHINERY = ("harness", "results")
 PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
                 ("skills", None, "cases", None, "world"))
 CASE_DATA = ("case.json",)
