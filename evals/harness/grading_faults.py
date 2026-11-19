@@ -283,7 +283,7 @@ def view_(setup, fault, rng, place):
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
-    names = [skill, *layer["paths"], *cases.ARMS, cases.PREVIOUS]
+    names = [skill, *layer["paths"]]
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
@@ -370,13 +370,15 @@ def _seen(case, record, blob):
 
 
 def _shown(case, record, blob, names):
-    """The names that the view of `record` (its record and every blob) or its page holds, each as a whole name: by
-    the view's own rule, not inside a longer name such as `rules-text-<skill>.core.md`, a file the run itself made.
-    The test is written here, not taken from `world.names`, so a fault in that pattern cannot hide itself."""
+    """The names that the view of `record` (its record and every blob) or its page holds, each by the rule the view
+    keeps for it. The skill's name and paths count as whole names: not inside a longer name such as
+    `rules-text-<skill>.core.md`, a file the run itself made. An arm's name counts anywhere. The tests are written
+    here, not taken from `world.names`, so a fault in that pattern cannot hide itself."""
     seen, blobs, page = _seen(case, record, blob)
     text = json.dumps(seen, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
-    return [name for name in names
-            if re.search(f"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])", text + page)]
+    text += page
+    return [name for name in names if re.search(f"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])", text)] \
+        + [arm for arm in (*cases.ARMS, cases.PREVIOUS) if arm in text]
 
 
 PLANTS = {
