@@ -48,7 +48,8 @@ def copied(setup, fault, rng, place):
     # The gate itself must void the planted place alone: the run's record kept to that one text, so a void found
     # only in another text (the prompt echoed in the transcript or the action log) is a miss.
     where = f"world/{planted['file']}" if place == "world file" else "final message"
-    alone = {**record, "transcript": {}, "log": [], "final_message": record["final_message"] if place == "message" else "",
+    alone = {**record, "transcript": {}, "log": [],
+             "final_message": record["final_message"] if place == "message" else "",
              "diff": {path: change for path, change in record["diff"].items()
                       if place == "world file" and path == planted["file"]}}
     if not backstop.check(alone, blob, own)["void"]:
