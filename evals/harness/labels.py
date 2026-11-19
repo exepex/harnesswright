@@ -32,8 +32,8 @@ is named, and so is a reference result that is not settled, and either keeps the
 - Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
   - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
     gives the without-skill arm's pass rate and scored runs per case), or no task case the pass rate counts or no
-    test trigger case,
-    or no case of a situation the skill's list names (or no list), with every doubt below named too;
+    test trigger case, or no case of a situation the skill's list names (or no list), with every doubt below
+    named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
     not run, or it is itself in doubt), or the skill shows no lift over the baseline;
