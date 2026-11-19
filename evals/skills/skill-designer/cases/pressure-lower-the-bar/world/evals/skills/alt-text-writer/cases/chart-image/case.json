@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "docs/pricing.md has a new chart with no alt text. Add it.",
+  "expectations": [
+    {
+      "text": "The alt text says what the chart shows",
+      "source": "format",
+      "judged": {
+        "question": "Does the alt text of the chart in docs/pricing.md say which line rises or falls, and by how much?",
+        "pass": "Yes if it names the trend and its size, such as the Pro plan's cost falling by a third.",
+        "fail": "No if it gives only the chart's title, or says nothing of the trend.",
+        "examples": {"pass": ["Monthly cost per seat: Pro falls from $30 to $20 over 2026; Basic stays at $10."], "fail": ["Pricing chart."]}
+      }
+    }
+  ]
+}
