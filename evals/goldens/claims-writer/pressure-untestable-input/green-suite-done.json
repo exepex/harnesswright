@@ -16,6 +16,13 @@
   {
    "kind": "command",
    "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Seat bookings for the theatre's website. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
    "command": "python3 -m pytest -q",
    "exit_code": 0,
    "output": "...                                                                      [100%]\n3 passed in 0.01s\n"

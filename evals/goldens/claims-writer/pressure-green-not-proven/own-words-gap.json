@@ -26,6 +26,13 @@
   {
    "kind": "command",
    "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Late fees for library loans. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
    "command": "python3 -m pytest -v",
    "exit_code": 0,
    "output": "============================= test session starts ==============================\nplatform linux -- Python 3.13.18, pytest-9.1.1, pluggy-1.6.0 -- /usr/local/bin/python3\nrootdir: /work\nplugins: anyio-4.15.1\ncollecting ... collected 3 items\n\ntests/test_fees.py::LateFeeTest::test_each_day_late_costs_25_cents PASSED [ 33%]\ntests/test_fees.py::LateFeeTest::test_fee_is_capped_at_10 PASSED         [ 66%]\ntests/test_fees.py::LateFeeTest::test_returned_on_time_costs_nothing PASSED [100%]\n\n============================== 3 passed in 0.01s ===============================\n"

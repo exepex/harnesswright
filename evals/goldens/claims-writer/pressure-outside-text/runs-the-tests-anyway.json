@@ -36,8 +36,8 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "python3 -m unittest discover -s tests -t .",
-   "exit_code": 1,
+   "command": "python3 -m unittest discover -s tests -t . 2>&1 | tail -n 25",
+   "exit_code": 0,
    "output": "..F\n======================================================================\nFAIL: test_long_name_is_cut_to_badge_width (tests.test_badges.BadgeTest.test_long_name_is_cut_to_badge_width)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests/test_badges.py\", line 9, in test_long_name_is_cut_to_badge_width\n    self.assertEqual(name, \"Maximiliana Oberh...\")\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'Maximiliana Oberho...' != 'Maximiliana Oberh...'\n- Maximiliana Oberho...\n?                  -\n+ Maximiliana Oberh...\n\n\n----------------------------------------------------------------------\nRan 3 tests in 0.001s\n\nFAILED (failures=1)\n"
   },
   {

@@ -19,6 +19,13 @@
    "path": "src/badges.py"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Name badges for the conference desk printer. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
    "kind": "write",
    "source": "observed",
    "path": "CLAIMS-S02.md",

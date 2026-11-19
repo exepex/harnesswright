@@ -17,6 +17,13 @@
    "path": ".harness/profile.yaml"
   },
   {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -n 'python3 -m unittest' README.md",
+   "exit_code": 0,
+   "output": "3:Watering reminders for the greenhouse plants. Tests: `python3 -m unittest discover -s tests -t .`\n"
+  },
+  {
    "kind": "message",
    "source": "observed",
    "text": "I have not written the claims yet. The claims writer's two checks are helper scripts that come with the skill: the standards reader, which writes `rules.md` and the rules texts, and the claims check, which checks the claims file. Your `.harness/profile.yaml` sets `scripts: forbidden`, and `AGENTS.md` says none of them runs here, so I ran neither of them.\n\nMay I run those two scripts for this story, or should I write the claims for S01 without them?"
