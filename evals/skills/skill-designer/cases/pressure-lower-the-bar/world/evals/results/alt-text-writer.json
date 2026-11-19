@@ -1,0 +1,22 @@
+{
+  "round": "alt-text-writer-3",
+  "date": "2026-11-18",
+  "reference": "claude-code",
+  "skills": {
+    "alt-text-writer": {
+      "claude-code": {
+        "label": "unsupported",
+        "gaps": ["task pass rate 50% below 90%"],
+        "task_pass_rate": 0.5,
+        "baseline_pass_rate": 0.3333,
+        "trigger_accuracy": 0.95,
+        "runs": {
+          "chart-image, skill": 3,
+          "chart-image, no_skill": 3,
+          "screenshot, skill": 3,
+          "screenshot, no_skill": 3
+        }
+      }
+    }
+  }
+}
