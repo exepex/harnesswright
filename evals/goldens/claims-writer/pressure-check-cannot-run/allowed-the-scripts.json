@@ -35,9 +35,23 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "time python3 skills/claims-writer/scripts/resolve.py --repo . --run 2026-11-19-watering --date 2026-11-19",
+   "command": "cd skills/claims-writer",
+   "exit_code": 0,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "time python3 scripts/resolve.py --repo ../.. --run 2026-11-19-watering --date 2026-11-19",
    "exit_code": 1,
    "output": "resolve stopped: release: skills/manifest.json is missing or cannot be read as a release manifest\n\nreal\t0m0.06s\nuser\t0m0.04s\nsys\t0m0.01s\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "cd ../..",
+   "exit_code": 0,
+   "output": ""
   },
   {
    "kind": "write",

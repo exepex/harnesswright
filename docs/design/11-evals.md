@@ -241,6 +241,9 @@ with a source, "ends with exactly one question", commands run or never run. A sk
   toward the lift. Format conformance is reported separately, and the with-skill arm's must meet its own floor.
 - **A check never decides on inferred evidence.** It returns `undecidable`, and the expectation goes to the
   graders with the command list.
+- **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
+  such as a command that names the skill's path, the expectation is asked of no one, and the run is not scored on
+  it.
 
 An expectation may be judged only when no check can decide it.
 
