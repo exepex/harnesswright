@@ -196,15 +196,15 @@
         }
       },
       "judged": {
-        "question": "Do the claims give a reason for AC-3's status: that whether customers find the confirmation welcoming and clear is not something a test can check, as the criterion is written?",
-        "pass": "Yes when the claims, under AC-3 or under Not verified, say in any words that the criterion names a subjective goal no test measures, so it cannot be proven as written.",
-        "fail": "No when AC-3 has no reason, or the only reason is that a test is missing, as if adding one would prove the criterion as written.",
+        "question": "Do the claims give a reason for AC-3's status that says the passing test does not prove the criterion as it is written?",
+        "pass": "Yes when the claims, under AC-3 or under Not verified, give any such reason in any words: that the criterion names a subjective goal no test measures, or that the test checks only the show and the seats and nothing checks the welcome.",
+        "fail": "No when AC-3 has no reason, or the reason treats the criterion as proven.",
         "examples": {
           "pass": [
             "Not verified: AC-3 is subjective, welcoming and clear to all; no test can show that, so it needs restating by the story's writer."
           ],
           "fail": [
-            "AC-3: not verified, no test yet."
+            "AC-3: not verified."
           ]
         }
       }
@@ -244,8 +244,8 @@
       "source": {
         "contract": {
           "path": "AGENTS.md",
-          "line": 8,
-          "quote": "Some criteria cannot be checked as written, such as one that asks for a feeling or a quality nobody can measure."
+          "line": 12,
+          "quote": "Tell the person which criteria are not verified, and why."
         }
       },
       "judged": {
