@@ -349,8 +349,10 @@ After each round the judges look for ways the round could have been wrong, and a
   (containment, adapter, world builder, evidence). Only missing or voided runs are remade. Each label records the
   commits behind its runs.
 - **Store.** Rounds go to the folder given with `--store`, outside the working tree, checked by writing and reading
-  back a hash. The results pull request commits the manifest and every run's verdicts, redacted, so the label can
-  be recomputed from the repository alone.
+  back a hash. The round's store folder is kept as one archive. `rounds.py results` copies each skill's label file
+  entry, whole, into `evals/results/<skill>.json`, with the round's name, attempt, commit, manifest hash, kit hash
+  and the archive's file name and hash, so anyone with the archive recomputes the label at that commit. Every
+  run's verdicts stay in the archive: committed, they would quote world text into the repository.
 - **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
   or its result is not settled, every other host is at most `inconclusive`. A task run passes when every contract
   expectation passed; format expectations are reported as format conformance, never in the pass rate. The
@@ -377,8 +379,8 @@ After each round the judges look for ways the round could have been wrong, and a
   per model, with input at its price only where the cache did not hold it; a model with no price gives no money.
   The label names the price file's date.
 - **Description tuning** keeps its train and test split. A tuned description is a declared, hashed input.
-- **Labels from the phase 2 runner** stay in `evals/results/`, marked as from the old harness, until the first
-  round of this harness replaces them.
+- **Labels from the phase 2 runner** stay in `evals/results/`, under `phase_2_runner`, for each host until the
+  first round of this harness on that host replaces them.
 
 ## Build order
 

@@ -287,15 +287,23 @@ def main(argv=None):
     running.add_argument("--host-path", action="append", default=[], dest="host_paths",
                          help="a host's install under the operator's home, which its jail may mount (repeatable)")
     running.add_argument("--seed", type=int, help="the seed that places the faults; a new one when not given")
+    publishing = commands.add_parser("results", help="copy a finished round's labels into evals/results (results.py)")
+    publishing.add_argument("round", help="the round's name")
+    publishing.add_argument("--store", required=True, help="the round store the round ran in")
+    publishing.add_argument("--archive", required=True, help="the tar file of the round's store folder")
     args = parser.parse_args(argv)
     try:
         if args.command == "plan":
             print(write(plan(args.plan, host_paths=args.host_paths), args.store))
+        elif args.command == "results":
+            import results
+            for path in results.publish(Path(args.store) / args.round, args.archive, REPO / "evals" / "results"):
+                print(path)
         else:
             import gates  # it imports this module, so only when a round runs
             attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)
             print(json.dumps(attempt, indent=1, sort_keys=True))
-    except RoundError as error:
+    except (RoundError, ValueError) as error:  # results.ResultsError is a ValueError
         print(f"round: {error}", file=sys.stderr)
         return 1
     return 0
