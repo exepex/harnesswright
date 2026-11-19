@@ -1,7 +1,7 @@
 # Eval harness
 
-The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It replaces the phase 2 runner in
-`evals/runner/`, which stays until rounds move here (build step 5).
+The ground-up eval harness of [11 · Evals](../../docs/design/11-evals.md). It replaced the phase 2 runner, which
+was removed once rounds ran here.
 
 The harness is built in small pull requests, one part each. This folder holds the first parts: **the manifest,
 eval cases, skill reading, building and proving the two arms, the world lint, containment, the network gate,
@@ -179,8 +179,8 @@ text, since the case author writes it for this case.
   any place but the prompt, which may ask for it. An expectation of three to five words is matched whole. One of
   one or two words cannot be told apart from ordinary project words, so the judge who reads the world looks for it.
 - Eval text is text about skills and their cases, which tells an agent what is measured: every file under
-  `evals/` but `evals/harness/` and `evals/runner/`, the general machinery, which says nothing about a skill. A new
-  kit part counts without being listed. `evals/fixtures/` and a skill's `files/`, `upstream/` and
+  `evals/` but `evals/harness/`, the general machinery, which says nothing about a skill. A new
+  kit part counts without being listed. `evals/fixtures/` and a skill's `upstream/` and
   `cases/CASE/world/` folders hold project text and are left out. Python is read for its strings, f-string text
   and comments only, since its code is the same in any Python program. So a check copied with its strings and
   comments removed is not caught here; the judge who reads the world is the check for that.
@@ -252,7 +252,7 @@ file `evals/results/prices.json`; a model with no price, or a run with no counts
 `tests/fakehost/` is a fake host and its adapter: a program with no model that carries out a list of actions, with
 its own sandbox, a bundled skill and a tool beyond the table, as a real host has. The tests run it in a real jail,
 so the contract and its faults are shown end to end in every pull request. The Codex and Claude Code adapters give
-it too ([adapters](../../adapters/README.md#the-harness-contract)), beside the older interface of `evals/runner/`.
+it too ([adapters](../../adapters/README.md#the-harness-contract)).
 
 An adapter reports a write that failed as `failed`, and `host.run` decides what it was from the jail's own mount
 list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
