@@ -14,13 +14,11 @@ place that run can see. A place has a kind:
 `RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
 every rule but the tells reads them: a tell inside a sibling's description is the project's own word. `base` places
-are approved project text: the judges approve the pinned base with its `left_out` list when they approve the pin,
-and it is the same in every arm, so nothing in it tells one arm from another or is the case author's to fix. Only
-the skill-name rule reads them; the case-level rules (the skill's text, tells, eval and expectation text, arm
-names) read the case's own files and the prompt. `internal.check_links` reads the whole built world.
+are approved project text: the judges approve them with the pin and its `left_out` list, and they are the same in
+every arm, so they tell no arm apart and are no case author's to fix. Only the skill-name rule reads them; the
+case-level rules read the case's own files and the prompt, and `internal.check_links` the whole world.
 
-No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees the world's files, and
-an arm's name there would tell it which arm it grades.
+No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees it and would learn its arm.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
 verified copies, installed sibling files, an internal world's pinned base, the recorded upstream source and the
@@ -67,7 +65,6 @@ PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
 CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
 EVERY = ("names", "arms", "skill", "tells", "eval", "expectations")
-# `base` is approved project text, the same in every arm (module docstring): only the skill's name is read there.
 RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "arms", "skill"),
          "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",)}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
