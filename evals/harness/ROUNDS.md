@@ -87,9 +87,11 @@ and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.js
 to the graders. The grade gate grades every run's and golden's page in one blind order (`grades.py`). A run's answer
 counts only where the goldens got their settled answers, and only where that page's answer is settled: two answers
 the same, the tie-breaker's included, and no grader's retry flipped it (`grader.flipped`), a sheet refused for its
-form still counting as that grader's answer (`offered`). The label file names each judged question's agreement over
-every page and every answer a grader gave, refused tries included, and lists every question below 90% or with a
-flipped retry for rewriting (`agreement`, `agreement.py`); agreement unscores nothing by itself. Each graded page
+form still counting as that grader's answer (`offered`). A golden passes a question only when its answer is settled at
+the right value: an unsettled golden, flipped or with no majority, is a miss, named `flipped retry` or `no answer`.
+The label file names each judged question's agreement over every page that two different graders answered and every
+answer a grader gave, refused tries included, the overall share and the 90% bar, and lists every question below the
+bar or with a flipped retry for rewriting (`agreement`, `agreement.py`); agreement unscores nothing by itself. Each graded page
 leaves one record in the attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is made once and
 kept across attempts (`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders were trusted
 under; a later attempt grades its goldens again and counts a kept answer only when its question is trusted both now
@@ -156,7 +158,7 @@ score 174 of 198 (87.9%), not the plain mean's 93.85%. The label file's `false_d
 arm, and each situation's counts, stay pooled counts.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
-with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
+with its counts: the void rate and the pinned-load rate per arm, golden accuracy from the goldens' grade records, the
 faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, format
 conformance per arm with the expectations left undecided, and per arm the runs, seconds, token counts by model and
 money at the price file, whose date the label file names. A run with no token counts, or a model with no price,

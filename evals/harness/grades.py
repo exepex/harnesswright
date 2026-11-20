@@ -153,9 +153,10 @@ def _record(page, asked, panel, pair, top, r):
 
 
 def _graded(asked, sheets, name):
-    """(the ids a golden was asked, the answers its panel gave), as `goldens.gate` reads them."""
+    """(the ids a golden was asked, the answers its panel gave, the ids a retry flipped), as `goldens.gate` reads
+    them."""
     ids = [question["id"] for question in asked[name]]
-    return ids, (sheets[name].answers if name in sheets else {})
+    return ids, (sheets[name].answers if name in sheets else {}), (sheets[name].flipped if name in sheets else [])
 
 
 def _panel(r, top):

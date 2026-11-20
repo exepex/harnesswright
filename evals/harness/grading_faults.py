@@ -182,7 +182,7 @@ def _gate(case, pages, answer, ungraded=None):
         one = _grader(lambda id_, golden=golden: answer(golden, id_))
         pair = [_grader(None), one] if golden.name == ungraded else [one, one]
         found = grader.panel(_text(case, record, blob), asked, pair, _grader(None))
-        graded[golden.name] = ([question["id"] for question in asked], found.answers)
+        graded[golden.name] = ([question["id"] for question in asked], found.answers, found.flipped)
     return goldens.gate(case, [p[0] for p in pages], graded)
 
 
