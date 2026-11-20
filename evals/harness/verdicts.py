@@ -51,6 +51,7 @@ from runs import PREVIOUS
 THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0,
               "format_conformance": 0.9}
 EPSILON = 1e-9
+THEIRS = "reference host: "  # a `split` key naming an arm of the reference host, not of the host judged
 
 
 def task_outcome(case, verdicts, answers):
@@ -225,7 +226,8 @@ def judged(measures, reference=None, false_done=None, thresholds=THRESHOLDS):
     conformance, a team skill's lift, and against a previous version its pass rate and its false-done rate
     (`false_done` by case and arm). A measure that reads two arms moves the with-skill arm toward its best and the
     other toward its worst, and back (doc 12, Verdicts); the gap to the reference host reads this host's with-skill
-    arm and the reference host's, one run per split case on each."""
+    arm and the reference host's, one run per split case on each, and names the reference host's split cases under
+    their own key (`THEIRS`), where extra runs go on that host."""
     per_case, found = measures.get("per_case", {}), {}
     ran, base, before = (as_runs(per_case.get(arm, {})) for arm in ("with_skill", "without_skill", PREVIOUS))
     at_least = lambda floor: lambda value: value >= floor - EPSILON  # noqa: E731
@@ -235,7 +237,7 @@ def judged(measures, reference=None, false_done=None, thresholds=THRESHOLDS):
         theirs = as_runs(reference.get("per_case", {}).get("with_skill", {}))
         found["gap to the reference host"] = judge(lambda m: _less(mean(theirs, -m), mean(ran, m)),
                                                    lambda value: value <= thresholds["max_gap"] + EPSILON,
-                                                   {"with_skill": ran})
+                                                   {"with_skill": ran, f"{THEIRS}with_skill": theirs})
     formats = (measures.get("format_runs") or {}).get("with_skill")
     if formats:
         found["format conformance"] = judge(lambda m: mean(formats, m, by_items=True),
