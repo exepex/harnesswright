@@ -46,6 +46,7 @@ import grader  # noqa: E402
 import grader_faults  # noqa: E402
 import grades  # noqa: E402
 import grading  # noqa: E402
+import labels  # noqa: E402
 import prices  # noqa: E402
 import probes  # noqa: E402
 import rounds  # noqa: E402
@@ -104,8 +105,9 @@ def pages(r, attempt, outcome):
     """{name: page} for every page the source attempt graded: its `text`, the questions `asked`, its `kind` (run or
     golden), `case`, the `host`, `model` and `arm` that made it, and a golden's `settled` answers. Each is rebuilt as
     the grade gate built it and must hash as its grade record says, or the pass stops. The run records must be
-    exactly the runs the attempt's grade gate names (`outcome`), and the golden records exactly the goldens it graded:
-    each golden of the round's cases with a question no check decided."""
+    exactly the runs the attempt graded (`outcome`, with its extra runs, `labels.with_extras`), and the golden
+    records exactly the goldens its grade gate graded: each golden of the round's cases with a question no check
+    decided."""
     graded, found = r.folder / "grades" / attempt, {}
     named = sorted(run["key"] for run in outcome["runs"])
     if sorted(path.stem for path in (graded / "runs").glob("*.json")) != named:
@@ -214,7 +216,9 @@ def _regrade(r, routes, attempt, adapters, kinds, times):
     attempt, outcome = source(r, attempt)
     passed = (outcome.get("probe") or {}).get("passed") or []  # the hosts the source attempt ran, as it built goldens
     r.hosts = {host: {"drift": json.loads((r.folder / "drift" / f"{host}.json").read_text())} for host in passed}
-    found = {page: built for page, built in pages(r, attempt, outcome["grade"]).items() if built["kind"] in kinds}
+    graded = labels.with_extras({gate: {"passed": True, "outcome": found} for gate, found in outcome.items()})
+    found = {page: built for page, built in pages(r, attempt, graded["grade"]["outcome"]).items()
+             if built["kind"] in kinds}
     modules = {one: rounds.adapter(one[0], adapters) for one in routes}
     started = datetime.datetime.now(datetime.timezone.utc)
     (r.folder / "regrade").mkdir(parents=True, exist_ok=True)

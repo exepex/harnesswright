@@ -45,7 +45,7 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
     for needed in ("probe", "run", "grade") + ("extra runs",) * ("extra runs" in gates):
         if not gates.get(needed, {}).get("passed"):
             raise LabelError(f"attempt {attempt}: its {needed} gate did not pass")
-    gates = _with_extras(gates)
+    gates = with_extras(gates)
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
@@ -159,9 +159,10 @@ def shipped(hosts, reference):
     return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
 
 
-def _with_extras(gates):
+def with_extras(gates):
     """`gates` with the runs of every pass of the extra runs gate added to the run gate's, and the grades and the
-    goldens each pass found untrusted to the grade gate's, so every count and doubt reads one list of runs."""
+    goldens each pass found untrusted to the grade gate's: the one list of runs and grades that every count, doubt
+    and regrade (`regrade.pages`) reads."""
     passes = gates.get("extra runs", {}).get("outcome", {}).get("passes", [])
     if not passes:
         return gates

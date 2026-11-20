@@ -233,18 +233,22 @@ def faults_gate(r):
     return found
 
 
-def order(record, hosts, cases):
+def order(record, hosts, cases, extra=None, steps=None):
     """Every planned run of `hosts`, as (host, skill, case id, arm, number): for each number, each case in turn,
     its arms (`runs.arms`, from `cases` by (skill, case id)) one after the other, the arm that goes first turning
-    from case to case and number to number."""
+    from case to case and number to number. With `extra` ({(host, skill, case id, arm): the runs it has}), the
+    `steps` next runs of each of those slots only, in the same turn (`extras.extra_gate`): one order for both."""
     planned = [(skill, i) for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])]
-    for number in range(1, record["plan"]["runs"] + 1):
+    for step in range(1, (steps or record["plan"]["runs"]) + 1):
         for index, (skill, case_id) in enumerate(planned):
             arms = runs.arms(record, cases[(skill, case_id)])
-            turn = (number + index + 1) % len(arms)  # the first arm moves on by one each case and number
+            turn = (step + index + 1) % len(arms)  # the first arm moves on by one each case and number
             for arm in arms[turn:] + arms[:turn]:
                 for host in sorted(hosts):
-                    yield host, skill, case_id, arm, number
+                    if extra is None:
+                        yield host, skill, case_id, arm, step
+                    elif (host, skill, case_id, arm) in extra:
+                        yield host, skill, case_id, arm, extra[(host, skill, case_id, arm)] + step
 
 
 def run_gate(r):

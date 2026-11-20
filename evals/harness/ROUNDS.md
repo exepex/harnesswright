@@ -90,7 +90,9 @@ attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is mad
 grades its goldens again and counts a kept answer only when its question is trusted both now and then. When a
 measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to each split case it reads, in each
 arm it reads, through the run, check and grade steps, at most as many per case and arm as the plan's `extra_runs`
-(0, 3 or 6), and decides again; the fault gate's runs are never extended. The label file names the extra runs of
+(0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label already bound to be
+`incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why (`skipped`). A regrade
+reads the same runs as the label (`labels.with_extras`). The label file names the extra runs of
 each case and arm (`extra_runs`). A check that breaks, a grader that breaks its jail or a
 golden that cannot be built stops the round. Each gate's outcome, that of the gate that stopped the round too, is
 written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.

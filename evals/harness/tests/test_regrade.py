@@ -110,6 +110,26 @@ class Regrade(Pages):
         self.assertIsNone(route["graders agree"])
         self.assertEqual((found["pass"]["pages graded"], found["pairs"]), ({"golden": 2}, []))
 
+    def test_a_round_with_an_extra_pass_regrades_its_extra_runs_too(self):
+        self.planned()
+
+        def extra(r):  # k2 graded by a pass of the extra runs gate, its goldens mixed in again
+            graded = grades.grade(r, r.runs[1:], r.folder / "grades" / r.attempt / "extra-1")
+            return {"passes": [{"runs": [{"key": "k2"}], "checks": [], "grades": graded["runs"],
+                                "goldens": graded["goldens"]}]}
+        steps = (("probe", lambda r: {"passed": ["fakehost"], "not run": {}, "drift": {}}),
+                 ("run", lambda r: self.ran([POND, HELLO])(r) or []), ("check", gates.check_gate),
+                 ("grade", lambda r: grades.grade(r, r.runs[:1], r.folder / "grades" / r.attempt)),
+                 ("extra runs", extra))
+        self.go(steps, grade=answering(pond))
+        kit.approve(self.store, "judge-a", self.repo)
+        (self.store / "r1" / "drift").mkdir()
+        (self.store / "r1" / "drift" / "fakehost.json").write_text(json.dumps(DRIFT))
+        calls = []
+        pages = json.loads((self.run_it(calls=calls) / "pages.json").read_text())
+        self.assertEqual(sorted(p["name"] for p in pages.values() if p["kind"] == "run"), ["k1", "k2"])
+        self.assertEqual(len(calls), 8)  # both runs and the grade gate's two goldens, two graders each
+
     def test_a_page_or_questions_that_are_not_the_ones_the_round_graded_stop_the_pass(self):
         self.source()
         for kind, field, name in (("runs", "page", "k1"), ("runs", "questions", "k1"),
