@@ -210,6 +210,21 @@ class Kinds(unittest.TestCase):
         self.assertEqual(verdicts.decide(team, []), {"label": "verified", "gaps": []})  # a team skill's lift counts
 
 
+    def test_an_own_check_left_undecidable_is_a_doubt_the_graders_yes_cannot_settle(self):
+        undecidable = [verdict("pass"), None, verdict("undecidable")]  # the own check, file_state, on q3
+        answers = {"q2": "yes", "q3": "yes"}  # the graders resolve what the check left open
+        self.assertEqual(verdicts.task_outcome(case(), undecidable, answers), (True, ""))
+        why = verdicts.own_doubt(case(), undecidable, OWN)
+        self.assertEqual(why, "no own check decided it on this run, and a grader's answer does not stand in for one")
+        found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3}, kind="internal", own_checks=OWN),
+                 **formatted()}
+        doubts = [f"t, with_skill, run {n}: {why}" for n in (1, 2, 3)]
+        self.assertEqual(verdicts.decide(found, doubts), {"label": "inconclusive", "gaps": doubts})  # never verified
+        for outcome in ("pass", "fail"):  # decided either way: no doubt
+            self.assertIsNone(verdicts.own_doubt(case(), [None, None, verdict(outcome)], OWN))
+        self.assertIsNone(verdicts.own_doubt(case(), undecidable, []))  # no own check listed: `unchecked` names it
+
+
 class TriggerLabel(unittest.TestCase):
     def label(self, outcomes, should=True, unsettled=(), inferred=0):
         cases = {"g": case("trigger", should_trigger=should, split="test")} if outcomes is not None else {}

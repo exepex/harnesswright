@@ -37,7 +37,8 @@ itself (`runs.arms`, `runs.key`), so it has no lift and no baseline backstop; it
 never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`. The
 kit part `evals/own-checks.json` lists harnesswright's own checks (`cases.own_checks`, none yet), and the manifest
 records the list: an internal skill's label is at most `inconclusive` while one of its task cases has no contract
-expectation that one of them checks, each such case named (`verdicts.decide`).
+expectation that one of them checks, each such case named (`verdicts.decide`), and while a run of such a case has
+that check undecided: a grader's answer never stands in for it (`verdicts.own_doubt`).
 
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
