@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-SKILL-28, CORE-WORK-08"
   rulebook-version: "0.8.0"
-  content-hash: "a21b69faf94b5dd3dbb3be4f9e7d07aa01ab4edba6cb58f5336751a8e25d949c"
+  content-hash: "4628b3988418f4dad5d2f7aa6308f85e007427017451dd9eaf1f14b7b43f5119"
   size-floors: "4881"
-  size-rest: "20728"
+  size-rest: "20734"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.8.0. Do not edit. -->
 
@@ -340,12 +340,12 @@ Check: the last run of the check exits 0, or the by-reading checks are done; **N
 
 ### 7. Report
 
-After a stop, say first that the run is blocked, what is missing or failed, what is done and what is not, and what
-you could not verify; there is no claims file. Otherwise, say first which scripts did not run, and why: the claims
-check script when it could not run, and the standards reader when you wrote the rules texts by reading. Then give
-where the claims file is and one line per requirement with its status. List the open proof items, ready for the top
-of the pull request description, and name any place, time or owner that is `not named`. Do not call the story done
-unless every requirement is `met`.
+After a stop, open with the line `Blocked: <what is missing or failed>`, then say what is done and what is not, and
+what you could not verify; there is no claims file. Otherwise, say first which scripts did not run, and why: the
+claims check script when it could not run, and the standards reader when you wrote the rules texts by reading. Then
+give where the claims file is and one line per requirement with its status. List the open proof items, ready for the
+top of the pull request description, and name any place, time or owner that is `not named`. Do not call the story
+done unless every requirement is `met`.
 
 Check: your report matches the statuses in the file or, after a stop, names what is missing and says that no
 claims file was written.

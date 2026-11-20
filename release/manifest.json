@@ -17,7 +17,7 @@
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "a21b69faf94b5dd3dbb3be4f9e7d07aa01ab4edba6cb58f5336751a8e25d949c",
+      "content-hash": "4628b3988418f4dad5d2f7aa6308f85e007427017451dd9eaf1f14b7b43f5119",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -32,7 +32,7 @@
       ],
       "files": {
         "LICENSE-MIT.txt": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
-        "SKILL.md": "cb46884e9076f33f019b62d8c7a190b9a67020e4ffb3e041580536c16238b271",
+        "SKILL.md": "a20c2bf613bb1cb430fa20114ce9eca3a15105db5be9f0a112b76a041c5dcc2d",
         "references/claims-template.md": "64f13c6a94ef91a12f1530560ff72dbe8bf61a97516ce70b9ba92b7d3f019d3b",
         "scripts/claims_check.py": "0e355d99e2c70dc6d3768aa758e343716e6d28f8440291f3660d3a6c0ef01e48",
         "scripts/claims_standards.py": "268a55803144c64b000575f89c09c1656618f5ebc3968393bc5f453800cffda9",
@@ -50,7 +50,7 @@
       ],
       "rulebook-version": "0.8.0",
       "size-floors": 4881,
-      "size-rest": 20728
+      "size-rest": 20734
     },
     "skill-designer": {
       "areas": [
@@ -58,7 +58,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "7fd0d9f9450e7404f4023eaf49c7ab93a0adeecbb98dc8df50df0a77e6d5e03f",
+      "content-hash": "f1f3d5873220d88896ed1e1bf4402c8adecb525c75a8dc0240f55e3291f08e03",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -100,7 +100,7 @@
       ],
       "files": {
         "LICENSE.txt": "14099b9c79d031b9d4b32c736a4e20f2b941f52dd79500532d62d26dd716110c",
-        "SKILL.md": "fbdf93cb3ed1a47ceba2134f26ef1d5cc902148ee5f0ac029e470d765b39bb94",
+        "SKILL.md": "754a90274f726bd10bf0e6bbb88abe8cc844951985cb317345c631f11f63b0d9",
         "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
         "scripts/reach.py": "099b97cf1f5f29615c01106de703a793fe5026bc09a7ebc182206450291ce27b",
         "scripts/repoprofile.py": "e340a378c4c285e9ab49f02d01693612787202b74b10aabe0563cf745370b5ec",
@@ -116,7 +116,7 @@
       ],
       "rulebook-version": "0.8.0",
       "size-floors": 15627,
-      "size-rest": 29633
+      "size-rest": 29916
     }
   }
 }
