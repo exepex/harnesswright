@@ -15,7 +15,7 @@ import internal
 import lint
 import manifest
 import world
-from cases import REPO, CaseError
+from cases import REPO, CaseError, load_cases
 
 SKILL = "skill-designer"  # internal in evals/kinds.json
 COPIED = ["AGENTS.md", "docs/design", "v2/VERSION", "v2/roles.md", "v2/rules", "v2/skills"] + [
@@ -285,6 +285,23 @@ class Reader(TempCase):
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")
     def test_the_kit_left_out_list_matches_the_pin(self):
         internal.base(SKILL, self.tmp / "pinned")
+
+    @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
+                     "the kit pins no commit yet; the judges approve `left_out` with the pin")
+    def test_every_commit_a_case_label_names_is_in_its_built_history(self):
+        # A label in a case's world names the commit its round ran on. The replayed history depends on the pin, so
+        # after a re-pin a label may name a commit no arm holds; it fails here, not quietly in a run.
+        for case in load_cases(SKILL):
+            labels = sorted((case.folder / "world" / "evals" / "results").glob("*.json"))
+            named = {json.loads(p.read_text()).get("commit") for p in labels} - {None}
+            if not (named and case.commits):
+                continue
+            with self.subTest(case=case.id):
+                out = internal.world_of(case, self.tmp / case.id)
+                world._history(out, case.commits)
+                held = subprocess.run(["git", "rev-list", "--all"], cwd=out, capture_output=True, text=True,
+                                      check=True).stdout.split()
+                self.assertEqual(named - set(held), set())
 
 
 if __name__ == "__main__":
