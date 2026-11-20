@@ -22,6 +22,7 @@ import grades
 import labels
 import prices
 import runs
+import verdicts
 
 STEP = 3  # the runs one pass adds to a split case in each arm
 BOUND = ("incomplete", "inconclusive")  # labels no extra run can change
@@ -30,7 +31,8 @@ BOUND = ("incomplete", "inconclusive")  # labels no extra run can change
 def wanted(found, record, cases):
     """({(host, skill, case id, arm)} to extend, {"host, skill": why none}) from the label file `found`
     (`labels.labels`): for each measure or floor that is `too close`, each case split in an arm it reads, in each arm
-    it reads that the case runs in (`runs.arms`, from `cases` by (skill, case id)). A label already bound to be
+    it reads that the case runs in (`runs.arms`, from `cases` by (skill, case id)), on the host whose arm it is: the
+    gap to the reference host reads the reference host's with-skill arm too, so it extends there. A label already bound to be
     `incomplete` or `inconclusive` by something else, such as an unscored or not-loaded run, a missing kind or an
     own-checks gap, gets none, as no run can change it: its gaps say why."""
     slots, skipped = set(), {}
@@ -42,10 +44,17 @@ def wanted(found, record, cases):
             for verdict in entry.get("verdicts", {}).values():
                 if verdict["verdict"] != "too close":
                     continue
+                read = [_owner(key, host, found.get("reference")) for key in verdict["split"]]
                 for case_id in {i for listed in verdict["split"].values() for i in listed}:
                     allowed = runs.arms(record, cases[(skill, case_id)])
-                    slots.update((host, skill, case_id, arm) for arm in verdict["split"] if arm in allowed)
+                    slots.update((owner, skill, case_id, arm) for owner, arm in read if arm in allowed)
     return slots, skipped
+
+
+def _owner(key, host, reference):
+    """(host, arm) of a verdict's `split` key: an arm of the host judged, or of the reference host (`verdicts.THEIRS`),
+    as the gap to the reference host reads both."""
+    return (reference, key[len(verdicts.THEIRS):]) if key.startswith(verdicts.THEIRS) else (host, key)
 
 
 def extra_gate(r):
