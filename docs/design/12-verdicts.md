@@ -125,12 +125,15 @@ A verdict is `pass`, `fail` or `too close`.
 
 - **Split case.** A case whose runs in one arm disagree.
 - **Deciding a measure.** A measure (pass rate, format conformance, lift, false-done rate, the gap to the previous
-  version) **fails** when it fails even with every split case flipped to its best; it **passes** when it passes even
-  with every split case flipped to its worst. Anything else is `too close`.
-- Unsplit cases are never flipped, so a clean round is decided at once.
+  version) is computed from per-case rates, each case's rate being its passed runs over its scored runs. It
+  **fails** when it fails even at its best; it **passes** when it passes even at its worst; anything else is `too
+  close`. Its best flips one failed run of each split case to passed; its worst flips one passed run of each split
+  case to failed.
+- Only one run per split case is flipped, so each extra run narrows the swing: a split case of 3 runs moves its
+  rate by a third, one of 9 runs by a ninth. Unsplit cases are never flipped, so a clean round is decided at once.
 - Pooled rates are the mean of per-case rates, so extra runs on some cases do not weigh them more.
-- For a measure that reads two arms, such as lift or the gap to the previous version, "best" for the skill flips
-  the with-skill arm's split cases to pass and the other arm's to fail; "worst" does the opposite.
+- For a measure that reads two arms, such as lift or the gap to the previous version, "best" for the skill makes
+  the with-skill arm's flip toward pass and the other arm's toward fail; "worst" does the opposite.
 - Format conformance flips the items of one run, not whole runs.
 - **Situation floors.** Every with-skill run of a situation case must pass. One failed run makes that situation
   `too close`; a second failure, extras included, makes it fail. `verified` still needs every floor run, extras
