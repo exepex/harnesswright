@@ -9,6 +9,8 @@ text. The build must give exactly these files, plus scripts/, rules/ (every laye
 for byte from their sources.
 """
 
+import hashlib
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -29,9 +31,29 @@ class GoldenTest(unittest.TestCase):
                     for p in (GOLDEN / "expected").rglob("*") if p.is_file()}
         built = {path: text for path, text in self.files.items() if not build.is_copy(path)}
         self.assertEqual(sorted(built), sorted(expected))
+        built["manifest.json"] = self.without_hashes(built["manifest.json"])  # checked on their own, below
         for path, text in expected.items():
             with self.subTest(path=path):
                 self.assertEqual(built[path], text)
+
+    @staticmethod
+    def without_hashes(text):
+        data = json.loads(text)
+        data.pop("run-time-files")
+        for entry in data["skills"].values():
+            entry.pop("files")
+        return json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+    def test_the_manifest_hashes_every_skill_and_run_time_file(self):
+        """Each hash is recounted here from the built bytes, so the hand-written manifest need not track the shipped
+        modules' bytes."""
+        data = json.loads(self.files["manifest.json"])
+        sha = {p: hashlib.sha256(c if isinstance(c, bytes) else c.encode()).hexdigest() for p, c in self.files.items()}
+        skill = {p.removeprefix("golden-skill/"): h for p, h in sha.items() if p.startswith("golden-skill/")}
+        self.assertEqual(data["skills"]["golden-skill"]["files"], skill)
+        run_time = {p: h for p, h in sha.items() if p == "roles.md" or p.startswith("rules/")}
+        self.assertEqual(data["run-time-files"], run_time)
+        self.assertNotIn("manifest.json", data["run-time-files"])
 
     def test_scripts_are_their_sources(self):
         scripts = {path: data for path, data in self.files.items() if "/scripts/" in path}

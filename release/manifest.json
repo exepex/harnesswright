@@ -1,9 +1,23 @@
 {
-  "rulebook-version": "0.5.1",
+  "rulebook-version": "0.8.0",
+  "run-time": [
+    "manifest.json",
+    "roles.md",
+    "rules/"
+  ],
+  "run-time-files": {
+    "roles.md": "6bcba60819b15f57b88eb0a9a4b6fb73ad323be5603d0a9909e458d12fb31f76",
+    "rules/core/catalog.md": "74caac0c08b5680eb5df1f74fa4be6da6c0458c4ac39aa807d6780b41fa78e6c",
+    "rules/core/index.md": "d2830926dfe581e3e3ad848d219569ba06e60291cf9a9fa99afbc075a9bef788",
+    "rules/core/retired.md": "e2422bfc03f2d93099ce0342dace4d884be9bf34b4ccfa6e089b5f53978f5272",
+    "rules/core/skill.md": "44663eee210b728d1f04c98264ba161364f33ec0308c8aa4e483b875885c059f",
+    "rules/core/template.md": "85ea4e01592ac328a71a898cd92621a523686d20705412095e7fa13e906ae4d9",
+    "rules/core/work.md": "7a40d895b68c6e51b9d6f0a807762548c60acaca456f17fc3c195877a2e27d32"
+  },
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "b35081e48c11b9cdcdbab91147263059995b179c170ab898c54d300cdddb32d5",
+      "content-hash": "4628b3988418f4dad5d2f7aa6308f85e007427017451dd9eaf1f14b7b43f5119",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -13,16 +27,30 @@
         "CORE-WORK-05",
         "CORE-WORK-06",
         "CORE-WORK-07",
+        "CORE-SKILL-28",
         "CORE-WORK-08"
       ],
+      "files": {
+        "LICENSE-MIT.txt": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "SKILL.md": "a20c2bf613bb1cb430fa20114ce9eca3a15105db5be9f0a112b76a041c5dcc2d",
+        "references/claims-template.md": "64f13c6a94ef91a12f1530560ff72dbe8bf61a97516ce70b9ba92b7d3f019d3b",
+        "scripts/claims_check.py": "0e355d99e2c70dc6d3768aa758e343716e6d28f8440291f3660d3a6c0ef01e48",
+        "scripts/claims_standards.py": "268a55803144c64b000575f89c09c1656618f5ebc3968393bc5f453800cffda9",
+        "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
+        "scripts/reach.py": "099b97cf1f5f29615c01106de703a793fe5026bc09a7ebc182206450291ce27b",
+        "scripts/repoprofile.py": "e340a378c4c285e9ab49f02d01693612787202b74b10aabe0563cf745370b5ec",
+        "scripts/resolve.py": "d68d392868a4e01b98ab14f28e7dd5e6088887646021d713cf08730a4579a902",
+        "scripts/rulebook.py": "346fbe911ea076ed8b8d5794a624140a60171e5164124919c195f00339ce083d",
+        "scripts/runfiles.py": "485560ac7fe4e7c9a0e6608d5ac57d8833d9c238234418fad0d2702464fd68fb"
+      },
       "job": "claims",
       "rest": true,
       "roles": [
         "claims writer"
       ],
-      "rulebook-version": "0.5.1",
+      "rulebook-version": "0.8.0",
       "size-floors": 4881,
-      "size-rest": 18257
+      "size-rest": 20734
     },
     "skill-designer": {
       "areas": [
@@ -30,7 +58,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "d141b508d2ebf359a2d90dec1c5be90ccb50a38ca0ea38db11171b36c637f6af",
+      "content-hash": "f1f3d5873220d88896ed1e1bf4402c8adecb525c75a8dc0240f55e3291f08e03",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -43,8 +71,8 @@
         "CORE-SKILL-27",
         "CORE-TEMPLATE-02",
         "CORE-TEMPLATE-03",
-        "CORE-TEMPLATE-04",
         "CORE-TEMPLATE-05",
+        "CORE-TEMPLATE-06",
         "CORE-WORK-01",
         "CORE-WORK-02",
         "CORE-WORK-03",
@@ -55,9 +83,7 @@
         "CORE-CATALOG-01",
         "CORE-SKILL-01",
         "CORE-SKILL-03",
-        "CORE-SKILL-04",
         "CORE-SKILL-05",
-        "CORE-SKILL-08",
         "CORE-SKILL-09",
         "CORE-SKILL-10",
         "CORE-SKILL-12",
@@ -68,16 +94,29 @@
         "CORE-SKILL-17",
         "CORE-SKILL-23",
         "CORE-SKILL-26",
+        "CORE-SKILL-28",
+        "CORE-SKILL-29",
         "CORE-WORK-08"
       ],
+      "files": {
+        "LICENSE.txt": "14099b9c79d031b9d4b32c736a4e20f2b941f52dd79500532d62d26dd716110c",
+        "SKILL.md": "754a90274f726bd10bf0e6bbb88abe8cc844951985cb317345c631f11f63b0d9",
+        "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
+        "scripts/reach.py": "099b97cf1f5f29615c01106de703a793fe5026bc09a7ebc182206450291ce27b",
+        "scripts/repoprofile.py": "e340a378c4c285e9ab49f02d01693612787202b74b10aabe0563cf745370b5ec",
+        "scripts/resolve.py": "d68d392868a4e01b98ab14f28e7dd5e6088887646021d713cf08730a4579a902",
+        "scripts/rulebook.py": "346fbe911ea076ed8b8d5794a624140a60171e5164124919c195f00339ce083d",
+        "scripts/runfiles.py": "485560ac7fe4e7c9a0e6608d5ac57d8833d9c238234418fad0d2702464fd68fb",
+        "scripts/shared_runs.py": "915c4e83718035e7ad16e20a43904e93bdd4ea1dd7dc36d044662c6ec18747e8"
+      },
       "job": "skills",
       "rest": true,
       "roles": [
         "skill designer"
       ],
-      "rulebook-version": "0.5.1",
-      "size-floors": 15071,
-      "size-rest": 26761
+      "rulebook-version": "0.8.0",
+      "size-floors": 15627,
+      "size-rest": 29916
     }
   }
 }

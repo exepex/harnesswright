@@ -1,5 +1,10 @@
 {
   "rulebook-version": "0.3.1",
+  "run-time": [
+    "manifest.json",
+    "roles.md",
+    "rules/"
+  ],
   "skills": {
     "golden-skill": {
       "areas": [
