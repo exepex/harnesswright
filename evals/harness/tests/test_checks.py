@@ -1,6 +1,6 @@
 """Script checks: every check gives the outcome of each of its answer keys, has one that must pass and one that must
-fail, decides a stored bundle as it decides its key, never decides on inferred evidence, and stops the round when
-it is broken or given arguments outside its list."""
+fail, decides a stored bundle as it decides its key, never decides on inferred evidence, leaves an own check that
+runs too long undecided, and stops the round when it is broken or given arguments outside its list."""
 
 import hashlib
 import json
@@ -120,6 +120,15 @@ class Library(TempCase):
                              ("silent", "not an outcome")):
             with self.subTest(check=name), self.assertRaisesRegex(checks.CheckError, reason):
                 checks.decide(name, bundle, {}, broken)
+
+    def test_an_own_check_script_that_runs_too_long_leaves_it_undecidable(self):
+        import contain, internal, subprocess
+        too_long = subprocess.TimeoutExpired("bwrap", 600)
+        with mock.patch.object(contain, "available", return_value=None), \
+                mock.patch.object(internal, "read_pinned"), mock.patch("subprocess.run", side_effect=too_long):
+            verdict = checks.decide("own_release_checks", checks.Bundle.key({}), {})
+        self.assertEqual(verdict["outcome"], "undecidable")
+        self.assertIn("ran past 600 seconds", verdict["reason"])
 
     def test_a_library_module_outside_its_rule_is_refused(self):
         folder = self.tmp / "library"
