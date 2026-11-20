@@ -50,7 +50,9 @@ skill or its previous version, in a round whose manifest pins the load) whose ev
 (`evidence.loaded`) is `not loaded`, never a void: its bundle goes to `not-loaded/<n>/bundle`, never scored, and
 `not-loaded.json` lists why. It is tried once more at once; not loaded again, the slot stays unscored. When half or
 more of the pinned tries are not loaded, counted as the pinned-load rate counts them, the run gate stops the round as
-a harness fault.
+a harness fault. A pinned run's prompt starts with the adapter's lead line (`runs.lead`, through `host.lead`), which
+the run key holds with the manifest's `pinned` flag; the case keeps its own prompt, which the grader page shows.
+Every round planned now records `pinned: true`; a manifest without it resumes unpinned.
 
 `python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
 (`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs, the

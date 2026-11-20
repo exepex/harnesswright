@@ -201,6 +201,10 @@ not allow.
    not appear.
 6. **Tools and drift:** the version of every tool a case declares, and the files a host writes for itself on an
    empty run, are measured and recorded per host version.
+7. **Pinned load:** in task mode only, a prompt that starts with the adapter's lead line for a probe skill
+   must give a load the load proof accepts, with up to two tries ([12 · Verdicts](12-verdicts.md#proven-use)).
+   The probe skill is neutral text, padded to at least the lines and bytes of the longest `SKILL.md` the round
+   installs, so a host that cannot show a skill that long whole fails here, not in every real run.
 
 ### Blocked actions and voids
 
@@ -343,7 +347,7 @@ Every harness fault must be caught, or the round stops.
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
 | A grading file missing, repeating or misquoting an answer | The schema check rejects it |
 | Two graders that disagree, or one with no answer sheet | A fresh tie-breaker answers only the split questions; a fresh grader of the same host stands in once for one with no sheet; one grader never decides alone |
-| A view that names the arm or the skill | The page a grader reads names neither |
+| A view that names the arm or the skill, or shows the lead line | The page a grader reads names neither and holds no lead line |
 | A grader that writes to its folder or reads outside it | The jail stops every write and read; the grader's page, its folder and the folders beside it stay as they were |
 
 Each fault is an entry of `evals/faults/harness.json`, planted where a seed chooses; its own gate runs unchanged,
