@@ -77,6 +77,9 @@ class Measures(TempCase):
         self.assertEqual(found["golden_accuracy"], {"rate": 0.5, "right": 2, "asked": 4})
         self.assertEqual(found["faults"], {"caught": 2, "planted": 2})
         self.assertEqual(found["inferred_evidence"], {"with_skill": 1, "without_skill": 2})
+        self.assertEqual(found["undecidable_checks"], {  # every verdict a check gave, by check
+            "with_skill": {"file_state": {"rate": 0.25, "undecidable": 1, "ran": 4}},
+            "without_skill": {"file_state": {"rate": 0.6667, "undecidable": 2, "ran": 3}}})
         # format: a check pass, a check fail; a trusted "no" where an inferred check decided nothing; and one with
         # neither a check verdict nor a trusted answer, named as undecided
         self.assertEqual(found["format_conformance"], {
