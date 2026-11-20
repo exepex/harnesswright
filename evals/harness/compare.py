@@ -161,7 +161,7 @@ def _route(entry, graded, proved, pages, answers, graders, price_file):
         size = len(next(iter(found.values()))[0]["settled"])
         made = [SimpleNamespace(name=name, settled=page["settled"]) for name, (page, _) in found.items()]
         gate = goldens.gate(SimpleNamespace(expectations=[None] * size), made, {
-            name: (page["asked"], {i: a for i, a in given.items() if a in grading.ANSWERS})
+            name: (page["asked"], {i: a for i, a in given.items() if a in grading.ANSWERS}, [])
             for name, (page, given) in found.items()})
         asked_ids = {id_ for page in pages.values() if page["case"] == case for id_ in page["asked"]}  # runs too
         untrusted.update({f"{case}/{id_}": why for id_, why in gate.items() if why and id_ in asked_ids})

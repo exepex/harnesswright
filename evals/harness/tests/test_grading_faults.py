@@ -69,7 +69,7 @@ def blind_to_last(case, found, graded):
     The golden stays in the set, so the gate trusts what the real gate trusts, whatever the goldens sort like."""
     last = found[-1]
     ids = graded[last.name][0]
-    return GATE(case, found, {**graded, last.name: (ids, {id_: last.settled[id_] for id_ in ids})})
+    return GATE(case, found, {**graded, last.name: (ids, {id_: last.settled[id_] for id_ in ids}, [])})
 
 
 def unanswered_ok(case, found, graded):

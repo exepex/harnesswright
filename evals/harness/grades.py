@@ -22,7 +22,9 @@ on that question, with why.
   trusted under (`trusted`), written only where none is, so a resumed round never sees a grade move under it. Each
   later grading rebuilds the run's page and refuses a kept grade of another page or questions; its goldens are
   graded again, and an answer counts only when its question is trusted both now and when the grade was made, so a
-  grade whose graders lose trust is unscored. Goldens are never kept: every grading grades them, mixed in.
+  grade whose graders lose trust is unscored. The kept grade names its panel's routes, each grader's host and model,
+  the tie-breaker last (`routes`); a later grading whose panel has other routes never makes it again, and its answers
+  are unscored, the reason naming both panels. Goldens are never kept: every grading grades them, mixed in.
 - The gate's outcome names, per case, each question some page was asked: None when its grading is trusted, or why
   not. A grader that breaks its jail, or a golden that cannot be built, stops the round.
 
@@ -94,6 +96,7 @@ def grade(r, made_runs, folder):
             if asked[name]:  # a golden whose every question a check decided has no page to grade
                 pages[name], case_of[name] = text(case, record, blobs.__getitem__), (skill, case_id)
     panel, pair = _panel(r, top)
+    routes = [{"host": host, "model": r.model(host)} for host in [*pair, top]]  # the panel, the tie-breaker last
     for name, _ in grader.blind({name: page for name, page in pages.items() if name not in kept}, r.seed):
         sheets[name] = panel(pages[name], asked[name])
     outcome = {"goldens": {}, "runs": []}
@@ -115,16 +118,20 @@ def grade(r, made_runs, folder):
         if made["key"] not in pages:
             continue
         doubted, ids = trusted[(made["skill"], made["case"])], [q["id"] for q in asked[made["key"]]]
-        if made["key"] in kept:  # graded once: its graders must be trusted now and when it was made
+        if made["key"] in kept and kept[made["key"]].get("routes") != routes:  # never remade: unscored
+            whole = kept[made["key"]]
+            untrusted = dict.fromkeys(ids, f"kept grade of another panel ({_routes(whole.get('routes'))}), not "
+                                           f"this one ({_routes(routes)})")
+        elif made["key"] in kept:  # graded once: its graders must be trusted now and when it was made
             whole = kept[made["key"]]
             untrusted = {id_: doubted[id_] if doubted[id_] is not None else f"when graded: {whole['trusted'][id_]}"
                          for id_ in ids if doubted[id_] is not None or whole["trusted"][id_] is not None}
         else:
             whole = {**_record(pages[made["key"]], asked[made["key"]], sheets[made["key"]], pair, top, r),
-                     "trusted": {id_: doubted[id_] for id_ in ids}, "attempt": r.attempt}
+                     "trusted": {id_: doubted[id_] for id_ in ids}, "attempt": r.attempt, "routes": routes}
             r.write(_path(r.folder / KEPT, made["key"]), whole)  # made once, never replaced
             untrusted = {id_: doubted[id_] for id_ in ids if doubted[id_] is not None}
-        record = {key: value for key, value in whole.items() if key not in ("trusted", "attempt")}
+        record = {key: value for key, value in whole.items() if key not in ("trusted", "attempt", "routes")}
         record.update(answers={id_: answer for id_, answer in whole["answers"].items() if id_ not in untrusted},
                       untrusted=untrusted, case=f"{made['skill']}/{made['case']}", graded_in=whole["attempt"])
         r.write(_path(r.folder / "grades" / r.attempt / "runs", made["key"]), record)
@@ -132,6 +139,18 @@ def grade(r, made_runs, folder):
                                 "unanswered": whole["unanswered"], "untrusted": sorted(untrusted),
                                 "agreed": whole["agreed"], "asked": len(ids), "graded_in": whole["attempt"]})
     return outcome
+
+
+def golden_records(folder):
+    """The grade records of every golden one attempt graded (`folder`, `<store>/<round>/grades/<attempt>`), those of
+    its extra runs' passes too (`extra-<n>/`): the one list every reader of golden grades reads, as each pass's
+    goldens count for trust (`labels.with_extras`). Each is `.../goldens/<skill>/<case>/<golden>.json`."""
+    return sorted([*folder.glob("goldens/*/*/*.json"), *folder.glob("extra-*/goldens/*/*/*.json")])
+
+
+def _routes(routes):
+    """The grader routes of a panel, as a reason names them."""
+    return ", ".join(f"{route['host']} {route['model']}" for route in routes) if routes else "none named"
 
 
 def _path(folder, name):
@@ -153,9 +172,10 @@ def _record(page, asked, panel, pair, top, r):
 
 
 def _graded(asked, sheets, name):
-    """(the ids a golden was asked, the answers its panel gave), as `goldens.gate` reads them."""
+    """(the ids a golden was asked, the answers its panel gave, the ids a retry flipped), as `goldens.gate` reads
+    them."""
     ids = [question["id"] for question in asked[name]]
-    return ids, (sheets[name].answers if name in sheets else {})
+    return ids, (sheets[name].answers if name in sheets else {}), (sheets[name].flipped if name in sheets else [])
 
 
 def _panel(r, top):

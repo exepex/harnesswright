@@ -40,8 +40,8 @@ class Measures(TempCase):
             sheet.write_text(json.dumps({"answers": answers}))
             self.graded.append({"key": key, "agreed": agreed[0], "asked": agreed[1]})
 
-    def golden(self, skill, case_id, name, asked, answers, settled):
-        sheet = self.tmp / "grades" / "a1" / "goldens" / skill / case_id / f"{name}.json"
+    def golden(self, skill, case_id, name, asked, answers, settled, place="goldens"):
+        sheet = self.tmp / "grades" / "a1" / place / skill / case_id / f"{name}.json"
         sheet.parent.mkdir(parents=True, exist_ok=True)
         sheet.write_text(json.dumps({"asked": asked, "answers": answers, "settled": settled}))
 
@@ -73,7 +73,7 @@ class Measures(TempCase):
         found = self.measure(faults={"h": [{"caught": True}, {"caught": True}], "other": [{"caught": True}]})
         self.assertEqual(found["void_rate"], {"with_skill": {"rate": 0.25, "voids": 1, "tries": 4},
                                               "without_skill": {"rate": 0.5, "voids": 2, "tries": 4}})
-        self.assertEqual(found["grader_agreement"], {"rate": 0.8, "agreed": 4, "asked": 5})
+        self.assertNotIn("grader_agreement", found)  # one measure of agreement: the label file's (`agreement`)
         self.assertEqual(found["golden_accuracy"], {"rate": 0.5, "right": 2, "asked": 4})
         self.assertEqual(found["faults"], {"caught": 2, "planted": 2})
         self.assertEqual(found["inferred_evidence"], {"with_skill": 1, "without_skill": 2})
@@ -83,6 +83,14 @@ class Measures(TempCase):
             "with_skill": {"rate": 0.5, "passed": 1, "decided": 2, "undecided": 0},
             "without_skill": {"rate": 0.0, "passed": 0, "decided": 1, "undecided": 1}})
         self.assertEqual(found["cost"]["with_skill"]["voided"], 1)  # a voided try keeps no evidence to cost
+
+    def test_golden_accuracy_counts_the_goldens_of_every_extra_pass_too(self):
+        self.run_("k1", "with_skill", verdicts=[None] * 3, answers={})
+        all_four = {q: "yes" for q in ("q1", "q2", "q3", "q4")}
+        self.golden("haiku-writer", "t", "yes", sorted(all_four), all_four, all_four)  # 4 of 4 in the base pass
+        self.golden("haiku-writer", "t", "yes", sorted(all_four), {"q1": "yes", "q2": "yes", "q3": "no"}, all_four,
+                    place="extra-1/goldens")  # 2 of 4 in an extra pass: one wrong, one unanswered
+        self.assertEqual(self.measure()["golden_accuracy"], {"rate": 0.75, "right": 6, "asked": 8})
 
     def test_cost_sums_each_arm_and_gives_no_money_when_one_run_has_none(self):
         priced = {"seconds": 12.5, "tokens": {"model-a": counts(1_000_000, output=10_000)}}
@@ -101,8 +109,7 @@ class Measures(TempCase):
         self.assertEqual((without["runs"], without["untimed"], without["uncounted"], without["unpriced"]),
                          (3, 1, 1, 1))
         self.assertIsNone(found["faults"])  # no fault gate in this attempt
-        self.assertEqual((found["grader_agreement"]["rate"], found["golden_accuracy"]), (None, {
-            "rate": None, "right": 0, "asked": 0}))
+        self.assertEqual(found["golden_accuracy"], {"rate": None, "right": 0, "asked": 0})
 
     def test_the_pinned_load_rate_and_the_cost_count_every_pinned_try_and_only_arms_with_pinned_runs(self):
         for key, status, missed in (("k1", "made", 1), ("k2", "not loaded", 2), ("k3", "kept", 0)):

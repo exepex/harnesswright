@@ -39,6 +39,15 @@ class Questions(TempCase):
             "agreement": {"rate": 0.4, "agreed": 2, "pages": 5}, "flipped": ["k4"]})  # k2 and the golden agree
         self.assertEqual(found["questions"]["s/c2 q2"]["agreement"]["rate"], 1.0)
         self.assertEqual(found["rewrite"], ["s/c1 q2"])
+        self.assertEqual((found["threshold"], found["overall"]), (0.9, {"rate": 0.5, "agreed": 3, "pages": 6}))
+
+    def test_a_page_counts_only_when_two_different_graders_answered_it(self):
+        runs = self.tmp / "grades" / "a1" / "runs"
+        self.record(runs / "k1.json", [grader_of("yes", offered=["yes"]), grader_of()])  # one grader, twice
+        self.record(runs / "k2.json", [grader_of(), grader_of("yes", offered=["no"])])  # one grader, two ways
+        found = agreement.questions(self.tmp, "a1", [{"key": "k1"}, {"key": "k2"}])
+        self.assertEqual(found["questions"]["s/c1 q2"]["agreement"], {"rate": None, "agreed": 0, "pages": 0})
+        self.assertEqual(found["overall"], {"rate": None, "agreed": 0, "pages": 0})
 
     def test_low_agreement_alone_unscores_nothing(self):
         path = self.tmp / "grades" / "a1" / "runs" / "k1.json"
