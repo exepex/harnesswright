@@ -15,7 +15,7 @@ RULE_LINE = next(line for line in (cases.REPO / "release" / "rules" / "core" / "
 
 class TeamNotes(TempCase):
     def problems(self, files, skill="claims-writer"):
-        skills = self.skill(skill).parent
+        skills = (self.release_skill(skill) if skill == "claims-writer" else self.skill(skill)).parent
         case = self.case(files, skill=skill)
         return lint.lint_case(case, Adapter, self.tmp / f"arms-{case.id}", skills)
 
