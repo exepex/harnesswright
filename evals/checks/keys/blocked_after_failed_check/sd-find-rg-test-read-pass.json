@@ -1,0 +1,30 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "pass",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "find SKILL_DIR -name resolve.py",
+   "exit_code": 0,
+   "output": "SKILL_DIR/scripts/resolve.py\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "rg -n main SKILL_DIR/scripts/resolve.py",
+   "exit_code": 0,
+   "output": "1\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "test -f SKILL_DIR/scripts/resolve.py",
+   "exit_code": 0,
+   "output": ""
+  }
+ ]
+}
