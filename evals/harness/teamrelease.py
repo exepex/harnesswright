@@ -24,10 +24,13 @@ One reader, `prove`, proves a release skill and its run-time files, and its proo
 
 Where the profile names a folder, the arm's profile also gets the `version:` line a team that installed that
 release has: its manifest's `rulebook-version`, which `v2/build/resolve.py` holds the profile to (`with_version`).
-So a case's profile states the folder and what else it tests, never a version that must track `v2/VERSION`, and a
-profile that states one is refused. A case that tests a mismatch on purpose declares the version it wants
-(`profile_version`, cases.py). The line names the release manifest, a file of the install, so the grader view
-removes it as it removes the index row, and every arm shows the same profile.
+So a case's profile states the folder and what else it tests, never a version that must track `v2/VERSION`. One
+rule keeps that line from changing anything a case cites: it moves no line of the case's profile. So the
+`harnesswright` block holds only blank lines, comments and its one `folder:` line (an allow list: any other key is
+refused), the block is the profile's last entry, and the version line goes at its end. A case that tests a
+mismatch on purpose declares the version it wants (`profile_version`, cases.py). The line says it is checked
+against the release manifest, a file of the install, so the grader view removes it as it removes the index row,
+and every arm shows the same profile.
 
 A release that is neither is a harness fault, and the round stops. `rounds.plan` proves each arm before any case
 runs and records which proof each had. A profile with a `harnesswright` entry in any other shape is refused, never
@@ -52,13 +55,13 @@ ENTRY = re.compile(r"^harnesswright[ \t]*:", re.MULTILINE)
 BLOCK = re.compile(r"^harnesswright:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", re.MULTILINE)
 FOLDER = re.compile(r"^[ \t]+folder:[ \t]*([\"']?)([^\"'#\s]+?)/?\1[ \t]*(?:#.*)?$", re.MULTILINE)
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-STATED = re.compile(r"^[ \t]+version[ \t]*:", re.MULTILINE)
+ALLOWED = re.compile(r"[ \t]*(?:#.*)?")  # beside the one `folder:` line, a block line may be blank or a comment
 
 
 def release_folder(world):
     """The folder the world's profile unpacks the release into, relative to the world, or None when the profile,
-    or its `harnesswright` entry, is not there. An entry in another shape, or one that states a version, is
-    refused."""
+    or its `harnesswright` entry, is not there. An entry in another shape, a block that holds more than its folder
+    and comments, or one that is not the profile's last entry, is refused."""
     path = Path(world) / PROFILE
     if not path.is_file():
         return None
@@ -72,20 +75,29 @@ def release_folder(world):
                         "this reader takes")
     if not is_path(found.group(2)):
         raise CaseError(f"{PROFILE}: harnesswright.folder {found.group(2)!r} is not a path inside the world")
-    if STATED.search(block.group(1)):
-        raise CaseError(f"{PROFILE}: the harnesswright entry states a version; the harness writes each arm's from "
+    lines = block.group(1).splitlines()
+    other = [line for line in lines if not ALLOWED.fullmatch(line) and not FOLDER.fullmatch(line)]
+    if other or sum(1 for line in lines if FOLDER.fullmatch(line)) != 1:
+        raise CaseError(f"{PROFILE}: the harnesswright block holds only its one `folder:` line and comments, not "
+                        f"{(other or ['a second folder'])[0].strip()!r}; the harness writes each arm's version from "
                         "its release, and a case that tests another declares profile_version")
+    if text[block.end():].strip():
+        raise CaseError(f"{PROFILE}: the harnesswright block is not the profile's last entry; the harness writes the "
+                        "version line at its end, where it moves no line a case cites")
     return found.group(2)
 
 
 def with_version(data, folder, version):
-    """The profile bytes `data`, which `release_folder` read, with `version` as the first line of its
-    `harnesswright` block, indented like the block's next line and naming the release manifest in `folder`."""
+    """The profile bytes `data`, which `release_folder` read, with `version` as the last line of its
+    `harnesswright` block, which is the profile's last entry, so no line of `data` moves. It is indented like the
+    `folder:` line and says it is checked against the release manifest in `folder`."""
     text = data.decode("utf-8")
-    block = BLOCK.search(text + "\n")
-    indent = re.match(r"[ \t]*", block.group(1)).group(0) or "  "
-    line = f'{indent}version: "{version}"  # as {folder}/{SELF} says\n'
-    return (text[:block.start(1)] + line + text[block.start(1):]).encode("utf-8")
+    indent = re.match(r"[ \t]*", FOLDER.search(BLOCK.search(text + "\n").group(1)).group(0)).group(0)
+    lines = text.splitlines(keepends=True)
+    last = max(n for n, line in enumerate(lines) if line.strip()) + 1  # after the block's last line that says anything
+    lines[last - 1] = lines[last - 1].rstrip("\r\n") + "\n"
+    lines.insert(last, f'{indent}version: "{version}"  # checked against {folder}/{SELF}\n')
+    return "".join(lines).encode("utf-8")
 
 
 def version_of(root):
