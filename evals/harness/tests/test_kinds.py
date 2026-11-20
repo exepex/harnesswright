@@ -28,8 +28,8 @@ class Reader(TempCase):
                 path.write_text(json.dumps(wrong))
                 cases.kinds(path)
 
-    def test_the_kit_lists_harnesswright_s_own_checks_by_name_none_yet(self):
-        self.assertEqual(cases.own_checks(cases.OWN_CHECK_FILE), [])
+    def test_the_kit_lists_harnesswright_s_own_checks_by_name(self):
+        self.assertEqual(cases.own_checks(cases.OWN_CHECK_FILE), ["own_case_files", "own_release_checks"])
         self.assertIn("evals/own-checks.json", kit.parts()["checks"])
         path = self.tmp / "own-checks.json"
         self.assertEqual(cases.own_checks(path), [])  # no file: no check counts as harnesswright's own
