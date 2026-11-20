@@ -3,7 +3,7 @@ name: release-notes
 description: Write the release notes for a tagged version from the pull requests merged since the last tag. Use when a version is tagged and its notes are due. Do not use for commit messages or changelog fixes.
 license: Apache-2.0
 metadata:
-  roles: implementer
+  roles: release manager
   areas: rest
   sourcing: new
 ---
