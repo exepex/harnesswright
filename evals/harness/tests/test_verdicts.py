@@ -287,6 +287,9 @@ class Kinds(unittest.TestCase):
         for outcome in ("pass", "fail"):  # decided either way: no doubt
             self.assertIsNone(verdicts.own_doubt(case(), [None, None, verdict(outcome)], OWN))
         self.assertIsNone(verdicts.own_doubt(case(), undecidable, []))  # no own check listed: `unchecked` names it
+        two = case(expectations=[*EXPECTATIONS, EXPECTATIONS[2]])  # two own-check expectations, q3 and q4
+        self.assertEqual(verdicts.own_doubt(two, [None, None, verdict("pass"), verdict("undecidable")], OWN), why)
+        self.assertIsNone(verdicts.own_doubt(two, [None, None, verdict("pass"), verdict("fail")], OWN))
 
 
 class TriggerLabel(unittest.TestCase):
