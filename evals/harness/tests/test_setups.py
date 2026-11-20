@@ -11,7 +11,7 @@ import types
 from unittest import mock
 
 import test_results
-from helpers import TempCase
+from helpers import VERIFIED_AT, TempCase
 from test_rounds import stub
 from test_runs import VERSION, Round
 
@@ -108,7 +108,9 @@ class RealRepository(TempCase):
         def fingerprint(skills):
             path = self.tmp / "plan.json"
             # skill-designer is internal; the name sorts after every round its results file records
+            previous = {name: VERIFIED_AT for name in skills}  # each changed since its verified version
             path.write_text(json.dumps({"round": "skill-designer-999", "skills": skills, "runs": 3,
+                                        "previous": previous,
                                         "fault_case": {"skill": "claims-writer", "case": "story-met"},
                                         "hosts": [{"adapter": "claude-code", "model": "m1"}]}))
             record = rounds.plan(path, version=stub, at=lambda repo: "0" * 40)  # this tree may hold work in progress

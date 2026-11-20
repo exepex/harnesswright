@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import unittest
 
-from helpers import TempCase
+from helpers import VERIFIED_AT, TempCase
 from test_gate import Upstream
 from test_host import FAKE
 
@@ -273,6 +273,7 @@ class RealRepository(TempCase):
     def test_a_plan_of_the_real_cases_and_adapters_is_read(self):
         path = self.tmp / "plan.json"
         path.write_text(json.dumps({"round": "real", "skills": {"claims-writer": ["story-met"]},
+                                    "previous": {"claims-writer": VERIFIED_AT},  # it changed since its verified version
                                     "hosts": [{"adapter": "claude-code", "model": "m1"},
                                               {"adapter": "codex", "model": "m2"}], "runs": 3}))
         record = rounds.plan(path, version=stub, at=lambda repo: "0" * 40)  # this tree may hold work in progress

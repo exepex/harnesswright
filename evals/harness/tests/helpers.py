@@ -10,6 +10,9 @@ import unittest
 from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parents[1]
+# A commit holding the last verified version of both claims-writer and skill-designer (evals/results), which a plan
+# of their task cases names as previous once each has changed since (versions.verified).
+VERIFIED_AT = "53c6ea70a9eb8aaadb714b6ea8b32303b3efef44"
 sys.path.insert(0, str(HARNESS))
 SKILL_MD = ("---\nname: haiku-writer\ndescription: Writes a haiku about the project's purpose. Use when asked for a "
             "haiku about this project.\n---\n\n# Haiku writer\n\nCount the syllables of every line twice before you "
