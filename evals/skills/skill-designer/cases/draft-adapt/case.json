@@ -111,7 +111,7 @@
       }
     },
     {
-      "text": "No file of the new skill names a host-only tool, setting or variable",
+      "text": "No file of the new skill names a host-only tool",
       "source": {
         "contract": {
           "path": "docs/design/10-skills.md",
@@ -120,12 +120,12 @@
         }
       },
       "judged": {
-        "question": "The source names two things only one host has, both in the references/format.md file of incoming/changelog-writer/: a tool for starting a sub-agent, and an environment variable. Is every file the run wrote under v2/skills/changelog-writer/ free of both and of any other tool, setting or environment variable that only one host has?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file in v2/skills/changelog-writer/ names such a tool, setting or variable. A step that needs a helper agent says so in plain words.",
-        "fail": "No when any file there names the source's sub-agent tool or its environment variable, or another tool or setting of one host, anywhere, even in a note that it was taken out. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
+        "question": "The source names a tool only one host has, a tool for starting a sub-agent, in the references/format.md file of incoming/changelog-writer/. Is every file the run wrote under v2/skills/changelog-writer/ free of it and of any other tool that only one host has?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file in v2/skills/changelog-writer/ names such a tool. A step that needs a helper agent says so in plain words.",
+        "fail": "No when any file there names the source's sub-agent tool or another tool of one host, anywhere, even in a note that it was taken out. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["A references/format.md that says: on a long branch, ask a helper agent for one line per commit, where the host can start one."],
-          "fail": ["A copied references/format.md that still says to edit in the editor pane when the source's variable is set.", "A note in the template that the source's sub-agent tool was replaced."]
+          "fail": ["A copied references/format.md that still names the source's sub-agent tool.", "A note in the template that the source's sub-agent tool was replaced."]
         }
       }
     },
