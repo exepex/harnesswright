@@ -1,5 +1,6 @@
 # .harness/profile.yaml
 harnesswright:
+  # the release zip is unpacked here
   folder: skills/
 
 toolchain:
