@@ -46,7 +46,7 @@ allowed connections.
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 | `backstop.py` | The baseline backstop: a without-skill run holding a long passage of the skill's own text is void |
 | `labels.py` | The label gate: each skill's label on each host, by the thresholds of 10 · Skills, from what the round stored |
-| `measures.py` | The label file's other measures: void rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
+| `measures.py` | The label file's other measures: void rate, pinned-load rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
 | `results.py` | `round results`: a finished round's labels copied whole into `evals/results/<skill>.json`, named by its manifest, kit and archive |
 | `regrade.py` | Cross-model grading: every page of a finished round graded again by each grader route, after it passed its probes and grader faults, apart from the round's grades |
 | `compare.py` | The cross-model comparison report of one finished regrade pass: per route golden accuracy, grader agreement, untrusted questions, refused sheets and cost; per pair agreement, Cohen's kappa and every disagreement |

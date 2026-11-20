@@ -6,6 +6,8 @@ out; nothing is estimated. A share is `{"rate", ...its counts}`, the rate None w
 Each skill on each host gets (`measures`):
 
 - `void_rate`, per arm: `voids` of `tries`, every void that `void.json` keeps counting, a remade one too.
+- `pinned_load`, per arm with pinned runs (`runs.pinned`, marked by the run gate): the tries that loaded the skill
+  (`loaded`, the runs kept or made) of the pinned tries (`tries`), every try `not-loaded.json` keeps counting too.
 - `grader_agreement`: the questions the two graders answered the same (`agreed`) of those graded (`asked`), over
   the host's task runs.
 - `golden_accuracy`: the questions of the skill's graded goldens that the panel answered as settled (`right`) of
@@ -47,11 +49,17 @@ def measures(folder, attempt, gates, cases, price_file):
         case, arm = cases[(made["skill"], made["case"])], made["arm"]
         here = found.setdefault((made["host"], made["skill"]), {"agreed": 0, "asked": 0, "arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
-                                            "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}}})
+                                            "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
+                                            "pinned": 0, "loaded": 0})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
             if (run_folder / "void.json").is_file() else 0
         made_now = made["status"] in ("kept", "made")
+        if made.get("pinned"):
+            unloaded = run_folder / "not-loaded.json"
+            missed = len(json.loads(unloaded.read_text())["reasons"]) if unloaded.is_file() else 0
+            own["pinned"] += missed + made_now
+            own["loaded"] += made_now
         own["tries"] += voids + made_now
         own["voids"] += voids
         own["cost"]["voided"] += voids
@@ -86,6 +94,8 @@ def measures(folder, attempt, gates, cases, price_file):
         result[(host, skill)] = {
             "void_rate": {arm: share(own["voids"], own["tries"], voids=own["voids"], tries=own["tries"])
                           for arm, own in arms},
+            "pinned_load": {arm: share(own["loaded"], own["pinned"], loaded=own["loaded"], tries=own["pinned"])
+                            for arm, own in arms if own["pinned"]},
             "grader_agreement": share(here["agreed"], here["asked"], agreed=here["agreed"], asked=here["asked"]),
             "golden_accuracy": _goldens(folder / "grades" / attempt / "goldens" / skill),
             "faults": None if caught is None else {"caught": sum(bool(f["caught"]) for f in caught),

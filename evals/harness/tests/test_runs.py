@@ -252,6 +252,27 @@ class Runs(Round):
         self.assertEqual(sorted(p.name for p in folder.iterdir()), ["bundle", "void.json"])
         self.assertEqual(len(json.loads((folder / "void.json").read_text())["reasons"]), 1)
 
+    def test_a_pinned_run_with_no_proven_load_is_kept_apart_tried_once_more_then_not_loaded(self):
+        record = {**self.plan(), "pinned": True}
+        missed = self.run_one(record)  # the run only writes its poem: no load of the skill
+        folder = self.store / "r1" / "runs" / missed["key"]
+        self.assertEqual(missed["status"], "not loaded")
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["not-loaded", "not-loaded.json"])
+        self.assertEqual(sorted(p.name for p in (folder / "not-loaded").iterdir()), ["0", "1"])  # tried twice
+        self.assertIsNone(runs.stored(folder))  # never read as a kept run or a void
+        with mock.patch.object(runs.host, "run", side_effect=AssertionError("run again")):
+            self.assertEqual(self.run_one(record)["status"], "not loaded")
+        self.assertEqual(self.run_one(record, "without_skill")["status"], "made")  # a run without it is not pinned
+        self.assertEqual(self.run_one({**record, "pinned": False}, number=2)["status"], "made")
+
+    def test_a_pinned_run_that_loads_the_skill_by_its_event_or_by_printing_it_is_made(self):
+        for number, action in ((1, {"do": "skill", "name": "haiku-writer"}),
+                               (2, {"do": "command", "command": "cat skills/haiku-writer/SKILL.md"})):
+            with self.subTest(action=action["do"]):
+                self.prompt(json.dumps([action, {"do": "say", "text": "Done."}]))
+                record = {**self.plan(), "pinned": True}
+                self.assertEqual(self.run_one(record, number=number)["status"], "made")
+
     def test_a_host_whose_version_changed_is_void_and_never_run(self):
         record = self.plan()
         void = self.run_one(record, version={**VERSION, "version": "fakehost 2.0"})

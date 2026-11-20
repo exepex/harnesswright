@@ -23,6 +23,10 @@ missing or voided runs, and a changed input gives a new key, never a changed run
   empty. `void.json` keeps every void of the slot, a remade one too, for the void rate. A jail that fails its audit
   or a canary in the output raises: the round stops. A run is made only from the repository at the round's commit,
   so it builds exactly the inputs the manifest hashed.
+- `pinned(record, case, arm)`: the one test of whether a run pins its skill's load (doc 12, Proven use). A pinned run
+  whose evidence proves no load (`evidence.loaded`) is `not loaded`, never a void: its bundle is kept under
+  `not-loaded/<n>/` and `not-loaded.json` holds why, with its own try count. It is tried once more at once; not
+  loaded again, the slot stays unscored and is not run again.
 
 Standard library only.
 """
@@ -52,8 +56,10 @@ HARNESS = Path(__file__).resolve().parent
 RUNNER = ("audit.py", "backstop.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "lint.py",
           "manifest.py", "powers.py", "runs.py", "scrub.py", "skills.py", "textruns.py", "world.py")
 BUNDLE, VOID, VOIDS, SHORT = "bundle", "void.json", "voids", "backstop.json"
+UNLOADED, UNLOADED_RUNS = "not-loaded.json", "not-loaded"
 TIMEOUT = 900  # seconds a run may take, unless the caller names another
 TRIES = 2  # a voided slot gets at most one remake (doc 11, Blocked actions and voids)
+LOAD_TRIES = 2  # a pinned run that is not loaded is tried once more (doc 12, Proven use)
 
 
 class RunError(RuntimeError):
@@ -68,6 +74,12 @@ def runner(folder=HARNESS):
 def skill_only(record, skill, case_id):
     """True for a case of a situation a plain agent cannot fail (`cases.SKILL_ONLY`), which runs with the skill only."""
     return record.get("situations", {}).get(skill, {}).get("cases", {}).get(case_id) in SKILL_ONLY
+
+
+def pinned(record, case, arm):
+    """True for a task run of the with-skill or the previous version's arm in a round whose manifest pins the load
+    (its `pinned` flag): only such a run can be `not loaded`."""
+    return case.kind == "task" and arm in ("with_skill", PREVIOUS) and record.get("pinned") is True
 
 
 def arms(record, case):
@@ -129,8 +141,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     """The run of `case` in `arm` on `host_name`, number `number`, in round `record`, from the repository `repo`
     at the round's commit. `version` is the host's version as its jail finds it now; `drift` its tools and drift
     record (`probes.drift`); `containment` passes on to `contain.Containment`. Return {"key", "status", and
-    "bundle" or "reason"}: `kept` or `made` with its bundle, `void` with why, or `empty` for a slot voided twice,
-    which gets no more remakes."""
+    "bundle" or "reason"}: `kept` or `made` with its bundle, `void` with why, `empty` for a slot voided twice,
+    which gets no more remakes, or `not loaded` for a pinned slot with no proven load in either try."""
     if rounds.commit(repo) != record["commit"]:  # the inputs the run builds are the ones the manifest hashed
         raise RunError(f"{repo} is not at round {record['round']}'s commit {record['commit']}")
     run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout)
@@ -141,6 +153,9 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     voids = found[1] if found else []
     if len(voids) >= TRIES:
         return {"key": run_key, "status": "empty", "reason": "; ".join(voids)}
+    unloaded = _reasons(path / UNLOADED)
+    if len(unloaded) >= LOAD_TRIES:
+        return {"key": run_key, "status": "not loaded", "reason": "; ".join(unloaded)}
     planned = record["hosts"][host_name]
     if version != planned["version"]:
         return _void(path, run_key, voids, f"the host's version {version} is not the manifest's "
@@ -186,18 +201,38 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
             where, length, span = found["void"][0]
             return _void(path, run_key, voids, f"fingerprint hit: {length} words of the skill's own text in {where}: "
                                                f"{span[:200]}")
-        made = path / f".{BUNDLE}.{os.getpid()}"
-        shutil.rmtree(made, ignore_errors=True)
-        evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
-        if found is not None:
-            (path / SHORT).write_text(json.dumps({"short": found["short"]}, indent=1) + "\n")
-        os.rename(made, path / BUNDLE)
+        text = (Path(skill_dir) / "SKILL.md").read_text(errors="replace") if skill_dir else ""
+        missed = pinned(record, case, arm) and not evidence.loaded(bundle, case.skill, layer["paths"], text)
+        if missed:  # kept where no reader scores it, under its own marker: not a void, never a harness fault
+            kept = path / UNLOADED_RUNS / str(len(unloaded))
+            shutil.rmtree(kept, ignore_errors=True)
+            kept.parent.mkdir(exist_ok=True)
+            evidence.store(bundle, blobs, kept / BUNDLE)
+            _mark(path / UNLOADED, [*unloaded, "the run's evidence proves no load of the skill"])
+        else:
+            made = path / f".{BUNDLE}.{os.getpid()}"
+            shutil.rmtree(made, ignore_errors=True)
+            evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
+            if found is not None:
+                (path / SHORT).write_text(json.dumps({"short": found["short"]}, indent=1) + "\n")
+            os.rename(made, path / BUNDLE)
+    if missed:  # tried once more; not loaded then too, the slot is `not loaded` and stays so
+        return run(record, store, case, arm, host_name, number, adapter, drift, version, timeout, repo, **containment)
     return {"key": run_key, "status": "made", "bundle": str(stored(path)[1])}
+
+
+def _reasons(marker):
+    """The reasons a slot's marker file keeps, one for each try it names, or none."""
+    return json.loads(marker.read_text())["reasons"] if marker.is_file() and not marker.is_symlink() else []
+
+
+def _mark(marker, reasons):
+    fresh = marker.with_name(f".{marker.name}.{os.getpid()}")
+    fresh.write_text(json.dumps({"reasons": reasons}, indent=1) + "\n")
+    os.replace(fresh, marker)
 
 
 def _void(path, run_key, voids, reason):
     path.mkdir(exist_ok=True)
-    fresh = path / f".{VOID}.{os.getpid()}"
-    fresh.write_text(json.dumps({"reasons": [*voids, reason]}, indent=1) + "\n")
-    os.replace(fresh, path / VOID)
+    _mark(path / VOID, [*voids, reason])
     return {"key": run_key, "status": "void", "reason": reason}

@@ -20,7 +20,9 @@ is named, and so is a reference result that is not settled, and either keeps the
   case is scored, as only it installs the skill. A trigger case passes when the skill loaded in at least half its
   scored runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is that of the `test`
   split, the `train` split being for tuning a description.
-- A planned run is not scored when it is void or empty, or its outcome is not decided. Each is named (`unsettled`).
+- A planned run is not scored when it is void, empty or not loaded (a pinned run with no proven load, doc 12), or
+  its outcome is not decided. Each is named (`unsettled`), and so is each case and arm whose pinned runs never
+  loaded. The pinned-load rate per arm comes with the other measures (`measures.measures`).
 - A skill the plan gives a previous version (`runs.PREVIOUS`) must be at least as good as it on the same task
   cases: its pass rate not below the previous version's, and its false-done rate not above it (plan decision 2,
   eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
@@ -242,12 +244,15 @@ def labels(folder, attempt, record, cases, price_file):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
-    scored, unsettled, inferred, by_case = {}, {}, {}, {}
+    scored, unsettled, inferred, by_case, pins = {}, {}, {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
         if case.kind == "trigger" and made["arm"] != "with_skill":
             continue
         name = f"{made['case']}, {made['arm']}, run {made['number']}"
+        if made.get("pinned"):  # the statuses of each case and arm's pinned runs
+            pins.setdefault((made["host"], made["skill"]), {}).setdefault(f"{made['case']}, {made['arm']}",
+                                                                         set()).add(made["status"])
         if made["status"] not in ("kept", "made"):
             unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: not scored ({made['status']})")
             continue
@@ -275,6 +280,9 @@ def labels(folder, attempt, record, cases, price_file):
             continue
         scored.setdefault((made["host"], made["skill"]), {}).setdefault((made["case"], made["arm"]), []).append(
             passed_)
+    for slot, statuses in pins.items():
+        unsettled.setdefault(slot, []).extend(f"{where}: no loaded run" for where, seen in sorted(statuses.items())
+                                              if "not loaded" in seen and not seen & {"kept", "made"})
     false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
                   for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,

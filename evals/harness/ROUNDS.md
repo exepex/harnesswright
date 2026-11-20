@@ -45,7 +45,11 @@ baseline backstop, `backstop.py`). A backstop void keeps its bundle under `voids
 never scored; a shorter match is listed in `backstop.json` beside the bundle and in the run gate's report. What the
 agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
 stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
-its audit, or a canary in any output, raises, and the round stops.
+its audit, or a canary in any output, raises, and the round stops. A pinned run (`runs.pinned`: a task run with the
+skill or its previous version, in a round whose manifest pins the load) whose evidence proves no load
+(`evidence.loaded`) is `not loaded`, never a void: its bundle goes to `not-loaded/<n>/bundle`, never scored, and
+`not-loaded.json` lists why. It is tried once more at once; not loaded again, the slot stays unscored. When half or
+more of the pinned runs that ran are not loaded, the run gate stops the round as a harness fault.
 
 `python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
 (`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs, the
@@ -79,14 +83,14 @@ skill's `SKILL.md` counts, as the discovery probe counts it, since some hosts (C
 own; the label names how many trigger runs rested on an inferred load only. A trigger case passes when the skill
 loaded in at least half its runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is
 that of the `test` split. A host that was not run, an absent skill (its label file still gives the baseline pass rate and
-the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
+the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty, not loaded or undecided), a case and arm whose pinned runs never loaded, too few scored runs, missed goldens,
 no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
 `unsupported`, each gap named. A skill whose round ran its previous version must be at least as good as it on the
 same task cases: a pass rate below the previous version's, or a false-done rate above it, is `unsupported`, each
 named; too few scored runs in that arm, or no decided false-done answer in either arm, keep it `inconclusive`. The label file goes to `<store>/<round>/labels/<attempt>.json`.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
-with its counts: the void rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
+with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
 faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, format
 conformance per arm with the expectations left undecided, and per arm the runs, seconds, token counts by model and
 money at the price file, whose date the label file names. A run with no token counts, or a model with no price,
