@@ -23,7 +23,7 @@ its result is in doubt, by the thresholds of 10 · Skills (`THRESHOLDS`).
   on top of the floors; an internal skill ran no without-skill arm, so it has no lift and is scored by the floors.
   An internal skill's task case counts only with a contract expectation that one of harnesswright's own checks
   decides (`cases.own_checks`, doc 12, Worlds by kind); until each has one, the label is at most `inconclusive`.
-  On each run, one of those checks must decide it, pass or fail; a run where none did is a named doubt
+  On each run, every one of those checks must decide, pass or fail; a run where one did not is a named doubt
   (`own_doubt`), as a grader's answer never stands in for an own check.
 - Each skill on each host gets one label (`decide`):
   - `incomplete` when the host was not run, the skill has no kind declared, no folder yet (a baseline round, whose
@@ -79,11 +79,11 @@ def own_checked(expectation, own_checks):
 
 
 def own_doubt(case, verdicts, own_checks):
-    """Why one run of an internal skill's task `case` is in doubt, or None: a case with an own-check expectation counts
-    as checked on a run only when one of those checks decided it on that run, pass or fail (`verdicts`, the run's
-    check verdicts). A grader's answer never stands in for an own check."""
+    """Why one run of an internal skill's task `case` is in doubt, or None: a case with own-check expectations counts
+    as checked on a run only when every one of those checks decided its expectation on that run, pass or fail
+    (`verdicts`, the run's check verdicts). A grader's answer never stands in for an own check."""
     listed = [n for n, e in enumerate(case.expectations) if own_checked(e, own_checks)]
-    if not listed or any((verdicts[n] or {}).get("outcome") in ("pass", "fail") for n in listed):
+    if all((verdicts[n] or {}).get("outcome") in ("pass", "fail") for n in listed):  # none listed: `unchecked`
         return None
     return "no own check decided it on this run, and a grader's answer does not stand in for one"
 
