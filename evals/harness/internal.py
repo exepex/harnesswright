@@ -20,11 +20,14 @@ world in which it still finds the skill is refused. Every dropped and rewritten 
 equal the kit's `left_out`, the list the judges approve with the pin; any other list is refused.
 
 The world's `release/` is then rebuilt by the world's own `v2/build/build.py`, and the world must pass that build,
-`check_rules.py` and `check_release.py` before any case touches it: a world that does not is refused. Last, the
-case's `internal_world.remove` paths, each inside the allow list and in the built world, are removed, and the
-case's `world/` folder is copied on top. The world's instructions are its own files: `docs/design` comes in
-through the allow list like any other path. Every file it needs must be in it, so a world in which a Markdown link
-or a `@` import leads to a path the world lacks is refused, before and after the case's files are added.
+`check_rules.py` and `check_release.py` before any case touches it: a world that does not is refused. Then the
+case's `world/` folder is copied on top, its `internal_world.jobs` rows are added to the Jobs table of
+`v2/roles.md`, and the world is rebuilt and checked again by the same rule, so a skill the case brings is built as a
+skill that went through a round is, and a skill in no job is refused by that build. Last, the case's
+`internal_world.remove` paths, each inside the allow list and in the built world, are removed, after the build, so
+the build never puts back what the case takes away. The world's instructions are its own files: `docs/design` comes
+in through the allow list like any other path. Every file it needs must be in it, so a world in which a Markdown
+link or a `@` import leads to a path the world lacks is refused, before and after the case's files are added.
 
 Standard library only.
 """
@@ -231,10 +234,17 @@ def base(skill, out, repo=REPO, kit=None):
 
 
 def world_of(case, out, repo=REPO, kit=None):
-    """The world `case` runs in, written into the empty folder `out`: the internal world of its skill, less the
-    case's `remove` paths, with the case's `world/` folder on top."""
+    """The world `case` runs in, written into the empty folder `out`: the internal world of its skill with the
+    case's `world/` folder on top and its `jobs` rows added, rebuilt and checked, less its `remove` paths."""
     _, paths, _, _ = read_kit(kit)
     base(case.skill, out, repo, kit)
+    if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
+        shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
+    add_jobs(out, case.internal_world.get("jobs", []), case.id)
+    try:
+        build_checks(out)
+    except CaseError as error:
+        raise CaseError(f"{case.id}: the world with the case's files fails its build: {error}") from None
     built = manifest.manifest(out)
     for path in case.internal_world["remove"]:
         inside = any(path == p or PurePosixPath(p) in PurePosixPath(path).parents for p in paths)
@@ -242,12 +252,28 @@ def world_of(case, out, repo=REPO, kit=None):
             raise CaseError(f"{case.id}: remove {path}: not an allow-listed path of the built world")
         target = Path(out) / path
         shutil.rmtree(target) if target.is_dir() and not target.is_symlink() else target.unlink()
-    if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
-        shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
     check_links(out)
     return Path(out)
 
 
+def add_jobs(folder, rows, name):
+    """Add `rows` after the last row of the Jobs table of `folder`'s `v2/roles.md`. CaseError when it has none."""
+    if not rows:
+        return
+    path = Path(folder) / ROLES
+    lines = path.read_text(encoding="utf-8").split("\n") if path.is_file() else []
+    try:
+        head = lines.index(JOBS_HEADER)
+    except ValueError:
+        raise CaseError(f"{name}: jobs: {ROLES} has no Jobs table to add rows to") from None
+    end = head + 1
+    while end < len(lines) and lines[end].startswith("|"):
+        end += 1
+    path.write_text("\n".join(lines[:end] + list(rows) + lines[end:]), encoding="utf-8")
+
+
+ROLES = "v2/roles.md"
+JOBS_HEADER = "| Job | Roles | Skills in order | `rest` skill |"
 _BUILT = {}  # case folder -> its built world, kept for the life of the process, so each arm reads the same one
 
 

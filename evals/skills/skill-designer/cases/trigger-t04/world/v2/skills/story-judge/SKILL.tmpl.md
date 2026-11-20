@@ -2,7 +2,8 @@
 name: story-judge
 description: Judge one finished story against its acceptance criteria and write the verdict. Do not use to write code.
 metadata:
-  roles: judge
+  roles: story judge
+  areas: rest
 ---
 
 1. Read the story and its claims.

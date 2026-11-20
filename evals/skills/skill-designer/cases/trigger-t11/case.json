@@ -4,7 +4,10 @@
   "should_trigger": false,
   "split": "test",
   "internal_world": {
-    "remove": []
+    "remove": [],
+    "jobs": [
+      "| commit-message | implementer | commit-message-writer | commit-message-writer |"
+    ]
   },
   "index": {
     "file": "AGENTS.md",

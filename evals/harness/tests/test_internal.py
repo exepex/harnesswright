@@ -22,6 +22,8 @@ COPIED = ["AGENTS.md", "docs/design", "v2/VERSION", "v2/roles.md", "v2/rules", "
     f"v2/build/{p.name}" for p in sorted((REPO / "v2" / "build").glob("*.py"))]
 NOTES = ("# Notes\n\nThe skill designer keeps its cases apart. SkillDesigner, as one word, too.\n"
          "See `release/skill-designer/SKILL.md` for the skill.\nThe end.\n")
+NOTE_TAKER = ("---\nname: note-taker\ndescription: Write the notes of a meeting. Do not use for minutes.\nmetadata:\n"
+              "  roles: implementer\n  areas: rest\n---\n\n1. Read the meeting.\n2. Write the notes.\n")
 
 
 class Adapter:
@@ -243,6 +245,33 @@ class Reader(TempCase):
         shutil.rmtree(plain.folder / "world")
         with self.assertRaisesRegex(CaseError, "no world/ folder"):
             type(plain)(plain.folder, SKILL)
+
+    def test_a_skill_the_case_brings_is_built_with_its_job_row_and_refused_in_no_job(self):
+        files = {"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER}
+        row = "| notes | implementer | note-taker | note-taker |"
+        case = self.case(files, {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
+        out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
+        self.assertIn(row, (out / "v2" / "roles.md").read_text().split("\n"))
+        self.assertTrue((out / "release" / "note-taker" / "SKILL.md").is_file())
+        alone = self.case(files, {"internal_world": {"remove": []}}, skill=SKILL)
+        refused = "the world with the case's files fails its build: .*note-taker is in no job"
+        with self.assertRaisesRegex(CaseError, refused):
+            internal.world_of(alone, self.tmp / "alone", self.repo, self.kit())
+
+    def test_a_remove_comes_after_the_rebuild(self):
+        case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build
+        out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
+        self.assertFalse((out / "v2" / "VERSION").exists())
+        self.assertTrue((out / "release" / "manifest.json").is_file())
+
+    def test_jobs_need_a_jobs_table_and_rows_of_one_line(self):
+        (self.tmp / "bare" / "v2").mkdir(parents=True)
+        (self.tmp / "bare" / "v2" / "roles.md").write_text("# Roles\n")
+        with self.assertRaisesRegex(CaseError, "c1: jobs: v2/roles.md has no Jobs table"):
+            internal.add_jobs(self.tmp / "bare", ["| a | b | c | c |"], "c1")
+        for row in ("notes | implementer", "| notes |\n| more |"):
+            with self.subTest(row=row), self.assertRaisesRegex(CaseError, "internal_world must be"):
+                self.case({}, {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
 
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")

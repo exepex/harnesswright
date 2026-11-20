@@ -1,6 +1,9 @@
 ---
 name: test-reviewer
 description: Review the tests of a change.
+metadata:
+  roles: test reviewer
+  areas: rest
 ---
 
 # Test reviewer
