@@ -212,8 +212,9 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
-   Without `git`, compare the skill hash and version the label and its round's manifest record with the skill's
-   now; a difference, or a value you cannot find, means the same.
+   When `git` cannot run here, as with no repository, compare instead the label's `skill_sha256` with the hash
+   the round's manifest records for the skill, and that manifest's version with the skill's now. A difference
+   means the same; so does no round manifest, or a value you cannot find.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.
@@ -224,8 +225,9 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, put the stop under Not run; with no job named, or before step 2 found the stage,
-give the seven sections in your final message instead.
+other heading. After a stop, Not run opens with the line `Blocked: <what is missing or failed>`, naming the file,
+folder, tool or input exactly; with no job named, or before step 2 found the stage, give the seven sections in
+your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
@@ -243,8 +245,8 @@ true count.
 
 ### 7. Report
 
-Give the path of the stage report and its Next section. Say that the skill is not done: the next step is someone
-else's, and only a round and a judge can show the skill works.
+After a stop, open with the same `Blocked:` line. Give the path of the stage report and its Next section. Say that
+the skill is not done: the next step is someone else's, and only a round and a judge can show the skill works.
 
 Check: your message matches the stage report.
 
@@ -252,7 +254,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7. |
+| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7, with their `Blocked:` line. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |

@@ -62,8 +62,10 @@ PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
 CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
 EVERY = ("names", "skill", "tells", "eval", "expectations")
+# An internal world's pinned base is approved text (internal.py), so only the case's own files meet the tell and
+# eval rules there; the base still may not name the skill or hold its text or an expectation's.
 RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "skill"),
-         "rows": ("names", "skill", "eval", "expectations")}
+         "rows": ("names", "skill", "eval", "expectations"), "base": ("names", "skill", "expectations")}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
 # licence. Only text found in them is excused, never a file by its name.
 LICENCES = ("evals", "fixtures", "licences")
@@ -99,6 +101,7 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
+    own = None if case.internal_world is None else manifest.manifest(case.folder / "world")  # the rest is the base
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
@@ -111,7 +114,8 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        places.append(Place(path, None if body is None else f"{path}\n{body}", "installed" if installed else "world"))
+        kind = "installed" if installed else "world" if own is None or path in own else "base"
+        places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]
     if rows:
@@ -234,7 +238,7 @@ def citations(case, places):
     lines after it."""
     found, problems, library = [], [], None
     documents = {p.key: p.text.split("\n", 1)[1] for p in places
-                 if p.kind == "world" and p.text is not None and not p.link}
+                 if p.kind in ("world", "base") and p.text is not None and not p.link}
     for number, expectation in enumerate(case.expectations, 1):
         if "check" in expectation:
             try:

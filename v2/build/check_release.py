@@ -139,8 +139,9 @@ class ReleaseCheck:
                 self.fail("build.py", f"the rebuild failed: {done.stderr.strip()}")
                 return
             built = {p.relative_to(out).as_posix(): p.read_bytes() for p in Path(out).rglob("*") if p.is_file()}
+        # release/.gitkeep keeps the folder in git, and the build leaves it alone; any other .gitkeep is not the build's
         kept = {p.relative_to(self.release).as_posix(): p.read_bytes() for p in self.release.rglob("*")
-                if p.is_file() and p.name != ".gitkeep"}
+                if p.is_file() and p.relative_to(self.release).as_posix() != ".gitkeep"}
         for rel in sorted(set(built) | set(kept)):
             if rel not in kept:
                 self.fail(f"release/{rel}", "is missing; run the build")
