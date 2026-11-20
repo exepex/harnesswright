@@ -236,7 +236,7 @@ def order(record, hosts, cases):
     for number in range(1, record["plan"]["runs"] + 1):
         for index, (skill, case_id) in enumerate(planned):
             arms = runs.arms(record, cases[(skill, case_id)])
-            turn = (number + index + 1) % len(arms)  # two arms: ARMS on odd sums, reversed on even ones
+            turn = (number + index + 1) % len(arms)  # the first arm moves on by one each case and number
             for arm in arms[turn:] + arms[:turn]:
                 for host in sorted(hosts):
                     yield host, skill, case_id, arm, number

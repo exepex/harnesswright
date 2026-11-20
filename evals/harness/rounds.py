@@ -37,12 +37,16 @@ records as `verified` on the reference host (`versions.verified`, `results.verif
 then, and that the plan runs a task case of, must name that version as `previous`, so it is compared inside the
 round on one setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or
 one run in trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry
-written before skill hashes were recorded is unknown, and the manifest says so.
+written before skill hashes were recorded is unknown, and the manifest says so. Results keep rounds in name order,
+which picks that version, so a round's name must sort after every round in each planned skill's results file
+(`versions.ordered`); planning the same round again is allowed.
 
 The manifest records each planned skill's kind (`kinds`), as `evals/kinds.json`, a kit part, declares it
 (`cases.kinds`, doc 12, Skill kinds); a plan cannot set one, and an undeclared kind is null. An internal skill runs
 with the skill and its previous version only (`runs.arms`), so it cannot be absent, and its cases are never the
-fault gate's: a round whose skills are all internal names a team skill's `fault_case`.
+fault gate's: a round whose skills are all internal names a team skill's `fault_case`. The manifest records the
+list of harnesswright's own checks (`own_checks`, `evals/own-checks.json`, a kit part), which an internal label
+reads.
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -252,6 +256,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
         found["absent"] = sorted(name for name in data["skills"] if name not in held)  # cases, no folder yet
         kinds = cases.kinds(Path(repo) / "evals" / "kinds.json")  # a kit part: the one reader, never the plan
         found["kinds"] = {name: kinds.get(name) for name in sorted(data["skills"])}
+        found["own_checks"] = cases.own_checks(Path(repo) / "evals" / "own-checks.json")  # a kit part
         for name in found["absent"]:
             if kinds.get(name) == "internal":  # an internal skill never runs without itself (runs.arms)
                 raise RoundError(f"{path}: {name} is internal and has no folder yet, so it has no arm to run")
@@ -290,6 +295,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
         import versions  # it reads the results, whose setups read the runner, which imports this module
+        versions.ordered(path, repo, data["round"], data["skills"])
         found["verified"] = versions.verified(path, repo, found, known_cases)
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {

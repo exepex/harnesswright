@@ -34,7 +34,10 @@ The manifest records each planned skill's kind under `kinds`, as `evals/kinds.js
 12, Skill kinds): `team` or `internal`, or null when undeclared. The file is a kit part, so the judges approve it,
 and a plan cannot set a kind. An internal skill runs with the skill and its previous version only, never without
 itself (`runs.arms`, `runs.key`), so it has no lift and no baseline backstop; it cannot be absent, and its cases are
-never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`.
+never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`. The
+kit part `evals/own-checks.json` lists harnesswright's own checks (`cases.own_checks`, none yet), and the manifest
+records the list: an internal skill's label is at most `inconclusive` while one of its task cases has no contract
+expectation that one of them checks, each such case named (`verdicts.decide`).
 
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
@@ -167,9 +170,13 @@ before it, and the command prints the list. Two rounds on the same fingerprint a
 are "not comparable: setup changed", with the parts that changed named. An entry written before setups were
 recorded has none, and the pair is unknown.
 
-Each entry records whether the round lists the skill as shipped (`shipped`, `results.shipped`): only when, on the
-reference host, its task label is `verified` and its trigger label is met (doc 12, Proven use). Each host's entry
-holds both, copied whole.
+Each entry copies whether the round lists the skill as shipped (`shipped`), as the label file decides it
+(`labels.shipped`): only when, on the reference host, its task label is `verified` and its trigger label is met (doc
+12, Proven use). Each host's entry holds both, copied whole. A label file written before it decided this gives null.
+
+Results files keep rounds in name order, its trailing number read as a number (`results.order`), and that order
+picks the verified version a plan is held to. So a plan is refused unless its round's name sorts after every round
+in each planned skill's results file (`versions.ordered`); planning the same round again is allowed.
 
 ## Cross-model grading
 

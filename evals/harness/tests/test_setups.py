@@ -81,21 +81,27 @@ class Fingerprints(Round):
 
     def test_a_changed_label_rule_changes_the_fingerprint(self):
         record = self.plan()
-        folder = self.tmp / "harness"
+        folder = self.tmp / "evals" / "harness"  # with the kit list beside it, which names the label rule
         shutil.copytree(setups.HARNESS, folder, ignore=shutil.ignore_patterns("__pycache__", "tests"))
+        shutil.copy(REPO / "evals" / "kit.json", folder.parent / "kit.json")
         first = self.setup(record, None, DRIFT, folder)
         self.assertEqual(first, self.setup(record))  # the same code, the same setup
         with open(folder / "labels.py", "a") as handle:
             handle.write("# a changed rule\n")
-        self.assertEqual(setups.changed(first, self.setup(record, None, DRIFT, folder)),
-                         ["label rule"])
+        edited = self.setup(record, None, DRIFT, folder)
+        self.assertEqual(setups.changed(first, edited), ["label rule"])
+        listed = json.loads((folder.parent / "kit.json").read_text())
+        listed["parts"]["label rule"].remove("evals/harness/labels.py")  # the folder's own list, not the default one
+        (folder.parent / "kit.json").write_text(json.dumps(listed))
+        self.assertEqual(setups.changed(edited, self.setup(record, None, DRIFT, folder)), ["label rule"])
 
 
 class RealRepository(TempCase):
     def test_a_skill_planned_alone_or_beside_another_has_one_fingerprint(self):
         def fingerprint(skills):
             path = self.tmp / "plan.json"
-            path.write_text(json.dumps({"round": "real", "skills": skills, "runs": 3,  # skill-designer is internal
+            # skill-designer is internal; the name sorts after every round its results file records
+            path.write_text(json.dumps({"round": "skill-designer-999", "skills": skills, "runs": 3,
                                         "fault_case": {"skill": "claims-writer", "case": "story-met"},
                                         "hosts": [{"adapter": "claude-code", "model": "m1"}]}))
             record = rounds.plan(path, version=stub, at=lambda repo: "0" * 40)  # this tree may hold work in progress
@@ -109,8 +115,8 @@ class RealRepository(TempCase):
 
 
 class Planned(Round):
-    def results_file(self, sha256, label="verified"):
-        entry = {"round": "r0", "reference": "fakehost", "ran": ["fakehost"], "hosts": {"fakehost": {"label": label}}}
+    def results_file(self, sha256, label="verified", name="r0"):
+        entry = {"round": name, "reference": "fakehost", "ran": ["fakehost"], "hosts": {"fakehost": {"label": label}}}
         if sha256 is not None:
             entry["skill_sha256"] = sha256
         folder = self.repo / "evals" / "results"
@@ -168,6 +174,19 @@ class Planned(Round):
         record = rounds.plan(path, repo=self.repo, adapters=self.repo / "adapters", version=lambda m, **c: VERSION)
         self.assertEqual((record["previous"], record["verified"]),
                          ({}, {"haiku-writer": {"round": "r0", "sha256": sha256}}))  # trigger cases compare none
+
+    def test_a_round_name_must_sort_after_every_round_in_the_skill_s_results_so_name_order_is_run_order(self):
+        sha256 = self.plan()["skills"]["haiku-writer"]["sha256"]
+        for name, refused in (("r1", False), ("r0-2", False), ("r2", True), ("r1-baseline-2", True)):
+            with self.subTest(name=name):
+                self.results_file(sha256, name=name)  # the plan's round is r1
+                if refused:
+                    with self.assertRaisesRegex(rounds.RoundError, f"round r1 does not sort after haiku-writer's "
+                                                                   f"round\\(s\\) {name}"):
+                        self.plan()
+                else:
+                    self.plan()  # the same round planned again, or one that sorts before it
+        self.assertLess(results.order({"round": "claims-writer-7"}), results.order({"round": "claims-writer-10"}))
 
     def test_only_a_verified_reference_label_is_a_verified_version(self):
         self.plan()

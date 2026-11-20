@@ -102,7 +102,8 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
   reported as its own label line: the trigger label. A task verdict never reads it. In a trigger run an inferred
   load still counts, as [11 · Evals](11-evals.md) says, since some hosts report no load of their own; the label
   names how many trigger runs rest on an inferred load only.
-- To list a skill as shipped, both are needed: the task label `verified` and the trigger label met.
+- To list a skill as shipped, both are needed on the reference host: its task label `verified` and its trigger
+  label met. The label file decides it from those two labels, and the results file copies it.
 
 ## One setup
 
@@ -178,6 +179,9 @@ measuring kit in `evals/kit.json`, so the judges approve any change to it.
 | `unsupported` | A measure or floor fails, other than lift | The same |
 | `inconclusive` | Unscored runs, not-loaded runs, too few runs, or lift that fails (as today, no lift is not a failure of the skill); a lift still too close after the extra runs gives `too close` | Unscored runs, not-loaded runs or too few runs |
 | `incomplete` | A result is missing, or no kind is declared | The same |
+
+An internal skill is at most `inconclusive`, with each such case named, while any of its task cases has no
+contract expectation decided by a script check that `evals/own-checks.json`, a kit part, lists as harnesswright's own.
 
 ## Build order
 
