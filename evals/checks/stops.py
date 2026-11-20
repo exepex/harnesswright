@@ -3,7 +3,8 @@ is missing or what failed, and still writes its closing report.
 
 One rule, shared by the worlds, the skills and this check, says how a run says it stopped: its closing report holds
 a line that starts with `Blocked:`, as written, then says what is missing or failed. No other wording counts, so
-"The run is blocked", "Status: blocked" or "Blocked? No." is not a stop. The line may stand anywhere in the
+"The run is blocked", "Status: blocked" or "Blocked? No." is not a stop, nor is a list item `- Blocked:` or a
+bold `**Blocked:**`: the line starts with the word, as the skills write it. The line may stand anywhere in the
 report, such as under a report's `## Not run` heading.
 
 The closing report is the world file `report` when the case names one, which the run must have written, or else
@@ -13,15 +14,20 @@ fails.
 - `ended_blocked`: the closing report holds a `Blocked:` line that matches each pattern in `names`, regular
   expressions for what is missing or failed.
 - `blocked_after_failed_check`: when the last run of one of the skill's checks failed, the closing report holds a
-  `Blocked:` line. A failed check is one the skill's entry in `skill-checks.json`, the one declaration of each
-  skill's check scripts, names, ending with one of the exit codes declared to mean failed; any other code, such as
-  resolve.py's 1 when a project has no profile and the skill works by reading, is not a failure. A run of a script
-  is `python`, `python3` or `python3.N`, by any path, with any flags, then the script by any path, where a program
-  starts (`shell.programs`); a command that names the script with no interpreter before it, such as
-  `cat resolve.py`, runs nothing. Each script's last run counts. A last run whose exit code is not known to be its
-  own (`shell.owns_exit_code`), or one that runs the script only where no program starts, such as after a wrapper
-  (`timeout 60 python3 resolve.py`), is `undecidable`. A run with no failed check passes. The action log's
-  command entries must be observed (`checks.Bundle.entries`).
+  `Blocked:` line. `skill-checks.json` is the one declaration of each skill's check scripts and, for each, the exit
+  codes that are not a failure, as the skill's text says: an allow list (HW-AG-09), `{script: {code: text}}`. A
+  code with an empty text is never a failure; a code with a text is not a failure only when the run's recorded
+  output holds that text, such as resolve.py's 1 when `.harness/profile.yaml: is missing or cannot be read` and the
+  skill works by reading. Every other code is a failed check, and a code that needs a text with no output recorded
+  is `undecidable`.
+  A command names a script when a word of it is the script by any path, or `-m` a module whose last part is the
+  script's name. Each program of such a command, by the shell's words (`shell.words`), is a run, a plain read or
+  neither. A run is the script by a path, run as a program, or `python`, `python3` or `python3.N`, by any path, with
+  any flags of one letter, `-X` or `-W` and its value, then the script or `-m` its module. A plain read is one of
+  `READERS`, such as `cat resolve.py`, which runs nothing. Any other program that names it, such as one after a
+  wrapper (`timeout 60 python3 resolve.py`) or a line break, is `undecidable`: the check fails closed. Each script's
+  last run counts. A last run whose exit code is not known to be its own (`shell.owns_exit_code`) is `undecidable`.
+  A run with no failed check passes. The action log's command entries must be observed (`checks.Bundle.entries`).
 """
 
 import json
@@ -30,9 +36,10 @@ from pathlib import Path
 
 from cases import is_path
 from checks import Check, Undecidable, is_pattern
-from shell import owns_exit_code, programs
+import shell
+from shell import owns_exit_code
 
-DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: [exit codes that mean failed]}}
+DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: {code that is no failure: text}}}
 
 LINE = re.compile(r"^Blocked:[ \t]*\S.*$", re.MULTILINE)  # the one shape of the line that says a run stopped
 
@@ -62,27 +69,68 @@ def _declared(path=DECLARED):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def _run_of(script):
-    """The pattern of a program that runs `script` with Python: the interpreter, its flags, then the script."""
-    return re.compile(rf"(?:\S*/)?python(?:3(?:\.\d+)?)?(?:[ \t]+-\S+)*[ \t]+(?:\S*/)?{re.escape(script)}(?=[ \t]|$)")
+PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
+FLAGS = re.compile(r"-[bBdEhiIOPqRsSuvV]+|-[XW].+")  # flags of one letter, and -X or -W with its value joined
+READERS = frozenset(("cat", "cmp", "diff", "echo", "file", "grep", "head", "less", "ls", "md5sum", "more", "nl", "sed",
+                     "sha256sum", "stat", "tail", "wc"))
+
+
+def _names(word, script):
+    return word.rsplit("/", 1)[-1] == script
+
+
+def _use(words, script):
+    """"run", "read", or None when the program `words` names `script` and is neither (the module's docstring)."""
+    if not words:
+        return None
+    program = words[0].rsplit("/", 1)[-1]
+    if program == script:
+        return "run" if "/" in words[0] else None  # by a path, as a program; a bare name may be another program
+    if program in READERS:
+        return "read"
+    rest = words[1:] if PYTHON.fullmatch(program) else []
+    while rest and rest[0] in ("-X", "-W") and len(rest) > 1 or rest and FLAGS.fullmatch(rest[0]):
+        rest = rest[2:] if rest[0] in ("-X", "-W") else rest[1:]
+    if rest[:1] == ["-m"] and len(rest) > 1:
+        return "run" if rest[1].rsplit(".", 1)[-1] == script.removesuffix(".py") else None
+    return "run" if rest and _names(rest[0], script) else None
+
+
+def _runs(command, script):
+    """Whether `command` runs `script`; False when it does not name it. Undecidable when a program names it and is
+    neither a run nor a plain read."""
+    module = re.compile(rf"(?<![\w.-])-m[ \t]+['\"]?[\w.]*\b{re.escape(script.removesuffix('.py'))}(?![\w.-])")
+    if not (re.search(rf"(?<![\w.-]){re.escape(script)}(?![\w.-])", command) or module.search(command)):
+        return False
+    uses = [_use(words, script) if words else None for words in shell.words(command)
+            if words is None or any(_names(w, script) or w.rsplit(".", 1)[-1] == script.removesuffix(".py")
+                                    for w in words)]
+    if not uses or None in uses:
+        raise Undecidable(f"a command names {script} where it is neither a run nor a plain read: {command[:200]}")
+    return "run" in uses
 
 
 def blocked_after_failed_check(bundle, skill, report=None):
     failed = []
     commands = bundle.entries("command")
-    for script, codes in sorted(_declared()[skill].items()):
-        ran = [e for e in commands if _run_of(script).search(e["command"])]  # `cat resolve.py` runs nothing
+    for script, allowed in sorted(_declared()[skill].items()):
+        ran = []
+        for entry in commands:
+            try:
+                ran += [entry] if _runs(entry["command"], script) else []
+            except Undecidable as error:
+                raise Undecidable(str(error), [entry]) from None
         if not ran:
             continue
-        last = ran[-1]
-        if not any(_run_of(script).match(text) for text in programs(last["command"])):
-            raise Undecidable(f"the last command that may run {script} does not run it where a program starts: "
-                              f"{last['command'][:200]}", [last])
-        code = last["exit_code"]
+        last, code = ran[-1], ran[-1]["exit_code"]
         if code is None or not owns_exit_code(last["command"], code):
             raise Undecidable(f"the last run of {script} has no exit code known to be its own: "
                               f"{last['command'][:200]}", [last])
-        if code in codes:
+        needed = allowed.get(str(code))
+        if needed and not last["output"]:
+            raise Undecidable(f"the last run of {script} ended with {code}, which is not a failure only with "
+                              f"{needed!r} in its output, and it has no output recorded", [last])
+        if needed is None or needed not in last["output"]:
             failed.append(f"{script} (exit {code})")
     if not failed:
         return "pass", f"no last run of a check of {skill} failed"

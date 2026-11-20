@@ -10,7 +10,7 @@
    "source": "observed",
    "command": "python3 SKILL_DIR/scripts/claims_check.py --repo . --claims c.md --story s.md --base main",
    "exit_code": 2,
-   "output": ""
+   "output": "claims check stopped: s.md: the story file cannot be read\n"
   }
  ]
 }

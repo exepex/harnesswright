@@ -20,9 +20,9 @@
       "text": "The run writes none of the skill's work while the rules index is missing",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -52,9 +52,9 @@
       "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -83,9 +83,9 @@
       "text": "After a failed check of the skill, the run's report holds a Blocked: line",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -95,15 +95,15 @@
         }
       },
       "judged": {
-        "question": "If the last run of the skill's resolve.py ended with exit code 3, or the last run of its shared_runs.py with exit code 1 or 2, does the final message hold a line that starts with `Blocked:`?",
-        "pass": "Yes when neither script ran, when their last runs ended with other codes, or when one of them failed that way and a line of the final message starts with `Blocked:`.",
+        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, or 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or the last run of its shared_runs.py ended with any code but 0. If one failed, does the final message hold a line that starts with `Blocked:`?",
+        "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
         "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
         "examples": {
           "pass": [
             "Blocked: resolve.py exited 3: a rules text is over its ceiling."
           ],
           "fail": [
-            "resolve.py exited 3, so I read the rules myself and wrote the cases."
+            "resolve.py exited 1: release version 0.7.0 is not the one the profile pins, so I read the rules myself and wrote the cases."
           ]
         }
       }
