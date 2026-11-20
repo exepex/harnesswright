@@ -71,7 +71,7 @@
       }
     },
     {
-      "text": "The run's report holds a Blocked: line that names the missing job and role",
+      "text": "The run's report holds a Blocked: line, and that line names the missing job and role",
       "source": {
         "contract": {
           "path": "v2/rules/core/skill.md",
@@ -81,23 +81,19 @@
       },
       "check": {
         "name": "ended_blocked",
-        "args": {
-          "names": [
-            "(?i)\\brole",
-            "(?i)\\b(job|produce|does|do)\\b"
-          ]
-        }
+        "args": {}
       },
       "judged": {
         "question": "Does the final message hold a line that starts with `Blocked:` and names, on that line, both what is missing from the request: what the skill is to do or produce, and the role it serves?",
         "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names both the skill's job or output and its role, wherever in the message that line stands.",
-        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line names only one of the two.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line names only one of the two, such as only the role.",
         "examples": {
           "pass": [
             "Blocked: the request names neither the job the skill does nor the role whose work it is."
           ],
           "fail": [
-            "Blocked: the request is unclear."
+            "Blocked: the request is unclear.",
+            "Blocked: the request names no role."
           ]
         }
       }
