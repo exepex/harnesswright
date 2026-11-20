@@ -41,8 +41,8 @@ class Outcomes(unittest.TestCase):
 NOTHING = {"listed": [], "cases": {}}  # a skill whose situation list leaves every situation out
 
 
-def summary(cases, scored, situations=NOTHING, **flags):
-    return verdicts.summary(cases, scored, situations=situations, **flags)
+def summary(cases, scored, situations=NOTHING, kind="team", **flags):
+    return verdicts.summary(cases, scored, situations=situations, kind=kind, **flags)
 
 
 def formatted(passed=9, decided=10, undecided=0):
@@ -107,20 +107,19 @@ class Decide(unittest.TestCase):
     def test_enough_runs_meeting_every_threshold_with_lift_are_verified(self):
         found = measured(train=[False] * 3)  # the train split is for tuning: it does not count
         self.assertEqual((found["task_pass_rate"], found["baseline_pass_rate"], found["lift"]), (1.0, 0.0, 1.0))
-        self.assertEqual((found["trigger_accuracy"], found["trigger_cases"]), (1.0, 1))
+        self.assertNotIn("trigger_accuracy", found)  # the trigger label's, a line of its own
         self.assertEqual(verdicts.decide(found, []), {"label": "verified", "gaps": []})
         self.assertEqual(verdicts.decide(found, [], measured(), None), {"label": "verified", "gaps": []})
 
-    def test_a_trigger_case_passes_on_half_its_runs_only_when_it_should_trigger(self):
-        self.assertEqual(measured(trigger=(1, 1, 0, 0))["trigger_accuracy"], 1.0)
-        self.assertEqual(measured(trigger=(1, 1, 0, 0), should=False)["trigger_accuracy"], 0.0)  # loaded twice of 4
-
-    def test_a_skill_with_no_task_case_or_no_test_trigger_case_is_incomplete_with_every_doubt_named(self):
+    def test_a_skill_with_no_task_case_is_incomplete_and_one_with_no_trigger_case_is_not(self):
         no_triggers = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3,
                                                         ("t", "without_skill"): [False] * 3}), **formatted()}
         self.assertEqual(verdicts.decide(no_triggers, ["t, with_skill, run 4: not scored (void)"]),
-                         {"label": "incomplete", "gaps": ["test trigger cases: none",
-                                                          "t, with_skill, run 4: not scored (void)"]})
+                         {"label": "inconclusive", "gaps": ["t, with_skill, run 4: not scored (void)"]})
+        no_tasks = {**summary({"g": case("trigger", should_trigger=True, split="test")},
+                              {("g", "with_skill"): [True] * 3}), **formatted()}
+        decided = verdicts.decide(no_tasks, [])
+        self.assertEqual((decided["label"], decided["gaps"][0]), ("incomplete", "task cases: none"))
 
     def test_a_skill_with_no_folder_yet_gives_its_baseline_and_is_incomplete(self):
         found = summary({"t": case()}, {("t", "without_skill"): [True, False, False]}, absent=True)
@@ -128,13 +127,12 @@ class Decide(unittest.TestCase):
                          (True, 0.3333, None, {"t, without_skill": 3}))
         decided = verdicts.decide({**found, **formatted()}, [])
         self.assertEqual(decided["label"], "incomplete")
-        self.assertEqual(decided["gaps"][:2], ["the skill: no folder yet, a baseline round", "test trigger cases: none"])
+        self.assertEqual(decided["gaps"][0], "the skill: no folder yet, a baseline round")
 
     def test_every_doubt_is_named_and_keeps_the_label_inconclusive(self):
         found = verdicts.decide(measured(task=(1, 1)), [])
         self.assertEqual(found, {"label": "inconclusive", "gaps": ["t, with_skill: 2 scored run(s), 3 needed"]})
-        self.assertEqual(verdicts.decide(measured(trigger=()), [])["gaps"],
-                         ["g, with_skill: 0 scored run(s), 3 needed"])
+        self.assertEqual(verdicts.decide(measured(trigger=()), []), {"label": "verified", "gaps": []})  # its own line
         unscored = ["t, with_skill, run 4: not scored (expectation 2 has no trusted answer)",
                     "t, with_skill, run 5: not scored (empty)", "haiku-writer/t q2: goldens missed (planted)"]
         self.assertEqual(verdicts.decide(measured(), unscored), {"label": "inconclusive", "gaps": unscored})
@@ -165,10 +163,55 @@ class Decide(unittest.TestCase):
 
     def test_a_missed_threshold_is_unsupported_with_each_gap_named(self):
         found = verdicts.decide(measured(task=(1, 1, 0), trigger=(0, 0, 1)), [], measured(), None)
-        self.assertEqual(found["label"], "unsupported")
-        self.assertEqual(found["gaps"], ["task pass rate 67% below 90%", "task pass rate 33% below the reference host",
-                                         "trigger accuracy 0% below 90%"])
+        self.assertEqual(found["label"], "unsupported")  # the trigger miss is the trigger label's, not named here
+        self.assertEqual(found["gaps"], ["task pass rate 67% below 90%", "task pass rate 33% below the reference host"])
 
+
+
+class Kinds(unittest.TestCase):
+    def test_a_skill_with_no_declared_kind_is_incomplete_naming_it(self):
+        found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3, ("t", "without_skill"): [False] * 3},
+                           kind=None), **formatted()}
+        decided = verdicts.decide(found, [])
+        self.assertEqual((decided["label"], decided["gaps"]),
+                         ("incomplete", ["kind: none declared in evals/kinds.json"]))
+
+    def test_an_internal_skill_is_scored_by_its_floors_with_no_lift_and_never_worse_than_before(self):
+        found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3}, kind="internal"), **formatted()}
+        self.assertEqual((found["runs"], found["baseline_pass_rate"], found["lift"]),
+                         ({"t, with_skill": 3}, None, None))  # no without-skill arm, so no baseline and no lift
+        self.assertEqual(verdicts.decide(found, []), {"label": "verified", "gaps": []})
+        failed = {**summary({"t": case()}, {("t", "with_skill"): [True, True, False]}, kind="internal"), **formatted()}
+        self.assertEqual(verdicts.decide(failed, []),
+                         {"label": "unsupported", "gaps": ["task pass rate 67% below 90%"]})
+        before = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3, ("t", "previous_version"): [True] * 3},
+                            kind="internal", previous=True), **formatted()}
+        tally = {"with_skill": {"false_done": 1, "decided": 3, "undecided": 0},
+                 "previous_version": {"false_done": 0, "decided": 3, "undecided": 0}}
+        self.assertEqual(verdicts.decide(before, [], false_done=tally), {"label": "unsupported", "gaps": [
+            "false-done rate 1 of 3 above the previous version's 0 of 3"]})
+
+
+class TriggerLabel(unittest.TestCase):
+    def label(self, outcomes, should=True, unsettled=(), inferred=0):
+        cases = {"g": case("trigger", should_trigger=should, split="test")} if outcomes is not None else {}
+        scored = {("g", "with_skill"): [bool(o) for o in outcomes or ()]}
+        return triggers.label(cases, scored, list(unsettled), inferred, verdicts.THRESHOLDS)
+
+    def test_a_trigger_case_passes_on_half_its_runs_only_when_it_should_trigger(self):
+        self.assertEqual(self.label((1, 1, 0, 0))["accuracy"], 1.0)
+        self.assertEqual(self.label((1, 1, 0, 0), should=False)["accuracy"], 0.0)  # loaded twice of 4
+
+    def test_the_trigger_label_is_met_on_its_own_and_names_each_gap(self):
+        self.assertEqual(self.label((1, 1, 1), inferred=1), {
+            "accuracy": 1.0, "threshold": 0.9, "cases": 1, "runs": {"g, with_skill": 3}, "inferred_loads": 1,
+            "met": True, "gaps": []})
+        self.assertEqual(self.label((0, 0, 0))["gaps"], ["trigger accuracy 0% below 90%"])
+        self.assertEqual(self.label(None)["gaps"], ["test trigger cases: none"])
+        self.assertEqual(self.label((1, 1))["gaps"], ["g, with_skill: 2 scored run(s), 3 needed"])
+        void = ["g, with_skill, run 4: not scored (void)"]
+        self.assertEqual((self.label((1, 1, 1), unsettled=void)["met"], self.label((1, 1, 1), unsettled=void)["gaps"]),
+                         (False, void))
 
 if __name__ == "__main__":
     unittest.main()

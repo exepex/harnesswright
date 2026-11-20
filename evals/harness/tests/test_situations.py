@@ -129,7 +129,7 @@ def situated(scored, situation_of, listed_=None, plain="t"):
     scored = {("g", "with_skill"): [True] * 3, **{(i, "with_skill"): [True] * 3 for i in plain},
               **{(i, "without_skill"): [False] * 3 for i in plain}, **scored}
     record = {"listed": sorted(set(situation_of.values())) if listed_ is None else listed_, "cases": situation_of}
-    return {**verdicts.summary(own, scored, situations=record), **formatted()}
+    return {**verdicts.summary(own, scored, situations=record, kind="team"), **formatted()}
 
 
 class Label(unittest.TestCase):

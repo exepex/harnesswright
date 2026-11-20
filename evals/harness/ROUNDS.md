@@ -26,8 +26,15 @@ The manifest records, under `verified`, each held skill's last version `evals/re
 `verified` on the reference host (`results.verified`). A skill whose hash changed since then, and that the plan runs
 a task case of, must name that version as `previous`, so the comparison is made inside the round on one setup (doc
 12, One setup); the plan is refused otherwise, naming the round and hash. An unchanged skill, or one the plan runs in
-trigger cases only (which compare no versions), needs no previous arm, and its round makes no cross-round claim. A results entry written before skill hashes were recorded gives no hash: the manifest says it is unknown,
-and the plan asks for nothing.
+trigger cases only (which compare no versions), needs no previous arm, and its round makes no cross-round claim. A
+results entry written before skill hashes were recorded gives no hash: the manifest says it is unknown, and the plan
+asks for nothing.
+
+The manifest records each planned skill's kind under `kinds`, as `evals/kinds.json` declares it (`cases.kinds`, doc
+12, Skill kinds): `team` or `internal`, or null when undeclared. The file is a kit part, so the judges approve it,
+and a plan cannot set a kind. An internal skill runs with the skill and its previous version only, never without
+itself (`runs.arms`, `runs.key`), so it has no lift and no baseline backstop; it cannot be absent, and its cases are
+never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`.
 
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
@@ -90,14 +97,24 @@ results. A task run passes when every contract expectation of its case passed, a
 expectations do not count, as only the skill knows its own format. A trigger run, scored in the with-skill arm only,
 passes when the skill loaded exactly when the case says it should. A load the adapter inferred from a read of the
 skill's `SKILL.md` counts, as the discovery probe counts it, since some hosts (Codex) report no skill load of their
-own; the label names how many trigger runs rested on an inferred load only. A trigger case passes when the skill
-loaded in at least half its runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is
-that of the `test` split. A host that was not run, an absent skill (its label file still gives the baseline pass rate and
-the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty, not loaded or undecided), a case and arm whose pinned runs never loaded, too few scored runs, missed goldens,
-no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
-`unsupported`, each gap named. A skill whose round ran its previous version must be at least as good as it on the
-same task cases: a pass rate below the previous version's, or a false-done rate above it, is `unsupported`, each
-named; too few scored runs in that arm, or no decided false-done answer in either arm, keep it `inconclusive`. The label file goes to `<store>/<round>/labels/<attempt>.json`.
+own. A trigger case passes when the skill loaded in at least half its runs if it should trigger, and in fewer than
+half if it should not.
+
+The trigger cases give the trigger label, a line of its own in each host's entry (`trigger`, `triggers.label`): the
+accuracy of the `test` split against its 90% threshold, how many trigger runs rested on an inferred load only, and
+`met`, with each gap named (no test trigger case, too few scored runs, a trigger run not scored, or the accuracy
+below its threshold). The task label never reads it, and a trigger run not scored is named there only.
+
+The task label reads the skill's kind (doc 12, Labels by kind). A host that was not run, a skill with no kind
+declared, an absent skill (its label file still gives the baseline pass rate and the scored runs per case), or a
+skill with no task case is `incomplete`. Every planned run that is not scored (void, empty, not loaded or
+undecided), a case and arm whose pinned runs never loaded, too few scored runs, missed goldens, a reference host
+whose result is not settled, or, for a team skill only, no lift make it `inconclusive`, each named. An internal skill
+has no without-skill arm, so no lift: it is scored by its floors. A missed threshold is `unsupported`, each gap
+named. A skill whose round ran its previous version must be at least as good as it on the same task cases: a pass
+rate below the previous version's, or a false-done rate above it, is `unsupported`, each named; too few scored runs
+in that arm, or no decided false-done answer in either arm, keep it `inconclusive`. The label file goes to
+`<store>/<round>/labels/<attempt>.json`.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
 with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
@@ -131,6 +148,10 @@ results` is the one place that compares rounds: under `compared`, the results fi
 before it, and the command prints the list. Two rounds on the same fingerprint are the same setup; otherwise they
 are "not comparable: setup changed", with the parts that changed named. An entry written before setups were
 recorded has none, and the pair is unknown.
+
+Each entry records whether the round lists the skill as shipped (`shipped`, `results.shipped`): only when, on the
+reference host, its task label is `verified` and its trigger label is met (doc 12, Proven use). Each host's entry
+holds both, copied whole.
 
 ## Cross-model grading
 

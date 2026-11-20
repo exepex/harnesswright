@@ -95,6 +95,16 @@ class Results(TempCase):
         with self.assertRaises(results.ResultsError):
             results.merge(data, "limerick-writer", first)
 
+    def test_a_skill_is_shipped_only_with_its_task_label_verified_and_its_trigger_label_met(self):
+        met, missed = {"met": True, "gaps": []}, {"met": False, "gaps": ["trigger accuracy 50% below 90%"]}
+        for label, trigger, shipped in (("verified", met, True), ("verified", missed, False),
+                                        ("unsupported", met, False), ("verified", None, False)):
+            with self.subTest(label=label, trigger=trigger):
+                hosts = {"fakehost": {**HOST, "label": label, **({"trigger": trigger} if trigger else {})}}
+                self.assertIs(results.shipped(hosts, "fakehost"), shipped)
+        folder, archive = self.round("r9", skills={"haiku-writer": {"fakehost": {**HOST, "trigger": missed}}})
+        self.assertIs(results.entries(folder, archive)["haiku-writer"]["shipped"], False)  # the trigger miss blocks it
+
     def test_the_file_reads_back_as_written_one_line_per_field(self):
         folder, archive = self.round(skills={"haiku-writer": {"fakehost": HOST, "otherhost": HOST}})
         out = self.tmp / "results"
@@ -102,6 +112,6 @@ class Results(TempCase):
         [path] = results.publish(folder, archive, out)
         data = json.loads(path.read_text())
         self.assertEqual(data["rounds"][0]["hosts"], {"fakehost": HOST, "otherhost": HOST})
-        self.assertEqual(len(path.read_text().splitlines()), 35)  # 13 fields, each host 4 lines and its braces, compared
+        self.assertEqual(len(path.read_text().splitlines()), 36)  # 14 fields, each host 4 lines and its braces, compared
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)

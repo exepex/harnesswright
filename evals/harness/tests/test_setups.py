@@ -95,7 +95,8 @@ class RealRepository(TempCase):
     def test_a_skill_planned_alone_or_beside_another_has_one_fingerprint(self):
         def fingerprint(skills):
             path = self.tmp / "plan.json"
-            path.write_text(json.dumps({"round": "real", "skills": skills, "runs": 3,
+            path.write_text(json.dumps({"round": "real", "skills": skills, "runs": 3,  # skill-designer is internal
+                                        "fault_case": {"skill": "claims-writer", "case": "story-met"},
                                         "hosts": [{"adapter": "claude-code", "model": "m1"}]}))
             record = rounds.plan(path, version=stub, at=lambda repo: "0" * 40)  # this tree may hold work in progress
             own = {i: Case(REPO / "evals" / "skills" / "skill-designer" / "cases" / i, "skill-designer")

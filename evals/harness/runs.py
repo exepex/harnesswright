@@ -90,23 +90,31 @@ def lead(record, case, arm, adapter):
     return host.lead(adapter, case.skill, f"{case.skill_rel}/SKILL.md") if pinned(record, case, arm) else None
 
 
+def internal(record, skill):
+    """True for a skill the manifest records as `internal` (`rounds.plan`, from `cases.kinds`, doc 12, Skill kinds):
+    it runs with the skill and its previous version only, never without itself, so it has no lift and no baseline
+    backstop."""
+    return record.get("kinds", {}).get(skill) == "internal"
+
+
 def arms(record, case):
-    """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
-    a previous version. Trigger cases measure the description that triggers the skill under test only."""
+    """The arms `case` runs in, in round `record`: `ARMS` (the with-skill one only for an internal skill), and
+    `PREVIOUS` for a task case of a skill the plan gives a previous version. Trigger cases measure the description
+    that triggers the skill under test only."""
     if case.skill in record.get("absent", []):  # no folder yet: a baseline round runs without the skill only
         return ARMS[:1]
     if skill_only(record, case.skill, case.id):
         return ARMS[1:]
     later = (PREVIOUS,) if case.kind == "task" and case.skill in record.get("previous", {}) else ()
-    return ARMS + later
+    return (ARMS[1:] if internal(record, case.skill) else ARMS) + later
 
 
 def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None, lead=None):
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
     and drift record, `timeout`, its time budget in seconds (a run that timed out is scored), and `lead`, a pinned
     run's lead line (`lead`). `code` is the runner's hash (`runner`)."""
-    known = ARMS[:1] if skill in record.get("absent", []) else ARMS + ((PREVIOUS,) if skill in record.get(
-        "previous", {}) else ())
+    known = ARMS[:1] if skill in record.get("absent", []) else (ARMS[1:] if internal(record, skill) else ARMS) + (
+        (PREVIOUS,) if skill in record.get("previous", {}) else ())
     if skill_only(record, skill, case_id):
         known = ARMS[1:]
     if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:

@@ -33,11 +33,16 @@ line that pins the skill's load (`runs.pinned`, doc 12, Proven use). A manifest 
 pinning, is a round whose runs are not pinned, and it resumes as it was planned.
 
 The manifest records, for each skill of the plan with a folder, the last version `evals/results/<skill>.json`
-records as `verified` on the reference host (`versions.verified`, `results.verified`). A skill that changed since then, and
-that the plan runs a task case of, must name that version as `previous`, so it is compared inside the round on one
-setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or one run in
-trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry written before
-skill hashes were recorded is unknown, and the manifest says so.
+records as `verified` on the reference host (`versions.verified`, `results.verified`). A skill that changed since
+then, and that the plan runs a task case of, must name that version as `previous`, so it is compared inside the
+round on one setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or
+one run in trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry
+written before skill hashes were recorded is unknown, and the manifest says so.
+
+The manifest records each planned skill's kind (`kinds`), as `evals/kinds.json`, a kit part, declares it
+(`cases.kinds`, doc 12, Skill kinds); a plan cannot set one, and an undeclared kind is null. An internal skill runs
+with the skill and its previous version only (`runs.arms`), so it cannot be absent, and its cases are never the
+fault gate's: a round whose skills are all internal names a team skill's `fault_case`.
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -245,7 +250,11 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             siblings.update(sibling for i in ids for sibling in known[i].siblings or ())
         held = skills.folders(repo)
         found["absent"] = sorted(name for name in data["skills"] if name not in held)  # cases, no folder yet
+        kinds = cases.kinds(Path(repo) / "evals" / "kinds.json")  # a kit part: the one reader, never the plan
+        found["kinds"] = {name: kinds.get(name) for name in sorted(data["skills"])}
         for name in found["absent"]:
+            if kinds.get(name) == "internal":  # an internal skill never runs without itself (runs.arms)
+                raise RoundError(f"{path}: {name} is internal and has no folder yet, so it has no arm to run")
             if name in data.get("previous", {}) or any(c.kind != "task" or c.situation in cases.SKILL_ONLY
                                                        for c in known_cases[name].values()):
                 raise RoundError(f"{path}: {name} has no folder yet, so its round runs task cases without it only")
@@ -261,9 +270,13 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             planted_on = cases.Case(folder, chosen["skill"])
             if planted_on.situation in cases.SKILL_ONLY:  # the fault gate needs both arms of its case
                 raise RoundError(f"{path}: fault_case runs with the skill only, so no fault can be planted on it")
+            if kinds.get(chosen["skill"]) == "internal":  # nor does an internal skill's case
+                raise RoundError(f"{path}: fault_case is a case of an internal skill; a team skill's case runs in "
+                                 "both arms")
             found["fault_case"] = {**chosen, "sha256": planted_on.sha256}
             installed.add(chosen["skill"])
-        elif not any(name not in found["absent"] and c.situation not in cases.SKILL_ONLY
+        elif not any(name not in found["absent"] and kinds.get(name) != "internal"
+                     and c.situation not in cases.SKILL_ONLY
                      for name, known in known_cases.items() for c in known.values()):
             # the fault gate plants on a case that runs in both arms, of a skill the repository holds
             raise RoundError(f"{path}: no case of a skill with a folder runs in both arms, so it names a fault_case")
