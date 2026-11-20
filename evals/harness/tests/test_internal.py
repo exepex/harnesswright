@@ -18,7 +18,7 @@ import world
 from cases import REPO, CaseError
 
 SKILL = "skill-designer"  # internal in evals/kinds.json
-COPIED = ["AGENTS.md", "v2/VERSION", "v2/roles.md", "v2/rules", "v2/skills"] + [
+COPIED = ["AGENTS.md", "docs/design", "v2/VERSION", "v2/roles.md", "v2/rules", "v2/skills"] + [
     f"v2/build/{p.name}" for p in sorted((REPO / "v2" / "build").glob("*.py"))]
 NOTES = ("# Notes\n\nThe skill designer keeps its cases apart. SkillDesigner, as one word, too.\n"
          "See `release/skill-designer/SKILL.md` for the skill.\nThe end.\n")
@@ -44,7 +44,7 @@ class Reader(TempCase):
         self.write("notes.md", NOTES)
         self.write("evals/kinds.json", "{}\n")
         self.commit = self.git_commit("Start")
-        self.paths = ["AGENTS.md", "notes.md", "evals", "v2"]
+        self.paths = ["AGENTS.md", "docs", "notes.md", "evals", "v2"]
 
     def write(self, rel, text):
         (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -59,10 +59,17 @@ class Reader(TempCase):
         return subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, check=True, capture_output=True,
                               text=True).stdout.strip()
 
-    def kit(self, commit=None, paths=None):
+    def kit(self, commit=None, paths=None, left_out=None):
+        """A kit pinned at `commit`, approving `left_out`, or else what the rule leaves out there."""
+        commit, paths = commit or self.commit, paths or self.paths
+        if left_out is None:
+            scratch = self.tmp / f"scratch-{len(list(self.tmp.iterdir()))}"
+            internal.read_pinned(self.repo, commit, paths, scratch)
+            shutil.rmtree(scratch / internal.RELEASE, ignore_errors=True)
+            left_out = internal.leave_out(scratch, SKILL, "toolkit author")
         path = self.tmp / f"kit-{len(list(self.tmp.iterdir()))}.json"
-        path.write_text(json.dumps({"commit": commit or self.commit, "paths": paths or self.paths,
-                                    "stand_in": "toolkit author"}))
+        path.write_text(json.dumps({"commit": commit, "paths": paths, "stand_in": "toolkit author",
+                                    "left_out": left_out}))
         return path
 
     def base(self, kit=None, name="world"):
@@ -113,7 +120,8 @@ class Reader(TempCase):
 
     def test_a_kit_with_no_pinned_commit_builds_no_world(self):
         path = self.tmp / "unpinned.json"
-        path.write_text(json.dumps({"commit": None, "paths": self.paths, "stand_in": "toolkit author"}))
+        path.write_text(json.dumps({"commit": None, "paths": self.paths, "stand_in": "toolkit author",
+                                    "left_out": []}))
         with self.assertRaisesRegex(CaseError, "no commit is pinned"):
             internal.base(SKILL, self.tmp / "none", self.repo, path)
 
@@ -140,6 +148,58 @@ class Reader(TempCase):
         case = self.internal_case([], skill="claims-writer")
         with self.assertRaisesRegex(CaseError, "only for a case of an internal skill"):
             world.build(case, Adapter, self.tmp / "team", self.skill().parent)
+
+    def test_a_name_split_by_punctuation_is_never_rewritten(self):
+        cases = {"the skill. Designer": "the skill. Designer", "skill, designer": "skill, designer",
+                 "Skill Designers": "Toolkit authors", "skill_designer": "toolkit_author",
+                 "SkillDesigner": "ToolkitAuthor", "a skill-designer.": "a toolkit-author."}
+        for text, want in cases.items():
+            self.assertEqual(internal._rename(text, SKILL, "toolkit author"), want, text)
+
+    def test_the_world_refuses_a_name_the_rule_cannot_rewrite(self):
+        self.write("notes.md", "The skill. Designer of it.\n")
+        with self.assertRaisesRegex(CaseError, "the lint still finds skill-designer"):
+            self.base(self.kit(self.git_commit("Split the name"), left_out=[]))
+
+    def test_a_field_table_drops_its_whole_section(self):
+        self.write("notes.md", "# Sources\n\n## one\n\n| Field | Value |\n|---|---|\n| Path | `x` |\n"
+                               "| Used in | `v2/skills/skill-designer/` |\n\n### Changes\n\nAll of them.\n\n"
+                               "## two\n\n| Field | Value |\n|---|---|\n| Path | `y` |\n")
+        kit = self.kit(self.git_commit("Add a record"))
+        built = self.base(kit)
+        self.assertEqual((built / "notes.md").read_text(), "# Sources\n\n## two\n\n| Field | Value |\n|---|---|\n"
+                                                         "| Path | `y` |\n")
+        notes = [row for row in json.loads(kit.read_text())["left_out"] if row[0] == "notes.md"]
+        self.assertEqual([row[1] for row in notes], list(range(3, 14)))
+        self.assertTrue(all(row[3] is None for row in notes))
+
+    def test_the_left_out_list_must_be_the_approved_one(self):
+        approved = json.loads(self.kit().read_text())["left_out"]
+        self.assertIn(["AGENTS.md", 94, approved[0][2], None], approved)
+        self.assertIn(["notes.md", 4, "See `release/skill-designer/SKILL.md` for the skill.", None], approved)
+        self.assertIn(["v2/skills/skill-designer", None, None, None], approved)
+        with self.assertRaisesRegex(CaseError, "not the kit's approved `left_out` list: 2 found, 0 approved"):
+            self.base(self.kit(self.commit, ["notes.md", "evals"], left_out=[]))
+
+    def test_a_world_whose_files_name_a_missing_file_is_refused(self):
+        for text in ("See [the guide](docs/guide.md#start).\n", "@docs/guide.md\n"):
+            with self.subTest(text=text):
+                self.write("notes.md", text)
+                with self.assertRaisesRegex(CaseError, "names files it lacks: notes.md -> docs/guide.md"):
+                    self.base(self.kit(self.git_commit(f"Link {len(text)}")), f"w{len(text)}")
+        self.write("notes.md", "See [the guide](docs/design/README.md) and [a site](https://example.com).\n")
+        self.base(self.kit(self.git_commit("Link a file the world has")), "fine")
+
+    def test_a_case_file_naming_a_missing_file_is_refused(self):
+        case = self.case({"incoming/source.md": "Read [the brief](../brief.md).\n"},
+                         {"internal_world": {"remove": []}}, skill=SKILL)
+        with self.assertRaisesRegex(CaseError, "incoming/source.md -> ../brief.md"):
+            internal.world_of(case, self.tmp / "out", self.repo, self.kit())
+
+    @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
+                     "the kit pins no commit yet; the judges approve `left_out` with the pin")
+    def test_the_kit_left_out_list_matches_the_pin(self):
+        internal.base(SKILL, self.tmp / "pinned")
 
 
 if __name__ == "__main__":
