@@ -20,7 +20,8 @@ run not scored is named in the trigger label only.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
   records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared, and
   whether the round lists each skill as shipped (`shipped`), which `results.py` copies, and each judged question's
-  grader agreement with the questions to rewrite (`agreement`, `agreement.questions`), which no label reads.
+  grader agreement with the questions to rewrite (`agreement`, `agreement.questions`), which no label reads. It names
+  every other attempt of the round whose record gives no reason it ended (`no_reason`, `endings.unrecorded`).
 
 Standard library only.
 """
@@ -28,6 +29,7 @@ Standard library only.
 import json
 
 import agreement
+import endings
 import evidence
 import grades
 import measures
@@ -156,6 +158,7 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
             found["skills"][skill][host] = entry
     found["shipped"] = {skill: shipped(hosts, grades.REFERENCE) for skill, hosts in found["skills"].items()}
     found["agreement"] = agreement.questions(folder, attempt, gates["grade"]["outcome"]["runs"])  # changes no label
+    found["no_reason"] = endings.unrecorded(folder / "attempts", attempt)  # changes no label
     return found
 
 
