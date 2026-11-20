@@ -19,7 +19,6 @@ import goldens
 import grades
 import labels
 import setups
-import verdicts
 
 CONTRACT = {"contract": {"path": "README.md", "line": 1, "quote": "# Notes app"}}
 EXPECTATIONS = [  # a format check, a contract question for the graders, and a contract check
@@ -49,137 +48,6 @@ def case(kind="task", expectations=EXPECTATIONS, **fields):
 
 def verdict(outcome, name="file_state"):
     return {"check": name, "outcome": outcome, "reason": "planted"}
-
-
-NOTHING = {"listed": [], "cases": {}}  # a skill whose situation list leaves every situation out
-
-
-def summary(cases, scored, situations=NOTHING, **flags):
-    return verdicts.summary(cases, scored, situations=situations, **flags)
-
-
-def formatted(passed=9, decided=10, undecided=0):
-    """The format conformance of the with-skill arm, as the label's measures hold it."""
-    return {"format_conformance": {"with_skill": {"rate": None, "passed": passed, "decided": decided,
-                                                  "undecided": undecided}}}
-
-
-def measured(task=(1, 1, 1), baseline=(0, 0, 0), trigger=(1, 1, 1), train=None, should=True, form=(9, 10, 0)):
-    cases = {"t": case(), "g": case("trigger", should_trigger=should, split="test")}
-    scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [bool(o) for o in baseline],
-              ("g", "with_skill"): [bool(o) for o in trigger]}
-    if train is not None:
-        cases["x"] = case("trigger", should_trigger=True, split="train")
-        scored[("x", "with_skill")] = train
-    return {**summary(cases, scored), **(formatted(*form) if form else {})}
-
-
-def against(task=(1, 1, 1), before=(1, 1, 0), done=(0, 3), done_before=(0, 3)):
-    """The measures of a skill whose round ran a previous version, and the false-done tally of each arm."""
-    cases = {"t": case(), "g": case("trigger", should_trigger=True, split="test")}
-    scored = {("t", "with_skill"): [bool(o) for o in task], ("t", "without_skill"): [False] * 3,
-              ("t", "previous_version"): [bool(o) for o in before], ("g", "with_skill"): [True] * 3}
-    tally = {arm: {"false_done": f, "decided": d, "undecided": 0}
-             for arm, (f, d) in (("with_skill", done), ("previous_version", done_before))}
-    return {**summary(cases, scored, previous=True), **formatted()}, tally
-
-
-class Previous(unittest.TestCase):
-    def test_a_skill_at_least_as_good_as_its_previous_version_is_verified(self):
-        found, tally = against()
-        self.assertEqual((found["previous_pass_rate"], found["runs"]["t, previous_version"]), (0.6667, 3))
-        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
-        found, tally = against(before=(1, 1, 1))  # equal is at least as good
-        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "verified", "gaps": []})
-
-    def test_a_skill_worse_than_its_previous_version_is_unsupported_with_each_gap_named(self):
-        found, tally = against(task=(1,) * 9 + (0,), before=(1,) * 10, done=(1, 10), done_before=(0, 10))
-        self.assertEqual(labels.decide(found, [], false_done=tally), {"label": "unsupported", "gaps": [
-            "task pass rate 90% below the previous version's 100%",
-            "false-done rate 1 of 10 above the previous version's 0 of 10"]})
-
-    def test_too_few_previous_runs_or_no_decided_false_done_keep_the_label_inconclusive(self):
-        found, tally = against(before=(1, 1))
-        self.assertEqual(labels.decide(found, [], false_done=tally),
-                         {"label": "inconclusive", "gaps": ["t, previous_version: 2 scored run(s), 3 needed"]})
-        found, tally = against(done_before=(0, 0))
-        self.assertEqual(labels.decide(found, [], false_done=tally)["gaps"],
-                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
-
-    def test_a_previous_version_doubt_unsettles_the_reference_host_too(self):
-        found, tally = against(done_before=(0, 0))  # the one list `labels` settles the reference host on
-        self.assertEqual(labels.doubts(found, [], tally),
-                         ["false-done rate: no decided run in the with-skill or the previous version's arm"])
-
-    def test_a_round_with_no_previous_version_is_decided_as_before(self):
-        self.assertNotIn("previous_pass_rate", measured())
-        self.assertNotIn("t, previous_version", measured()["runs"])
-
-
-class Decide(unittest.TestCase):
-    def test_enough_runs_meeting_every_threshold_with_lift_are_verified(self):
-        found = measured(train=[False] * 3)  # the train split is for tuning: it does not count
-        self.assertEqual((found["task_pass_rate"], found["baseline_pass_rate"], found["lift"]), (1.0, 0.0, 1.0))
-        self.assertEqual((found["trigger_accuracy"], found["trigger_cases"]), (1.0, 1))
-        self.assertEqual(labels.decide(found, []), {"label": "verified", "gaps": []})
-        self.assertEqual(labels.decide(found, [], measured(), None), {"label": "verified", "gaps": []})
-
-    def test_a_trigger_case_passes_on_half_its_runs_only_when_it_should_trigger(self):
-        self.assertEqual(measured(trigger=(1, 1, 0, 0))["trigger_accuracy"], 1.0)
-        self.assertEqual(measured(trigger=(1, 1, 0, 0), should=False)["trigger_accuracy"], 0.0)  # loaded twice of 4
-
-    def test_a_skill_with_no_task_case_or_no_test_trigger_case_is_incomplete_with_every_doubt_named(self):
-        no_triggers = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3,
-                                                        ("t", "without_skill"): [False] * 3}), **formatted()}
-        self.assertEqual(labels.decide(no_triggers, ["t, with_skill, run 4: not scored (void)"]),
-                         {"label": "incomplete", "gaps": ["test trigger cases: none",
-                                                          "t, with_skill, run 4: not scored (void)"]})
-
-    def test_a_skill_with_no_folder_yet_gives_its_baseline_and_is_incomplete(self):
-        found = summary({"t": case()}, {("t", "without_skill"): [True, False, False]}, absent=True)
-        self.assertEqual((found["absent"], found["baseline_pass_rate"], found["task_pass_rate"], found["runs"]),
-                         (True, 0.3333, None, {"t, without_skill": 3}))
-        decided = labels.decide({**found, **formatted()}, [])
-        self.assertEqual(decided["label"], "incomplete")
-        self.assertEqual(decided["gaps"][:2], ["the skill: no folder yet, a baseline round", "test trigger cases: none"])
-
-    def test_every_doubt_is_named_and_keeps_the_label_inconclusive(self):
-        found = labels.decide(measured(task=(1, 1)), [])
-        self.assertEqual(found, {"label": "inconclusive", "gaps": ["t, with_skill: 2 scored run(s), 3 needed"]})
-        self.assertEqual(labels.decide(measured(trigger=()), [])["gaps"], ["g, with_skill: 0 scored run(s), 3 needed"])
-        unscored = ["t, with_skill, run 4: not scored (expectation 2 has no trusted answer)",
-                    "t, with_skill, run 5: not scored (empty)", "haiku-writer/t q2: goldens missed (planted)"]
-        self.assertEqual(labels.decide(measured(), unscored), {"label": "inconclusive", "gaps": unscored})
-        self.assertIn("no lift", labels.decide(measured(baseline=(1, 1, 1)), [])["gaps"][0])
-
-    def test_another_host_is_never_verified_on_a_reference_result_that_is_not_settled(self):
-        found = labels.decide(measured(), [], None, "the reference host claude-code's result is not settled")
-        self.assertEqual(found, {"label": "inconclusive",
-                                 "gaps": ["the reference host claude-code's result is not settled"]})
-
-    def test_format_conformance_below_its_floor_is_unsupported_and_an_undecided_answer_does_not_pass(self):
-        self.assertEqual(labels.decide(measured(form=(17, 20, 0)), []), {"label": "unsupported", "gaps": [
-            "format conformance 85% below 90% (17 of 20, 0 undecided)"]})
-        self.assertEqual(labels.decide(measured(form=(18, 19, 1)), []), {"label": "verified", "gaps": []})  # 90%
-        self.assertEqual(labels.decide(measured(form=(17, 19, 1)), [])["gaps"],
-                         ["format conformance 85% below 90% (17 of 20, 1 undecided)"])
-
-    def test_the_format_floor_never_replaces_the_lift(self):
-        found = labels.decide(measured(baseline=(1, 1, 1), form=(10, 10, 0)), [])
-        self.assertEqual(found["label"], "inconclusive")
-        self.assertIn("no lift", found["gaps"][0])
-
-    def test_a_format_floor_not_measured_keeps_the_label_inconclusive(self):
-        for form in (None, (0, 0, 0)):
-            with self.subTest(form=form):
-                self.assertEqual(labels.decide(measured(form=form), []), {"label": "inconclusive", "gaps": [
-                    "format conformance: no format expectation was asked in the with-skill arm"]})
-
-    def test_a_missed_threshold_is_unsupported_with_each_gap_named(self):
-        found = labels.decide(measured(task=(1, 1, 0), trigger=(0, 0, 1)), [], measured(), None)
-        self.assertEqual(found["label"], "unsupported")
-        self.assertEqual(found["gaps"], ["task pass rate 67% below 90%", "task pass rate 33% below the reference host",
-                                         "trigger accuracy 0% below 90%"])
 
 
 class Gate(Pages):
@@ -262,8 +130,8 @@ class Gate(Pages):
             return run(r)
         steps = (("probe", probe), ("run", run_previous), ("check", gates.check_gate),
                  ("grade", grades.grade_gate), ("label", labels.label_gate))
-        with mock.patch.object(labels, "missing", lambda found: []), \
-                mock.patch.dict(labels.THRESHOLDS, {"format_conformance": 1.01}):  # the stored format count decides
+        with mock.patch.object(labels.verdicts, "missing", lambda found: []), \
+                mock.patch.dict(labels.verdicts.THRESHOLDS, {"format_conformance": 1.01}):  # the format count decides
             self.go(steps, grade=done_or_pond)  # (the fixture has no trigger case)
         [path] = (self.store / "r1" / "labels").iterdir()
         entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
