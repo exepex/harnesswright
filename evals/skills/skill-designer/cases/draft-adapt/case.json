@@ -1,5 +1,5 @@
 {
-  "prompt": "The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the skill now, for the implementer role; docs/templates.md has how we write a template.",
+  "prompt": "The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the skill now, for the implementer role; docs/templates.md says what this stage may change and how it ends.",
   "kind": "task",
   "internal_world": {
     "remove": [],
