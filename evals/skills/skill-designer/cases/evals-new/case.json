@@ -1,6 +1,10 @@
 {
-  "prompt": "We want a skill for implementers that writes the commit message for a change: an imperative subject of 72 characters or fewer, a blank line, then a body saying what changed and why. Call it commit-message-writer. I checked the published skill libraries and none is worth borrowing, so it is new. Write the skill and its cases today; the team wants to try it on Friday.",
+  "prompt": "We want a skill for implementers that writes the commit message for a change: an imperative subject of 72 characters or fewer, a blank line, then a body saying what changed and why. Call it commit-message-writer. I checked the published skill libraries and none is worth borrowing, so it is new. Write the skill and its cases today (docs/evals.md has how we do cases); the team wants to try it on Friday.",
   "kind": "task",
+  "internal_world": {
+    "remove": [],
+    "jobs": ["| pr-summaries | implementer | pr-summary | pr-summary |", "| release-notes | implementer | release-notes | release-notes |"]
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
@@ -84,21 +88,21 @@
       }
     },
     {
-      "text": "The near misses include a request for each other skill in the Skills table",
+      "text": "The near misses include a request for each other skill under v2/skills/",
       "source": {
         "contract": {
           "path": "docs/evals.md",
           "line": 26,
-          "quote": "The near misses include, for each other skill in the Skills table of `AGENTS.md`, at least one request that is that skill's job."
+          "quote": "The near misses include, for each other skill under `v2/skills/`, at least one request that is that skill's job."
         }
       },
       "judged": {
-        "question": "Besides release-notes, whose job is the notes of a tagged version, the Skills table of AGENTS.md lists pr-summary, whose job is a pull request's own description. Among the trigger cases the run wrote that should not load commit-message-writer, is there at least one that asks for release notes and at least one that asks for a pull request's description?",
-        "pass": "Yes when the run's should-not-load trigger cases hold a request for release notes and, in another case or the same one, a request for a pull request description.",
-        "fail": "No when either kind of request is missing from the should-not-load cases. No also when the run wrote no should-not-load trigger case: only what the files the run wrote hold counts, never the final message or the page's list of changes.",
+        "question": "v2/skills/ holds claims-writer, whose job is the claims of a finished change for the story judge, release-notes, whose job is the notes of a tagged version, and pr-summary, whose job is a pull request's own description. Among the trigger cases the run wrote that should not load commit-message-writer, is there at least one that asks for the claims of a finished change, at least one that asks for release notes and at least one that asks for a pull request's description?",
+        "pass": "Yes when the run's should-not-load trigger cases hold a request for the claims of a finished change, a request for release notes and a request for a pull request description, in separate cases or shared ones.",
+        "fail": "No when any of the three kinds of request is missing from the should-not-load cases. No also when the run wrote no should-not-load trigger case: only what the files the run wrote hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["A near miss asking for the notes of v4.2, and another asking to fill in the description of PR #31."],
-          "fail": ["Ten near misses about code review, tests and docs, none asking for release notes or a pull request description."]
+          "pass": ["A near miss asking for the claims of story S-12 for the judge, one asking for the notes of v4.2, and one asking to fill in the description of PR #31."],
+          "fail": ["Near misses asking for release notes and a pull request description, but none for the claims of a finished change."]
         }
       }
     },
@@ -206,8 +210,19 @@
     },
     {
       "text": "The stage report lists every file the run wrote",
-      "source": {"contract": {"path": "docs/evals.md", "line": 14, "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."}},
-      "check": {"name": "lists_every_change", "args": {"file": "evals/skills/commit-message-writer/stage-1.md"}},
+      "source": {
+        "contract": {
+          "path": "docs/evals.md",
+          "line": 14,
+          "quote": "Each stage ends with a report at `evals/skills/<name>/stage-<n>.md`, where `<n>` is the stage's number, that lists every file the stage wrote by its own path, one per line. A folder, a pattern or a count does not list the files in it."
+        }
+      },
+      "check": {
+        "name": "lists_every_change",
+        "args": {
+          "file": "evals/skills/commit-message-writer/stage-1.md"
+        }
+      },
       "judged": {
         "question": "Does evals/skills/commit-message-writer/stage-1.md list every file the run added or changed, each by its own path? A folder, a pattern such as evals/skills/commit-message-writer/cases/*/case.json, or a count names none of the files in it.",
         "pass": "Yes when the run wrote evals/skills/commit-message-writer/stage-1.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
@@ -306,8 +321,6 @@
     }
   ],
   "allow_words": {
-    "AGENTS.md": ["eval", "evals", "goldens"],
-    "README.md": ["eval", "evals", "goldens"],
     "evals": ["evals"],
     "evals/skills": ["evals"],
     "evals/skills/release-notes": ["evals"],
@@ -321,6 +334,7 @@
     "evals/skills/release-notes/cases/load-on-tag/world": ["evals"],
     "evals/skills/release-notes/cases/load-on-tag/world/README.md": ["evals"],
     "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": ["evals"],
-    "docs/evals.md": ["eval", "evals", "goldens"]
+    "docs/evals.md": ["eval", "evals", "goldens"],
+    "<prompt>": ["evals"]
   }
 }
