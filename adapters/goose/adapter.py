@@ -51,6 +51,11 @@ def skill_dir(world, name):
     return Path(world) / ".agents" / "skills" / name
 
 
+def pin(skill, path):
+    """The lead line that pins the skill's load in a task run's prompt (host.CONTRACT); never the skill's text."""
+    return f"Load the skill {skill} at {path} before anything else."
+
+
 # Every prompt goose lets a file in its config folder's `prompts/` replace (`prompt_template.rs`).
 PROMPTS = ("system.md", "tiny_model_system.md", "subagent_system.md", "compaction.md", "compaction_summary.md",
            "session_name.md", "permission_judge.md", "apps_create.md", "apps_iterate.md")

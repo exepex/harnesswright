@@ -46,8 +46,9 @@ allowed connections.
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 | `backstop.py` | The baseline backstop: a without-skill run holding a long passage of the skill's own text is void |
 | `labels.py` | The label gate: each skill's label on each host, by the thresholds of 10 · Skills, from what the round stored |
-| `measures.py` | The label file's other measures: void rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
+| `measures.py` | The label file's other measures: void rate, pinned-load rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
 | `results.py` | `round results`: a finished round's labels copied whole into `evals/results/<skill>.json`, named by its manifest, kit and archive |
+| `setups.py` | One setup: the fingerprint of everything that measured a skill in a round, except the skill, and the parts in which two setups differ |
 | `regrade.py` | Cross-model grading: every page of a finished round graded again by each grader route, after it passed its probes and grader faults, apart from the round's grades |
 | `compare.py` | The cross-model comparison report of one finished regrade pass: per route golden accuracy, grader agreement, untrusted questions, refused sheets and cost; per pair agreement, Cohen's kappa and every disagreement |
 | `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
@@ -239,7 +240,9 @@ rests on an outside address failing.
 `host.CONTRACT` lists every name a harness adapter defines, and `host.check_adapter` checks them when the adapter
 is loaded. `adapter.jail_command` turns the host's own sandbox off (the jail enforces the table), turns its bundled
 skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`, each named with a kind of
-`powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
+`powers.TOOLS`. `adapter.pin(skill, path)` gives the lead line of a pinned task run; `host.lead` takes it only as one
+line that names the skill and its path, so the grader view removes it. `host.run` is the one place a host runs: in
+the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
 reads, writes with content hashes, commands with exit code and whole output, actions refused by the host or the jail
@@ -293,6 +296,10 @@ made is never followed out of the jail.
   fails before the host runs when a mount lets the run see a memory place of the given operator's home or the real
   one, such as a host path the operator names in their home. After the run it fails when the folder holds any file
   but `memory.txt`, or the log the token. An adapter that names no memory place is refused.
+- **Pinned load** (`probes.PINNED`, task mode only): the prompt starts with the adapter's lead line for the probe
+  skill (`host.lead`), and with up to two tries the host's log must prove the load by `evidence.loaded`. The probe
+  gate pads the probe skill with neutral lines to the longest `SKILL.md` the round installs, its previous versions
+  too (`gates.installed`, `probes.length`); a caller that gives no length probes the short skill.
 - **Tools and drift** (`probes.drift`): no pass or fail of its own, only a record. An audited jail runs
   `probes.TOOLS_PROBE` for the host's program and each tool a case declares: where the run finds it, its hash and its
   version line, or `null` when the run has none. Then the host has an empty run in each mode, and every file it

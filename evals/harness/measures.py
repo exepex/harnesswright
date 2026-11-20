@@ -6,6 +6,8 @@ out; nothing is estimated. A share is `{"rate", ...its counts}`, the rate None w
 Each skill on each host gets (`measures`):
 
 - `void_rate`, per arm: `voids` of `tries`, every void that `void.json` keeps counting, a remade one too.
+- `pinned_load`, per arm with pinned runs (`runs.pinned`, marked by the run gate): the tries that loaded the skill
+  (`loaded`, the runs kept or made) of the pinned tries (`tries`), every try not loaded counting too (`runs.misses`).
 - `grader_agreement`: the questions the two graders answered the same (`agreed`) of those graded (`asked`), over
   the host's task runs.
 - `golden_accuracy`: the questions of the skill's graded goldens that the panel answered as settled (`right`) of
@@ -22,6 +24,8 @@ Each skill on each host gets (`measures`):
   `money` at the price file (`prices.cost`). `untimed` runs have no seconds and `uncounted` runs no token counts;
   `unpriced` runs have counts with a model the price file does not price. Either of the last two leaves the arm's
   money None. A voided try keeps no evidence, so its cost is not stored: `voided` says how many tries are left out.
+  A try that was not loaded keeps its bundle, so it is costed with the runs, and `not_loaded` says how many of them
+  it was.
 
 Standard library only.
 """
@@ -30,6 +34,7 @@ import json
 
 import evidence
 import prices
+import runs
 from host import TOKENS
 
 
@@ -47,11 +52,19 @@ def measures(folder, attempt, gates, cases, price_file):
         case, arm = cases[(made["skill"], made["case"])], made["arm"]
         here = found.setdefault((made["host"], made["skill"]), {"agreed": 0, "asked": 0, "arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
-                                            "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}}})
+                                            "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
+                                            "pinned": 0, "loaded": 0})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
             if (run_folder / "void.json").is_file() else 0
         made_now = made["status"] in ("kept", "made")
+        if made.get("pinned"):
+            missed = runs.misses(run_folder)
+            own["pinned"], own["loaded"] = own["pinned"] + missed + made_now, own["loaded"] + made_now
+            for number in range(missed):  # a try that was not loaded was paid for, and keeps its bundle
+                kept = run_folder / runs.UNLOADED_RUNS / str(number) / runs.BUNDLE
+                _cost(own["cost"], evidence.load(kept)[0], price_file)
+                own["cost"]["not_loaded"] += 1
         own["tries"] += voids + made_now
         own["voids"] += voids
         own["cost"]["voided"] += voids
@@ -86,6 +99,8 @@ def measures(folder, attempt, gates, cases, price_file):
         result[(host, skill)] = {
             "void_rate": {arm: share(own["voids"], own["tries"], voids=own["voids"], tries=own["tries"])
                           for arm, own in arms},
+            "pinned_load": {arm: share(own["loaded"], own["pinned"], loaded=own["loaded"], tries=own["pinned"])
+                            for arm, own in arms if own["pinned"]},
             "grader_agreement": share(here["agreed"], here["asked"], agreed=here["agreed"], asked=here["asked"]),
             "golden_accuracy": _goldens(folder / "grades" / attempt / "goldens" / skill),
             "faults": None if caught is None else {"caught": sum(bool(f["caught"]) for f in caught),
@@ -98,7 +113,7 @@ def measures(folder, attempt, gates, cases, price_file):
     return result
 
 
-COST = ("runs", "seconds", "untimed", "uncounted", "unpriced", "money", "voided")
+COST = ("runs", "seconds", "untimed", "uncounted", "unpriced", "money", "voided", "not_loaded")
 
 
 def _goldens(folder):

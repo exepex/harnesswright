@@ -34,6 +34,11 @@ def skill_dir(workspace, skill_name):
     return Path(workspace) / ".agents" / "skills" / skill_name
 
 
+def pin(skill, path):
+    """The lead line that pins the skill's load in a task run's prompt (host.CONTRACT); never the skill's text."""
+    return f"Load the skill {skill} at {path} before anything else."
+
+
 NO_SKILLS = {"includeInstructions"}  # the only keys of a skills record without a body, seen live in 0.166.0
 
 

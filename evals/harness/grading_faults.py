@@ -23,10 +23,11 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   be asked exactly the split questions, and its answer, which sides with each grader on some question, must decide
   them; when the stand-in gives no sheet either, no question is answered and no tie-breaker is asked, so one grader
   never decides alone (`grader.panel`).
-- `view`: the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, under the
-  world's absolute path and in backticks, with the run's own folders and a command's output that names them, put in a
-  record's arm and what its host reported (exposure, requests, failure), final message, every kind of log entry (with
-  the inferred entries of a command), or files and changes (each overlay path as a run holds it, with its folders, the
+- `view`: the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, in the
+  lead line that pins the skill's load (`host.lead`), under the world's absolute path and in backticks, with the
+  run's own folders and a command's output that names them, put in a record's arm and what its host reported
+  (exposure, requests, failure), final message, every kind of log entry (with the inferred entries of a command),
+  or files and changes (each overlay path as a run holds it, with its folders, the
   folders above it, its files and their writes; a link to one; lines in a world file's text, and its write). Neither the
   view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
   name none. And the planted view and page must equal those of a control, the same record without the plant's actions on
@@ -49,6 +50,7 @@ import checks
 import goldens
 import grader
 import grading
+import host
 import scrub
 import view
 from faults import Missed
@@ -287,6 +289,7 @@ def view_(setup, fault, rng, place):
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
+                                             *(host.lead(setup.adapter, skill, file) for file in files),  # a pin
                                              *(f"cat {world}/{file}" for file in files),
                                              *(f"x{c}{name}{c}x" for name in (skill, *files) for c in edges)))
     kept = f"hw-kept-{rng.getrandbits(32):08x}\n"  # a neutral line next to the plant, which the view must keep

@@ -95,7 +95,7 @@ class Measures(TempCase):
         found = self.measure()
         self.assertEqual(found["cost"]["with_skill"], {
             "runs": 2, "seconds": 25.0, "untimed": 0, "uncounted": 0, "unpriced": 0, "voided": 0, "money": 4.2,
-            "tokens": {"model-a": counts(2_000_000, output=20_000)}})
+            "not_loaded": 0, "tokens": {"model-a": counts(2_000_000, output=20_000)}})
         without = found["cost"]["without_skill"]
         self.assertIsNone(without["money"])  # one run had no counts, one a model with no price: never a guess
         self.assertEqual((without["runs"], without["untimed"], without["uncounted"], without["unpriced"]),
@@ -103,6 +103,24 @@ class Measures(TempCase):
         self.assertIsNone(found["faults"])  # no fault gate in this attempt
         self.assertEqual((found["grader_agreement"]["rate"], found["golden_accuracy"]), (None, {
             "rate": None, "right": 0, "asked": 0}))
+
+    def test_the_pinned_load_rate_and_the_cost_count_every_pinned_try_and_only_arms_with_pinned_runs(self):
+        for key, status, missed in (("k1", "made", 1), ("k2", "not loaded", 2), ("k3", "kept", 0)):
+            self.run_(key, "with_skill", status=status, verdicts=[None] * 3, answers={})
+            self.made[-1]["pinned"] = True
+            if missed:
+                (self.tmp / "runs" / key / "not-loaded.json").write_text(json.dumps({"reasons": ["no load"] * missed}))
+            for number in range(missed):  # each try not loaded keeps its bundle, with what it cost
+                self.records[str(self.tmp / "runs" / key / "not-loaded" / str(number) / "bundle")] = {
+                    "seconds": 5, "tokens": None}
+        self.run_("k4", "without_skill", verdicts=[None] * 3, answers={})
+        found = self.measure()
+        self.assertEqual(found["pinned_load"], {"with_skill": {"rate": 0.4, "loaded": 2, "tries": 5}})
+        cost = found["cost"]["with_skill"]
+        self.assertEqual((cost["runs"], cost["not_loaded"], cost["seconds"]), (5, 3, 35))  # 2 made at 10, 3 at 5
+        self.made.clear()
+        self.run_("k5", "with_skill", verdicts=[None] * 3, answers={})
+        self.assertEqual(self.measure()["pinned_load"], {})  # no pinned run: no rate
 
 
 if __name__ == "__main__":
