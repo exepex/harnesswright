@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "undecidable",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 2>&1 | tail -5; echo exit=$?",
+   "exit_code": 0,
+   "output": "resolve: parked core\nexit=0\n"
+  }
+ ]
+}
