@@ -5,9 +5,6 @@ the grader view (`view.py`) share, so the two never disagree on it.
   start of the command, after an operator outside quotes (`&&`, `||`, `;`, `|`), after any `NAME=value` words, and
   the same way inside the script of a shell's `-c` flag. A command with a line break is read only from its start,
   since a later line may be a heredoc's text.
-- `words(command)`: the words of each program `programs` finds, as the shell splits them, quotes taken off, each
-  program to the operator after it: None for a program it cannot split, such as one with an open quote or a line
-  break, and nothing for a shell's `-c` program, whose script's programs are listed in its place.
 - `cut(command, drop)`: the command without each of its pipelines that `drop` takes, or None when no clean cut is
   possible. A cut removes each pipeline `drop` takes and everything that depends on a removed pipeline: what reads
   its exit code (`$?`) or is joined to it by `&&` or `||`, down the chain. Each takes the operator before it with it
@@ -24,7 +21,6 @@ Standard library only.
 """
 
 import re
-import shlex
 
 OPERATOR = re.compile(r"&&|\|\||[;|]")
 ASSIGNMENT = re.compile(r"""(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|[^\s'"])*[ \t]+)*""")
@@ -88,20 +84,6 @@ def programs(command):
         found.append(text)
         if script := SHELL_SCRIPT.match(text):
             found += programs(script.group(1)[1:-1])
-    return found
-
-
-def words(command):
-    """[the words of each program of `command`, or None where they cannot be split], as the module's docstring says."""
-    found = []
-    for text in programs(command):
-        if SHELL_SCRIPT.match(text):
-            continue  # its script's programs follow, from `programs`
-        own = text[:_starts(text)[1][1]] if len(_starts(text)) > 1 else text
-        try:
-            found.append(None if "\n" in own else shlex.split(own))
-        except ValueError:
-            found.append(None)
     return found
 
 
