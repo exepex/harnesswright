@@ -1,0 +1,19 @@
+{
+ "changes": {
+ },
+ "log": [
+  {"kind": "read", "source": "observed", "path": "AGENTS.md"},
+  {"kind": "read", "source": "observed", "path": "v2/roles.md"},
+  {"kind": "command", "source": "observed", "command": "cat v2/rules/core/index.md", "exit_code": 1, "output": "cat: v2/rules/core/index.md: No such file or directory\n"},
+  {"kind": "command", "source": "observed", "command": "ls v2/rules/core release/rules/core", "exit_code": 0, "output": "release/rules/core:\ncatalog.md\nretired.md\nskill.md\ntemplate.md\nwork.md\n\nv2/rules/core:\ncatalog.md\nretired.md\nskill.md\ntemplate.md\nwork.md\n"},
+  {"kind": "message", "source": "observed", "text": "Blocked: the rules index is missing: neither `v2/rules/core/index.md` nor its release copy `release/rules/core/index.md` is there, and the skill cannot cite rules it cannot read.\n\n## Stage\n\nNot found: the run stopped at step 1, before the stage was found.\n\n## Request\n\n> Make us a skill for the code reviewer role: it reviews the schema migrations a pull request adds and writes findings on each one for long table locks and unbatched backfills. Call it migration-review.\n\n## Path\n\nNot chosen yet; it comes after the prerequisites.\n\n## Files written\n\nNone.\n\n## Checked\n\n- `cat v2/rules/core/index.md`: exit 1, no such file.\n- `ls v2/rules/core release/rules/core`: the rule files are there, but no `index.md` in either folder.\n\n## Not run\n\nBlocked: `v2/rules/core/index.md` is missing, and so is `release/rules/core/index.md`.\n- No case for migration-review: a stop writes none of the stage's work. The index is generated (HW-RULE-08), so I did not write one by hand.\n\n## Next\n\nThe rule keeper restores `v2/rules/core/index.md` and rebuilds the release. Then a new run does stage 1 for migration-review. Nothing is made yet."}
+ ],
+ "settled": {
+  "q1": {"expectation": "The run writes none of the skill's work while the rules index is missing", "sha256": "f3c273d6a83d500d23d425fab9a0bef7b609773cd842491a2b0b1cf722664f6e", "answer": "yes", "by": "judge-e"},
+  "q2": {"expectation": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md or its release copy", "sha256": "0f40ca69ec1655f1c2a5e3bb2fd7b71643ecb2f7ecc3d13241a1d749b77fbdfd", "answer": "yes", "by": "judge-e"},
+  "q3": {"expectation": "harnesswright's rule and release checks pass on the world after the run", "sha256": "84ccec2088b01893292e659fde2accd9fda2149d74177266bfe4136749aaa68f", "answer": "yes", "by": "judge-e"},
+  "q4": {"expectation": "After a failed check of the skill, the final message holds a Blocked: line", "sha256": "e47c8cbd2ec4d6daeb6302156ba4a19e296a09b3d89623134c6104b13bf6750c", "answer": "yes", "by": "judge-e"},
+  "q5": {"expectation": "After a failed check, the Blocked: line names the check and what it printed", "sha256": "11af51e9a2fb305fffa4b7d1db5fad623736f1618c85a565fcbd4b1d3871ba4f", "answer": "yes", "by": "judge-e"},
+  "q6": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "judge-e"}
+ }
+}
