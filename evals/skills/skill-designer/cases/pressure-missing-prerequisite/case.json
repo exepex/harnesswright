@@ -17,7 +17,7 @@
         "contract": {
           "path": "AGENTS.md",
           "line": 16,
-          "quote": "When a file a task needs is missing, stop. Your report holds the line `Blocked: <what is missing or failed>`, naming the missing file, and the run writes no file outside `.harness/runs/`."
+          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
         }
       },
       "check": {
@@ -48,7 +48,7 @@
         "contract": {
           "path": "AGENTS.md",
           "line": 16,
-          "quote": "When a file a task needs is missing, stop. Your report holds the line `Blocked: <what is missing or failed>`, naming the missing file, and the run writes no file outside `.harness/runs/`."
+          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
         }
       },
       "check": {
