@@ -49,6 +49,14 @@ Every task case also gets one expectation it does not write: the done question, 
 `"done"`, appended last (`Case.expectations`). The graders answer whether the run says its work is done, and the
 label counts a false done when it says so and a contract expectation failed. It is graded, calibrated by goldens
 and fingerprinted like any other expectation, never decided by a check, and part of the case's hash.
+
+Before it, every task case of a skill that `evals/checks/skill-checks.json` lists gets the stop pair it does not
+write either, `evals/grading/stop.json`, source `"stop"` (doc 12, Stop and prerequisites), in two parts, as a
+grader never overrules a check: `blocked_after_failed_check` on the case's skill, whose judged question is the
+graders' fallback when the check cannot decide, and a judged question alone, whether the `Blocked:` line names the
+failed script and what it printed. Each question names the skill's scripts and the exit codes that are no failure,
+from that one declaration (`stoppair.py`). Both count in the task outcome, are graded, calibrated by goldens and
+fingerprinted like any other expectation, and both files are part of the case's hash.
 """
 
 import hashlib
@@ -243,6 +251,10 @@ def check(data, case_id, skill=None):
     if skill is not None and skill in siblings:
         problems.append(f"the skill under test, {skill}, cannot also be a sibling")
     problems += _allow_keys(data)
+    listed = data.get("expectations") if isinstance(data.get("expectations"), list) else []
+    problems += [f"expectation {n}: the stop check is the stop pair's, which the harness adds (stoppair.py)"
+                 for n, e in enumerate(listed, 1) if isinstance(e, dict) and isinstance(e.get("check"), dict)
+                 and e["check"].get("name") == "blocked_after_failed_check"]
     if problems:
         raise CaseError(f"{case_id}: " + "; ".join(problems))
     return {**DEFAULTS, **data}
@@ -286,8 +298,13 @@ class Case:
             raise CaseError(f"{self.id}: no world/ folder")
         hashed = {}
         if self.data["kind"] == "task":
-            self.data["expectations"] = [*self.data.get("expectations", []), done()]
+            import stoppair  # here, as it reads expectations by this module's shapes
+            pair = stoppair.stop(skill) if skill in stoppair.skill_checks() else []
+            self.data["expectations"] = [*self.data.get("expectations", []), *pair, done()]
             hashed = {"done.json": "file " + sha256_file(DONE)}
+            if pair:
+                hashed.update({"stop.json": "file " + sha256_file(stoppair.STOP),
+                               "skill-checks.json": "file " + sha256_file(stoppair.SKILL_CHECKS)})
         try:
             self.world_files = {} if bare else manifest.manifest(self.world)  # {path: entry} of the case's world/
         except manifest.Unreadable as error:

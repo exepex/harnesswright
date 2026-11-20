@@ -36,13 +36,13 @@ fails.
   entries must be observed (`checks.Bundle.entries`).
 """
 
-import json
 import re
 from pathlib import Path
 
 from cases import is_path
 from checks import Check, Undecidable, is_pattern
 import shell
+import stoppair
 
 DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: {code that is no failure: text}}}
 
@@ -73,7 +73,7 @@ def ended_blocked(bundle, names=(), report=None):
 
 
 def _declared(path=DECLARED):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    return stoppair.skill_checks(path)  # the one reader, which the stop pair's questions are built from too
 
 
 PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")

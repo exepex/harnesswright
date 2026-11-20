@@ -249,7 +249,7 @@ def citations(case, places):
                 problems.append(f"expectation {number}: {error}")
         source = expectation["source"]
         found.append(None)
-        if source in ("format", "done"):
+        if source in ("format", "done", "stop"):
             continue
         path, line, quote = source["contract"]["path"], source["contract"]["line"], source["contract"]["quote"]
         rows = documents[path].splitlines() if path in documents else []

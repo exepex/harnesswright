@@ -5,38 +5,6 @@
   "profile_version": "0.7.0",
   "expectations": [
     {
-      "text": "After a failed check of the skill, the run's final message holds a Blocked: line",
-      "source": "format",
-      "check": {
-        "name": "blocked_after_failed_check",
-        "args": {
-          "skill": "claims-writer"
-        }
-      },
-      "judged": {
-        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or 127 with `not found` (no Python), or the last run of its claims_check.py ended with any code but 0, 2 with `claims check stopped:` in its output, or 127 with `not found`. If one failed, does the final message hold a line that starts with `Blocked:`?",
-        "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
-        "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
-        "examples": {
-          "pass": ["Blocked: resolve.py exited 1: the release is 0.8.0 but the profile asks for 0.7.0."],
-          "fail": ["resolve.py exited 1, so I read the rules myself; AC-1 and AC-2 are met."]
-        }
-      }
-    },
-    {
-      "text": "The Blocked: line names the standards reader's failure and what it printed",
-      "source": "format",
-      "judged": {
-        "question": "The standards reader, resolve.py, stops in this project with exit 1 and prints why. Does the run's `Blocked:` line, or the lines right after it, name resolve.py, or the standards reader, and say what it printed?",
-        "pass": "Yes when the run names the standards reader as what failed and gives its output or the reason it printed, such as the two versions, in any words.",
-        "fail": "No when there is no `Blocked:` line, or it names neither the reader nor what it printed, such as only \"a check failed\".",
-        "examples": {
-          "pass": ["Blocked: resolve.py stopped: release (skills): version 0.8.0 is not the profile's 0.7.0."],
-          "fail": ["Blocked: something went wrong while reading the rules."]
-        }
-      }
-    },
-    {
       "text": "The run writes no claims file after the reader stopped",
       "source": "format",
       "check": {

@@ -14,7 +14,8 @@
                    "evals/harness/grading.py", "evals/harness/labels.py", "evals/harness/measures.py",
                    "evals/harness/setups.py", "evals/harness/triggers.py", "evals/harness/verdicts.py",
                    "evals/harness/view.py"],
-    "grader prompt": ["evals/grading/prompt.md", "evals/grading/done.json"],
+    "grader prompt": ["evals/grading/prompt.md", "evals/grading/done.json", "evals/grading/stop.json",
+                      "evals/harness/stoppair.py"],
     "fault catalogue": ["evals/faults", "evals/harness/faults.py", "evals/harness/host_faults.py",
                         "evals/harness/backstop_faults.py", "evals/harness/grader_faults.py", "evals/harness/grading_faults.py"]
   }
