@@ -3,7 +3,7 @@
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "2c89ed75e43305029bd7a311de2e45a716d20a1164fa74a4d091ab7e0a491571",
+      "content-hash": "2bd8699bbd279e4b2d4fc70e0173ca4a31f81dbd0c2867ce3594217de5a24cd4",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -23,7 +23,7 @@
       ],
       "rulebook-version": "0.7.1",
       "size-floors": 4881,
-      "size-rest": 20728
+      "size-rest": 20734
     },
     "skill-designer": {
       "areas": [
@@ -31,7 +31,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "0ed67a44881a8fd853e6e40788c621a28ef460fdbd04fa844a6dd5124cb374db",
+      "content-hash": "e9c2db3c6853fc20ee01ed70e0d7b8946edb82ccb8072ee513146cd5ce3866f4",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -78,7 +78,7 @@
       ],
       "rulebook-version": "0.7.1",
       "size-floors": 15627,
-      "size-rest": 29633
+      "size-rest": 29916
     }
   }
 }
