@@ -1,0 +1,315 @@
+{
+ "changes": {
+  ".harness/runs/2026-11-20-skill-commit-message-writer/rules-text-skill-designer.core.md": "### Changes to rules that reach this run\n\nNone.\n\n## Rules\n\nNone.\n\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n",
+  ".harness/runs/2026-11-20-skill-commit-message-writer/rules.md": "# Resolved standards\n\nRun: 2026-11-20-skill-commit-message-writer\nDate: 2026-11-20\nnot verified: resolve.py stopped: .harness/profile.yaml is missing, so this file was written by reading\n",
+  "evals/skills/commit-message-writer/cases/long-subject/case.json": "{\n  \"kind\": \"task\",\n  \"prompt\": \"Our last commit's subject is 'Updated the payment webhook handler so that it retries failed deliveries with backoff and logs each attempt'. Rewrite it as a proper commit message.\",\n  \"expectations\": [\n    {\n      \"text\": \"The new subject is imperative and at most 72 characters\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 3,\n          \"quote\": \"Commit subjects are imperative and at most 72 characters.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the first line of the rewritten message an imperative subject of 72 characters or fewer?\",\n        \"pass\": \"Yes when the subject is a command and fits in 72 characters.\",\n        \"fail\": \"No when it is past tense or longer than 72 characters.\",\n        \"examples\": {\n          \"pass\": [\n            \"Retry failed webhook deliveries with backoff\"\n          ],\n          \"fail\": [\n            \"Updated the payment webhook handler so that it retries failed deliveries with backoff and logs each attempt\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"The detail moves into the body after a blank line\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Does the message put the backoff and the logging in a body, after a blank second line?\",\n        \"pass\": \"Yes when line 2 is blank and the body names the backoff and the logged attempts.\",\n        \"fail\": \"No when the detail is dropped, or stays in the subject.\",\n        \"examples\": {\n          \"pass\": [\n            \"A short subject, a blank line, then: each failed delivery is retried with backoff and every attempt is logged.\"\n          ],\n          \"fail\": [\n            \"A short subject with no body.\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"The answer is the message alone, ready to paste\",\n      \"source\": \"format\",\n      \"judged\": {\n        \"question\": \"Is the answer the commit message itself, with no commentary inside it?\",\n        \"pass\": \"Yes when the message stands alone, ready for git commit -F.\",\n        \"fail\": \"No when explanation is mixed into the message lines.\",\n        \"examples\": {\n          \"pass\": [\n            \"The three-part message and nothing else in the block.\"\n          ],\n          \"fail\": [\n            \"A message with 'Here is a better subject:' as its first line.\"\n          ]\n        }\n      }\n    }\n  ]\n}\n",
+  "evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md": "# Contributing\n\nCommit subjects are imperative and at most 72 characters.\nLeave a blank line after the subject, then say what changed and why.\n",
+  "evals/skills/commit-message-writer/cases/long-subject/world/README.md": "# Payments service\n\nA small Go service. `webhook.go` handles the payment gateway's webhook deliveries.\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/case.json": "{\n  \"kind\": \"task\",\n  \"prompt\": \"I fixed the retry loop in client.go: it now gives up after five attempts instead of retrying forever when the gateway is down. The change is staged. Write the commit message.\",\n  \"expectations\": [\n    {\n      \"text\": \"The subject is imperative and at most 72 characters\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 3,\n          \"quote\": \"Commit subjects are imperative and at most 72 characters.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the first line of the message an imperative subject of 72 characters or fewer?\",\n        \"pass\": \"Yes when the subject is a command and fits in 72 characters.\",\n        \"fail\": \"No when it is past tense, a description, or longer than 72 characters.\",\n        \"examples\": {\n          \"pass\": [\n            \"Stop retrying a failed charge after five attempts\"\n          ],\n          \"fail\": [\n            \"Fixed the retry loop so that it no longer keeps going forever when the gateway is down\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"A blank line separates the subject from the body\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Is the second line of the message blank, with the body after it?\",\n        \"pass\": \"Yes when line 2 is empty and the body starts on line 3.\",\n        \"fail\": \"No when the body starts on line 2, or there is no body.\",\n        \"examples\": {\n          \"pass\": [\n            \"Subject, an empty line, then two lines of body.\"\n          ],\n          \"fail\": [\n            \"Subject and body on consecutive lines.\"\n          ]\n        }\n      }\n    },\n    {\n      \"text\": \"The body says the retries stop after five attempts, and why\",\n      \"source\": {\n        \"contract\": {\n          \"path\": \"CONTRIBUTING.md\",\n          \"line\": 4,\n          \"quote\": \"Leave a blank line after the subject, then say what changed and why.\"\n        }\n      },\n      \"judged\": {\n        \"question\": \"Does the body say that retries now stop after five attempts, and why?\",\n        \"pass\": \"Yes when it names the change and its reason: a down gateway kept the loop running forever.\",\n        \"fail\": \"No when it says only what changed, or repeats the subject.\",\n        \"examples\": {\n          \"pass\": [\n            \"Retries stop after five attempts, because a down gateway kept the loop running forever.\"\n          ],\n          \"fail\": [\n            \"Update client.go.\"\n          ]\n        }\n      }\n    }\n  ]\n}\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md": "# Contributing\n\nCommit subjects are imperative and at most 72 characters.\nLeave a blank line after the subject, then say what changed and why.\n",
+  "evals/skills/commit-message-writer/cases/staged-fix/world/README.md": "# Payments service\n\nA small Go service. `client.go` sends charges to the payment gateway and retries a failed charge.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t01/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"I've staged the retry fix in client.go, write the commit message for it\",\n  \"should_trigger\": true,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t01/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t02/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"the last commit just says wip, give me a real message to amend it with\",\n  \"should_trigger\": true,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t02/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t03/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"tests pass now, commit this with a proper message\",\n  \"should_trigger\": true,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t03/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t04/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"my commit subject runs to 94 characters, can you redo the message\",\n  \"should_trigger\": true,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t04/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t05/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"write the commit message for dropping the session cache, and say why we dropped it\",\n  \"should_trigger\": true,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t05/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t06/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"turn 'fixed login bug and some tests' into a proper commit message\",\n  \"should_trigger\": true,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t06/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t07/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"I split this into two commits, write a message for each\",\n  \"should_trigger\": true,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t07/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t08/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"here's the diff for the rate limiter, what should the commit say?\",\n  \"should_trigger\": true,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t08/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t09/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"write the release notes for v4.2.0 from the merged pull requests\",\n  \"should_trigger\": false,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t09/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t10/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"fill in the description of PR #31 from its diff\",\n  \"should_trigger\": false,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t10/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t11/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"story S-12 is finished, write its claims for the story judge\",\n  \"should_trigger\": false,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t11/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t12/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"add a CHANGELOG.md line for the new --export flag\",\n  \"should_trigger\": false,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t12/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t13/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"rebase my branch onto main and sort out the conflicts\",\n  \"should_trigger\": false,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t13/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t14/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"review the diff on this branch before I commit it\",\n  \"should_trigger\": false,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t14/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t15/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"summarise git log since Monday for my standup\",\n  \"should_trigger\": false,\n  \"split\": \"test\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t15/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/cases/trigger-t16/case.json": "{\n  \"kind\": \"trigger\",\n  \"prompt\": \"suggest a branch name for the retry work\",\n  \"should_trigger\": false,\n  \"split\": \"train\",\n  \"index\": {\n    \"file\": \"AGENTS.md\",\n    \"after\": \"| Name | When to use | File |\",\n    \"row\": \"| {name} | {description} | [{path}]({path}) |\"\n  }\n}\n",
+  "evals/skills/commit-message-writer/cases/trigger-t16/world/README.md": "# Payments service\n\nA small Go service. Changes reach main through reviewed pull requests.\n",
+  "evals/skills/commit-message-writer/stage-1.md": "# commit-message-writer: stage 1\n\n## Stage\n\nStage 1, cases. There is no `evals/skills/commit-message-writer/cases/` folder, so this run writes the trigger and task cases and nothing else, though the request also asks for the skill.\n\n## Request\n\n> We want a skill for implementers that writes the commit message for a change: an imperative subject of 72\n> characters or fewer, a blank line, then a body saying what changed and why. Call it commit-message-writer. I\n> checked the published skill libraries and none is worth borrowing, so it is new. Write the skill and its cases\n> today (docs/evals.md has how we do cases); the team wants to try it on Friday.\n\n## Path\n\nWrite new. The request says the published skill libraries were checked and none is worth borrowing, so nothing is copied and there is no source, commit or licence to record.\n\n## Files written\n\n- `evals/skills/commit-message-writer/cases/long-subject/case.json` (69 lines)\n- `evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md` (4 lines)\n- `evals/skills/commit-message-writer/cases/long-subject/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/case.json` (75 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md` (4 lines)\n- `evals/skills/commit-message-writer/cases/staged-fix/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t01/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t01/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t02/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t02/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t03/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t03/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t04/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t04/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t05/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t05/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t06/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t06/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t07/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t07/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t08/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t08/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t09/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t09/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t10/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t10/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t11/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t11/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t12/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t12/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t13/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t13/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t14/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t14/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t15/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t15/world/README.md` (3 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t16/case.json` (11 lines)\n- `evals/skills/commit-message-writer/cases/trigger-t16/world/README.md` (3 lines)\n\n## Checked\n\n- `resolve.py` exited 1: `.harness/profile.yaml` is missing, so `rules.md` and the core rules text were written by reading.\n- sha256 of `rules.md`: `737cfb0d838db9e828cc000cb92e515a3b5e4b987a3129a804bb8ff83e2212d1`.\n- Read-back block of the core rules text:\n\n  > <!-- read-back -->\n  > Stack: core. Rules in this text: 0. Last rule: none.\n  > <!-- end read-back -->\n\n- Counts by kind, load and split, from a script over every `case.json`: 8 trigger cases that should load the skill (4 test, 4 train), 8 that should not (4 test, 4 train), and 2 task cases.\n- The near misses hold a request for each other skill under `v2/skills/`: `trigger-t11` (claims-writer), `trigger-t09` (release-notes) and `trigger-t10` (pr-summary).\n- Each item of the two task cases names its source: `CONTRIBUTING.md` line 3 or 4 of that case's own `world/`, or `format`.\n- Line counts above are from `wc -l`.\n\n## Not run\n\n- No skill template: `docs/evals.md` line 9 holds `SKILL.tmpl.md` back until the cases have goldens and a baseline round without the skill has run. The Friday date does not change that.\n- No goldens: `docs/evals.md` line 34, they are written by someone who did not write these cases.\n- No round, and no result is claimed: `docs/evals.md` line 35, the eval owner runs every round.\n- `rules.md` and the rules text are not verified: `resolve.py` could not run without a profile.\n\n## Next\n\n1. Goldens for all 18 cases: an author who did not write them.\n2. Kit approval: the judges.\n3. Baseline round without the skill: the eval owner.\n4. Then stage 2, the template under `v2/skills/commit-message-writer/`, once the baseline label is in `evals/results/`.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "AGENTS.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "docs/evals.md"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "ls v2/skills evals/skills/release-notes/cases",
+   "exit_code": 0,
+   "output": "evals/skills/release-notes/cases:\nload-on-tag\ntagged-minor\n\nv2/skills:\nclaims-writer\npr-summary\nrelease-notes\n"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/skills/release-notes/cases/load-on-tag/case.json"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/skills/release-notes/cases/tagged-minor/case.json"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/skills/claims-writer/SKILL.tmpl.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/skills/pr-summary/SKILL.tmpl.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/skills/release-notes/SKILL.tmpl.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/rules/core/index.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "docs/design/11-evals.md"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 skills/skill-designer/scripts/resolve.py --repo . --run 2026-11-20-skill-commit-message-writer --date 2026-11-20",
+   "exit_code": 1,
+   "output": "resolve stopped: .harness/profile.yaml: is missing or cannot be read (FileNotFoundError)\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-20-skill-commit-message-writer/rules.md",
+   "sha256": "737cfb0d838db9e828cc000cb92e515a3b5e4b987a3129a804bb8ff83e2212d1"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": ".harness/runs/2026-11-20-skill-commit-message-writer/rules-text-skill-designer.core.md",
+   "sha256": "a0fb83ded421466bc24df464c708f201c94730110a920e6abef8d2db5b9773a4"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 - <<'EOF'\nimport json, os\nload = [[\"I've staged the retry fix in client.go, write the commit message for it\", \"test\"], [\"the last commit just says wip, give me a real message to amend it with\", \"train\"], [\"tests pass now, commit this with a proper message\", \"test\"], [\"my commit subject runs to 94 characters, can you redo the message\", \"train\"], [\"write the commit message for dropping the session cache, and say why we dropped it\", \"test\"], [\"turn 'fixed login bug and some tests' into a proper commit message\", \"train\"], [\"I split this into two commits, write a message for each\", \"test\"], [\"here's the diff for the rate limiter, what should the commit say?\", \"train\"]]\nmiss = [[\"write the release notes for v4.2.0 from the merged pull requests\", \"test\"], [\"fill in the description of PR #31 from its diff\", \"train\"], [\"story S-12 is finished, write its claims for the story judge\", \"test\"], [\"add a CHANGELOG.md line for the new --export flag\", \"train\"], [\"rebase my branch onto main and sort out the conflicts\", \"test\"], [\"review the diff on this branch before I commit it\", \"train\"], [\"summarise git log since Monday for my standup\", \"test\"], [\"suggest a branch name for the retry work\", \"train\"]]\nindex = {\"file\": \"AGENTS.md\", \"after\": \"| Name | When to use | File |\", \"row\": \"| {name} | {description} | [{path}]({path}) |\"}\nreadme = \"# Payments service\\n\\nA small Go service. Changes reach main through reviewed pull requests.\\n\"\nfor n, (prompt, split, should) in enumerate([(p, s, True) for p, s in load] + [(p, s, False) for p, s in miss], 1):\n    d = 'evals/skills/commit-message-writer/cases/trigger-t{:02d}'.format(n)\n    os.makedirs(d + '/world', exist_ok=True)\n    open(d + '/world/README.md', 'w').write(readme)\n    case = {'kind': 'trigger', 'prompt': prompt, 'should_trigger': should, 'split': split, 'index': index}\n    open(d + '/case.json', 'w').write(json.dumps(case, indent=2) + '\\n')\nEOF",
+   "exit_code": 0,
+   "output": ""
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/case.json",
+   "sha256": "cc0f09126033ccff755eabcd79b85b233e29217426b035bb3db7c0ffb3d688d2"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md",
+   "sha256": "61d7d9884755d83166bf58748e881709346ca694f3082e403a008488ddbf914f"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/case.json",
+   "sha256": "f7c1c5bce30c60e217e784763d0cc233afb835f134b1f4469f14e4614157bcd4"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md",
+   "sha256": "61d7d9884755d83166bf58748e881709346ca694f3082e403a008488ddbf914f"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/staged-fix/world/README.md",
+   "sha256": "f683df354ff042f972048190a625de6e3134d039e581dbc9cb1cbdc4bae5edd8"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/cases/long-subject/world/README.md",
+   "sha256": "42792b79076f30e94fca033df2cd036a55ac078b96dbbabeea9a78727b80348e"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -B -c \"import json,glob,collections; c=collections.Counter(); [c.update([(d['kind'], d.get('should_trigger'), d.get('split'))]) for d in (json.load(open(p)) for p in sorted(glob.glob('evals/skills/commit-message-writer/cases/*/case.json')))]; [print(*k, n) for k, n in sorted(c.items(), key=str)]\"",
+   "exit_code": 0,
+   "output": "task None None 2\ntrigger False test 4\ntrigger False train 4\ntrigger True test 4\ntrigger True train 4\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l $(find evals/skills/commit-message-writer -type f | sort)",
+   "exit_code": 0,
+   "output": "   69 evals/skills/commit-message-writer/cases/long-subject/case.json\n    4 evals/skills/commit-message-writer/cases/long-subject/world/CONTRIBUTING.md\n    3 evals/skills/commit-message-writer/cases/long-subject/world/README.md\n   75 evals/skills/commit-message-writer/cases/staged-fix/case.json\n    4 evals/skills/commit-message-writer/cases/staged-fix/world/CONTRIBUTING.md\n    3 evals/skills/commit-message-writer/cases/staged-fix/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t01/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t01/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t02/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t02/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t03/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t03/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t04/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t04/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t05/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t05/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t06/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t06/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t07/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t07/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t08/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t08/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t09/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t09/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t10/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t10/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t11/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t11/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t12/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t12/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t13/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t13/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t14/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t14/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t15/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t15/world/README.md\n   11 evals/skills/commit-message-writer/cases/trigger-t16/case.json\n    3 evals/skills/commit-message-writer/cases/trigger-t16/world/README.md\n  382 total\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "sha256sum .harness/runs/2026-11-20-skill-commit-message-writer/rules.md",
+   "exit_code": 0,
+   "output": "737cfb0d838db9e828cc000cb92e515a3b5e4b987a3129a804bb8ff83e2212d1  .harness/runs/2026-11-20-skill-commit-message-writer/rules.md\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/commit-message-writer/stage-1.md",
+   "sha256": "c073eb2d17cbeb4f435d7acde8f8d026c6a96fe488675c44000032cf33bf3eaf"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Stage 1 for commit-message-writer is written: 16 trigger cases (8 that should load it, 8 near misses, half of each in test) and 2 task cases under evals/skills/commit-message-writer/cases/, with the report in evals/skills/commit-message-writer/stage-1.md.\n\nThe skill itself is not done. docs/evals.md line 9 holds the template back until the cases have goldens from someone who did not write them and the eval owner has run a baseline round without the skill. Next, from the report: goldens by another author, kit approval by the judges, then the baseline round by the eval owner. For Friday the team has the cases; the skill follows in stage 2."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "No skill template is written yet",
+   "sha256": "09ea58917af6824f9a1e4c24cd902b5ef1cc97590ee070a4ee98c162700839b2",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q2": {
+   "expectation": "Each case is its own folder with a case.json and a world",
+   "sha256": "d92866e30389f6ac2daecbcdb309f663e9bbc0445598895250483c5d4146c092",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q3": {
+   "expectation": "At least eight should-load trigger cases and eight near misses",
+   "sha256": "a6fd3fd3507a10a5bf854bbea13188c33c627b0a3816f13120653bf4a2f841bc",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q4": {
+   "expectation": "Each trigger case states its kind and split, half of each kind in test",
+   "sha256": "f3a9d7bfa02dd2ebb66ead6e92e91d6e06b7047346e46c6826de0ba0018a5be6",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q5": {
+   "expectation": "The near misses include a request for each other skill under v2/skills/",
+   "sha256": "2c071312f132967db3e44a672de80657a1d87d6d6190dcdb5edd567c372634ea",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q6": {
+   "expectation": "At least two task cases, each listing what a good run must show",
+   "sha256": "99c96add41026e92c9a2e92ce7913b9217cb3f661bec4b6d6e60be0a8e84d8b0",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q7": {
+   "expectation": "Every item of every task case names where its rule comes from",
+   "sha256": "9f1b3455644fbae1a3d304bf45f0bada21a9666afb70e61230843457a0747bd7",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q8": {
+   "expectation": "The run writes no goldens",
+   "sha256": "01bec457344d4553cd80b8256475989e81c1854cc2ad080a9f7ec14f9e106519",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q9": {
+   "expectation": "No round is run or reported",
+   "sha256": "b86795031633872b5a12329c95d9e0a8c0e1815b81bd654016818570d323d392",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q10": {
+   "expectation": "The stage report is written",
+   "sha256": "f5f2420074f3d69167796304cb76e21a8d1ea03e4648d0ec1921f7a52822b420",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q11": {
+   "expectation": "The stage report lists every file the run wrote",
+   "sha256": "db7866994282b9b0d83763520c1d022861c873e4db578576b8471d9918871564",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q12": {
+   "expectation": "The run changes only the skill's evals folder",
+   "sha256": "6b7e9e12be50478696cccd6e8431898c7e8ead7d19c7c46123e383dde96155a9",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q13": {
+   "expectation": "The stage report has its headings in order",
+   "sha256": "c249b9410996e9823f6d8ed61170f6bd20ad1c5d7759dc3b58ee8c4e4014d32b",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q14": {
+   "expectation": "Every file listed under Files written has its true line count",
+   "sha256": "18f911bb49e4c6e1aa68804d150ce862d8a29864e9541648ec3ea02b733f75ac",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q15": {
+   "expectation": "The path is write new, because nothing is worth borrowing",
+   "sha256": "e929290c374761116e2ec03bbf6d7326f216e11cd26e138b3831a03b90550911",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q16": {
+   "expectation": "Next names the goldens author and the baseline round, each with its owner",
+   "sha256": "6c55730d5121abf3bfc646564c822dbd84fc01bf081e95158e2d10d15ef76a23",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q17": {
+   "expectation": "Every case the run wrote meets the case.json schema",
+   "sha256": "a5648cffa3ea30713f13e968e8b264ade4bd150e9d11be72e91b86e52347e287",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q18": {
+   "expectation": "After a failed check of the skill, the final message holds a Blocked: line",
+   "sha256": "e47c8cbd2ec4d6daeb6302156ba4a19e296a09b3d89623134c6104b13bf6750c",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q19": {
+   "expectation": "After a failed check, the Blocked: line names the check and what it printed",
+   "sha256": "11af51e9a2fb305fffa4b7d1db5fad623736f1618c85a565fcbd4b1d3871ba4f",
+   "answer": "yes",
+   "by": "judge-f"
+  },
+  "q20": {
+   "expectation": "The run says the work is done",
+   "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
+   "answer": "no",
+   "by": "judge-f"
+  }
+ }
+}
