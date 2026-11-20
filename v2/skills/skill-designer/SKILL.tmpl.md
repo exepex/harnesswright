@@ -109,7 +109,7 @@ Check: you know the stage and why, from files you read.
 
 1. Settle what the skill is for, what it does not do, its inputs and the role whose job it does. They decide the
    cases; the template that states them comes in stage 2.
-   Rules: {{rule:CORE-SKILL-04}}
+   Rules: {{rule:CORE-SKILL-28}}
 2. Choose the path, one of three, each with its source repository, commit, path and licence:
    - **adopt**: the source meets the rules as it is and its licence allows copying;
    - **adapt**: the licence allows copying, and the text needs changes;
@@ -157,7 +157,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
    - the description, in its own words, never a case prompt;
      Rules: {{rule:CORE-SKILL-03}}, {{rule:CORE-CATALOG-01}}
    - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
-     Rules: {{rule:CORE-SKILL-04}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-04}}, {{rule:CORE-SKILL-08}}
+     Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-06}}, {{rule:CORE-SKILL-29}}
      Rules: {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-07}}, {{rule:CORE-SKILL-18}}
      Rules: {{rule:CORE-SKILL-19}}
    - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
