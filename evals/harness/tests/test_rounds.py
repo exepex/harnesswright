@@ -42,6 +42,11 @@ class Plans(TempCase):
         data = {**PLAN, "previous": {"haiku-writer": "a" * 40}}
         self.assertEqual(rounds.read_plan(self.write_plan(data)), data)
 
+    def test_a_plan_may_name_its_extra_runs_0_3_or_6(self):
+        for extra in (0, 3, 6):
+            data = {**PLAN, "extra_runs": extra}
+            self.assertEqual(rounds.read_plan(self.write_plan(data)), data)
+
     def test_a_plan_holds_exactly_its_fields_each_in_its_shape(self):
         wrong = {
             "an unknown field": {**PLAN, "store": "/tmp/x"},
@@ -64,6 +69,8 @@ class Plans(TempCase):
             "a previous for a skill not run": {**PLAN, "previous": {"limerick-writer": "a" * 40}},
             "a fault case with no case": {**PLAN, "fault_case": {"skill": "haiku-writer"}},
             "a fault case that is a path": {**PLAN, "fault_case": {"skill": "haiku-writer", "case": "../c1"}},
+            "extra runs not 0, 3 or 6": {**PLAN, "extra_runs": 4},
+            "too many extra runs": {**PLAN, "extra_runs": 9},
         }
         for why, data in wrong.items():
             with self.subTest(why), self.assertRaises(rounds.RoundError):

@@ -96,20 +96,27 @@ def mean(cases, move=0):
     return sum(rates) / len(rates) if rates else None
 
 
+def split(cases):
+    """The ids of the split cases of `cases` (as `mean` reads them): those whose scored runs disagree."""
+    return sorted(i for i, runs in cases.items() if len({run[0] / run[1] for run in runs if run[1]}) > 1)
+
+
 def _round(value):
     return None if value is None else round(value, 4)
 
 
-def judge(at, meets):
+def judge(at, meets, reads):
     """The verdict of one measure (doc 12, Verdicts), the one rule for every measure: {"verdict", "value", "best",
-    "worst"}, where `at(move)` is the measure as measured (0), at its best for the skill (1) and at its worst (-1),
-    and `meets(value)` says whether a value passes. It fails when it fails even at its best, passes when it passes
-    even at its worst, and is `too close` otherwise. None when the measure has no value."""
+    "worst", "split"}, where `at(move)` is the measure as measured (0), at its best for the skill (1) and at its worst
+    (-1), and `meets(value)` says whether a value passes. It fails when it fails even at its best, passes when it
+    passes even at its worst, and is `too close` otherwise. `split` names the split cases of each arm it `reads`
+    ({arm: cases}), where extra runs go (`extras.wanted`). None when the measure has no value."""
     value, best, worst = at(0), at(1), at(-1)
     if None in (value, best, worst):
         return None
     verdict = "fail" if not meets(best) else "pass" if meets(worst) else "too close"
-    return {"verdict": verdict, "value": _round(value), "best": _round(best), "worst": _round(worst)}
+    return {"verdict": verdict, "value": _round(value), "best": _round(best), "worst": _round(worst),
+            "split": {arm: split(cases) for arm, cases in sorted(reads.items())}}
 
 
 def summary(cases, scored, previous=False, absent=False, situations=None, kind=None, own_checks=()):
@@ -146,6 +153,8 @@ def summary(cases, scored, previous=False, absent=False, situations=None, kind=N
     return {"kind": kind, "task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
             "task_cases": len(pooled), "runs": runs, "per_case": per_case, "situations_listed": listed,
+            "situation_cases": {i: [sum(scored.get((i, "with_skill"), [])), len(scored.get((i, "with_skill"), []))]
+                                for i in tasks if situated.get(i)},  # each floor's with-skill runs per case
             "unchecked": [i for i in tasks if kind == "internal" and not any(
                 isinstance(e["source"], dict) and e.get("check", {}).get("name") in own_checks
                 for e in cases[i].expectations)],
@@ -199,30 +208,38 @@ def judged(measures, reference=None, false_done=None, thresholds=THRESHOLDS):
     per_case, found = measures.get("per_case", {}), {}
     ran, base, before = (as_runs(per_case.get(arm, {})) for arm in ("with_skill", "without_skill", PREVIOUS))
     at_least = lambda floor: lambda value: value >= floor - EPSILON  # noqa: E731
-    found["task pass rate"] = judge(lambda m: mean(ran, m), at_least(thresholds["task_pass_rate"]))
+    found["task pass rate"] = judge(lambda m: mean(ran, m), at_least(thresholds["task_pass_rate"]),
+                                    {"with_skill": ran})
     if reference is not None:
         found["gap to the reference host"] = judge(lambda m: _less(reference["task_pass_rate"], mean(ran, m)),
-                                                   lambda value: value <= thresholds["max_gap"] + EPSILON)
+                                                   lambda value: value <= thresholds["max_gap"] + EPSILON,
+                                                   {"with_skill": ran})
     formats = (measures.get("format_runs") or {}).get("with_skill")
     if formats:
-        found["format conformance"] = judge(lambda m: mean(formats, m), at_least(thresholds["format_conformance"]))
+        found["format conformance"] = judge(lambda m: mean(formats, m), at_least(thresholds["format_conformance"]),
+                                            {"with_skill": formats})
     if measures.get("kind") != "internal":
         found["lift"] = judge(lambda m: _less(mean(ran, m), mean(base, -m)),
-                              lambda value: value > thresholds["min_lift"] + EPSILON)
+                              lambda value: value > thresholds["min_lift"] + EPSILON,
+                              {"with_skill": ran, "without_skill": base})
     if PREVIOUS in per_case:
-        found["previous pass rate"] = judge(lambda m: _less(mean(ran, m), mean(before, -m)), at_least(0))
+        found["previous pass rate"] = judge(lambda m: _less(mean(ran, m), mean(before, -m)), at_least(0),
+                                            {"with_skill": ran, PREVIOUS: before})
         good = {arm: {i: [[1, 1]] * (t["decided"] - t["false_done"]) + [[0, 1]] * t["false_done"]
                       for (i, a), t in (false_done or {}).items() if a == arm} for arm in ("with_skill", PREVIOUS)}
         found["previous false-done rate"] = judge(lambda m: _less(mean(good["with_skill"], m),
-                                                                  mean(good[PREVIOUS], -m)), at_least(0))
+                                                                  mean(good[PREVIOUS], -m)), at_least(0), good)
     return {name: verdict for name, verdict in found.items() if verdict is not None}
 
 
 def floors(measures):
     """{situation: its floor's verdict}: every with-skill run of its cases must pass. One failed run makes it `too
-    close`, a second makes it fail (owner decision, 2026-11-20)."""
+    close`, a second makes it fail (owner decision, 2026-11-20). `split` names its cases whose with-skill runs
+    disagree (`situation_cases` of `summary`)."""
+    cases = as_runs(measures.get("situation_cases", {}))
     return {f"situation {name}": {"verdict": ("pass", "too close")[failed] if failed < 2 else "fail",
-                                  "failed": failed, "runs": tally["runs"]}
+                                  "failed": failed, "runs": tally["runs"],
+                                  "split": {"with_skill": split({i: cases[i] for i in group["cases"] if i in cases})}}
             for name, group in sorted(measures.get("situations", {}).items())
             if name != "none" and (tally := group.get("with_skill"))
             for failed in [tally["runs"] - tally["passed"]]}

@@ -35,14 +35,17 @@ import triggers
 import verdicts
 from cases import SKILL_ONLY
 
-def labels(folder, attempt, record, cases, price_file):
+def labels(folder, attempt, record, cases, price_file, gates=None):
     """The label file of attempt `attempt` of the round in `folder` (`<store>/<round>`), whose manifest is
     `record`, with the round's `cases` by (skill, case id) and the checked `price_file`: every number in it read
-    from the store, with the other measures of `measures`."""
-    gates = {gate["gate"]: gate for gate in json.loads((folder / "attempts" / f"{attempt}.json").read_text())["gates"]}
-    for needed in ("probe", "run", "grade"):
+    from the store, with the other measures of `measures`. `gates`, the attempt's gates by name, are read from its
+    record when not given; the extra runs gate, while it runs, gives its own (`extras.extra_gate`)."""
+    if gates is None:
+        gates = {g["gate"]: g for g in json.loads((folder / "attempts" / f"{attempt}.json").read_text())["gates"]}
+    for needed in ("probe", "run", "grade") + ("extra runs",) * ("extra runs" in gates):
         if not gates.get(needed, {}).get("passed"):
             raise LabelError(f"attempt {attempt}: its {needed} gate did not pass")
+    gates = _with_extras(gates)
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
@@ -143,6 +146,7 @@ def labels(folder, attempt, record, cases, price_file):
                                                reference if other else None,
                                                reference_doubt if other else None,
                                                false_done=can_fail.get((host, skill), {})))
+            entry["extra_runs"] = {f"{made['case']}, {made['arm']}": n for made, n in _added(gates, host, skill)}
             found["skills"][skill][host] = entry
     found["shipped"] = {skill: shipped(hosts, grades.REFERENCE) for skill, hosts in found["skills"].items()}
     return found
@@ -153,6 +157,34 @@ def shipped(hosts, reference):
     `verified` and its trigger label (`triggers.label`) is met. Either alone is not enough."""
     entry = hosts.get(reference, {})
     return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
+
+
+def _with_extras(gates):
+    """`gates` with the runs of every pass of the extra runs gate added to the run gate's, and the grades and the
+    goldens each pass found untrusted to the grade gate's, so every count and doubt reads one list of runs."""
+    passes = gates.get("extra runs", {}).get("outcome", {}).get("passes", [])
+    if not passes:
+        return gates
+    trust = {name: dict(questions) for name, questions in gates["grade"]["outcome"]["goldens"].items()}
+    for found in passes:
+        for name, questions in found["goldens"].items():
+            for question, why in questions.items():
+                trust.setdefault(name, {})[question] = trust.get(name, {}).get(question) or why
+    made = gates["run"]["outcome"] + [m for found in passes for m in found["runs"]]
+    return {**gates, "run": {**gates["run"], "outcome": made},
+            "grade": {**gates["grade"], "outcome": {**gates["grade"]["outcome"], "goldens": trust, "runs": gates[
+                "grade"]["outcome"]["runs"] + [graded for found in passes for graded in found["grades"]]}}}
+
+
+def _added(gates, host, skill):
+    """[(a run, the extra runs of its case and arm)] for each case and arm of `skill` on `host` the extra runs gate
+    extended, one run standing for each."""
+    added = {}
+    for found in gates.get("extra runs", {}).get("outcome", {}).get("passes", []):
+        for made in found["runs"]:
+            if (made["host"], made["skill"]) == (host, skill):
+                added.setdefault((made["case"], made["arm"]), [made, 0])[1] += 1
+    return [tuple(pair) for _, pair in sorted(added.items())]
 
 
 def _skill_only(record, skill, case_id):
