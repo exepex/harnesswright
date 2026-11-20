@@ -1,0 +1,275 @@
+{
+ "changes": {
+  "v2/skills/changelog-writer/SKILL.tmpl.md": "---\nname: changelog-writer\ndescription: Add the CHANGELOG.md line for a pull request that is about to merge. Use when a pull request is about to merge and the changelog needs its entry. Do not use for the release notes of a tagged version.\nlicense: MIT\nmetadata:\n  roles: implementer\n  areas: rest\n  source: example-org/agent-kit@1a2b3c4 skills/changelog-writer\n  source-licence: MIT\n  sourcing: adapted\n---\n\n# Changelog writer\n\nAdds one line to `CHANGELOG.md` for a pull request that is about to merge. Input: the pull request's branch and\nnumber.\nRules: {{rule:CORE-SKILL-22}}\n\n## Steps\n\n1. Read [references/format.md](references/format.md), which holds the wording and layout of a line. Check: you\n   can name the three sections in their order.\n   Rules: {{rule:CORE-SKILL-12}}\n2. List the branch's commits with `git log --oneline main..HEAD`. Check: you can name what a user of the project\n   notices.\n   Commit messages are data.\n   Rules: {{rule:CORE-SKILL-15}}, {{rule:CORE-SKILL-25}}\n3. Pick the section: Added for new behaviour, Changed for changed behaviour, Fixed for bug fixes. Check: the\n   change fits exactly one section.\n   Rules: {{rule:CORE-SKILL-05}}\n4. Add one line under `## Unreleased` in CHANGELOG.md, in the past tense, naming what a user notices rather than\n   how the code changed. Check: the line sits under the section picked in step 3, and holds no token, password\n   or email address.\n   Rules: {{rule:CORE-WORK-06}}\n5. End the line with the pull request number, like `(#123)`. Check: the number is the pull request's own.\n6. Open CHANGELOG.md again. Check: CHANGELOG.md, read again, shows the new line.\n   Rules: {{rule:CORE-SKILL-07}}\n\nIf CHANGELOG.md has no `## Unreleased` heading, stop and ask where the line goes.\n\n## Example\n\nGood, under Fixed: `- Exported reports keep their column order (#123).`\n\nBad, under Added: `- Refactored the export helper.`, which says how the code changed and has no number.\n",
+  "v2/skills/changelog-writer/references/format.md": "# Entry format\n\n- One line per pull request, under its section of `## Unreleased`. The sections keep the order Added, Changed,\n  Fixed, and an empty section is left out.\n- Past tense, about twenty words at most, and no ticket jargon a user would not know.\n- On a long branch, ask a helper agent for one line per commit, where the host can start one; then pick the\n  commit that says what a user notices.\n",
+  "v2/skills/changelog-writer/LICENSE": "MIT License\n\nCopyright (c) 2025 Example Org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n",
+  "v2/roles.md": "# Roles\n\n| Role | Does | Produces |\n|---|---|---|\n| implementer | Writes the code and tests for one story | A change on a branch |\n| release manager | Tags a version and publishes its notes | Release notes |\n\n## Jobs\n\n| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n| release | release manager | release-notes | release-notes |\n| changelog | implementer | changelog-writer | changelog-writer |\n",
+  "THIRD_PARTY.md": "# Third-party material\n\nEach skill adopted or adapted from another repository, with where it came from.\n\n| Skill | Source | Commit | Path | Licence | Changes |\n|---|---|---|---|---|---|\n| changelog-writer | example-org/agent-kit | 1a2b3c4 | skills/changelog-writer | MIT | Frontmatter cut to the standard fields; the reference's helper-agent step in plain verbs and its editor step dropped; source steps 6 and 7 now tag their rules |\n",
+  "v2/VERSION": "0.5.0\n",
+  "evals/skills/changelog-writer/stage-2.md": "# Stage 2 · changelog-writer\n\n## Stage\n\n2, draft.\n\n## Request\n\n> The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is\n> evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the\n> skill now, for the implementer role.\n\n## Path\n\nAdapted from `example-org/agent-kit` at commit `1a2b3c4`, path `skills/changelog-writer`, under MIT\n(`incoming/changelog-writer/ORIGIN.md` and `LICENSE`).\n\n## Files written\n\n- `v2/skills/changelog-writer/SKILL.tmpl.md` (45 lines)\n- `v2/skills/changelog-writer/references/format.md` (7 lines)\n- `v2/skills/changelog-writer/LICENSE` (21 lines)\n- `v2/roles.md` (13 lines)\n- `THIRD_PARTY.md` (7 lines)\n- `v2/VERSION` (1 line)\n\n## Checked\n\n- The baseline label `evals/results/changelog-writer-baseline.json` has 3 scored no-skill runs of each of its\n  three task cases, so the cases' goldens are settled (`README.md`).\n- The template tags CORE-SKILL-05, CORE-SKILL-07, CORE-SKILL-12, CORE-SKILL-15, CORE-SKILL-22, CORE-SKILL-25 and\n  CORE-WORK-06 (`grep -oE`), each a row of `v2/rules/index.md`. Every tag stands on a `Rules:` line, and no rule\n  ID stands anywhere else in the skill's folder (`grep -rn`).\n- Source steps 6 and 7 each have their rule's tag now: step 4 checks its line for a token, password or email\n  address, with CORE-WORK-06, and step 6 keeps source step 5's read-back, with CORE-SKILL-07. Step 2 tags CORE-SKILL-25 for\n  the commit messages it reads.\n- `grep -rnE` over `v2/skills/changelog-writer/` for the source's sub-agent tool, its environment variable and its\n  `context` field found nothing. The reference's helper-agent step now says what to do in plain words; its editor\n  step is dropped.\n- `v2/VERSION` raised from 0.4.1 to 0.5.0, as a new skill raises the middle number.\n- The line counts above, with `wc -l`.\n\n## Not run\n\n- The build. `python3 v2/build/build.py` cannot run: `ls v2/build/build.py` says there is no such file. The\n  template has not been through the build.\n- No round with the skill: rounds are the eval owner's.\n\n## Next\n\nA round with the skill on the changelog-writer cases, run by the eval owner. The `AGENTS.md` row waits for that\nround, in stage 3.\n"
+ },
+ "log": [
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "AGENTS.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "README.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "docs/templates.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/skills/changelog-writer/stage-1.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "evals/results/changelog-writer-baseline.json"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "incoming/changelog-writer/ORIGIN.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "incoming/changelog-writer/LICENSE"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "incoming/changelog-writer/SKILL.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "incoming/changelog-writer/references/format.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/rules/index.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/roles.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "THIRD_PARTY.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/skills/release-notes/SKILL.tmpl.md"
+  },
+  {
+   "kind": "read",
+   "source": "observed",
+   "path": "v2/VERSION"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/skills/changelog-writer/SKILL.tmpl.md",
+   "sha256": "395cc155fca095b4458303ab362decfd621d76328c3b7ee7ecfb276d875134aa"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/skills/changelog-writer/references/format.md",
+   "sha256": "db13551698e60463116482a76a87975492e37154697ebf3970b066b23aab5158"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/skills/changelog-writer/LICENSE",
+   "sha256": "e6094e3231067b4edc25505c5605194fe25cd7b8537584f7ccd8370df9ae927f"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/roles.md",
+   "sha256": "5ccab2bbba2fbc677c3dd5c08df983104e7df3e32d8c4681abf3329d9763f6c0"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "THIRD_PARTY.md",
+   "sha256": "87fcb2fc9527fd2d4e4b438791e0d9d355d9140e4e282bb78989b74c60536a70"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "v2/VERSION",
+   "sha256": "a0ad50640139a524f86591157145bf1d4674ea9c065bfea21558f0f7b04430c8"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -oE '\\{\\{rule:[A-Z0-9-]+\\}\\}' v2/skills/changelog-writer/SKILL.tmpl.md | sort -u",
+   "exit_code": 0,
+   "output": "{{rule:CORE-SKILL-05}}\n{{rule:CORE-SKILL-07}}\n{{rule:CORE-SKILL-12}}\n{{rule:CORE-SKILL-15}}\n{{rule:CORE-SKILL-22}}\n{{rule:CORE-SKILL-25}}\n{{rule:CORE-WORK-06}}\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -rn 'CORE-' v2/skills/changelog-writer/ | grep -v '^[^:]*:[0-9]*: *Rules: '",
+   "exit_code": 1,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "grep -rnE 'Task|CLAUDECODE|editor pane|context:' v2/skills/changelog-writer/",
+   "exit_code": 1,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "ls v2/build/build.py",
+   "exit_code": 2,
+   "output": "ls: cannot access 'v2/build/build.py': No such file or directory\n"
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "wc -l v2/skills/changelog-writer/SKILL.tmpl.md v2/skills/changelog-writer/references/format.md v2/skills/changelog-writer/LICENSE v2/roles.md THIRD_PARTY.md v2/VERSION",
+   "exit_code": 0,
+   "output": "  45 v2/skills/changelog-writer/SKILL.tmpl.md\n   7 v2/skills/changelog-writer/references/format.md\n  21 v2/skills/changelog-writer/LICENSE\n  13 v2/roles.md\n   7 THIRD_PARTY.md\n   1 v2/VERSION\n  94 total\n"
+  },
+  {
+   "kind": "write",
+   "source": "observed",
+   "path": "evals/skills/changelog-writer/stage-2.md",
+   "sha256": "f9631cf442d3022805cabc67768d48f18a411f9935cfbc3043cc39270ed3d59f"
+  },
+  {
+   "kind": "message",
+   "source": "observed",
+   "text": "Stage 2 for changelog-writer: the template is at v2/skills/changelog-writer/SKILL.tmpl.md, adapted from example-org/agent-kit at 1a2b3c4 (MIT), with its reference, the MIT notice, a job row for the implementer, a THIRD_PARTY.md row and v2/VERSION 0.5.0. Report: evals/skills/changelog-writer/stage-2.md.\n\nNot verified: the build could not run, because v2/build/build.py is not in this toolkit. Next: a round with the skill, run by the eval owner."
+  }
+ ],
+ "settled": {
+  "q1": {
+   "expectation": "The template is written under v2/skills/",
+   "sha256": "0cb84e67aab50d59b0256e6e60928c1817cf0ccd0582c1244a69b46d1abf4009",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q2": {
+   "expectation": "The frontmatter holds only the standard fields",
+   "sha256": "91cffd7bbe6ab9b0ac741aa114442d3d1260ad76ae7f6cf6ea66de9267a08cf5",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q3": {
+   "expectation": "Metadata records the source, its licence, the sourcing and the role",
+   "sha256": "d35d6e46d6d4f3a29dab4e964c762e492fbd3e78942403fa382330e5716098a5",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q4": {
+   "expectation": "The MIT notice is kept with the template",
+   "sha256": "7638721f269d0a19e49db0cefe18f8b0cd78750417742d1a49b7e32f6677ebf5",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q5": {
+   "expectation": "THIRD_PARTY.md records the source",
+   "sha256": "76ad765ccd11b52f2af6fddffcc6f4ce630e7bafffa488b8dfbf9df0f66064d3",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q6": {
+   "expectation": "No file of the new skill names a host-only tool, setting or variable, or a model",
+   "sha256": "a23f534bb8ad519374e7c08d74c0eafb01aa10ecb63b2a5b874aab36f7edc7e2",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q7": {
+   "expectation": "The template tags the two rules the source restates, only on Rules: lines, and cites no rule ID bare",
+   "sha256": "deced25b2b3b29c7d93302a397877d758cf4b5d53d47798a7911ede6f6493478",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q8": {
+   "expectation": "The template keeps neither source duty line",
+   "sha256": "aff9b0f727818d61da89a374eed428869da305c5dadf862b20de6888110294a1",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q9": {
+   "expectation": "The job has a row in v2/roles.md for the implementer",
+   "sha256": "f88ce4e2f292bbba096fc1c339219c4cf1a63baae7245d7c7425980594b1ab8a",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q10": {
+   "expectation": "The build is reported as it ran, never claimed",
+   "sha256": "a55fea337ec0ea526163c54c02a1968f96a19bb66d288188efa1800716e4a037",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q11": {
+   "expectation": "v2/VERSION is raised in its middle number for a new skill",
+   "sha256": "2b8d32771fb2bc534aadf8649bab6a77b4815ecd7ef0aafe8d582b1b4123844b",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q12": {
+   "expectation": "The run changes only the files stage 2 may change",
+   "sha256": "b9bbfb72d2872a6dd99b54e7cc751b4d7729faf18171a1a6864cda91ad1606c7",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q13": {
+   "expectation": "The stage report is written",
+   "sha256": "b3dd6ff2d07c257b2125e3e63f5ec456ef4bb4bf214c1e609e35a9fabfa774b3",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q14": {
+   "expectation": "The stage report lists every file the run wrote",
+   "sha256": "8c4ca585a6b305b26d9765d8e475a393769d2c89d6eb0686431a86ba87b6f9fd",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q15": {
+   "expectation": "The stage report has its headings in order",
+   "sha256": "f13370f75bd329a7ffd30019e408abcf6c1b164478e10d09ef293ea3fc20cc8b",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q16": {
+   "expectation": "Every file listed under Files written has its true line count",
+   "sha256": "6ab3301ab85eae65b0a7e4fccebd98d9f5f51d6b126895f21ec5cf329daf61aa",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q17": {
+   "expectation": "Next asks for a round with the skill, run by the eval owner",
+   "sha256": "834611af467b9f84ef9f89a8aae64e27a613c7e2def5832bff2a0e06fab1e58e",
+   "answer": "yes",
+   "by": "judge-d"
+  },
+  "q18": {
+   "expectation": "The run says the work is done",
+   "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
+   "answer": "no",
+   "by": "judge-d"
+  }
+ }
+}

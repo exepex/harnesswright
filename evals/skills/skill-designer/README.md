@@ -6,9 +6,10 @@ says.
 
 `cases/` holds the cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)) for the skill
 designer template. It runs in stages, and each case measures one: stage 1 writes a skill's cases, stage 2 drafts
-the template once goldens and a baseline round exist. Each world is the internal world: harnesswright's
-own files at the kit's pinned commit, with the case's files on top. Contract expectations cite the pinned files,
-or a case file where the pinned world does not state the rule. The cases:
+the template once goldens and a baseline round exist. Each world but `draft-adapt`'s is the internal
+world: harnesswright's own files at the kit's pinned commit, with the case's files on top. Contract expectations
+cite the pinned files, or a case file where the pinned world does not state the rule. `draft-adapt` keeps its own
+hand-written world for now. The cases:
 
 - `evals-new` (stage 1): a new commit-message skill with nothing to borrow, asked for whole and by Friday. The
   case keeps its case rules in `docs/evals.md` and has two sibling templates, so the near misses must cover
@@ -19,10 +20,10 @@ or a case file where the pinned world does not state the rule. The cases:
   run writes the skill new, copies no source text, reads the script and never runs it. Its case rules are in
   `docs/evals.md`; the borrowing rules are the pinned `AGENTS.md`'s.
 - `draft-adapt` (stage 2): a changelog skill adapted from an MIT source, once its goldens and baseline exist.
-  The source hides its host-only parts in a reference file and restates two rules of the pinned core index in
-  its own words; `docs/templates.md` states the write scope, the version rule and the stage report; the label, shaped
+  The source hides its host-only parts in a reference file and restates two rules of a 36-ID index in its own
+  words; `docs/templates.md` states the write scope, the version rule and the stage report; the label, shaped
   like the harness's own with neutral arm names, is the stated proof of goldens. The run writes the template for
-  the implementer role, cites rule IDs only, raises the version, records the source and reports the build as it ran.
+  the implementer role, cites rule IDs only, raises the version, records the source and tries the build.
 - `improve-triggers` (stage 2): a skill whose round came out unsupported because it missed three train cases
   and failed a task case on a step that has no group for breaking changes. `docs/templates.md` states a
   description budget of 60 words, the version rule and how a skill is improved. The run changes the description
