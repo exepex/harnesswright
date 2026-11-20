@@ -114,9 +114,10 @@ class Scrub:
     def of_run(cls, contained, overlay=None):
         """The scrub of the run `contained`, made after it ran so a credential the host refreshed is known, with
         neutral words for the run's folders and for the skill of `overlay` (`evidence.overlay`)."""
+        import evidence  # here, as evidence imports this module: its one list of what the overlay covers
         neutral = folders(contained)
         if overlay:
-            neutral.update({overlay["skill"]: NEUTRAL_NAME, **{path: NEUTRAL_PATH for path in overlay["paths"]}})
+            neutral.update({overlay["skill"]: NEUTRAL_NAME, **{p: NEUTRAL_PATH for p in evidence.places(overlay)}})
         return cls(contained.tokens, credentials(contained), neutral)
 
     def quiet(self, text):

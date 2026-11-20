@@ -2,6 +2,7 @@
 goldens (every place is run in test_faults), and a gate made to miss one is reported as a miss."""
 
 import re
+import types
 import unittest
 from pathlib import PurePosixPath
 from unittest import mock
@@ -14,6 +15,7 @@ import faults
 import goldens
 import grader
 import grading
+import grading_faults
 import view
 import world
 
@@ -214,6 +216,23 @@ class Missed(Fake):
                     outcome = faults.run(entries[fault], setup, seed=seed, place=place)
                     self.assertFalse(outcome["caught"])
                     self.assertIn(reason, outcome["reason"])
+
+    def test_a_view_that_leaves_a_release_file_of_the_overlay_unguarded_is_a_miss(self):
+        setup, entry, pages = self.setup_of(), next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
+
+        def with_release(setup, rng):  # a team install's overlay: its skill's folder and the release files it adds
+            case, found = pages(setup, rng)
+            for _, record, _, _ in found:
+                record["overlay"]["release"] = ["rules/core/work.md"]
+            return case, found
+        blind = types.SimpleNamespace(**vars(evidence))
+        blind.places = lambda overlay: overlay["paths"]  # a view that reads the skill's paths only
+        with mock.patch.object(grading_faults, "_pages", with_release):
+            self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])
+            with mock.patch.object(view, "evidence", blind):
+                outcome = faults.run(entry, setup, seed=0, place="file")
+        self.assertFalse(outcome["caught"])
+        self.assertIn("the view a grader gets", outcome["reason"])
 
     def test_the_seed_chooses_the_golden_and_the_place(self):
         setup = self.setup_of()

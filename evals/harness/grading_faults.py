@@ -47,6 +47,7 @@ from pathlib import PurePosixPath
 
 import cases
 import checks
+import evidence
 import goldens
 import grader
 import grading
@@ -285,7 +286,7 @@ def view_(setup, fault, rng, place):
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
-    names = [skill, *layer["paths"]]
+    names = [skill, *evidence.places(layer)]  # the skill's paths and the files a team install adds
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
@@ -344,15 +345,17 @@ def view_(setup, fault, rng, place):
             one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
         for one, root in ((planted, world), (control, word)):  # a link to a world file by the world's own folder
             one["files_after"][f"{link}-world"] = f"link {root}/{target}"
-        for path in layer["paths"]:  # the overlay as a run holds it: its folders, the folders above, its files
+        for path in evidence.places(layer):  # the overlay as a run holds it: its folders, those above, its files
             above = [str(folder) for folder in PurePosixPath(path).parents if str(folder) != "."]
             own = stored(f"# {skill}\n{lines}".encode())  # the skill's own bytes, which the view must not hold
-            made = {**{folder: "dir" for folder in above if folder not in record["files_after"]}, path: "dir",
-                    f"{path}/SKILL.md": f"file {own}{rest}", f"{path}/references": "dir",
-                    f"{path}/references/notes.md": f"file {own}{rest}"}
+            made = {folder: "dir" for folder in above if folder not in record["files_after"]}
+            file = f"{path}/SKILL.md" if path in layer["paths"] else path  # a skill's folder, or a file of a release
+            made[file] = f"file {own}{rest}"
+            if file != path:
+                made.update({path: "dir", f"{path}/references": "dir", f"{path}/references/notes.md": made[file]})
             planted["files_after"].update(made)
             planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
-            planted["log"].append({"kind": "write", "source": "observed", "path": f"{path}/SKILL.md", "sha256": own})
+            planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
     if _shown(case, record, blob, names):
         return "the clean view already names the arm or the skill, so the plant proves nothing"
