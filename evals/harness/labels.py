@@ -44,7 +44,8 @@ is named, and so is a reference result that is not settled, and either keeps the
     worse than its previous version, with each gap named. Format conformance is a floor on top of the lift, never
     in its place (`format_gaps`);
   - `verified` otherwise.
-- The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub.
+- The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
+  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared.
 
 Standard library only.
 """
@@ -56,6 +57,7 @@ import evidence
 import grades
 import measures
 import prices
+import setups
 from cases import SKILL_ONLY
 from runs import PREVIOUS
 
@@ -244,6 +246,12 @@ def labels(folder, attempt, record, cases, price_file):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
+    drift = {}  # each host's tools and drift record, as the probe gate pinned it
+    for host in passed:
+        try:
+            drift[host] = json.loads((folder / "drift" / f"{host}.json").read_text())
+        except (OSError, ValueError) as error:
+            raise LabelError(f"{host}: the store holds no tools and drift record: {error}") from None
     scored, unsettled, inferred, by_case, pins = {}, {}, {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
@@ -286,7 +294,9 @@ def labels(folder, attempt, record, cases, price_file):
     false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
                   for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,
-             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {}}
+             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {},
+             "setups": {skill: setups.setup(record, skill, {i: c for (s, i), c in cases.items() if s == skill},
+                                            drift) for skill in sorted(record["cases"])}}
     rest = measures.measures(folder, attempt, gates, cases, price_file)
     for skill in sorted(record["cases"]):
         own = {i: case for (s, i), case in cases.items() if s == skill}
