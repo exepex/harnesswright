@@ -25,12 +25,13 @@ fails.
   script's name. Each program of such a command, by the shell's words (`shell.words`), is a run, a plain read or
   neither. A run is the script by a path, run as a program, or `python`, `python3` or `python3.N`, by any path, with
   any flags of one letter, `-X` or `-W` and its value, then the script or `-m` its module. A plain read is one of
-  `READERS`, such as `cat resolve.py`, `find` with no action that runs or deletes, or `test -f`, which runs nothing.
-  Any other program that names it, such as one after a wrapper (`timeout 60 python3 resolve.py`) or a line break, is
-  unclear. Each script's last certain run counts, so an unclear command after it is `undecidable`: it may be a later
-  run, and the check fails closed. An unclear command before it changes nothing. A last run whose exit code is not
-  known (`shell.exit_code`: the last of a `;` list, or an echoed `$?` right after it) is `undecidable`. A run with
-  no failed check passes. The action log's command entries must be observed (`checks.Bundle.entries`).
+  `READERS`, such as `cat resolve.py`, a `find` of only the read-only words of the allow lists `FIND_WORDS` and
+  `FIND_VALUES`, or `test -f`, which runs nothing. Any other program that names it, such as one after a wrapper
+  (`timeout 60 python3 resolve.py`) or a line break, is unclear. Each script's last certain run counts, so an
+  unclear command after it is `undecidable`: it may be a later run, and the check fails closed. An unclear command
+  before it changes nothing. A last run whose exit code is not known (`shell.exit_code`: the end of a `;` list, or
+  an echoed `$?` right after it) is `undecidable`. A run with no failed check passes. The action log's command
+  entries must be observed (`checks.Bundle.entries`).
 """
 
 import json
@@ -73,9 +74,29 @@ def _declared(path=DECLARED):
 
 PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
 FLAGS = re.compile(r"-[bBdEhiIOPqRsSuvV]+|-[XW].+")  # flags of one letter, and -X or -W with its value joined
-READERS = frozenset(("cat", "cmp", "diff", "echo", "file", "find", "grep", "head", "less", "ls", "md5sum", "more", "nl",
+READERS = frozenset(("cat", "cmp", "diff", "echo", "file", "grep", "head", "less", "ls", "md5sum", "more", "nl",
                      "rg", "sed", "sha256sum", "stat", "tail", "wc"))
-ACTIONS = frozenset(("-delete", "-exec", "-execdir", "-ok", "-okdir"))  # what makes a `find` more than a read
+# The words of a `find` that only reads: its options, tests and operators that take no value, and those that take
+# the next word as their value. Any other word that starts with `-`, such as -exec or -delete, makes it unclear.
+FIND_WORDS = frozenset(("-H", "-L", "-P", "-depth", "-follow", "-mount", "-xdev", "-noleaf", "-daystart", "-empty",
+                        "-executable", "-readable", "-writable", "-nouser", "-nogroup", "-true", "-false", "-prune",
+                        "-print", "-print0", "-ls", "-quit", "-not", "-a", "-and", "-o", "-or", "!", "(", ")", ","))
+FIND_VALUES = frozenset(("-name", "-iname", "-path", "-ipath", "-wholename", "-iwholename", "-regex", "-iregex",
+                         "-regextype", "-lname", "-ilname", "-type", "-xtype", "-size", "-maxdepth", "-mindepth",
+                         "-newer", "-anewer", "-cnewer", "-mtime", "-mmin", "-atime", "-amin", "-ctime", "-cmin",
+                         "-perm", "-user", "-group", "-uid", "-gid", "-links", "-inum", "-samefile", "-printf"))
+
+
+def _reads(words):
+    """Whether the words after `find` are each a path, one of `FIND_WORDS`, or one of `FIND_VALUES` and its value."""
+    while words:
+        if words[0] in FIND_VALUES and len(words) > 1:
+            words = words[2:]
+        elif words[0] in FIND_WORDS or not words[0].startswith("-"):
+            words = words[1:]
+        else:
+            return False
+    return True
 
 
 def _names(word, script):
@@ -89,7 +110,7 @@ def _use(words, script):
     program = words[0].rsplit("/", 1)[-1]
     if program == script:
         return "run" if "/" in words[0] else None  # by a path, as a program; a bare name may be another program
-    if program in READERS and not (program == "find" and ACTIONS & set(words)):
+    if program in READERS or program == "find" and _reads(words[1:]):
         return "read"
     if program == "test" and words[1:2] == ["-f"]:
         return "read"
