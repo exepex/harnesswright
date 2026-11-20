@@ -24,7 +24,7 @@ Each run finds its stage from what exists, does only that stage, writes only the
 and ends with a stage report.
 
 Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, the round's label
-file; for stage 3, `git`; for an improvement, the round report.
+file; for an improvement, the round report.
 
 Rules: {{rule:CORE-SKILL-01}}, {{rule:CORE-SKILL-24}}, {{rule:CORE-SKILL-25}}
 
@@ -212,6 +212,8 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
+   Without `git`, compare the skill hash and version the label and its round's manifest record with the skill's
+   now; a difference, or a value you cannot find, means the same.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.

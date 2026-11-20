@@ -173,6 +173,13 @@ class CheckReleaseTest(unittest.TestCase):
                 changed(change)
                 self.assertFails(expected)
 
+    def test_a_link_anywhere_in_the_release_fails_and_only_regular_files_are_hashed(self):
+        (self.release / "rules" / "core" / "linked.md").symlink_to(self.release / "roles.md")
+        self.assertFails("release/rules/core/linked.md: is not a regular file or folder; a release holds no link")
+        self.setUp()
+        (self.release / "golden-skill" / ".gitkeep").write_text("")  # only release/.gitkeep is not the release's
+        self.assertFails("golden-skill files: .gitkeep has no hash")
+
     def test_a_manifest_that_disagrees_with_its_skills_fails(self):
         manifest = self.release / "manifest.json"
         data = json.loads(manifest.read_text(encoding="utf-8"))

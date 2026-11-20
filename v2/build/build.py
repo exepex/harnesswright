@@ -36,6 +36,7 @@ import copyform
 import reach
 import rulebook
 import tags
+from resolve import covers
 
 SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "repoprofile.py", "resolve.py", "runfiles.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
@@ -181,7 +182,7 @@ def sha256(content):
 
 def run_time(rel):
     """True for a release path the run-time list covers, other than manifest.json, which cannot hash itself."""
-    return rel != "manifest.json" and any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in RUN_TIME)
+    return rel != "manifest.json" and covers(RUN_TIME, rel)
 
 
 def layer_files(rules):

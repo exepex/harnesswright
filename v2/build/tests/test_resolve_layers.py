@@ -137,6 +137,13 @@ class LayersTest(Application):
             if rel is not None:
                 self.assertTrue(any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed), rel)
 
+    def test_a_release_built_before_the_run_time_list_says_so(self):
+        path = self.repo / ".agents/harnesswright/manifest.json"
+        data = json.loads(path.read_text())
+        data.pop("run-time")  # the manifest's shape before the run-time list
+        path.write_text(json.dumps(data) + "\n")
+        self.assertStops("was built before the run-time list existed; install a release built after it")
+
     def test_a_release_read_off_its_run_time_list_stops(self):
         for listed, expected in ((["manifest.json", "rules/"], "roles.md is not on the run-time list"),
                                  (["manifest.json", "roles.md"], "rules/core is not on the run-time list")):
