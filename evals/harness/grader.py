@@ -21,8 +21,9 @@ message, which is its answer sheet. The sheet is accepted only when `grading.che
   (the caller chooses them). A question they answered two ways goes to one fresh grader on the reference host
   (`tiebreak`). A grader with no sheet is replaced once by a fresh grader of its own host, which answers every
   question. A question that has no two answers the same, as when that grader is ungraded too, is unanswered, so the
-  run stays ungraded on it: one grader never decides a question alone. Agreement of the two graders is reported,
-  never used as a gate.
+  run stays ungraded on it: one grader never decides a question alone. A question a grader answered two ways across
+  its tries, a refused sheet's answers counting (`given`), is a retry that flipped (`flipped`): it stays unanswered
+  on that page alone. Agreement of the two graders is reported, never used as a gate.
 - `blind(pages, seed)`: the order graders get the pages of a round, the runs of both arms and the goldens together,
   mixed by a seed the round records. Each page gets an opaque id, the hash of its text, so no name of a run, an
   arm or a golden reaches a grader.
@@ -53,12 +54,15 @@ class Graded:
     """One page's grading: `sheet`, the accepted answer sheet whole, with its quotes, or None; `answers` ({id: "yes"
     or "no"}) from it, or None; `tries`, the reason of each try that gave no accepted sheet; `refused`, beside each of
     `tries`, that try's final message, scrubbed and cut to `KEPT` characters, or None when the host failed; `logs`,
-    the action log of each try's host run, in order, for the round's record and its faults; and `costs`, each try's
-    seconds and token counts by model as the host reported them (`host.Result`), in the same order."""
+    the action log of each try's host run, in order, for the round's record and its faults; `costs`, each try's
+    seconds and token counts by model as the host reported them (`host.Result`), in the same order; and `offered`,
+    beside each of `tries`, the answers ({id: "yes" or "no"}) its refused sheet gave, or None, which count in
+    agreement and show a retry that flipped (`flipped`)."""
 
-    def __init__(self, sheet, tries, logs, costs=(), refused=None):
+    def __init__(self, sheet, tries, logs, costs=(), refused=None, offered=None):
         self.sheet, self.tries, self.logs, self.costs = sheet, tries, logs, list(costs)
         self.refused = [None] * len(tries) if refused is None else list(refused)
+        self.offered = [None] * len(tries) if offered is None else list(offered)
         self.answers = None if sheet is None else {answer["id"]: answer["answer"] for answer in sheet["answers"]}
 
 
@@ -109,7 +113,7 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         return Graded({"answers": []}, [], [])
     ids = [question["id"] for question in asked]
     text = PROMPT.read_text() if prompt is None else prompt
-    tries, logs, costs, refused = [], [], [], []
+    tries, logs, costs, refused, offered = [], [], [], [], []
     for _ in range(TRIES):
         made, world = folder(page, asked)
         contained = ran = None
@@ -130,24 +134,46 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         if ran["failure"]:
             tries.append(f"the host failed: {ran['failure']}")
             refused.append(None)
+            offered.append(None)
             continue
         found = sheet(ran["final_message"])
         problems = (["the final message does not end with one JSON object"] if found is None
                     else grading.check(found, ids, page))
         if not problems:
-            return Graded(found, tries, logs, costs, refused)
+            return Graded(found, tries, logs, costs, refused, offered)
         tries.append(clean.text("; ".join(problems), "grader/problems"))
         refused.append((ran["final_message"] or "")[:KEPT])  # scrubbed by evidence.reported
-    return Graded(None, tries, logs, costs, refused)
+        offered.append(given(found, ids))
+    return Graded(None, tries, logs, costs, refused, offered)
+
+
+def given(found, ids):
+    """The answers ({id: "yes" or "no"}) a refused sheet `found` gave to the questions `ids`, or None when it gave
+    none: a sheet refused for its form still says how its grader answered."""
+    answers = found.get("answers") if isinstance(found, dict) else None
+    kept = {a["id"]: a["answer"] for a in answers if isinstance(a, dict) and a.get("id") in ids
+            and a.get("answer") in grading.ANSWERS} if isinstance(answers, list) else {}
+    return kept or None
+
+
+def flipped(graded):
+    """The ids of the questions one grader (`Graded`, with its retries and its fresh replacement) answered two ways
+    across its tries: a retry that flipped, so that page's answer to it is not settled."""
+    found = {}
+    for answers in [*graded.offered, graded.answers]:
+        for id_, answer in (answers or {}).items():
+            found.setdefault(id_, set()).add(answer)
+    return sorted(id_ for id_, seen in found.items() if len(seen) > 1)
 
 
 class Panel:
-    """One page's grading by a panel: `answers` ({id: "yes" or "no"}) for the questions two graders answered the
-    same; `unanswered`, the ids of the rest, in order; `agreed`, how many questions the two graders answered the same,
-    of `asked`; and `graded`, each grader's `Graded`, the tie-breaker last when it ran."""
+    """One page's grading by a panel: `answers` ({id: "yes" or "no"}) for the questions it settled; `unanswered`, the
+    ids of the rest, in order; `agreed`, how many questions the two graders answered the same, of `asked`; `graded`,
+    each grader's `Graded`, the tie-breaker last when it ran; and `flipped`, the ids a grader's retry flipped."""
 
-    def __init__(self, answers, unanswered, agreed, asked, graded):
+    def __init__(self, answers, unanswered, agreed, asked, graded, flipped=()):
         self.answers, self.unanswered, self.agreed, self.asked, self.graded = answers, unanswered, agreed, asked, graded
+        self.flipped = list(flipped)
 
 
 def panel(page, asked, graders, tiebreak):
@@ -163,7 +189,8 @@ def panel(page, asked, graders, tiebreak):
         if graded[number].answers is None:
             fresh, failed = grade_one(page, asked), graded[number]
             graded[number] = Graded(fresh.sheet, failed.tries + fresh.tries, failed.logs + fresh.logs,
-                                    failed.costs + fresh.costs, failed.refused + fresh.refused)
+                                    failed.costs + fresh.costs, failed.refused + fresh.refused,
+                                    failed.offered + fresh.offered)
     votes = {question["id"]: [g.answers[question["id"]] for g in graded if g.answers] for question in asked}
     same = {id_ for id_, given in votes.items() if len(given) == 2 and given[0] == given[1]}
     disputed = [question for question in asked if len(set(votes[question["id"]])) == 2]  # both answered, two ways
@@ -172,11 +199,13 @@ def panel(page, asked, graders, tiebreak):
         for question in disputed:
             if graded[-1].answers:
                 votes[question["id"]].append(graded[-1].answers[question["id"]])
+    turned = sorted({id_ for g in graded for id_ in flipped(g)})  # a flipped retry leaves its question unsettled
     answers = {}
-    for id_, given in votes.items():
-        answers.update({id_: answer for answer in grading.ANSWERS if given.count(answer) >= 2})
+    for id_, votes_ in votes.items():
+        if id_ not in turned:
+            answers.update({id_: answer for answer in grading.ANSWERS if votes_.count(answer) >= 2})
     unanswered = [question["id"] for question in asked if question["id"] not in answers]
-    return Panel(answers, unanswered, len(same), len(asked), graded)
+    return Panel(answers, unanswered, len(same), len(asked), graded, turned)
 
 
 def digest(page, asked):
