@@ -3,6 +3,9 @@
   "kind": "trigger",
   "should_trigger": true,
   "split": "train",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
@@ -10,10 +13,5 @@
   },
   "siblings": [
     "claims-writer"
-  ],
-  "allow_words": {
-    "README.md": [
-      "evals"
-    ]
-  }
+  ]
 }

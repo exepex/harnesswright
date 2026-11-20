@@ -1,8 +1,11 @@
 {
-  "prompt": "draft v2/roles/story-judge.md: purpose, reads, produces, model class and access, like the other role files",
+  "prompt": "add the story judge's section to docs/design/04-roles.md: purpose, reads, produces, model class and access, like the other roles",
   "kind": "trigger",
   "should_trigger": false,
   "split": "test",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",

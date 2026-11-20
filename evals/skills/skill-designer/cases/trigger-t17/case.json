@@ -1,8 +1,11 @@
 {
-  "prompt": "can you explain the difference between adopt and adapt in docs/borrowing.md? I just want to understand it, no changes",
+  "prompt": "can you explain the difference between adopt and adapt in docs/design/10-skills.md? I just want to understand it, no changes",
   "kind": "trigger",
   "should_trigger": false,
   "split": "test",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",

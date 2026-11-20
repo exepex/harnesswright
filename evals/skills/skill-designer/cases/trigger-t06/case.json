@@ -1,8 +1,11 @@
 {
-  "prompt": "v2/skills/test-reviewer/SKILL.tmpl.md is hard to follow and half its steps can't be checked. rework it to meet docs/skill-checklist.md and move the long detail into references/",
+  "prompt": "v2/skills/test-reviewer/SKILL.tmpl.md is hard to follow and half its steps can't be checked. rework it to meet the quality checklist in docs/design/10-skills.md and move the long detail into references/",
   "kind": "trigger",
   "should_trigger": true,
   "split": "train",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
