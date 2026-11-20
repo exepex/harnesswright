@@ -134,8 +134,7 @@ layer's owner.
 rules. `retired.md` is not an area; past 500 lines it splits into `retired-<area>.md` files. A replacement is added
 in an earlier change than the retirement. Citations in the same repository are updated in the same change as the
 retirement. Retiring a rule fails while any file still cites the old ID, other than the index, the retired rules
-files, the Source of a rule named in its Replaced by, `CHANGELOG.md` ([08 · Governance](08-governance.md)), and
-recorded goldens, which keep the IDs they were recorded with.
+files, the Source of a rule named in its Replaced by, and `CHANGELOG.md` ([08 · Governance](08-governance.md)).
 
 **HW-RULE-08 · The index is generated.** Each layer folder has an index (ID, title, kind, status, file), built by
 a script from the rule headings. Nobody edits it by hand. Where scripts cannot run, the rule keeper builds it by

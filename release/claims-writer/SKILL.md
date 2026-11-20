@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-25, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-SKILL-28, CORE-WORK-08"
   rulebook-version: "0.7.1"
-  content-hash: "255a03a06f4d7371ff483b2133709649a5a8e5ad8ea9abd0d998f8554daf66d7"
+  content-hash: "4a2735e400d39db60be7b7af66b59be15707abe9a39c306f81b2751f25a0824a"
   size-floors: "4881"
-  size-rest: "20554"
+  size-rest: "20557"
 ---
 <!-- Generated from v2/skills/claims-writer/SKILL.tmpl.md at version 0.7.1. Do not edit. -->
 
@@ -115,16 +115,16 @@ metadata:
 #### CORE-SKILL-28 · A skill states its purpose, limits and inputs, and stops on a missing required input
 
 - **Kind:** principle
-- **Rule:** The body opens with what the skill does, what it does not do, and each input it needs: where it comes
-  from and whether it is required. An optional input names what the run does without it. A missing required input
-  is a stop, unless the skill offers a way to work by reading in its place, which is not a stop. Where the project's
-  rules allow a question, the skill asks one clear question in place of a stop. A stop ends the run as blocked,
-  names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing
-  steps, such as the report. The closing report goes to the run folder, or to the final message when no run folder
-  can be named. This rule is the one definition of a stop; other rules cite it.
+- **Rule:** The body opens with what the skill does, what it does not do, and each input it needs: where it comes from
+  and whether it is required. An optional input names what the run does without it. A missing required input is a
+  stop, unless the skill offers a way to work by reading in its place, which is not a stop. A stop ends the run as
+  blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the
+  closing steps, such as the report. Where the project's rules allow one, a stop puts one clear question in its
+  report (CORE-WORK-07). The closing report goes where the skill's report always goes: its report file, or its final
+  message. This rule is the one definition of a stop; other rules cite it.
 - **Good:** "Needs the story file (required). If there is none, stop: end blocked, name the missing story file,
-  write no claims, and still write the report to the run folder. The functional plan is optional: without it, mark
-  its targets `not verified`."
+  write no claims, and still give the report in the final message. The functional plan is optional: without it,
+  mark its targets `not verified`."
 - **Bad (do not do this):** A skill that uses "the acceptance criteria" without saying where they are, one that, with no story file,
   writes claims from the diff alone, or one that stops because an optional input is missing.
 <!-- end CORE-SKILL-28 -->
