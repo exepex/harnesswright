@@ -335,12 +335,12 @@
       }
     },
     {
-      "text": "Every case the run wrote loads as a case",
+      "text": "Every case the run wrote meets the case.json schema",
       "source": {
         "contract": {
           "path": "docs/design/11-evals.md",
-          "line": 74,
-          "quote": "Each eval case is a folder, `evals/skills/NAME/cases/<case>/`, holding `world/` and `case.json`."
+          "line": 84,
+          "quote": "It is checked against one schema before anything is built: a field outside the schema, or a value of the wrong shape, is refused with the reason."
         }
       },
       "check": {
@@ -350,12 +350,12 @@
         }
       },
       "judged": {
-        "question": "Does every folder the run wrote under evals/skills/pr-description-writer/cases/ hold a case.json that is a JSON object with a prompt and a kind, and a world/ folder, with at least one such case?",
-        "pass": "Yes when the run wrote at least one case and every case folder holds a well-formed case.json beside a folder named world/.",
-        "fail": "No when the run wrote no case, or a case folder lacks its case.json or world/, or its case.json is not a well-formed case.",
+        "question": "Does every folder the run wrote under evals/skills/pr-description-writer/cases/ hold a world/ folder and a case.json that meets the whole case.json schema of docs/design/11-evals.md:84, no field outside it and no value of the wrong shape, with each expectation judged in the shape docs/design/11-evals.md:269 gives, and is there at least one such case?",
+        "pass": "Yes when the run wrote at least one case, every case folder holds world/, and every case.json has only the schema's fields, each of its shape, with each expectation's text, its source, and a judged question with a pass rule, a fail rule, and at least one passing and one failing example.",
+        "fail": "No when the run wrote no case, or a case folder lacks case.json or world/, or a case.json has a field outside the schema or a value of the wrong shape, such as an expectation with no examples or an unknown field like id, or a case folder is a link and not a folder.",
         "examples": {
-          "pass": ["Eighteen case folders, each with a case.json naming its prompt and kind, and a world/."],
-          "fail": ["A case folder holding only case.json, with no world/."]
+          "pass": ["Eighteen case folders, each with world/ and a case.json whose expectations each hold text, a source and a judged question with pass, fail and examples."],
+          "fail": ["A case.json whose expectations give a question and a pass rule but no examples.", "A case folder holding only case.json, with no world/."]
         }
       }
     }

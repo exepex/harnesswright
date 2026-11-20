@@ -7,10 +7,12 @@ bundle holds it, written out to a scratch folder.
   byte. The scripts are the kit's: `v2/build/` at the commit the internal world kit pins (`internal.read_kit`),
   never the copies in the world, which the run may have changed. They read files the run wrote, so they run in a
   jail (`jail`): no network, the system folders read-only, the world copy the only folder they may write, and an
-  environment built from nothing. A world the run left alone passes, so a clean stop passes.
+  environment built from nothing. A world the run left alone passes, so a clean stop passes. A script that runs
+  past `LIMIT` leaves the check `undecidable`, and the judged question decides.
 - `own_case_files`: every case the run wrote for `skill`, each folder under `evals/skills/<skill>/cases/`, loads
-  with the harness's own case reader (`cases.Case`), and there is at least one. The reader only parses files, so
-  it runs here.
+  with the harness's own case reader (`cases.Case`), so meets the whole case.json schema, and there is at least
+  one. The reader only parses files, so it runs here, and it reads only what the run wrote as folders and files:
+  a case folder that is, or holds, anything else, such as a link, does not load and is never followed.
 
 A check that cannot run, such as one on a machine with no jail, raises: it stops the round and never passes.
 
@@ -26,7 +28,7 @@ import contain
 import internal
 import manifest
 from cases import REPO, CaseError, Case, is_name
-from checks import Check
+from checks import Check, Undecidable
 
 SCRIPTS = ("check_rules.py", "check_release.py")
 LIMIT = 600  # seconds a script may run
@@ -60,7 +62,10 @@ def jail(world, kit, script):
                "--bind", str(world), "/world", "--tmpfs", "/tmp", "--proc", "/proc", "--dev", "/dev", "--clearenv",
                "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "LANG", "C.UTF-8", "--setenv", "HOME", "/tmp",
                "--chdir", "/world", contain.PYTHON, "-B", f"/kit/v2/build/{script}", "--root", "/world"]
-    done = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=LIMIT)
+    try:
+        done = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=LIMIT)
+    except subprocess.TimeoutExpired:
+        raise Undecidable(f"{script} ran past {LIMIT} seconds, so it decided nothing") from None
     output = (done.stdout + done.stderr).strip()
     if output.startswith("bwrap:"):  # the jail failed, so the script never ran
         raise RuntimeError(f"the jail for {script} failed: {output[:SHOWN]}")
@@ -93,8 +98,14 @@ def own_case_files(bundle, skill):
         world = write_world(bundle, Path(scratch) / "world")
         problems = []
         for name in names:
+            folder = root + name
+            odd = sorted(p for p, entry in bundle.files.items() if (p == folder or p.startswith(folder + "/"))
+                         and manifest.kind(entry) not in ("dir", "file"))
+            if odd:  # what the reader may read is the run's folders and files only, so a link is never followed
+                problems.append(f"{folder}: {odd[0]} is not a folder or a file")
+                continue
             try:
-                Case(world / root / name, skill)
+                Case(world / folder, skill)
             except CaseError as error:
                 problems.append(str(error))
     if problems:
