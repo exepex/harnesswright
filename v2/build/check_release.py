@@ -119,14 +119,16 @@ class ReleaseCheck:
             self.check_blocks(name, lines[end + 1:])
             self.check_manifest(name, lines, end, meta, manifest["skills"].get(name, {}))
             self.check_references(name)
-            self.check_hashes(f"release/manifest.json {name} files", self.release / name,
-                              manifest["skills"].get(name, {}).get("files"), lambda rel: True)
+            inside = lambda rel, name=name: rel.removeprefix(f"{name}/") if rel.startswith(f"{name}/") else None
+            self.check_hashes(f"release/manifest.json {name} files", manifest["skills"].get(name, {}).get("files"),
+                              inside)
         listed = manifest.get("run-time")
         if not (isinstance(listed, list) and listed and all(isinstance(p, str) and p for p in listed)):
             self.fail("release/manifest.json", "has no run-time list of paths")
             listed = []
-        covered = lambda rel: rel != SELF and any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed)
-        self.check_hashes("release/manifest.json run-time-files", self.release, manifest.get("run-time-files"), covered)
+        covered = lambda rel: rel if rel != SELF and any(rel == p or (p.endswith("/") and rel.startswith(p))
+                                                         for p in listed) else None
+        self.check_hashes("release/manifest.json run-time-files", manifest.get("run-time-files"), covered)
         return self.failures, (self.summary(manifest, base) if base is not None else [])
 
     def check_rebuild(self):
@@ -147,15 +149,26 @@ class ReleaseCheck:
             elif built[rel] != kept[rel]:
                 self.fail(f"release/{rel}", "differs from a rebuild; run the build and commit release/")
 
-    def check_hashes(self, where, folder, recorded, covered):
-        """Every file under `folder` that `covered` takes has its hash in `recorded`, and every hash names such a
-        file with those bytes."""
+    def files(self):
+        """{path under release/: sha256} of every regular file there, read once. Anything else, a symbolic link
+        above all, which a reader would follow out of the release, fails: a release holds regular files only."""
+        if not hasattr(self, "_files"):
+            self._files = {}
+            for path in sorted(self.release.rglob("*")):
+                rel = path.relative_to(self.release).as_posix()
+                if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                    self.fail(f"release/{rel}", "is not a regular file or folder; a release holds no link")
+                elif path.is_file():
+                    self._files[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        return self._files
+
+    def check_hashes(self, where, recorded, covered):
+        """Every release file that `covered` maps to a hashed path (or None to skip) has its hash in `recorded`, and
+        every hash names such a file with those bytes."""
         if not isinstance(recorded, dict):
             self.fail(where, "is missing")
             return
-        found = {p.relative_to(folder).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-                 for p in folder.rglob("*") if p.is_file() and p.name != ".gitkeep"}
-        found = {rel: digest for rel, digest in found.items() if covered(rel)}
+        found = {covered(rel): digest for rel, digest in self.files().items() if covered(rel) is not None}
         for rel in sorted(set(found) | set(recorded)):
             if rel not in recorded:
                 self.fail(where, f"{rel} has no hash")

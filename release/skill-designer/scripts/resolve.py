@@ -94,6 +94,9 @@ def read_manifest(path):
     """The release manifest: its version, and per skill the entry keys resolve reads, each of its shape."""
     try:
         manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+        if isinstance(manifest, dict) and "run-time" not in manifest:
+            raise ResolveError(f"release: {path} was built before the run-time list existed; install a release "
+                               "built after it")
         ok = isinstance(manifest["rulebook-version"], str) and isinstance(manifest["skills"], dict) and isinstance(
             manifest["run-time"], list) and all(isinstance(p, str) for p in manifest["run-time"]) and all(
             isinstance(e, dict) and all(isinstance(e.get(k), t) for k, t in ENTRY.items())
@@ -105,10 +108,16 @@ def read_manifest(path):
     return manifest
 
 
+def covers(listed, rel):
+    """True when a run-time list covers the release path `rel`: it names it, or a folder (`.../`) above it. The one
+    copy of this rule; build.py imports it."""
+    return any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed)
+
+
 def run_time(manifest, release, rel):
     """`release / rel`, when the manifest's `run-time` list, the one declaration of what a run reads from the
     release (build.py writes it), covers `rel`. Every read of the release other than the manifest passes here."""
-    if not any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in manifest["run-time"]):
+    if not covers(manifest["run-time"], rel):
         raise ResolveError(f"release ({release}): {rel} is not on the run-time list of its manifest")
     return release / rel
 
