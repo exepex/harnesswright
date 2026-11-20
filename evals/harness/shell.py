@@ -18,7 +18,16 @@ the grader view (`view.py`) share, so the two never disagree on it.
 - `owns_exit_code(command, code)`: whether the command's exit code, when it is `code`, is its own program's. That
   holds for one program with its arguments, each a plain word, a simple quoted string of a plain word's characters
   and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined by `&&`, which ends with 0
-  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code.
+  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code. A
+  plain word may hold a variable such as `$S`, which changes no exit code.
+- `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
+  as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
+  One rule, two ways to know it. In a list of plain programs joined only by `;` (no `&&`, `||` or pipe), the last
+  program owns the command's code, so it is `code` when `program` is the last; a command of one program owns it as
+  `owns_exit_code` says. And when `program` is a plain program, first or after a `;`, and the program right after
+  it, after a `;`, is `echo` of a text ending in `$?` and holding no other `$`, the code is the number after that
+  text on the one line of `output` that is the text with its number.
+- `parts(command)`: [(the operator before it, its text)] of each top-level program, as `programs` finds its starts.
 
 Standard library only.
 """
@@ -50,7 +59,8 @@ STATELESS = frozenset((
 # script, and any other character (an operator, a line break, !) could make that script end with another code.
 PLAIN = r"[A-Za-z0-9_./=:@%+,*?~\[\]-]"
 PLAIN_QUOTED = r"[A-Za-z0-9_./=:@%+,*?~\[\] \t-]"  # a plain word's characters and blanks
-WORD = rf"""(?:{PLAIN}|'{PLAIN_QUOTED}*'|"{PLAIN_QUOTED}*")+"""
+VARIABLE_WORD = r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})"  # `$S`: a value, never a program
+WORD = rf"""(?:{PLAIN}|{VARIABLE_WORD}|'{PLAIN_QUOTED}*'|"{PLAIN_QUOTED}*")+"""
 TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
@@ -60,6 +70,38 @@ CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every
 def owns_exit_code(command, code):
     """Whether `command` ending with `code` means its own program ended with it (the module's docstring)."""
     return bool((CHAIN if code == 0 else ALONE).fullmatch(command))
+
+
+def parts(command):
+    """[(operator before it, text)] of each top-level program of `command` (the module's docstring)."""
+    starts = _starts(command)
+    ends = [where for _, where, _ in starts[1:]] + [len(command)]
+    return [(operator, command[start:end]) for (operator, _, start), end in zip(starts, ends)]
+
+
+def exit_code(command, program, code, output):
+    """The exit code of program `program` of `command`, or None when it cannot be known (the module's docstring)."""
+    found = parts(command)
+    if "\n" in command or not 0 <= program < len(found):
+        return None
+    if program == len(found) - 1:
+        if len(found) == 1:
+            return code if code is not None and owns_exit_code(command, code) else None
+        listed = all(op in ("", ";") and ALONE.fullmatch(text) for op, text in found)
+        return code if listed else None
+    op, text = found[program]
+    after_op, after = found[program + 1]
+    if op not in ("", ";") or after_op != ";" or not ALONE.fullmatch(text):
+        return None
+    try:
+        words = shlex.split(after)
+    except ValueError:
+        return None
+    said = " ".join(words[1:])
+    if words[:1] != ["echo"] or not said.endswith("$?") or "$" in said[:-2]:
+        return None
+    lines = re.findall(rf"^{re.escape(said[:-2])}(\d+)$", output or "", re.MULTILINE)
+    return int(lines[0]) if len(lines) == 1 else None
 
 
 def _starts(command):
