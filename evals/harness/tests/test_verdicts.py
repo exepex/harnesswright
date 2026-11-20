@@ -213,6 +213,20 @@ class Verdicts(unittest.TestCase):
                          {"verdict": "too close", "value": 0.875, "best": 1.0, "worst": 0.375})
         self.assertEqual(verdicts.mean({"t": [[3, 4]]}, 1), 0.75)  # one run: no split, never moved
 
+    def test_format_conformance_weighs_each_case_by_its_format_items_so_a_clean_round_gives_the_pooled_items(self):
+        # claims-writer: two cases of 13 format items failing 4 each, eight of 5 passing all, 3 runs each
+        items = {**{f"long{n}": [[9, 13]] * 3 for n in (1, 2)}, **{f"short{n}": [[5, 5]] * 3 for n in range(8)}}
+        found = verdicts.judged({**measured(), "format_runs": {"with_skill": items}})["format conformance"]
+        self.assertEqual((found["verdict"], found["value"], found["best"], found["worst"]),
+                         ("fail", round(174 / 198, 4), round(174 / 198, 4), round(174 / 198, 4)))  # not 93.85%
+        self.assertAlmostEqual(verdicts.mean(items), 0.9385, places=4)  # the plain mean a pass rate takes
+        more = {**items, "long1": [[9, 13]] * 9}  # extra runs on one case weigh it no more
+        self.assertAlmostEqual(verdicts.mean(more, by_items=True), 174 / 198)
+        split = {**items, "long1": [[9, 13], [13, 13], [9, 13]]}  # one run's items move at best and at worst
+        best, worst = 13 * 35 / 39, 13 * 18 / 39  # one run's 9 of 13 become 13; its 13 of 13 become 0
+        self.assertAlmostEqual(verdicts.mean(split, 1, by_items=True), (best + 9 + 40) / 66)
+        self.assertAlmostEqual(verdicts.mean(split, -1, by_items=True), (worst + 9 + 40) / 66)
+
     def test_an_internal_skill_too_close_is_too_close_and_never_verified(self):
         found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 4 + [False]}, kind="internal",
                            own_checks=OWN), **formatted()}

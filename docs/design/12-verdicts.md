@@ -129,7 +129,7 @@ A verdict is `pass`, `fail` or `too close`.
   version) is computed from per-case rates, each case's rate being its passed runs over its scored runs. It
   **fails** when it fails even at its best; it **passes** when it passes even at its worst; anything else is `too
   close`. Its best flips one failed run of each split case to passed; its worst flips one passed run of each split
-  case to failed.
+  case to failed. Format conformance weights each case by its format items per run.
 - Only one run per split case is flipped, so each extra run narrows the swing: a split case of 3 runs moves its
   rate by a third, one of 9 runs by a ninth. Unsplit cases are never flipped, so a clean round is decided at once.
 - Pooled rates are the mean of per-case rates, so extra runs on some cases do not weigh them more.
