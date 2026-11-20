@@ -423,16 +423,16 @@ with the older rule or checklist item it carries over.
   and whether it is required. An optional input names what the run does without it. A missing required input is a
   stop, unless the skill offers a way to work by reading in its place, which is not a stop. A stop ends the run as
   blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the
-  closing steps, such as the report. Where the project's rules allow a question, the stop also asks one clear
-  question, in its closing report (CORE-WORK-07). The closing report goes where the skill's report always goes: its
-  report file, or its final message. This rule is the one definition of a stop; other rules cite it.
+  closing steps, such as the report. Where the project's rules allow one, a stop puts one clear question in its
+  report (CORE-WORK-07). The closing report goes where the skill's report always goes: its report file, or its final
+  message. This rule is the one definition of a stop; other rules cite it.
 - **Why:** An agent missing an input guesses it. A guessed input gives a confident wrong result. Work written before
   a stop looks finished, and a stop with no report leaves the next role guessing what happened. One definition
   keeps every skill's stop the same.
 - **Check:** Does each input say where it comes from and whether it is required, and each optional input what the
   run does without it? Does a missing required input stop, or follow a by-reading way the skill offers? Does each
-  stop end blocked, name what is missing or failed, write none of the work that needed it, ask its one question only
-  where the rules allow it, and still run the closing steps, with the report where the skill's report always goes?
+  stop end blocked, name what is missing or failed, write none of the work that needed it, put one question in its
+  report only where the rules allow one, and still run the closing steps, with the report where it always goes?
 - **Good:** "Needs the story file (required). If there is none, stop: end blocked, name the missing story file,
   write no claims, and still give the report in the final message. The functional plan is optional: without it,
   mark its targets `not verified`."
