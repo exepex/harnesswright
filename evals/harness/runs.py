@@ -221,6 +221,12 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     return {"key": run_key, "status": "made", "bundle": str(stored(path)[1])}
 
 
+def misses(path):
+    """How many tries of the run slot at `path` (`folder`) were not loaded: the one count of them, which the run
+    gate's stop and the pinned-load rate both read."""
+    return len(_reasons(Path(path) / UNLOADED))
+
+
 def _reasons(marker):
     """The reasons a slot's marker file keeps, one for each try it names, or none."""
     return json.loads(marker.read_text())["reasons"] if marker.is_file() and not marker.is_symlink() else []

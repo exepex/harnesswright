@@ -1,11 +1,14 @@
 """Proven use (doc 12): the one load reader, the `not loaded` status of a pinned run, its label and the round stop."""
 
 import json
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from helpers import TempCase
+from test_adapters import CLAUDE
 from test_labels import CONTRACT, verdict
 
 import evidence
@@ -63,6 +66,25 @@ class Reader(unittest.TestCase):
         self.assertFalse(loaded(command("grep -r '' release/", TEXT)))
         self.assertFalse(loaded(command("cat release/haiku-writer/SKILL.md", TEXT)))
 
+    def test_through_the_claude_code_adapter_a_read_tool_call_proves_a_load_and_a_grep_does_not(self):
+        def logged(name, tool_input, output):
+            stdout = "".join(json.dumps(event) + "\n" for event in (
+                {"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "1", "name": name, "input": tool_input}]}},
+                {"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "1", "content": [{"type": "text", "text": output}]}]}}))
+            return CLAUDE.action_log(stdout, None)
+
+        path = f"{WORLD}/.claude/skills/haiku-writer/SKILL.md"
+        paths = ["skills/haiku-writer", ".claude/skills/haiku-writer"]
+        for name, tool_input, output, proves in (
+                ("Read", {"file_path": path}, TEXT, True),
+                ("Grep", {"pattern": "Count", "path": path}, "8:Count every syllable.", False),
+                ("Grep", {"pattern": "zzz", "path": path}, "No matches found", False)):
+            with self.subTest(tool=name, pattern=tool_input.get("pattern")):
+                record = {"log": logged(name, tool_input, output), "folders": {WORLD: "/run/project"}}
+                self.assertEqual(evidence.loaded(record, "haiku-writer", paths, TEXT), proves)
+
     def test_a_command_that_names_the_skill_md_but_prints_part_of_it_proves_nothing(self):
         self.assertFalse(loaded(command("cat skills/haiku-writer/SKILL.md | head -3", TEXT[:40])))
         self.assertFalse(loaded(command("grep -n Count skills/haiku-writer/SKILL.md", "8:Count every syllable.")))
@@ -75,7 +97,7 @@ def made(number, status, arm="with_skill", case="c1", pinned=True):
             "status": status, **({"pinned": True} if pinned else {})}
 
 
-class Pinned(unittest.TestCase):
+class Pinned(TempCase):
     def test_only_a_task_run_with_the_skill_or_its_previous_version_in_a_pinned_round_is_pinned(self):
         task, trigger = types.SimpleNamespace(kind="task"), types.SimpleNamespace(kind="trigger")
         self.assertTrue(runs.pinned({"pinned": True}, task, "with_skill"))
@@ -85,27 +107,33 @@ class Pinned(unittest.TestCase):
         self.assertFalse(runs.pinned({}, task, "with_skill"))  # no manifest pins a load yet
 
     def gate(self, statuses, pinned=True):
-        """The run gate over one task case with each run's status in `statuses`, in turn."""
+        """The run gate over one task case with each with-skill run's (status, tries not loaded) in `statuses`."""
+        folder = Path(tempfile.mkdtemp(dir=self.tmp))
         case = types.SimpleNamespace(skill="haiku-writer", id="c1", kind="task")
         record = {"plan": {"runs": len(statuses)}, "cases": {"haiku-writer": {"c1": "0" * 64}},
                   **({"pinned": True} if pinned else {})}
-        r = types.SimpleNamespace(record=record, store=None, cases={("haiku-writer", "c1"): case},
+        r = types.SimpleNamespace(record=record, store=None, folder=folder, cases={("haiku-writer", "c1"): case},
                                   hosts={"h": {"drift": {}}}, modules={"h": None}, version=lambda host: None,
                                   timeout=1, repo=None, containment={}, runs=[])
 
         def run(record, store, case, arm, host, number, *args, **options):
-            status = statuses[number - 1] if arm == "with_skill" else "made"
+            status, missed = statuses[number - 1] if arm == "with_skill" else ("made", 0)
+            if missed:
+                (folder / "runs" / f"{arm}{number}").mkdir(parents=True)
+                (folder / "runs" / f"{arm}{number}" / runs.UNLOADED).write_text(json.dumps({"reasons": ["-"] * missed}))
             return {"key": f"{arm}{number}", "status": status, "bundle": None}
         with mock.patch.object(runs, "run", run):
             return gates.run_gate(r)
 
-    def test_half_or_more_pinned_runs_not_loaded_stop_the_round_as_a_harness_fault(self):
-        with self.assertRaisesRegex(gates.Stop, "harness fault: 1 of 2 pinned runs are not loaded"):
-            self.gate(["not loaded", "made"])
-        found = self.gate(["not loaded", "made", "kept", "void"])  # a void tells nothing of the pin
-        self.assertEqual([m.get("pinned", False) for m in found if m["arm"] == "with_skill"], [True] * 4)
+    def test_half_or_more_pinned_tries_not_loaded_stop_the_round_as_a_harness_fault(self):
+        with self.assertRaisesRegex(gates.Stop, "harness fault: 2 of 4 pinned tries are not loaded"):
+            self.gate([("not loaded", 2), ("made", 0), ("kept", 0)])
+        with self.assertRaisesRegex(gates.Stop, "harness fault: 3 of 6 pinned tries are not loaded"):
+            self.gate([("made", 1)] * 3)  # every slot misses once, then loads
+        found = self.gate([("not loaded", 2), ("made", 0), ("kept", 0), ("void", 0), ("made", 0)])
+        self.assertEqual([m.get("pinned", False) for m in found if m["arm"] == "with_skill"], [True] * 5)
         self.assertFalse(any(m.get("pinned") for m in found if m["arm"] == "without_skill"))
-        self.assertEqual(len(self.gate(["not loaded", "not loaded"], pinned=False)), 4)  # not pinned: no stop
+        self.assertEqual(len(self.gate([("not loaded", 2)] * 2, pinned=False)), 4)  # not pinned: no stop
 
 
 class Label(TempCase):
