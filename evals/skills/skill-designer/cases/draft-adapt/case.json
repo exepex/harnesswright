@@ -1,20 +1,16 @@
 {
-  "prompt": "The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the skill now, for the implementer role.",
+  "prompt": "The changelog-writer cases have their goldens, and the baseline round without the skill has run; its label is evals/results/changelog-writer-baseline.json. The skill is adapted from incoming/changelog-writer/. Write the skill now, for the implementer role; docs/templates.md has how we write a template.",
   "kind": "task",
   "internal_world": {
     "remove": [],
-    "jobs": [
-      "| release-notes | implementer | release-notes | release-notes |"
-    ]
+    "jobs": ["| release-notes | implementer | release-notes | release-notes |"]
   },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
-  "tools": [
-    "python3"
-  ],
+  "tools": ["python3"],
   "expectations": [
     {
       "text": "The template is written under v2/skills/",
@@ -31,12 +27,8 @@
         "pass": "Yes when that file is there after the run and the run wrote it.",
         "fail": "No when the template is missing, or is written anywhere else.",
         "examples": {
-          "pass": [
-            "A new v2/skills/changelog-writer/SKILL.tmpl.md."
-          ],
-          "fail": [
-            "A new skills/changelog-writer/SKILL.md."
-          ]
+          "pass": ["A new v2/skills/changelog-writer/SKILL.tmpl.md."],
+          "fail": ["A new skills/changelog-writer/SKILL.md."]
         }
       }
     },
@@ -52,17 +44,8 @@
       "check": {
         "name": "frontmatter",
         "args": {
-          "required": [
-            "name",
-            "description"
-          ],
-          "allowed": [
-            "name",
-            "description",
-            "license",
-            "compatibility",
-            "metadata"
-          ],
+          "required": ["name", "description"],
+          "allowed": ["name", "description", "license", "compatibility", "metadata"],
           "file": "v2/skills/changelog-writer/SKILL.tmpl.md"
         }
       },
@@ -71,12 +54,8 @@
         "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no other top-level field is there.",
         "fail": "No when any other field is, such as the source's context field. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "name, description, license and metadata only."
-          ],
-          "fail": [
-            "The source's context field kept."
-          ]
+          "pass": ["name, description, license and metadata only."],
+          "fail": ["The source's context field kept."]
         }
       }
     },
@@ -94,12 +73,8 @@
         "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and each is there: the repository, the commit, the path, MIT, adapted, and implementer among the roles.",
         "fail": "No when any of the repository, commit, path, licence, adapted or the implementer role is missing or wrong. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "roles: implementer, areas: rest, source: example-org/agent-kit@1a2b3c4 skills/changelog-writer, source-licence: MIT, sourcing: adapted."
-          ],
-          "fail": [
-            "sourcing: adapted and roles: release manager, with no source or licence."
-          ]
+          "pass": ["roles: implementer, areas: rest, source: example-org/agent-kit@1a2b3c4 skills/changelog-writer, source-licence: MIT, sourcing: adapted."],
+          "fail": ["sourcing: adapted and roles: release manager, with no source or licence."]
         }
       }
     },
@@ -111,12 +86,8 @@
         "pass": "Yes when a file there holds the notice, with its copyright line.",
         "fail": "No when no file in the skill folder holds it.",
         "examples": {
-          "pass": [
-            "v2/skills/changelog-writer/LICENSE-MIT.txt with the notice."
-          ],
-          "fail": [
-            "The notice left only in incoming/."
-          ]
+          "pass": ["v2/skills/changelog-writer/LICENSE-MIT.txt with the notice."],
+          "fail": ["The notice left only in incoming/."]
         }
       }
     },
@@ -134,17 +105,13 @@
         "pass": "Yes when such a row was added.",
         "fail": "No when there is no row, or it lacks the repository, commit, path or licence.",
         "examples": {
-          "pass": [
-            "| changelog-writer | example-org/agent-kit | 1a2b3c4 | skills/changelog-writer | MIT | host parts removed |"
-          ],
-          "fail": [
-            "THIRD_PARTY.md unchanged."
-          ]
+          "pass": ["| changelog-writer | example-org/agent-kit | 1a2b3c4 | skills/changelog-writer | MIT | host parts removed |"],
+          "fail": ["THIRD_PARTY.md unchanged."]
         }
       }
     },
     {
-      "text": "No file of the new skill names a host-only tool, setting or variable, or a model",
+      "text": "No file of the new skill names a host-only tool, setting or variable",
       "source": {
         "contract": {
           "path": "docs/design/10-skills.md",
@@ -153,17 +120,12 @@
         }
       },
       "judged": {
-        "question": "The source names two things only one host has, both in the references/format.md file of incoming/changelog-writer/: a tool for starting a sub-agent, and an environment variable. Is every file the run wrote under v2/skills/changelog-writer/ free of both, of any other tool, setting or environment variable that only one host has, and of any model name?",
-        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file in v2/skills/changelog-writer/ names such a tool, setting or variable, or a model. A step that needs a helper agent says so in plain words.",
-        "fail": "No when any file there names the source's sub-agent tool or its environment variable, another tool or setting of one host, or a model, anywhere, even in a note that it was taken out. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
+        "question": "The source names two things only one host has, both in the references/format.md file of incoming/changelog-writer/: a tool for starting a sub-agent, and an environment variable. Is every file the run wrote under v2/skills/changelog-writer/ free of both and of any other tool, setting or environment variable that only one host has?",
+        "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, and no file in v2/skills/changelog-writer/ names such a tool, setting or variable. A step that needs a helper agent says so in plain words.",
+        "fail": "No when any file there names the source's sub-agent tool or its environment variable, or another tool or setting of one host, anywhere, even in a note that it was taken out. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "A references/format.md that says: on a long branch, ask a helper agent for one line per commit, where the host can start one."
-          ],
-          "fail": [
-            "A copied references/format.md that still says to edit in the editor pane when the source's variable is set.",
-            "A note in the template that the source's sub-agent tool was replaced."
-          ]
+          "pass": ["A references/format.md that says: on a long branch, ask a helper agent for one line per commit, where the host can start one."],
+          "fail": ["A copied references/format.md that still says to edit in the editor pane when the source's variable is set.", "A note in the template that the source's sub-agent tool was replaced."]
         }
       }
     },
@@ -171,9 +133,9 @@
       "text": "The template tags the two rules the source restates, only on Rules: lines, and cites no rule ID bare",
       "source": {
         "contract": {
-          "path": "docs/templates.md",
-          "line": 22,
-          "quote": "A template cites each rule it applies only by a rule tag, `{{rule:<ID>}}`, where `<ID>` is an ID from"
+          "path": "v2/rules/core/template.md",
+          "line": 66,
+          "quote": "It cites a rule only as a rule tag: `{{rule:`, the rule's ID, then `}}`, such as `{{rule:CORE-TEST-03}}`. A tag stands only on a `Rules:` line: one line that, after any indentation, is `Rules: ` and then tags separated by `, `, with nothing else, never wrapped."
         }
       },
       "check": {
@@ -183,14 +145,8 @@
           "index": "v2/rules/core/index.md",
           "pattern": "[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-DP-[A-Z0-9]+(?:-[A-Z0-9]+)*|[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-[0-9]{2,}",
           "require": [
-            [
-              "CORE-WORK-06"
-            ],
-            [
-              "CORE-SKILL-07",
-              "CORE-WORK-01",
-              "CORE-WORK-02"
-            ]
+            ["CORE-WORK-06"],
+            ["CORE-SKILL-07", "CORE-WORK-01", "CORE-WORK-02"]
           ]
         }
       },
@@ -199,13 +155,8 @@
         "pass": "Yes when the run wrote v2/skills/changelog-writer/SKILL.tmpl.md, both rules are tagged, every tag stands on a line that holds only Rules: and tags separated by a comma and a space, every tagged ID is in the index, and no file there names a rule ID outside a tag, the frontmatter included. Duty sentences are not asked here.",
         "fail": "No when either tag is missing, a tag stands in a sentence, a Rules: line holds anything but tags or runs on to a second line, a tagged ID is not in the index, or a rule ID stands bare, such as (CORE-WORK-06) after a sentence. No also when the run wrote no v2/skills/changelog-writer/SKILL.tmpl.md: only what the files there hold counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}"
-          ],
-          "fail": [
-            "3. Add the line under Unreleased. Check: it holds no token (CORE-WORK-06).",
-            "4. Read CHANGELOG.md again {{rule:CORE-SKILL-07}}."
-          ]
+          "pass": ["3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}"],
+          "fail": ["3. Add the line under Unreleased. Check: it holds no token (CORE-WORK-06).", "4. Read CHANGELOG.md again {{rule:CORE-SKILL-07}}."]
         }
       }
     },
@@ -213,23 +164,18 @@
       "text": "The template keeps neither source duty line",
       "source": {
         "contract": {
-          "path": "docs/templates.md",
-          "line": 28,
-          "quote": "Where a borrowed skill has a sentence that says what a listed rule says, the template drops that sentence and tags"
+          "path": "v2/rules/core/template.md",
+          "line": 69,
+          "quote": "No sentence states a rule's duty in general, whether a tag is near it or not: text near a tag says what this skill does, never how work must be done in general."
         }
       },
       "check": {
         "name": "no_shared_words",
         "args": {
           "source": "incoming/changelog-writer/SKILL.md",
-          "lines": [
-            17,
-            18
-          ],
+          "lines": [17, 18],
           "run": 6,
-          "written": [
-            "v2/skills/changelog-writer/*"
-          ]
+          "written": ["v2/skills/changelog-writer/*"]
         }
       },
       "judged": {
@@ -237,13 +183,8 @@
         "pass": "Yes when no file the run wrote there shares six words in a row with lines 17 and 18, or the run wrote no file there. Words from the source's other steps, such as its step 5, do not count.",
         "fail": "No when any file the run wrote there holds six or more words in a row from lines 17 and 18, in the same order, with or without a Rules: line below them.",
         "examples": {
-          "pass": [
-            "3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}",
-            "5. Read the changelog back and find the line you added."
-          ],
-          "fail": [
-            "The source's step 6 kept word for word, with a Rules: line that tags CORE-WORK-06 below it."
-          ]
+          "pass": ["3. Add the line under Unreleased. Check: the new line holds no token, password or email address.\n   Rules: {{rule:CORE-WORK-06}}", "5. Read the changelog back and find the line you added."],
+          "fail": ["The source's step 6 kept word for word, with a Rules: line that tags CORE-WORK-06 below it."]
         }
       }
     },
@@ -261,13 +202,8 @@
         "pass": "Yes when such a row was added.",
         "fail": "No when the Jobs table has no changelog-writer row, or its row names another role.",
         "examples": {
-          "pass": [
-            "| changelog | implementer | changelog-writer | changelog-writer |"
-          ],
-          "fail": [
-            "v2/roles.md unchanged.",
-            "| changelog | release manager | changelog-writer | changelog-writer |"
-          ]
+          "pass": ["| changelog | implementer | changelog-writer | changelog-writer |"],
+          "fail": ["v2/roles.md unchanged.", "| changelog | release manager | changelog-writer | changelog-writer |"]
         }
       }
     },
@@ -276,22 +212,17 @@
       "source": {
         "contract": {
           "path": "docs/templates.md",
-          "line": 33,
+          "line": 17,
           "quote": "After you change a template, run `python3 v2/build/build.py` and report what it printed."
         }
       },
       "judged": {
         "question": "Does the run report what python3 v2/build/build.py printed when it ran, or that it could not run, without claiming a build it did not see pass?",
         "pass": "Yes when the run ran the build and reports what it printed, or reports that it could not run it and why, and claims no passing build it did not see.",
-        "fail": "No when the run claims the build passed or the release was built, or reports nothing about the build.",
+        "fail": "No when the run claims a build it did not see pass, such as saying the release was built when it never ran the build, or reports nothing about the build.",
         "examples": {
-          "pass": [
-            "Checked: python3 v2/build/build.py printed the built skills and ended with exit 0.",
-            "Not run: the build, because python3 could not run here."
-          ],
-          "fail": [
-            "Release built and checked."
-          ]
+          "pass": ["Checked: python3 v2/build/build.py printed the built skills and ended with exit 0.", "Not run: the build, because python3 could not run here."],
+          "fail": ["Release built and checked."]
         }
       }
     },
@@ -299,9 +230,9 @@
       "text": "v2/VERSION is raised in its middle number for a new skill",
       "source": {
         "contract": {
-          "path": "docs/templates.md",
-          "line": 17,
-          "quote": "A new skill raises the middle number and sets the last one to 0."
+          "path": "docs/design/08-governance.md",
+          "line": 29,
+          "quote": "A minor version adds rules, skills or roles."
         }
       },
       "judged": {
@@ -309,13 +240,8 @@
         "pass": "Yes when v2/VERSION holds 0.8.0.",
         "fail": "No when it still reads 0.7.0, or holds any other version, such as 0.7.1 or 1.0.0.",
         "examples": {
-          "pass": [
-            "v2/VERSION holds 0.8.0."
-          ],
-          "fail": [
-            "v2/VERSION unchanged at 0.7.0.",
-            "v2/VERSION raised to 0.7.1."
-          ]
+          "pass": ["v2/VERSION holds 0.8.0."],
+          "fail": ["v2/VERSION unchanged at 0.7.0.", "v2/VERSION raised to 0.7.1."]
         }
       }
     },
@@ -331,15 +257,7 @@
       "check": {
         "name": "changes_only_in",
         "args": {
-          "allowed": [
-            "v2/skills/changelog-writer/*",
-            "v2/roles.md",
-            "THIRD_PARTY.md",
-            "v2/VERSION",
-            "release/*",
-            "evals/skills/changelog-writer/stage-2.md",
-            ".harness/runs/*"
-          ]
+          "allowed": ["v2/skills/changelog-writer/*", "v2/roles.md", "THIRD_PARTY.md", "v2/VERSION", "release/*", "evals/skills/changelog-writer/stage-2.md", ".harness/runs/*"]
         }
       },
       "judged": {
@@ -347,12 +265,8 @@
         "pass": "Yes when every file the run added or changed is in one of those places.",
         "fail": "No when it changed another file, such as AGENTS.md, the cases or the label file.",
         "examples": {
-          "pass": [
-            "A new v2/skills/changelog-writer/ folder, one row each in v2/roles.md and THIRD_PARTY.md, and evals/skills/changelog-writer/stage-2.md."
-          ],
-          "fail": [
-            "A new AGENTS.md row before any round with the skill."
-          ]
+          "pass": ["A new v2/skills/changelog-writer/ folder, one row each in v2/roles.md and THIRD_PARTY.md, and evals/skills/changelog-writer/stage-2.md."],
+          "fail": ["A new AGENTS.md row before any round with the skill."]
         }
       }
     },
@@ -377,12 +291,8 @@
         "pass": "Yes when that file is there after the run and the run wrote it.",
         "fail": "No when the report is only in the final answer, or in a file anywhere else.",
         "examples": {
-          "pass": [
-            "A new evals/skills/changelog-writer/stage-2.md."
-          ],
-          "fail": [
-            "The report only in the final message."
-          ]
+          "pass": ["A new evals/skills/changelog-writer/stage-2.md."],
+          "fail": ["The report only in the final message."]
         }
       }
     },
@@ -406,13 +316,8 @@
         "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and every file the run wrote is named in it by its own path, in a Files written section or elsewhere in the report. The report itself and the run's own files under .harness/runs/ need not be listed.",
         "fail": "No when a file the run wrote is not named by its own path, even if a folder, pattern or count covers it. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "The template, its notice file, its reference, v2/VERSION, v2/roles.md and THIRD_PARTY.md written, and each named by its path."
-          ],
-          "fail": [
-            "The template listed, but not the notice file the run also wrote.",
-            "A line 'v2/skills/changelog-writer/ (3 files)' in place of the three paths."
-          ]
+          "pass": ["The template, its notice file, its reference, v2/VERSION, v2/roles.md and THIRD_PARTY.md written, and each named by its path."],
+          "fail": ["The template listed, but not the notice file the run also wrote.", "A line 'v2/skills/changelog-writer/ (3 files)' in place of the three paths."]
         }
       }
     },
@@ -422,15 +327,7 @@
       "check": {
         "name": "sections",
         "args": {
-          "headings": [
-            "Stage",
-            "Request",
-            "Path",
-            "Files written",
-            "Checked",
-            "Not run",
-            "Next"
-          ],
+          "headings": ["Stage", "Request", "Path", "Files written", "Checked", "Not run", "Next"],
           "level": 2,
           "file": "evals/skills/changelog-writer/stage-2.md"
         }
@@ -440,12 +337,8 @@
         "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and all seven second-level headings are there in that order.",
         "fail": "No when one is missing, renamed or out of order. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."
-          ],
-          "fail": [
-            "A report with ## Summary and ## Files only."
-          ]
+          "pass": ["## Stage, ## Request, ## Path, ## Files written, ## Checked, ## Not run, ## Next."],
+          "fail": ["A report with ## Summary and ## Files only."]
         }
       }
     },
@@ -464,12 +357,8 @@
         "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and each listed file exists and its count matches.",
         "fail": "No when a count is wrong, or a listed file does not exist. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "`v2/skills/changelog-writer/SKILL.tmpl.md` (62 lines), and the file has 62 lines."
-          ],
-          "fail": [
-            "A count of 30 for a file of 41 lines."
-          ]
+          "pass": ["`v2/skills/changelog-writer/SKILL.tmpl.md` (62 lines), and the file has 62 lines."],
+          "fail": ["A count of 30 for a file of 41 lines."]
         }
       }
     },
@@ -481,75 +370,30 @@
         "pass": "Yes when the run wrote evals/skills/changelog-writer/stage-2.md, and that ask is there with who runs it.",
         "fail": "No when it is missing, or the run says it will run the round itself, or that the skill is ready to ship. No also when the run wrote no evals/skills/changelog-writer/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": [
-            "Next: a round with the skill, run by the eval owner."
-          ],
-          "fail": [
-            "Next: ship the skill."
-          ]
+          "pass": ["Next: a round with the skill, run by the eval owner."],
+          "fail": ["Next: ship the skill."]
         }
       }
     }
   ],
   "allow_words": {
-    "evals": [
-      "evals"
-    ],
-    "evals/skills": [
-      "evals"
-    ],
-    "evals/results": [
-      "evals"
-    ],
-    "evals/results/changelog-writer-baseline.json": [
-      "evals",
-      "golden",
-      "grader"
-    ],
-    "evals/skills/changelog-writer": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/stage-1.md": [
-      "eval",
-      "evals",
-      "goldens"
-    ],
-    "evals/skills/changelog-writer/cases/adds-fix-entry": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/adds-fix-entry/case.json": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/adds-fix-entry/world": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/adds-fix-entry/world/README.md": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/load-on-merge": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/load-on-merge/case.json": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/load-on-merge/world": [
-      "evals"
-    ],
-    "evals/skills/changelog-writer/cases/load-on-merge/world/README.md": [
-      "evals"
-    ],
-    "<prompt>": [
-      "evals",
-      "goldens"
-    ],
-    "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": [
-      "evals"
-    ],
-    "docs/templates.md": [
-      "evals"
-    ]
+    "evals": ["evals"],
+    "evals/skills": ["evals"],
+    "evals/results": ["evals"],
+    "evals/results/changelog-writer-baseline.json": ["evals", "golden", "grader"],
+    "evals/skills/changelog-writer": ["evals"],
+    "evals/skills/changelog-writer/cases": ["evals"],
+    "evals/skills/changelog-writer/stage-1.md": ["eval", "evals", "goldens"],
+    "evals/skills/changelog-writer/cases/adds-fix-entry": ["evals"],
+    "evals/skills/changelog-writer/cases/adds-fix-entry/case.json": ["evals"],
+    "evals/skills/changelog-writer/cases/adds-fix-entry/world": ["evals"],
+    "evals/skills/changelog-writer/cases/adds-fix-entry/world/README.md": ["evals"],
+    "evals/skills/changelog-writer/cases/load-on-merge": ["evals"],
+    "evals/skills/changelog-writer/cases/load-on-merge/case.json": ["evals"],
+    "evals/skills/changelog-writer/cases/load-on-merge/world": ["evals"],
+    "evals/skills/changelog-writer/cases/load-on-merge/world/README.md": ["evals"],
+    "<prompt>": ["evals", "goldens"],
+    "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": ["evals"],
+    "docs/templates.md": ["evals"]
   }
 }
