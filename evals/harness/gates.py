@@ -155,15 +155,27 @@ def lint_gate(r):
     return {"cases": len(r.cases), "hosts": len(r.modules)}
 
 
+def installed(r):
+    """{"lines", "bytes"} of the longest `SKILL.md` the round installs (`probes.length`): each skill its manifest
+    records and each previous version, the length the pinned-load probe's skill must reach."""
+    with contextlib.ExitStack() as stack:
+        paths = [r.skills[name] / "SKILL.md" for name in sorted(r.record["skills"])]
+        for name, kept in sorted(r.record.get("previous", {}).items()):
+            folder, _ = stack.enter_context(rounds.previous(r.repo, name, kept["commit"], kept["sha256"]))
+            paths.append(folder / "SKILL.md")
+        return probes.length(paths)
+
+
 def probe_gate(r):
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
+    longest = installed(r)
     not_run, drift = {}, {}
     for host, module in r.modules.items():
         made = []
         with tempfile.TemporaryDirectory(prefix="hw-p-") as scratch:  # the probes' homes, kept until scrubbed
             try:
                 found = probes.probe_host(module, scratch, tools=tools, model=r.model(host), timeout=r.timeout,
-                                          made=made, **r.containment)
+                                          made=made, length=longest, **r.containment)
             finally:  # a probe that raised made containments too, whose words its error may carry
                 r.keep(made)
         found = json.loads(r.quiet(json.dumps(found)))  # its reasons and drift record, as they may be kept
