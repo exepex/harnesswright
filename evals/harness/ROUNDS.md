@@ -82,7 +82,7 @@ Everything a round writes or reports, its drift records included, passes one scr
 every containment its gates made, taken while its home is still there. Every gate, grading too, as goldens
 calibrate only their own attempt's graders, runs again when the round runs again; only runs are kept.
 
-The label gate (`labels.py`) gives each skill on each host one label of [10 ·
+The label gate (`labels.py`, with `verdicts.py` and `triggers.py`) gives each skill on each host one label of [10 ·
 Skills](../../docs/design/10-skills.md), computed from the store alone: the attempt record, and for each kept or
 made run its bundle, its `checks.json` and its trusted grades. One rule holds: a label rests only on settled
 results. A task run passes when every contract expectation of its case passed, a check deciding first and a trusted

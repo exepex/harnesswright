@@ -33,7 +33,7 @@ import runs
 
 HARNESS = Path(__file__).resolve().parent
 LABEL_RULE = ("checks.py", "goldens.py", "grader.py", "grades.py", "grading.py", "labels.py", "measures.py",
-              "setups.py", "view.py")
+              "setups.py", "triggers.py", "verdicts.py", "view.py")
 
 
 def setup(record, skill, cases, drift, folder=HARNESS):
