@@ -212,9 +212,8 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
-   When `git` cannot run here, as with no repository, compare instead the label's `skill_sha256` and version with
-   the skill's hash and version now in `release/manifest.json`, naming both values. A difference means the same;
-   so does no manifest, or a value you cannot find.
+   When `git` cannot run here, as with no repository, nothing shows the label still covers the skill: treat it as
+   stale, go back to stage 2 and ask for a round, naming the label's round and commit.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.

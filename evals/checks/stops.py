@@ -18,7 +18,8 @@ fails.
   codes that are not a failure, as the skill's text says: an allow list (HW-AG-09), `{script: {code: text}}`. A
   code with an empty text is never a failure; a code with a text is not a failure only when the run's recorded
   output holds that text, such as resolve.py's 1 when `.harness/profile.yaml: is missing or cannot be read` and the
-  skill works by reading. Every other code is a failed check, and a code that needs a text with no output recorded
+  skill works by reading, or 127 with `not found` when there is no Python, which the skills also take as a way
+  to work by reading. Every other code is a failed check, and a code that needs a text with no output recorded
   is `undecidable`.
   A command names a script when a word of it is the script by any path, or `-m` a module whose last part is the
   script's name. Each program of such a command, by the shell's words (`shell.words`), is a run, a plain read or
@@ -126,11 +127,12 @@ def blocked_after_failed_check(bundle, skill, report=None):
         if code is None or not owns_exit_code(last["command"], code):
             raise Undecidable(f"the last run of {script} has no exit code known to be its own: "
                               f"{last['command'][:200]}", [last])
-        needed = allowed.get(str(code))
-        if needed and not last["output"]:
+        needed, output = allowed.get(str(code)), last.get("output")
+        output = output if isinstance(output, str) else ""  # none recorded
+        if needed and not output:
             raise Undecidable(f"the last run of {script} ended with {code}, which is not a failure only with "
                               f"{needed!r} in its output, and it has no output recorded", [last])
-        if needed is None or needed not in last["output"]:
+        if needed is None or needed not in output:
             failed.append(f"{script} (exit {code})")
     if not failed:
         return "pass", f"no last run of a check of {skill} failed"
