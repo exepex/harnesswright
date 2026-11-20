@@ -1,10 +1,10 @@
 {
   "claims-writer": {
-    "resolve.py": {"0": "", "1": ".harness/profile.yaml: is missing or cannot be read"},
-    "claims_check.py": {"0": "", "2": "claims check stopped:"}
+    "resolve.py": {"0": "", "1": ".harness/profile.yaml: is missing or cannot be read", "127": "not found"},
+    "claims_check.py": {"0": "", "2": "claims check stopped:", "127": "not found"}
   },
   "skill-designer": {
-    "resolve.py": {"0": "", "1": ".harness/profile.yaml: is missing or cannot be read"},
-    "shared_runs.py": {"0": ""}
+    "resolve.py": {"0": "", "1": ".harness/profile.yaml: is missing or cannot be read", "127": "not found"},
+    "shared_runs.py": {"0": "", "127": "not found"}
   }
 }
