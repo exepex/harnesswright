@@ -109,8 +109,9 @@ def read_manifest(path):
 
 
 def covers(listed, rel):
-    """True when a run-time list covers the release path `rel`: it names it, or a folder (`.../`) above it. The one
-    copy of this rule; build.py imports it."""
+    """True when a run-time list covers the release path `rel`: it names it, or a folder (`.../`) above it. build.py
+    imports it; check_release.py reads the list with its own copy on purpose, so the check does not rest on the code
+    it checks."""
     return any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed)
 
 

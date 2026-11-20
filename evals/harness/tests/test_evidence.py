@@ -81,7 +81,8 @@ class Bundles(TempCase):
         self.assertEqual(blob(record["diff"]["notes.txt"]["after"].split(" ")[1]), b"hi\n")
         self.assertIn("skills/haiku-writer/notes.md", record["files_after"])
         self.assertEqual(record["overlay"], {"skill": "haiku-writer", "row": None, "index": None, "index_without": None,
-                                             "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"]})
+                                             "paths": ["skills/haiku-writer", ".fake/skills/haiku-writer"],
+                                             "release": []})
         self.assertEqual((record["arm"], record["final_message"], record["model"]),
                          ("with_skill", "Done with haiku-writer.", "fast-model"))
         self.assertEqual(" ".join(e["kind"] for e in record["log"]),  # the files a command names are inferred reads

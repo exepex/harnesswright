@@ -49,9 +49,9 @@ COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
-    words = world.names([overlay["skill"], *overlay["paths"]])
+    words = world.names([overlay["skill"], *evidence.places(overlay)])
     acts = overlay_names(overlay, record["files_after"], record["diff"])  # what puts an action on the overlay
-    places, own = overlay["paths"], record["own_files"]
+    places, own = evidence.places(overlay), record["own_files"]
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
     def after(path, entry):
@@ -121,7 +121,7 @@ def overlay_names(overlay, files_after, diff):
     as a path, each folder above one of its paths that the overlay alone made: before the run it held nothing but
     the overlay (`evidence.covers`), or was not there. A folder of that name the world holds itself does not count,
     and both arms find the same folders, so the same run in either arm gives the same view."""
-    places = overlay["paths"]
+    places = evidence.places(overlay)
     before = {path: entry for path, entry in files_after.items() if path not in diff}
     before.update({path: change["before"] for path, change in diff.items() if change["before"]})
     above = {str(folder) for place in places for folder in PurePosixPath(place).parents if str(folder) != "."}

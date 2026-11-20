@@ -1,6 +1,7 @@
 """Skill kinds (doc 12, Skill kinds): one reader gives a skill's kind from a kit part, a plan cannot set it, an
 internal skill never runs without itself, and a round of internal skills plants its faults on a team skill's case."""
 
+import hashlib
 import json
 import shutil
 import types
@@ -62,7 +63,15 @@ class Planned(Round):
     def test_the_manifest_records_the_declared_kind_and_a_plan_cannot_set_one(self):
         self.assertEqual(self.plan()["kinds"], {"haiku-writer": None})  # undeclared: its label is incomplete
         self.kinds(**{"haiku-writer": "team"})
-        self.assertEqual(self.plan()["kinds"], {"haiku-writer": "team"})
+        with self.assertRaisesRegex(rounds.RoundError, "harness fault: .*not a release manifest"):
+            self.plan()  # a team skill's release is proved when the round is planned, before any case runs
+        skill = self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        (self.repo / "skills" / "manifest.json").write_text(json.dumps({
+            "rulebook-version": "0.8.0", "run-time": ["manifest.json"], "run-time-files": {},
+            "skills": {"haiku-writer": {"files": {"SKILL.md": hashlib.sha256(skill.read_bytes()).hexdigest()}}}}))
+        record = self.plan()
+        self.assertEqual((record["kinds"], record["release_proof"]),
+                         ({"haiku-writer": "team"}, {"haiku-writer": {"with_skill": "hashes"}}))
         (self.repo / "evals" / "own-checks.json").write_text('["files"]')
         self.assertEqual(self.plan()["own_checks"], ["files"])  # the list an internal label reads, from the kit
         with self.assertRaisesRegex(rounds.RoundError, "kinds"):
