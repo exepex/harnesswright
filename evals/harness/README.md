@@ -23,6 +23,7 @@ allowed connections.
 | `teamnotes.py` | Holds a team world's notes to the team's own rules: no harnesswright rule ID or rule text outside `.harness/` |
 | `teamrelease.py` | Proves a team skill's folder, and the run-time files its world's profile asks for, against the release manifest's hashes |
 | `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
+| `cited.py` | What a case's expectations cite, held where it is cited; a task case has a contract expectation |
 | `textruns.py` | Text as the lint reads it: folded words and runs of consecutive words |
 | `contain.py` | Builds one run's environment, home and jail from one list of mounts |
 | `audit.py` | Runs inside the jail before the host starts and checks it against the same list |

@@ -7,6 +7,7 @@ import unittest
 from helpers import SKILL_MD, TempCase, expect
 
 import cases
+import cited
 import lint
 import world
 from test_world import AGENTS, INDEX, Adapter
@@ -182,7 +183,7 @@ class Lint(TempCase):
         for odd in ("null", "3", '{"a": 1}'):  # another data file of any shape states no quotes
             case_data = [(other.folder / "case.json", '{"expectations": ' + odd + '}')]
             self.problems(files, data, case_data=case_data)  # lints without a crash
-            self.assertEqual(lint.stated_quotes('{"expectations": ' + odd + '}'), [])
+            self.assertEqual(cited.stated_quotes('{"expectations": ' + odd + '}'), [])
 
     def test_a_contract_cited_through_a_link_is_not_found(self):
         case = self.case({"README.md": "x\n", "docs/every-change-must-pass.md": "Not a rule.\n"},

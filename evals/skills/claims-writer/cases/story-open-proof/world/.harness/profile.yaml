@@ -1,6 +1,7 @@
 # .harness/profile.yaml
-harnesswright:
-  folder: skills/
-
 toolchain:
   test: go test ./...
+
+# where the release zip is unpacked
+harnesswright:
+  folder: skills/
