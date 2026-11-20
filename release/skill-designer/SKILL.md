@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
   rulebook-version: "0.7.1"
-  content-hash: "e9c2db3c6853fc20ee01ed70e0d7b8946edb82ccb8072ee513146cd5ce3866f4"
+  content-hash: "1ff220bce7078242788c0aa10efca51382ca17789863ae1b16f903a6a6eaf794"
   size-floors: "15627"
-  size-rest: "29916"
+  size-rest: "29900"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.7.1. Do not edit. -->
 
@@ -654,9 +654,9 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
-   When `git` cannot run here, as with no repository, compare instead the label's `skill_sha256` with the hash
-   the round's manifest records for the skill, and that manifest's version with the skill's now. A difference
-   means the same; so does no round manifest, or a value you cannot find.
+   When `git` cannot run here, as with no repository, compare instead the label's `skill_sha256` and version with
+   the skill's hash and version now in `release/manifest.json`, naming both values. A difference means the same;
+   so does no manifest, or a value you cannot find.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.
