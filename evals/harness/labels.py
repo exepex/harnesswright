@@ -44,6 +44,12 @@ def labels(folder, attempt, record, cases, price_file):
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
+    drift = {}  # each host's tools and drift record, as the probe gate pinned it
+    for host in passed:
+        try:
+            drift[host] = json.loads((folder / "drift" / f"{host}.json").read_text())
+        except (OSError, ValueError) as error:
+            raise LabelError(f"{host}: the store holds no tools and drift record: {error}") from None
     scored, unsettled, inferred, by_case, pins = {}, {}, {}, {}, {}
     for made in gates["run"]["outcome"]:
         case = cases[(made["skill"], made["case"])]
@@ -88,7 +94,8 @@ def labels(folder, attempt, record, cases, price_file):
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"],
              "thresholds": verdicts.THRESHOLDS, "reference": grades.REFERENCE, "prices": price_file["date"],
              "skills": {},
-             "setups": {skill: setups.setup(record, skill, passed) for skill in sorted(record["cases"])}}
+             "setups": {skill: setups.setup(record, skill, {i: c for (s, i), c in cases.items() if s == skill},
+                                            drift) for skill in sorted(record["cases"])}}
     rest = measures.measures(folder, attempt, gates, cases, price_file)
     for skill in sorted(record["cases"]):
         own = {i: case for (s, i), case in cases.items() if s == skill}

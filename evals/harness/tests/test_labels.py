@@ -72,8 +72,8 @@ class Gate(Pages):
 
     def stored(self, poems):
         """A probe and run gate that give the fake host and one made run per (arm, poem) of `poems`."""
-        def probe(r):
-            r.hosts["fakehost"] = {"drift": DRIFT}
+        def probe(r):  # as the probe gate pins it, with the tools the cases declare
+            r.hosts["fakehost"] = {"drift": gates._pin(r.folder / "drift" / "fakehost.json", {"tools": {}, **DRIFT})}
             return {"passed": ["fakehost"], "not run": {}, "drift": {}}
 
         def run(r):
@@ -107,7 +107,9 @@ class Gate(Pages):
             "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
         # the setup that measured the skill: the one fingerprint its results compare by (doc 12, One setup)
-        self.assertEqual(found["setups"], {"haiku-writer": setups.setup(record, "haiku-writer", ["fakehost"])})
+        own = {"c1": cases.Case(self.case_dir, "haiku-writer")}
+        self.assertEqual(found["setups"], {"haiku-writer": setups.setup(record, "haiku-writer", own, {
+            "fakehost": {"tools": {}, **DRIFT}})})
         self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
                          (PRICES["date"], None, 3))  # no fault gate here
         self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 6, "asked": 6})  # q2 and q4 of 3 goldens

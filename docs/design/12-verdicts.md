@@ -109,8 +109,8 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
 A comparison is valid only between arms measured on one setup.
 
 - **Setup fingerprint.** Each round records one fingerprint of everything that measures the skill: the kit, cases,
-  worlds, adapters, host versions, each host's model, the grader routes and the label rule. It leaves out the
-  skill's own hash.
+  worlds, the other skills its own cases install, the tools its cases declare as each host found them, adapters,
+  host versions, each host's model, the grader routes and the label rule. It leaves out the skill's own hash.
 - **Results record the skill.** `rounds.py results` writes the skill's hash and the fingerprint into
   `evals/results/<skill>.json`. It is the one place that compares rounds. Two results compare only when their
   fingerprints match; otherwise every report says "not comparable: setup changed" and names what changed.

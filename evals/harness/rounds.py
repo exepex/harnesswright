@@ -33,10 +33,11 @@ line that pins the skill's load (`runs.pinned`, doc 12, Proven use). A manifest 
 pinning, is a round whose runs are not pinned, and it resumes as it was planned.
 
 The manifest records, for each skill of the plan with a folder, the last version `evals/results/<skill>.json`
-records as `verified` on the reference host (`verified`, `results.verified`). A skill that changed since then must
-name that version as `previous`, so it is compared inside the round on one setup (doc 12, One setup); the plan is
-refused otherwise, naming the version. An unchanged skill has no previous arm, and its round makes no cross-round
-claim. A results entry written before skill hashes were recorded is unknown, and the manifest says so.
+records as `verified` on the reference host (`verified`, `results.verified`). A skill that changed since then, and
+that the plan runs a task case of, must name that version as `previous`, so it is compared inside the round on one
+setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or one run in
+trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry written before
+skill hashes were recorded is unknown, and the manifest says so.
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -275,7 +276,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                 if kept["sha256"] == found["skills"][name]["sha256"]:
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
-        found["verified"] = verified(path, repo, data, found)
+        found["verified"] = verified(path, repo, found, known_cases)
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {
             "round": data["round"],
@@ -293,14 +294,15 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
         raise RoundError(f"{path}: {error}") from None
 
 
-def verified(path, repo, data, found):
-    """{skill: its last verified version (`results.verified`)} for each skill of the plan with a folder. A skill
-    changed since that version must have it as `previous`, so the comparison is made inside the round (doc 12, One
-    setup); an unchanged one has no previous arm and stands alone. A version with no recorded hash is unknown: it
-    is recorded as such and asks for nothing."""
+def verified(path, repo, found, known_cases):
+    """{skill: its last verified version (`results.verified`)} for each skill of the plan with a folder, whose
+    cases are `known_cases`. A skill changed since that version that the plan runs a task case of must have it as
+    `previous`, so the comparison is made inside the round (doc 12, One setup); an unchanged one, or one run in
+    trigger cases only, which compare no versions (`runs.arms`), has no previous arm and stands alone. A version
+    with no recorded hash is unknown: it is recorded as such and asks for nothing."""
     import results  # it reads the setups, which read the runner, which imports this module
     found_verified = {}
-    for name in sorted(set(data["skills"]) - set(found["absent"])):
+    for name in sorted(set(known_cases) - set(found["absent"])):
         try:
             last = results.verified(results.recorded(Path(repo) / "evals" / "results", name))
         except results.ResultsError as error:
@@ -308,7 +310,8 @@ def verified(path, repo, data, found):
         if last is None:
             continue
         found_verified[name] = last
-        if last["sha256"] in (None, found["skills"][name]["sha256"]):
+        tasks = any(case.kind == "task" for case in known_cases[name].values())  # the test `previous` is held to
+        if not tasks or last["sha256"] in (None, found["skills"][name]["sha256"]):
             continue
         if found["previous"].get(name, {}).get("sha256") != last["sha256"]:
             raise RoundError(f"{path}: {name} was verified in round {last['round']} with hash {last['sha256']}, "

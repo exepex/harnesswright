@@ -140,13 +140,16 @@ class Label(TempCase):
     def test_a_not_loaded_run_and_a_case_with_no_loaded_run_are_named_and_keep_it_inconclusive(self):
         expectations = [{"text": "The notes are kept", "source": CONTRACT,
                          "check": {"name": "file_state", "args": {"path": "README.md", "state": "unchanged"}}}]
-        task = types.SimpleNamespace(skill="haiku-writer", kind="task", expectations=expectations)
+        task = types.SimpleNamespace(skill="haiku-writer", kind="task", expectations=expectations, siblings=[],
+                                     tools=[])
         found = [made(1, "not loaded", case="c1"), made(2, "not loaded", case="c2"), made(3, "made", case="c2"),
                  *[made(n, "made", "without_skill", case, False) for n, case in ((4, "c1"), (5, "c2"))]]
         for item in found[2:]:
             (self.tmp / "runs" / item["key"]).mkdir(parents=True)
             (self.tmp / "runs" / item["key"] / "checks.json").write_text(json.dumps({"verdicts": [verdict("pass")]}))
         (self.tmp / "attempts").mkdir()
+        (self.tmp / "drift").mkdir()
+        (self.tmp / "drift" / "h.json").write_text(json.dumps({"tools": {}, "own files": {}}))
         (self.tmp / "attempts" / "a1.json").write_text(json.dumps({"gates": [
             {"gate": "probe", "passed": True, "outcome": {"passed": ["h"], "not run": {}}},
             {"gate": "run", "passed": True, "outcome": found},
