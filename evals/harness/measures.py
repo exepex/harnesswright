@@ -9,8 +9,8 @@ Each skill on each host gets (`measures`):
 - `pinned_load`, per arm with pinned runs (`runs.pinned`, marked by the run gate): the tries that loaded the skill
   (`loaded`, the runs kept or made) of the pinned tries (`tries`), every try not loaded counting too (`runs.misses`).
 - `golden_accuracy`: the questions of the skill's graded goldens that the panel answered as settled (`right`) of
-  those asked (`asked`), read from each golden's grade record. The same for every host, as goldens are graded once
-  per attempt.
+  those asked (`asked`), read from each golden's grade record, an extra pass's too, the list trust is read from
+  (`grades.golden_records`). The same for every host, as goldens are graded once per attempt and pass.
 - `faults`: how many of the planted harness faults the fault gate caught on the host; None when the attempt has no
   passed fault gate.
 - `inferred_evidence`, per arm: how many expectations of task runs a check left undecidable because the evidence
@@ -32,6 +32,7 @@ Standard library only.
 import json
 
 import evidence
+import grades
 import prices
 import runs
 from host import TOKENS
@@ -100,7 +101,7 @@ def measures(folder, attempt, gates, cases, price_file):
                           for arm, own in arms},
             "pinned_load": {arm: share(own["loaded"], own["pinned"], loaded=own["loaded"], tries=own["pinned"])
                             for arm, own in arms if own["pinned"]},
-            "golden_accuracy": _goldens(folder / "grades" / attempt / "goldens" / skill),
+            "golden_accuracy": _goldens(folder / "grades" / attempt, skill),
             "faults": None if caught is None else {"caught": sum(bool(f["caught"]) for f in caught),
                                                    "planted": len(caught)},
             "inferred_evidence": {arm: own["inferred"] for arm, own in arms},
@@ -115,10 +116,11 @@ def measures(folder, attempt, gates, cases, price_file):
 COST = ("runs", "seconds", "untimed", "uncounted", "unpriced", "money", "voided", "not_loaded")
 
 
-def _goldens(folder):
-    """The golden accuracy of one skill, from the grade records of its goldens under `folder`."""
+def _goldens(folder, skill):
+    """The golden accuracy of `skill`, from the grade records of its goldens in the attempt's grades `folder`, every
+    extra pass's too (`grades.golden_records`)."""
     right = asked = 0
-    for path in sorted(folder.glob("*/*.json")) if folder.is_dir() else []:  # <case>/<golden>.json
+    for path in [p for p in grades.golden_records(folder) if p.parent.parent.name == skill]:
         sheet = json.loads(path.read_text())
         for id_ in sheet["asked"]:
             asked += 1

@@ -91,21 +91,23 @@ form still counting as that grader's answer (`offered`). A golden passes a quest
 the right value: an unsettled golden, flipped or with no majority, is a miss, named `flipped retry` or `no answer`.
 The label file names each judged question's agreement over every page that two different graders answered and every
 answer a grader gave, refused tries included, the overall share and the 90% bar, and lists every question below the
-bar or with a flipped retry for rewriting (`agreement`, `agreement.py`); agreement unscores nothing by itself. Each graded page
-leaves one record in the attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is made once and
-kept across attempts (`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders were trusted
-under; a later attempt grades its goldens again and counts a kept answer only when its question is trusted both now
-and then. When a measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to each split case
-it reads, in each arm it reads, through the run, check and grade steps, at most as many per case and arm as the
-plan's `extra_runs` (0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label already
-bound to be `incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why (`skipped`). A
-regrade reads the same runs as the label (`labels.with_extras`). The label file names the extra runs of each case
-and arm (`extra_runs`). A check that breaks, a grader that breaks its jail or a golden that cannot be built stops
-the round. Each gate's outcome, that of the gate that stopped the round too, is written, as it ends, to the attempt
-record `<store>/<round>/attempts/<time>-<random>.json`, with the seed. Everything a round writes or reports, its
-drift records included, passes one scrub: the canaries and credentials of every containment its gates made, taken
-while its home is still there. Every gate, grading too, as goldens calibrate only their own attempt's graders, runs
-again when the round runs again; only runs and their grades are kept.
+bar or with a flipped retry for rewriting (`agreement`, `agreement.py`); agreement unscores nothing by itself. Each
+graded page leaves one record in the attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is
+made once and kept across attempts (`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders
+were trusted under; a later attempt grades its goldens again and counts a kept answer only when its question is
+trusted both now and then, and only when its panel has the kept grade's routes, each grader's host and model; a kept
+grade is never made again. When a measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to
+each split case it reads, in each arm it reads, through the run, check and grade steps, at most as many per case and
+arm as the plan's `extra_runs` (0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label
+already bound to be `incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why
+(`skipped`). A regrade reads the same runs as the label (`labels.with_extras`), and golden accuracy and agreement the
+same goldens, every pass's (`grades.golden_records`). The label file names the extra runs of each case and arm
+(`extra_runs`). A check that breaks, a grader that breaks its jail or a golden that cannot be built stops the round.
+Each gate's outcome, that of the gate that stopped the round too, is written, as it ends, to the attempt record
+`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Everything a round writes or reports, its drift
+records included, passes one scrub: the canaries and credentials of every containment its gates made, taken while
+its home is still there. Every gate, grading too, as goldens calibrate only their own attempt's graders, runs again
+when the round runs again; only runs and their grades are kept.
 
 The label gate (`labels.py`, with `verdicts.py` and `triggers.py`) gives each skill on each host one label of [10 ·
 Skills](../../docs/design/10-skills.md), computed from the store alone: the attempt record, and for each kept or
@@ -208,8 +210,9 @@ python3 evals/harness/regrade.py ROUND --store DIR --route goose=MODEL@UPSTREAM 
     [--seed N] [--pages all|run|golden] [--graders 1|2]
 ```
 
-It refuses a kit that is not the approved one, a changed case or adapter, and a page that does not hash as the
-round's grade record says. Each route passes every probe and the grader faults before any route grades. Then each
+It refuses a kit that is not the approved one, a changed case or adapter, a page that does not hash as the round's
+grade record says, and a source attempt with a gate before the label gate, extra runs included, that did not pass.
+Each route passes every probe and the grader faults before any route grades. Then each
 route grades every page with two fresh graders, and the pass is written to `<store>/<round>/regrade/<pass>/`,
 apart from the round's grades and labels. `--pages` and `--graders` grade fewer pages, or with one grader, to
 stay in budget; `regrade.json` records the choice, and its `finished` time stays empty when the pass stopped.

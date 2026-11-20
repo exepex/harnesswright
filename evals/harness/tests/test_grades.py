@@ -196,6 +196,23 @@ class Graded(Pages):
         with self.assertRaisesRegex(rounds.RoundError, "the kept grade is not of run k1's page and questions"):
             self.go(steps, grade=answering(pond))
 
+    def test_a_kept_grade_of_another_panel_is_never_remade_and_its_answers_are_unscored(self):
+        self.graded([POND], answering(pond))
+        path = self.store / "r1" / grades.KEPT / "k1.json"
+        self.assertEqual(json.loads(path.read_text())["routes"], [{"host": "fakehost", "model": "named-model"}] * 3)
+        other = {**json.loads(path.read_text()), "routes": [{"host": "fakehost", "model": "other-model"}] * 3}
+        path.write_text(json.dumps(other))  # as if an earlier attempt's panel had other routes
+        calls, steps = [], (("run", self.ran([POND])), ("check", gates.check_gate), ("grade", grades.grade_gate))
+        outcome = self.go(steps, grade=answering(pond, calls))["gates"][2]["outcome"]
+        self.assertEqual(len(calls), 4)  # the goldens only: the run's page is not graded again
+        self.assertEqual((outcome["runs"][0]["answered"], outcome["runs"][0]["untrusted"]), ([], ["q2", "q4"]))
+        whys = [json.loads((attempt / "runs" / "k1.json").read_text())["untrusted"].get("q2")
+                for attempt in (self.store / "r1" / "grades").iterdir()]  # the first attempt's is None
+        self.assertIn("kept grade of another panel (fakehost other-model, fakehost other-model, fakehost "
+                      "other-model), not this one (fakehost named-model, fakehost named-model, fakehost "
+                      "named-model)", whys)
+        self.assertEqual(json.loads(path.read_text()), other)  # never replaced
+
     def test_a_golden_that_cannot_be_built_stops_the_round(self):
         self.golden("bad", {**wrote(POND), "changes": {"README.md/poem.md": POND}})
         with self.assertRaisesRegex(rounds.RoundError, "stopped at the grade gate: .*bad: not a file of the world"):

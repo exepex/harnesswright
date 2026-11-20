@@ -9,8 +9,9 @@ page from the stored bundles with the round's code, as the grade gate built it, 
 and its questions hash to what the round's grade record kept (`grader.digest`). Before any route grades, each one
 passes every probe and the grader faults (`grader_faults.py`), as a round's hosts do; one that fails stops the pass.
 
-- The source is one attempt of the round, the latest whose grade gate passed unless another is named: its grade
-  records name the pages, `grades/<attempt>/runs/<key>.json` and `.../goldens/<skill>/<case>/<golden>.json`.
+- The source is one attempt of the round, the latest whose grade gate passed, and every other gate before the label
+  gate it ran, the extra runs gate included, unless another is named: its grade records name the pages,
+  `grades/<attempt>/runs/<key>.json` and `.../goldens/<skill>/<case>/<golden>.json`.
 - Each route grades every page twice, two fresh graders, in the blind order of the pass's seed. Nothing of the
   round's panel is read.
 - It writes `<store>/<round>/regrade/<pass>/` (doc 11, Cross-model grading): `regrade.json`, the pass and its
@@ -77,15 +78,19 @@ def folder_name(adapter, model):
 
 
 def source(r, attempt=None):
-    """(name, {gate: outcome}) of the source attempt: `attempt`, or the latest whose grade gate passed."""
+    """(name, {gate: outcome}) of the source attempt: `attempt`, or the latest whose grade gate passed and every gate
+    it ran before the label gate, so an extra runs gate stopped part way never leaves grades the outcome does not
+    name."""
     found = {}
     for path in sorted((r.folder / "attempts").glob("*.json")):
-        ran = {g["gate"]: g.get("outcome") for g in json.loads(path.read_text())["gates"] if g["passed"]}
-        if "grade" in ran:
+        recorded = json.loads(path.read_text())["gates"]
+        ran = {g["gate"]: g.get("outcome") for g in recorded if g["passed"]}
+        if "grade" in ran and all(g["passed"] for g in recorded if g["gate"] != "label"):
             found[path.stem] = ran
     named = attempt or max(found, default=None)
     if named not in found:
-        raise RegradeError(f"round {r.record['round']}: no attempt {attempt or ''} whose grade gate passed")
+        raise RegradeError(f"round {r.record['round']}: no attempt {attempt or ''} whose grade gate passed, and "
+                           f"every gate before the label gate")
     return named, found[named]
 
 
@@ -279,7 +284,8 @@ def main(argv=None):
     parser.add_argument("--store", required=True, help="the round store the round ran in")
     parser.add_argument("--route", action="append", required=True, dest="routes", type=_route,
                         help="a grader route, ADAPTER=MODEL (repeatable)")
-    parser.add_argument("--attempt", help="the source attempt; the latest whose grade gate passed when not given")
+    parser.add_argument("--attempt", help="the source attempt; the latest whose gates passed up to the label gate when "
+                                          "not given")
     parser.add_argument("--seed", type=int, help="the seed of the blind order; a new one when not given")
     parser.add_argument("--pages", choices=("all",) + KINDS, default="all", help="which pages to grade (default all)")
     parser.add_argument("--graders", type=int, default=TIMES, help=f"graders per page and route (default {TIMES})")
