@@ -48,7 +48,7 @@
         }
       },
       "judged": {
-        "question": "The label records round deprecation-notice-2 at commit 9443ad2ddb32. A later commit adds v2/skills/deprecation-notice/references/sunset-header.md and the rebuilt release/deprecation-notice/. Does the run tell the person that the skill changed after the label's commit, so the label does not cover it as it is now, naming the label's commit or that change?",
+        "question": "The label records round deprecation-notice-2 at commit 191036efa805. A later commit adds v2/skills/deprecation-notice/references/sunset-header.md and the rebuilt release/deprecation-notice/. Does the run tell the person that the skill changed after the label's commit, so the label does not cover it as it is now, naming the label's commit or that change?",
         "pass": "Yes when the run says the skill changed after the round's commit and names the commit, the later change or the file it added.",
         "fail": "No when the run takes the label as proof for the skill as it is now, or declines without saying the skill changed after the round.",
         "examples": {

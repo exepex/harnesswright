@@ -1,7 +1,7 @@
 {
   "round": "deprecation-notice-2",
   "date": "2026-11-12",
-  "commit": "9443ad2ddb32aa43cff14192c7fdf6e67ad9dd67",
+  "commit": "191036efa80542793fc8a2d47be6e3248f93a863",
   "reference": "claude-code",
   "skills": {
     "deprecation-notice": {

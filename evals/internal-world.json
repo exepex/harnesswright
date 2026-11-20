@@ -1,5 +1,5 @@
 {
-  "commit": "b7a4f727eda081d3e6c3571ca640eded4f58f32a",
+  "commit": "e5a95299560cc1b20b4e3f58047fa68ab730479b",
   "paths": ["AGENTS.md", "CLAUDE.md", "LICENSE", "THIRD_PARTY.md", "docs/design", "release", "v2/VERSION",
             "v2/roles.md", "v2/rules", "v2/skills", "v2/build/build.py", "v2/build/check_release.py",
             "v2/build/check_rules.py", "v2/build/copyform.py", "v2/build/reach.py", "v2/build/repoprofile.py",
@@ -29,7 +29,7 @@
     ["THIRD_PARTY.md", 26, "| `skills/skill-designer/LICENSE.txt` (retired; in git history) | `LICENSE.txt` | Unchanged, except a final newline added. |", null],
     ["THIRD_PARTY.md", 27, "| `v2/skills/skill-designer/SKILL.tmpl.md`, built into `release/skill-designer/SKILL.md` | `SKILL.md` | Rewritten as a template from the adapted skill above. The work runs in three stages (evals, draft, ship), one per run, each ending with a stage report that names the next step's owner. Evals come before the skill; goldens, rounds and judging are left to other agents. Rules are cited by ID. Kept the ideas on descriptions that say when to use a skill and when not, realistic trigger prompts, near-miss negatives, a held-out test split and baselines without the skill. |", null],
     ["THIRD_PARTY.md", 28, "| `v2/skills/skill-designer/LICENSE.txt`, copied to `release/skill-designer/LICENSE.txt` | `LICENSE.txt` | Copied from the retired `skills/skill-designer/LICENSE.txt`. |", null],
-    ["THIRD_PARTY.md", 29, "| `evals/harness/rounds.py`, `evals/harness/labels.py`, `evals/harness/cases.py` | `scripts/run_eval.py`, `scripts/run_loop.py` | Written new; no code copied. Ideas taken (first in the phase 2 runner, now in the harness): several runs per trigger query, a trigger-rate threshold of 0.5, a held-out test split of trigger cases, and from `scripts/aggregate_benchmark.py` and `references/schemas.md`: 3 runs per configuration and the with-skill minus without-skill delta (`lift`). The host is reached through an adapter instead of `claude -p`. |", null],
+    ["THIRD_PARTY.md", 29, "| `evals/harness/rounds.py`, `evals/harness/labels.py`, `evals/harness/verdicts.py`, `evals/harness/triggers.py`, `evals/harness/cases.py` | `scripts/run_eval.py`, `scripts/run_loop.py` | Written new; no code copied. Ideas taken (first in the phase 2 runner, now in the harness): several runs per trigger query, a trigger-rate threshold of 0.5, a held-out test split of trigger cases, and from `scripts/aggregate_benchmark.py` and `references/schemas.md`: 3 runs per configuration and the with-skill minus without-skill delta (`lift`). The host is reached through an adapter instead of `claude -p`. |", null],
     ["THIRD_PARTY.md", 30, "", null],
     ["THIRD_PARTY.md", 31, "Not taken: `scripts/`, `eval-viewer/`, `assets/eval_review.html` and `agents/` files other than those above. The", null],
     ["THIRD_PARTY.md", 32, "eval scripts call the Claude Code command line directly (`claude -p` in `scripts/run_eval.py` and", null],
