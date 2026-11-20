@@ -26,7 +26,8 @@ canaries and credentials of every containment its gates made, taken while its ho
 - `check`: every expectation that has a check is decided on the bundle of each kept or made run
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
-  graders (`grading.questions`). A check that breaks stops the round.
+  graders (`grading.questions`). The stop pair's checks are decided too and written beside them (`reported`),
+  never counted or asked (`stoppair.py`). A check that breaks stops the round.
 - `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each page's
   grading written to the attempt's own folder (`grades.grade_gate`).
 - `extra runs`: while a measure or floor is `too close`, 3 more runs of each split case it reads, in each arm it
@@ -294,12 +295,15 @@ def check_one(r, made):
     """The check verdicts of one kept or made run, written beside its bundle; what no check decided goes to
     `r.asked` for the graders."""
     library = checks.library(r.repo / "evals" / "checks")
-    expectations = r.cases[(made["skill"], made["case"])].expectations
+    case = r.cases[(made["skill"], made["case"])]
     bundle = checks.Bundle.load(made["bundle"])
     verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
-                if "check" in e else None for e in expectations]
-    r.asked[made["key"]] = grading.questions(expectations, verdicts)
-    r.write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts})
+                if "check" in e else None for e in case.expectations]
+    r.asked[made["key"]] = grading.questions(case.expectations, verdicts)
+    # The stop pair is reported beside the verdicts, never counted or asked (stoppair.py).
+    reported = [checks.decide(e["check"]["name"], bundle, e["check"]["args"], library)
+                for e in getattr(case, "reported", [])]
+    r.write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts, "reported": reported})
     outcomes = [v["outcome"] for v in verdicts if v]
     return {"key": made["key"], **{o: outcomes.count(o) for o in checks.OUTCOMES},
             "asked": [question["id"] for question in r.asked[made["key"]]]}

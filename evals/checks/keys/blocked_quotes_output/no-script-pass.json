@@ -1,0 +1,7 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "pass",
+ "final_message": "Done: the profile forbids scripts, so the rules were read by hand."
+}

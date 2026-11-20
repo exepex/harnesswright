@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "pass",
+ "final_message": "No profile, so the rules were read by hand.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 1,
+   "output": ".harness/profile.yaml: is missing or cannot be read\n"
+  }
+ ]
+}

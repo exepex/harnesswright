@@ -266,6 +266,8 @@ with a source, "ends with exactly one question", commands run or never run. A sk
 - **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
   such as a command that names the skill's path, or cuts away the part that left it so, the expectation is asked
   of no one, and the run is not scored on it.
+- **A check counts only once it decides on stored with-skill runs;** until then it is reported per arm and never
+  counted, as the stop pair (`evals/checks/stop-pair.json`) is until 7c-4 lands and a recount shows it decides.
 
 An expectation may be judged only when no check can decide it.
 
