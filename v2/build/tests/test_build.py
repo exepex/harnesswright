@@ -71,8 +71,7 @@ class BuildTest(unittest.TestCase):
             "<!-- Generated from v2/skills/demo-skill/SKILL.tmpl.md at version 0.1.0. Do not edit. -->",
             "", "# Demo skill", "", "## Rules for this skill"])
         self.assertEqual(lines[-6:], [
-            "1. Read the rules text first.",
-            "   Rules: CORE-TEMPLATE-06 (A skill's first step checks its prerequisites and reads its rules text)",
+            "1. Read the rules text first.", "   Rules: CORE-TEMPLATE-04 (A skill's first step reads its rules text)",
             "2. Report only what you checked.", "   Rules: CORE-WORK-01 (Report only what you verified)",
             "3. Follow [the guide](references/guide.md).", ""])
         self.assertNotIn("\n\n\n", "\n".join(lines))
@@ -135,7 +134,7 @@ class BuildTest(unittest.TestCase):
         meta = data["metadata"]
         copied = entry["copied-ids"]
         self.assertEqual(meta["copied-ids"], ", ".join(copied))
-        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-05", "CORE-TEMPLATE-06"):
+        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-05", "CORE-TEMPLATE-04"):
             self.assertIn(rule_id, copied)
             self.assertEqual(text.count(f"<!-- rule {rule_id} -->"), 1)
         self.assertEqual(len(copied), text.count("<!-- rule "))

@@ -49,6 +49,22 @@ with the older rule or checklist item it carries over.
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/discovery.md` (MIT)
   - own (doc 10 checklist item 2)
 
+### CORE-SKILL-04 · A skill states its purpose, limits and inputs
+
+- **Kind:** principle
+- **Status:** active
+- **Review by:** 2027-11-03
+- **Applies to:** skill designer, skill judge
+- **Rule:** The body opens with what the skill does, what it does not do, what inputs it needs, and what to do when an
+  input is missing.
+- **Why:** An agent missing an input guesses it. A guessed input gives a confident wrong result.
+- **Check:** For each input, does the skill say where it comes from and what happens without it?
+- **Good:** "Needs the story file. If there is none, stop and ask for it."
+- **Bad:** A skill that uses "the acceptance criteria" without saying where they are.
+- **Eval:** a skill that uses an input without saying where it comes from, which the skill judge must flag.
+- **Source:**
+  - own (doc 10 checklist items 1 and 3)
+
 ### CORE-SKILL-05 · Steps are numbered, imperative and checkable
 
 - **Kind:** principle
@@ -85,6 +101,22 @@ with the older rule or checklist item it carries over.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/anthropic-best-practices.md` (MIT)
   - own (doc 10 checklist item 6)
+
+### CORE-SKILL-08 · A skill says what to do when a step fails
+
+- **Kind:** principle
+- **Status:** active
+- **Review by:** 2027-11-03
+- **Applies to:** skill designer, skill judge
+- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop and ask one
+  clear question. It never lets the agent skip the step silently.
+- **Why:** Without a stated path, an agent skips the failed step and reports success.
+- **Check:** For each step that can fail, is there a stated next action?
+- **Good:** "If the test command is not found, stop and ask which command runs the tests."
+- **Bad:** A skill that says nothing about a missing test command.
+- **Eval:** a skill that runs a command and says nothing about its failure, which the skill judge must flag.
+- **Source:**
+  - own (doc 10 checklist item 7)
 
 ### CORE-SKILL-09 · Output follows its contract
 
@@ -412,51 +444,3 @@ with the older rule or checklist item it carries over.
   - `anthropics/claude-plugins-official@a2e251d plugins/plugin-dev/skills/plugin-structure/SKILL.md` (Apache-2.0)
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/anthropic-best-practices.md` (MIT)
   - own (`skills/claims-writer/SKILL.md` defines `SKILL_DIR`)
-
-### CORE-SKILL-28 · A skill states its purpose, limits and inputs, and stops on a missing input
-
-- **Kind:** principle
-- **Status:** active
-- **Review by:** 2027-11-20
-- **Applies to:** skill designer, skill judge
-- **Rule:** The body opens with what the skill does, what it does not do, and each input it needs with where that
-  input comes from. A missing input is a stop. A stopped run ends as blocked, names exactly what is missing, writes
-  none of the work the missing input was for, and still runs its closing steps, such as its report. The closing
-  report goes to the run folder, or to the final message when no run folder can be named. A way to work by reading
-  that the skill offers in place of the input is not a stop.
-- **Why:** An agent missing an input guesses it. A guessed input gives a confident wrong result. Work written before
-  the stop looks finished, and a stop with no report leaves the next role guessing what happened.
-- **Check:** For each input, does the skill say where it comes from and that the run stops without it, or which
-  by-reading way it offers instead? Does the stop end blocked, name the input, write none of the work the input was
-  for, and still run the closing steps?
-- **Good:** "Needs the story file. If there is none, stop: end blocked, name the missing story file, write no
-  claims, and still write the report to the run folder."
-- **Bad:** A skill that uses "the acceptance criteria" without saying where they are, or one that, with no story
-  file, writes claims from the diff alone.
-- **Eval:** a skill that writes its output when an input is missing, and one that ends a stop without its report,
-  which the skill judge must flag.
-- **Source:**
-  - own (CORE-SKILL-04; doc 12, Stop and prerequisites)
-
-### CORE-SKILL-29 · A skill says what to do when a step fails, and a stop still runs its closing steps
-
-- **Kind:** principle
-- **Status:** active
-- **Review by:** 2027-11-20
-- **Applies to:** skill designer, skill judge
-- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop. A stopped run
-  ends as blocked, names exactly what failed or is missing, and still runs its closing steps, such as its report.
-  The closing report goes to the run folder, or to the final message when no run folder can be named. A way to work
-  by reading that the skill offers is another route, not a stop. The skill never lets the agent skip a step
-  silently.
-- **Why:** Without a stated path, an agent skips the failed step and reports success. A stop that skips the closing
-  steps leaves no record of what is done and what is not.
-- **Check:** For each step that can fail, is there a stated next action? Does every stop end blocked, name what
-  failed or is missing, and still run the closing steps?
-- **Good:** "If the test command is not found, stop: end blocked, name the missing test command, and still write
-  the report."
-- **Bad:** A skill that says nothing about a missing test command, or one whose stop ends the run before its report.
-- **Eval:** a skill that runs a command and says nothing about its failure, and one whose stop skips its report,
-  which the skill judge must flag.
-- **Source:**
-  - own (CORE-SKILL-08; doc 12, Stop and prerequisites)

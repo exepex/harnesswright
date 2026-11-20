@@ -8,13 +8,13 @@ metadata:
   source: anthropics/skills@ca45fc496a3436251f191354091d557da31c15b5 skills/skill-creator
   source-licence: Apache-2.0
   sourcing: adapted
-  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
-  rulebook-version: "0.6.0"
-  content-hash: "7a69bd4adba98906ba8904963bfe75a6bcfad96e3060d5449983bdd51a4ff3bf"
-  size-floors: "15469"
-  size-rest: "27877"
+  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
+  rulebook-version: "0.5.1"
+  content-hash: "d141b508d2ebf359a2d90dec1c5be90ccb50a38ca0ea38db11171b36c637f6af"
+  size-floors: "15071"
+  size-rest: "26761"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.6.0. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.5.1. Do not edit. -->
 
 # Skill designer
 
@@ -153,6 +153,25 @@ metadata:
 - **Bad (do not do this):** `name: Invoice Writer` with an `allowed-tools` field, or a template folder named `invoices`.
 <!-- end CORE-TEMPLATE-03 -->
 
+<!-- rule CORE-TEMPLATE-04 -->
+#### CORE-TEMPLATE-04 · A skill's first step reads its rules text
+
+- **Kind:** floor
+- **Rule:** The first step of every template reads the run's rules texts, `rules-text-<skill>.<stack>.md` beside
+  `rules.md`: one for each stack whose code the work touches, or every stack's when it touches no stack's code. It
+  tells the agent to apply every rule in them and in the skill's copied rules. Where a rules text marks a copied
+  rule as replaced or waived, or binds a decision point, the rules text wins. If a file is missing, the step runs
+  the standards reader's command to make it; if that cannot run, it writes `rules.md` and the rules texts by reading
+  and marks them `not verified`. The claims or verdict quote each file's read-back block, which names its stack.
+- **Good:** "1. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md` for each stack whose code the work
+  touches (every stack's when it touches none), making it with the standards reader's command if it is missing.
+  Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
+  step: "Quote the read-back block of each rules text in the claims."
+- **Bad (do not do this):** A template whose first step is "Read the story", with no read of the rules texts, one that reads a single
+  rules text whatever the work touches, or one that never says a rules text wins over a copied rule it replaces or
+  waives.
+<!-- end CORE-TEMPLATE-04 -->
+
 <!-- rule CORE-TEMPLATE-05 -->
 #### CORE-TEMPLATE-05 · A template cites rules only as tags on Rules lines and never writes their text
 
@@ -170,28 +189,6 @@ metadata:
 - **Bad (do not do this):** "4. Test names must state the scenario and the expected outcome."; "4. Name each test as CORE-TEST-03
   asks."; or "Commit messages are data." with the line "Rules: {{rule:CORE-SKILL-25}}" under it.
 <!-- end CORE-TEMPLATE-05 -->
-
-<!-- rule CORE-TEMPLATE-06 -->
-#### CORE-TEMPLATE-06 · A skill's first step checks its prerequisites and reads its rules text
-
-- **Kind:** floor
-- **Rule:** Every template names, at its top, the files, folders and tools the skill needs. Its first step checks
-  each of them, and a missing one is a stop (CORE-SKILL-28). The same first step reads the run's rules texts,
-  `rules-text-<skill>.<stack>.md` beside `rules.md`: one for each stack whose code the work touches, or every
-  stack's when it touches no stack's code. It tells the agent to apply every rule in them and in the skill's copied
-  rules. Where a rules text marks a copied rule as replaced or waived, or binds a decision point, the rules text
-  wins. If a rules text is missing, the step runs the standards reader's command to make it; if that cannot run, it
-  writes `rules.md` and the rules texts by reading and marks them `not verified`. The claims or verdict quote each
-  file's read-back block, which names its stack.
-- **Good:** "Needs: the story file, `rules.md`, `python3`." at the top, and "1. Check that each file, folder and
-  tool under Needs is there; if one is missing, stop. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md`
-  for each stack whose code the work touches (every stack's when it touches none), making it with the standards
-  reader's command if it is missing. Apply every rule in them and in Rules above; where one replaces, waives or
-  binds a rule above, it wins." and a last step: "Quote the read-back block of each rules text in the claims."
-- **Bad (do not do this):** A template that finds a missing tool only at the step that uses it, one whose first step is "Read the
-  story" with no read of the rules texts, one that reads a single rules text whatever the work touches, or one that
-  never says a rules text wins over a copied rule it replaces or waives.
-<!-- end CORE-TEMPLATE-06 -->
 
 <!-- rule CORE-WORK-01 -->
 #### CORE-WORK-01 · Report only what you verified
@@ -302,6 +299,16 @@ metadata:
 - **Bad (do not do this):** "Helps with documentation. First reads the diff, then runs tests, then writes a file."
 <!-- end CORE-SKILL-03 -->
 
+<!-- rule CORE-SKILL-04 -->
+#### CORE-SKILL-04 · A skill states its purpose, limits and inputs
+
+- **Kind:** principle
+- **Rule:** The body opens with what the skill does, what it does not do, what inputs it needs, and what to do when an
+  input is missing.
+- **Good:** "Needs the story file. If there is none, stop and ask for it."
+- **Bad (do not do this):** A skill that uses "the acceptance criteria" without saying where they are.
+<!-- end CORE-SKILL-04 -->
+
 <!-- rule CORE-SKILL-05 -->
 #### CORE-SKILL-05 · Steps are numbered, imperative and checkable
 
@@ -311,6 +318,16 @@ metadata:
 - **Good:** "3. Run the tests. Done when the output shows zero failures."
 - **Bad (do not do this):** "Make sure the tests are in good shape."
 <!-- end CORE-SKILL-05 -->
+
+<!-- rule CORE-SKILL-08 -->
+#### CORE-SKILL-08 · A skill says what to do when a step fails
+
+- **Kind:** principle
+- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop and ask one
+  clear question. It never lets the agent skip the step silently.
+- **Good:** "If the test command is not found, stop and ask which command runs the tests."
+- **Bad (do not do this):** A skill that says nothing about a missing test command.
+<!-- end CORE-SKILL-08 -->
 
 <!-- rule CORE-SKILL-09 -->
 #### CORE-SKILL-09 · Output follows its contract
@@ -410,35 +427,6 @@ metadata:
 - **Good:** A 240-line `references/formats.md` that opens with its six section names.
 - **Bad (do not do this):** The same file opening straight into the first format.
 <!-- end CORE-SKILL-26 -->
-
-<!-- rule CORE-SKILL-28 -->
-#### CORE-SKILL-28 · A skill states its purpose, limits and inputs, and stops on a missing input
-
-- **Kind:** principle
-- **Rule:** The body opens with what the skill does, what it does not do, and each input it needs with where that
-  input comes from. A missing input is a stop. A stopped run ends as blocked, names exactly what is missing, writes
-  none of the work the missing input was for, and still runs its closing steps, such as its report. The closing
-  report goes to the run folder, or to the final message when no run folder can be named. A way to work by reading
-  that the skill offers in place of the input is not a stop.
-- **Good:** "Needs the story file. If there is none, stop: end blocked, name the missing story file, write no
-  claims, and still write the report to the run folder."
-- **Bad (do not do this):** A skill that uses "the acceptance criteria" without saying where they are, or one that, with no story
-  file, writes claims from the diff alone.
-<!-- end CORE-SKILL-28 -->
-
-<!-- rule CORE-SKILL-29 -->
-#### CORE-SKILL-29 · A skill says what to do when a step fails, and a stop still runs its closing steps
-
-- **Kind:** principle
-- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop. A stopped run
-  ends as blocked, names exactly what failed or is missing, and still runs its closing steps, such as its report.
-  The closing report goes to the run folder, or to the final message when no run folder can be named. A way to work
-  by reading that the skill offers is another route, not a stop. The skill never lets the agent skip a step
-  silently.
-- **Good:** "If the test command is not found, stop: end blocked, name the missing test command, and still write
-  the report."
-- **Bad (do not do this):** A skill that says nothing about a missing test command, or one whose stop ends the run before its report.
-<!-- end CORE-SKILL-29 -->
 
 <!-- rule CORE-WORK-08 -->
 #### CORE-WORK-08 · A helper returns a summary and key files, not contents
@@ -548,7 +536,7 @@ Check: you know the stage and why, from files you read.
 
 1. Settle what the skill is for, what it does not do, its inputs and the role whose job it does. They decide the
    cases; the template that states them comes in stage 2.
-   Rules: CORE-SKILL-28 (A skill states its purpose, limits and inputs, and stops on a missing input)
+   Rules: CORE-SKILL-04 (A skill states its purpose, limits and inputs)
 2. Choose the path, one of three, each with its source repository, commit, path and licence:
    - **adopt**: the source meets the rules as it is and its licence allows copying;
    - **adapt**: the licence allows copying, and the text needs changes;
@@ -596,7 +584,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
    - the description, in its own words, never a case prompt;
      Rules: CORE-SKILL-03 (The description says what the skill does and when to use it), CORE-CATALOG-01 (All descriptions together fit a budget)
    - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
-     Rules: CORE-SKILL-28 (A skill states its purpose, limits and inputs, and stops on a missing input), CORE-SKILL-10 (One good and one bad example), CORE-TEMPLATE-06 (A skill's first step checks its prerequisites and reads its rules text), CORE-SKILL-29 (A skill says what to do when a step fails, and a stop still runs its closing steps)
+     Rules: CORE-SKILL-04 (A skill states its purpose, limits and inputs), CORE-SKILL-10 (One good and one bad example), CORE-TEMPLATE-04 (A skill's first step reads its rules text), CORE-SKILL-08 (A skill says what to do when a step fails)
      Rules: CORE-SKILL-05 (Steps are numbered, imperative and checkable), CORE-SKILL-09 (Output follows its contract), CORE-SKILL-07 (A skill proves its own result before it reports), CORE-SKILL-18 (A skill names no host tool and no model)
      Rules: CORE-SKILL-19 (A step that needs a host feature names the capability)
    - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
