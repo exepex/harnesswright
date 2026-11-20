@@ -8,6 +8,7 @@
     "goldens": ["evals/goldens"],
     "situations": ["evals/situations.json"],
     "kinds": ["evals/kinds.json"],
+    "internal world": ["evals/internal-world.json"],
     "label rule": ["evals/harness/agreement.py", "evals/harness/checks.py", "evals/harness/extras.py",
                    "evals/harness/goldens.py", "evals/harness/grader.py", "evals/harness/grades.py",
                    "evals/harness/grading.py", "evals/harness/labels.py", "evals/harness/measures.py",

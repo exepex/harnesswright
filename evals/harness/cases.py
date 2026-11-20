@@ -33,6 +33,9 @@ case.json fields:
   measuring kit or harnesswright's own design and formats, which a project using a skill does not have.
 - `situation`: in a task case only, the pressure it puts on the agent (doc 11, Pressure situations), one of
   `SITUATIONS`. A case of `check-cannot-run` runs with the skill only (`SKILL_ONLY`); every other runs in both arms.
+- `internal_world`: in a case of an internal skill only, `{"remove": [paths]}`: the world is the skill's internal
+  world (`internal.py`, doc 12, Internal worlds) less the `remove` paths, each inside the kit's allow list, with
+  `world/` copied on top. Without it, `world/` is the whole world, as before.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -198,6 +201,7 @@ SCHEMA = {
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
     "situation": (lambda v: v in SITUATIONS, f"one of {SITUATIONS}"),
+    "internal_world": (record(remove=list_of(is_path)), "{remove: [paths]}: paths of the internal world"),
 }
 REQUIRED = {"task": ("prompt", "kind"), "trigger": ("prompt", "kind", "should_trigger", "split", "index")}
 TRIGGER_ONLY = ("should_trigger", "split")

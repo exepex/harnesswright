@@ -1,0 +1,8 @@
+{
+  "commit": null,
+  "paths": ["AGENTS.md", "CLAUDE.md", "LICENSE", "THIRD_PARTY.md", "release", "v2/VERSION", "v2/roles.md",
+            "v2/rules", "v2/skills", "v2/build/build.py", "v2/build/check_release.py", "v2/build/check_rules.py",
+            "v2/build/copyform.py", "v2/build/reach.py", "v2/build/repoprofile.py", "v2/build/resolve.py",
+            "v2/build/rulebook.py", "v2/build/runfiles.py", "v2/build/tags.py"],
+  "stand_in": "toolkit author"
+}

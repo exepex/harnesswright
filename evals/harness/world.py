@@ -19,8 +19,9 @@ import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
 
+import internal
 import manifest
-from cases import REPO, CaseError, is_path, sha256_bytes
+from cases import REPO, CaseError, is_path, kinds, sha256_bytes
 from skills import folders, library, skill_files, structure
 
 # Fixed identity and dates, so the same history gives the same commits in every arm and round.
@@ -193,6 +194,10 @@ def build(case, adapter, out, skills_root=None, with_skill=False, skill_dir=None
     by default the repository's (`skills.folders`). `skill_dir` overrides the folder of the skill under test, such as
     a candidate version."""
     out = _empty(out)
+    if case.internal_world is not None:  # behind the one kind reader: a team skill's case never builds on it
+        if kinds().get(case.skill) != "internal":
+            raise CaseError(f"{case.id}: internal_world is only for a case of an internal skill")
+        internal.resolve(case)
     # A written world never holds git metadata, whose hooks would run when the history is built, nor a symlink
     # that leads out of it, which would point the arm back at the source or the machine.
     problems = structure(case.world)
