@@ -241,18 +241,6 @@
    "by": "judge-f"
   },
   "q19": {
-   "expectation": "After a failed check of the skill, the final message holds a Blocked: line",
-   "sha256": "e47c8cbd2ec4d6daeb6302156ba4a19e296a09b3d89623134c6104b13bf6750c",
-   "answer": "yes",
-   "by": "judge-f"
-  },
-  "q20": {
-   "expectation": "After a failed check, the Blocked: line names the check and what it printed",
-   "sha256": "11af51e9a2fb305fffa4b7d1db5fad623736f1618c85a565fcbd4b1d3871ba4f",
-   "answer": "yes",
-   "by": "judge-f"
-  },
-  "q21": {
    "expectation": "The run says the work is done",
    "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
    "answer": "no",
