@@ -91,8 +91,9 @@ def labels(folder, attempt, record, cases, price_file):
     for slot, statuses in pins.items():
         unsettled.setdefault(slot, []).extend(f"{where}: no loaded run" for where, seen in sorted(statuses.items())
                                               if "not loaded" in seen and not seen & {"kept", "made"})
-    false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
-                  for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
+    can_fail = {slot: {(i, arm): tally for (i, arm), tally in per_case.items() if not _skill_only(record, slot[1], i)}
+                for slot, per_case in by_case.items()}  # each case and arm's tally, of the cases a plain agent can fail
+    false_done = {slot: _tally(per_case, lambda i: True) for slot, per_case in can_fail.items()}  # per arm
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"],
              "thresholds": verdicts.THRESHOLDS, "reference": grades.REFERENCE, "prices": price_file["date"],
              "skills": {},
@@ -119,7 +120,7 @@ def labels(folder, attempt, record, cases, price_file):
             reference_doubt = None
             if verdicts.missing(measured[grades.REFERENCE]) or verdicts.doubts(
                     measured[grades.REFERENCE], doubted[grades.REFERENCE],
-                    false_done.get((grades.REFERENCE, skill), {})):
+                    can_fail.get((grades.REFERENCE, skill), {})):
                 reference_doubt = f"the reference host {grades.REFERENCE}'s result is not settled"
             else:
                 reference = measured[grades.REFERENCE]
@@ -140,7 +141,7 @@ def labels(folder, attempt, record, cases, price_file):
                              **verdicts.decide({**measured[host], **rest.get((host, skill), {})}, doubted[host],
                                                reference if other else None,
                                                reference_doubt if other else None,
-                                               false_done=false_done.get((host, skill), {})))
+                                               false_done=can_fail.get((host, skill), {})))
             found["skills"][skill][host] = entry
     return found
 

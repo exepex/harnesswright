@@ -138,11 +138,13 @@ class Gate(Pages):
         [path] = (self.store / "r1" / "labels").iterdir()
         entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
         self.assertEqual((entry["task_pass_rate"], entry["previous_pass_rate"]), (0.6667, 1.0))
-        self.assertEqual((entry["label"], entry["gaps"]), ("inconclusive", [
-            "the reference host claude-code was not run", "task pass rate 67% below 90%",
-            "task pass rate 67% below the previous version's 100%",
-            "false-done rate 1 of 3 above the previous version's 0 of 3",
-            "format conformance 100% below 101% (3 of 3, 0 undecided)"]))
+        self.assertEqual((entry["label"], entry["gaps"]), ("inconclusive", [  # one split case: too close
+            "the reference host claude-code was not run", "format conformance 100% below 101% (3 of 3, 0 undecided)",
+            "task pass rate too close: 67% as measured, 33% at worst, 100% at best",
+            "previous pass rate too close: -33% as measured, -67% at worst, 0% at best",
+            "previous false-done rate too close: -33% as measured, -67% at worst, 0% at best"]))
+        self.assertEqual(entry["verdicts"]["task pass rate"],
+                         {"verdict": "too close", "value": 0.6667, "best": 1.0, "worst": 0.3333})
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()
