@@ -3,8 +3,8 @@
 The checks a case's expectation may name, one module per kind of evidence: `files.py` (the world's files after a
 run), `commands.py` (the commands it ran), `text.py` (the text it wrote), `tags.py` (rule tags) and `stops.py` (how
 it stopped). `evals/harness/checks.py` is the one way a check decides; how is in the harness README, "Script checks".
-`skill-checks.json` is the one declaration of each skill's check scripts and the exit codes that mean they
-failed, which `blocked_after_failed_check` reads.
+`skill-checks.json` is the one declaration of each skill's check scripts and the exit codes that are not a failure,
+with the output text a code needs where the skill's text sets one; `blocked_after_failed_check` reads it.
 
 Every check has answer keys in `evals/checks/keys/<check>/`, at least one that must pass and one that must fail. A
 key holds the check's `args`, the `outcome` it must give, and the run it is given: the world files `before` and

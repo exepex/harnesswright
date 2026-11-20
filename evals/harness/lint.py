@@ -8,14 +8,17 @@ place that run can see. A place has a kind:
 - `declared`: the prompt, a commit message, or the index row template the case writes;
 - `installed`: a file of an installed sibling skill;
 - `rows`: the index rows of the installed siblings, as the run reads them: the case's row template filled with
-  each sibling's name, path and description.
+  each sibling's name, path and description;
+- `base`: a file of an internal world's pinned base, which the case did not add (internal.py).
 
 `RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
-every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
+every rule but the tells reads them: a tell inside a sibling's description is the project's own word. `base` places
+are approved project text: the judges approve them with the pin and its `left_out` list, and they are the same in
+every arm, so they tell no arm apart and are no case author's to fix. Only the skill-name rule reads them; the
+case-level rules read the case's own files and the prompt, and `internal.check_links` the whole world.
 
-No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees the world's files, and
-an arm's name would tell it the arm, but for an internal world's pinned base, which is the same in every arm.
+No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees it and would learn its arm.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
 verified copies, installed sibling files, an internal world's pinned base, the recorded upstream source and the
@@ -62,8 +65,6 @@ PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
 CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
 EVERY = ("names", "arms", "skill", "tells", "eval", "expectations")
-# An internal world's pinned base is approved project text (internal.py), the same in every arm, so it is read only
-# for the skill's name; the case's own files meet every rule.
 RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "arms", "skill"),
          "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",)}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
@@ -101,8 +102,7 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    own = case.folder / "world"  # an internal world's case files; the rest is the base, and a case may add none
-    own = None if case.internal_world is None else manifest.manifest(own) if own.is_dir() else {}
+    own = None if case.internal_world is None else case.world_files  # the case's own files; the rest is the base
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:

@@ -277,9 +277,10 @@ class Case:
             self.data["expectations"] = [*self.data.get("expectations", []), done()]
             hashed = {"done.json": "file " + sha256_file(DONE)}
         try:
-            world = {} if bare else {f"world/{k}": v for k, v in manifest.manifest(self.world).items()}
+            self.world_files = {} if bare else manifest.manifest(self.world)  # {path: entry} of the case's world/
         except manifest.Unreadable as error:
             raise CaseError(f"{self.id}: {error}") from None
+        world = {f"world/{k}": v for k, v in self.world_files.items()}
         self.sha256 = manifest.digest({"case.json": "file " + sha256_file(path), **world, **hashed})
 
     def __getattr__(self, name):

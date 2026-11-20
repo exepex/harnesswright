@@ -196,15 +196,26 @@ class Reader(TempCase):
         with self.assertRaisesRegex(CaseError, "incoming/source.md -> ../brief.md"):
             internal.world_of(case, self.tmp / "out", self.repo, self.kit())
 
+    def lint(self, case, kit=()):
+        with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
+            return lint.lint_case(case, Adapter, self.tmp / "arms", self.skill().parent, kit=kit), \
+                internal.resolve(case).world
+
+    def test_a_clean_case_on_the_pinned_base_has_no_problems(self):
+        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, {"internal_world": {"remove": []}},
+                         skill=SKILL)
+        problems, built = self.lint(case)
+        self.assertTrue((built / "docs" / "design" / "11-evals.md").is_file())  # tells and arm names in the base
+        self.assertEqual(problems, [])
+
     def test_the_lint_reads_the_pinned_base_as_project_text_and_the_case_own_files_by_every_rule(self):
         pinned = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
-                      if len(line.split()) > 12)  # pinned base text that the kit's eval text repeats
+                      if len(line.split()) > 12 and not any(t in line.lower() for t in lint.TELLS))
+        # `pinned` is base text that the kit's eval text repeats, so it is project text even in the case's own file
         measured = "Each run of this case is scored on the stage report it writes for the next owner."
         case = self.case({"incoming/source.md": f"A borrowed source, with its test fixture.\n{measured}\n{pinned}\n",
                           "incoming/with_skill.md": "Notes.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
-        with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
-            problems = lint.lint_case(case, Adapter, self.tmp / "arms", self.skill().parent, kit=[measured, pinned])
-            built = internal.resolve(case).world
+        problems, built = self.lint(case, [measured, pinned])
         base = [p for p in manifest.manifest(built) if (built / p).is_file() and not p.startswith("incoming/")
                 and lint.told(lint.Place(p, (built / p).read_text(), "world"), "eval")
                 and "with_skill" in (built / p).read_text()]
@@ -212,8 +223,14 @@ class Reader(TempCase):
         own = f"{case.id}: incoming/"
         self.assertEqual([p for p in problems if not p.startswith(own)], [])  # none from the base
         found = {p[len(own):].split(",")[0] for p in problems}
-        self.assertLessEqual({"source.md: holds eval text", "source.md: test-tell word 'fixture'",
-                              "with_skill.md: names the arm 'with_skill'"}, found)
+        self.assertEqual({"source.md: holds eval text", "source.md: test-tell word 'fixture'",
+                          "with_skill.md: names the arm 'with_skill'"}, found)
+
+    def test_the_skill_name_rule_reads_the_whole_built_world(self):
+        case = self.case({"incoming/notes.md": "Notes.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+        with mock.patch.object(internal, "leave_out", return_value=[]):  # a base the one rule did not clean
+            problems, _ = self.lint(case)
+        self.assertTrue(any(p.startswith(f"{case.id}: notes.md: names the skill") for p in problems), problems)
 
     def test_an_internal_case_may_add_no_file(self):
         case = self.case({}, {"internal_world": {"remove": ["notes.md"]}}, skill=SKILL)
@@ -226,6 +243,14 @@ class Reader(TempCase):
         shutil.rmtree(plain.folder / "world")
         with self.assertRaisesRegex(CaseError, "no world/ folder"):
             type(plain)(plain.folder, SKILL)
+
+    @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
+                     "the kit pins no commit yet; the judges approve `left_out` with the pin")
+    def test_a_clean_case_on_the_real_pin_has_no_problems(self):
+        from test_adapters import CLAUDE
+        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, {"internal_world": {"remove": []}},
+                         skill=SKILL)
+        self.assertEqual(lint.lint_case(case, CLAUDE, self.tmp / "arms", None), [])
 
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")

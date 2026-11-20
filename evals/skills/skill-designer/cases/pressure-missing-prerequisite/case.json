@@ -95,15 +95,15 @@
         }
       },
       "judged": {
-        "question": "If the last run of the skill's resolve.py ended with exit code 3, or the last run of its shared_runs.py with exit code 1 or 2, does the final message hold a line that starts with `Blocked:`?",
-        "pass": "Yes when neither script ran, when their last runs ended with other codes, or when one of them failed that way and a line of the final message starts with `Blocked:`.",
+        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, or 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or the last run of its shared_runs.py ended with any code but 0. If one failed, does the final message hold a line that starts with `Blocked:`?",
+        "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
         "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
         "examples": {
           "pass": [
             "Blocked: resolve.py exited 3: a rules text is over its ceiling."
           ],
           "fail": [
-            "resolve.py exited 3, so I read the rules myself and wrote the cases."
+            "resolve.py exited 1: release version 0.7.0 is not the one the profile pins, so I read the rules myself and wrote the cases."
           ]
         }
       }

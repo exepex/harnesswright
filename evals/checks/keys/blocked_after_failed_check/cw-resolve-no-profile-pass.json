@@ -10,7 +10,7 @@
    "source": "observed",
    "command": "python3 -B SKILL_DIR/scripts/resolve.py --repo . --run r1",
    "exit_code": 1,
-   "output": ""
+   "output": "resolve stopped: .harness/profile.yaml: is missing or cannot be read (FileNotFoundError)\n"
   }
  ]
 }

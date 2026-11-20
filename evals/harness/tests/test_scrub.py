@@ -45,6 +45,15 @@ class Values(unittest.TestCase):
         self.assertEqual(clean.text(line, neutral=True), "loaded guide-folder/SKILL.md for project-guide")
         self.assertEqual(clean.text(line), line)
 
+    def test_a_run_s_neutral_words_cover_every_place_of_its_overlay(self):
+        contained = types.SimpleNamespace(
+            tokens=[], adapter=types.SimpleNamespace(ENV_KEYS=(), CREDENTIAL_FILES=()), operator_env={},
+            upstream=None, operator_home=None, home=None, world=None, scratch=None, root=None)
+        overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "release": ["rules/core/work.md"]}
+        clean = scrub.Scrub.of_run(contained, overlay)
+        self.assertEqual(clean.text("read rules/core/work.md for haiku-writer", neutral=True),
+                         "read guide-folder for project-guide")  # a file a team install adds, too (evidence.places)
+
 
 class Credentials(TempCase):
     def test_a_run_s_credentials_are_its_keys_url_users_and_credential_files(self):
