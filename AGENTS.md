@@ -12,7 +12,7 @@ host-specific instructions file contains one line pointing here.
 
 ## Before you start
 
-Read [docs/design](docs/design/README.md) in full: documents 01 to 10. They define the words, formats and rules
+Read [docs/design](docs/design/README.md) in full: documents 01 to 12. They define the words, formats and rules
 used everywhere. State in your report that you have read them.
 
 ## Working rules

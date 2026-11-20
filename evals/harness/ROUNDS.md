@@ -22,6 +22,13 @@ version names a skill it runs no task case of is refused. The manifest records t
 the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
 the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
 
+The manifest records, under `verified`, each held skill's last version `evals/results/<skill>.json` records as
+`verified` on the reference host (`results.verified`). A skill whose hash changed since then, and that the plan runs
+a task case of, must name that version as `previous`, so the comparison is made inside the round on one setup (doc
+12, One setup); the plan is refused otherwise, naming the round and hash. An unchanged skill, or one the plan runs in
+trigger cases only (which compare no versions), needs no previous arm, and its round makes no cross-round claim. A results entry written before skill hashes were recorded gives no hash: the manifest says it is unknown,
+and the plan asks for nothing.
+
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
 the lint gate lints; a trigger case or a previous version for it is refused. Every fault needs a skill's files, so
@@ -45,7 +52,14 @@ baseline backstop, `backstop.py`). A backstop void keeps its bundle under `voids
 never scored; a shorter match is listed in `backstop.json` beside the bundle and in the run gate's report. What the
 agent did, a run that timed out included, is scored, never voided. A voided slot gets one remake; voided twice, it
 stays empty. `void.json` stays beside a remade bundle, so the void rate per arm can be counted. A jail that fails
-its audit, or a canary in any output, raises, and the round stops.
+its audit, or a canary in any output, raises, and the round stops. A pinned run (`runs.pinned`: a task run with the
+skill or its previous version, in a round whose manifest pins the load) whose evidence proves no load
+(`evidence.loaded`) is `not loaded`, never a void: its bundle goes to `not-loaded/<n>/bundle`, never scored, and
+`not-loaded.json` lists why. It is tried once more at once; not loaded again, the slot stays unscored. When half or
+more of the pinned tries are not loaded, counted as the pinned-load rate counts them, the run gate stops the round as
+a harness fault. A pinned run's prompt starts with the adapter's lead line (`runs.lead`, through `host.lead`), which
+the run key holds with the manifest's `pinned` flag; the case keeps its own prompt, which the grader page shows.
+Every round planned now records `pinned: true`; a manifest without it resumes unpinned.
 
 `python3 evals/harness/rounds.py run ROUND --store DIR` takes a planned round through its gates in order
 (`gates.GATES`): the kit check, lint of every planned case on every host, the probes, the faults, the runs, the
@@ -79,14 +93,14 @@ skill's `SKILL.md` counts, as the discovery probe counts it, since some hosts (C
 own; the label names how many trigger runs rested on an inferred load only. A trigger case passes when the skill
 loaded in at least half its runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is
 that of the `test` split. A host that was not run, an absent skill (its label file still gives the baseline pass rate and
-the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty or undecided), too few scored runs, missed goldens,
+the scored runs per case), or a skill with no task case or no test trigger case, is `incomplete`. Every planned run that is not scored (void, empty, not loaded or undecided), a case and arm whose pinned runs never loaded, too few scored runs, missed goldens,
 no lift, or a reference host whose result is not settled make it `inconclusive`, each named. A missed threshold is
 `unsupported`, each gap named. A skill whose round ran its previous version must be at least as good as it on the
 same task cases: a pass rate below the previous version's, or a false-done rate above it, is `unsupported`, each
 named; too few scored runs in that arm, or no decided false-done answer in either arm, keep it `inconclusive`. The label file goes to `<store>/<round>/labels/<attempt>.json`.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
-with its counts: the void rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
+with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
 faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, format
 conformance per arm with the expectations left undecided, and per arm the runs, seconds, token counts by model and
 money at the price file, whose date the label file names. A run with no token counts, or a model with no price,
@@ -107,6 +121,16 @@ every file with the same bytes and no other, so it holds every run, check and gr
 Rounds are listed apart, never combined; the same round again replaces its entry. Labels from the phase 2 runner
 stay under `phase_2_runner` for each host no round has run yet. Entries written before pressure situations were
 labelled say `not_run: skill-fault gate`; a label now measures them itself (doc 11, Pressure situations).
+
+Each entry also records the skill's hash and its previous version's (`skill_sha256`, `previous_sha256`), and the
+setup the label file recorded (`setup`, `setups.py`): one fingerprint of everything that measured the skill, the
+kit, cases with their worlds, situations, the other skills the skill's own cases install, the tools those cases
+declare as each grading host's tools and drift probe found them, adapters, each host's version and model, the
+graders, the runs, whether runs were pinned, the runner and the label rule, but not the skill itself. `rounds.py
+results` is the one place that compares rounds: under `compared`, the results file sets each round beside the round
+before it, and the command prints the list. Two rounds on the same fingerprint are the same setup; otherwise they
+are "not comparable: setup changed", with the parts that changed named. An entry written before setups were
+recorded has none, and the pair is unknown.
 
 ## Cross-model grading
 

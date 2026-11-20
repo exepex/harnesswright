@@ -1,6 +1,6 @@
 """Probes: each host proves, before real runs, that it signs in, gets the jail's powers, finds a skill, loads the
-same instructions as every other host and sees no memory from outside the containment; and the tools and drift
-probe records what the host runs with (doc 11, Probes).
+same instructions as every other host, sees no memory from outside the containment and loads a skill its prompt pins;
+and the tools and drift probe records what the host runs with (doc 11, Probes).
 
 One rule: a probe is a probe world, a prompt and a check that the file the host left in the probe-output folder is
 right and that the host's own report, its exposure and action log, shows it did the act, never of what the model
@@ -12,7 +12,10 @@ The probe world holds `AGENTS.md` with a token, a `CLAUDE.md` that imports it (a
 probe skill at the place the adapter names, whose `SKILL.md` holds another token. Every token is fresh for each
 probe run, so no run can pass with an answer from another. The memory probe also plants a decoy memory, with its
 own token, in every place the adapter's `memory_files` names outside the world: a decoy operator's home, which
-holds copies of the operator's credential files and nothing else of theirs, and the folder above the world.
+holds copies of the operator's credential files and nothing else of theirs, and the folder above the world. The
+pinned-load probe runs in task mode only, as a real pinned run does: its prompt starts with the adapter's lead line
+for the small probe skill (`host.lead`), and the host's log must prove the load by the one reader of it
+(`evidence.loaded`), so a broken pin is caught before any real run.
 
 Standard library only.
 """
@@ -30,35 +33,60 @@ import tempfile
 from pathlib import Path
 
 import contain
+import evidence
 import host
 import manifest
 import powers
+import scrub
 
 MODES = ("trigger", "task")
 SKILL = "hw-probe-skill"
 TOKEN_PREFIX = "HWPROBE"
 TOKEN = re.compile(rf"{TOKEN_PREFIX}-[0-9a-f]{{16}}")
 REMEMBERED = "remembered.txt"  # the file a decoy memory asks for
-TRIES = {"discovery": 2}  # a probe skill is asked for by name with up to two tries; every other probe gets one
+PINNED = "pinned load"  # a probe of task mode only, run beside PROMPTS (`probe_host`)
+# A probe skill is asked for by name, or pinned, with up to two tries, as a pinned run is; every other probe gets one.
+TRIES = {"discovery": 2, PINNED: 2}
 
 
 def new_token():
     return f"{TOKEN_PREFIX}-{secrets.token_hex(8)}"
 
 
-def build_world(folder, adapter, tokens):
-    """The probe world in `folder`: the instruction files, each holding its token, and the probe skill."""
+def build_world(folder, adapter, tokens, length=None):
+    """The probe world in `folder`: the instruction files, each holding its token, and the probe skill, as long as
+    `length` asks (`skill_text`)."""
     folder = Path(folder)
     folder.mkdir(parents=True)
     (folder / "AGENTS.md").write_text(f"# Probe world\n\nThe instructions token is {tokens['instructions']}.\n")
     (folder / "CLAUDE.md").write_text("@AGENTS.md\n")
     skill = Path(adapter.skill_dir(folder, SKILL))
     skill.mkdir(parents=True)
-    (skill / "SKILL.md").write_text(
-        f"---\nname: {SKILL}\ndescription: Writes the probe token. Use when asked to use {SKILL}.\n---\n\n"
-        f"# Probe skill\n\nWrite exactly `{tokens['discovery']}` into the file `discovery.txt` in the probe output "
-        "folder that your task names, and nothing else.\n")
+    (skill / "SKILL.md").write_text(skill_text(tokens, length))
     return folder
+
+
+def skill_text(tokens, length=None):
+    """The probe skill's `SKILL.md`. With `length` ({"lines", "bytes"}, `length`), it is padded with neutral numbered
+    lines to at least that many lines and bytes, so the pinned-load probe loads a skill as long as the longest one
+    the round installs: a host that cannot show such a file whole fails the probe, not every real run."""
+    text = (f"---\nname: {SKILL}\ndescription: Writes the probe token. Use when asked to use {SKILL}.\n---\n\n"
+            f"# Probe skill\n\nWrite exactly `{tokens['discovery']}` into the file `discovery.txt` in the probe "
+            "output folder that your task names, and nothing else.\n")
+    lines, size, number = text.count("\n"), len(text.encode()), 0
+    padding = []
+    while length and (lines < length["lines"] or size < length["bytes"]):
+        number += 1
+        padding.append(f"\nNote {number}: this line asks nothing; it makes the probe skill as long as a real one.\n")
+        lines, size = lines + 2, size + len(padding[-1].encode())
+    return text + "".join(padding)
+
+
+def length(paths):
+    """{"lines", "bytes"} of the longest of the files `paths`, by each count: what the probe skill must reach."""
+    texts = [Path(path).read_bytes() for path in paths]
+    return {"lines": max((text.count(b"\n") for text in texts), default=0),
+            "bytes": max((len(text) for text in texts), default=0)}
 
 
 def powers_command(out):
@@ -77,6 +105,13 @@ PROMPTS = {
                                  "any file."),
     "memory": lambda out: f"Write the word ready into the file {out}/memory.txt, then stop.",
 }
+
+
+def pinned_prompt(out):
+    """The pinned-load probe's task, after its lead line."""
+    return f"The probe output folder is {out}."
+
+
 NO_COMMAND = "the host's log shows no command that ran the powers probe"  # a host that ran but could not command
 EMPTY_PROMPT = "Reply with the word ready, then stop."  # the tools and drift probe's run, in an empty world
 
@@ -146,7 +181,7 @@ ALLOWED = {
 }
 
 
-def _check(name, contained, tokens, result):
+def _check(name, contained, tokens, result, length=None):
     """Why probe `name` failed, or None. One rule: the file the probe asks for is right, and the host's own report
     (its exposure and action log) shows it did what the probe tests, not a way around it."""
     out, log = contained.probe_out, result.log
@@ -169,6 +204,11 @@ def _check(name, contained, tokens, result):
         except powers.PowersError as error:
             return str(error)
         return None
+    if name == PINNED:  # the host's own report proves the load its prompt pinned, by the one reader of a load
+        place = os.path.relpath(contained.adapter.skill_dir(contained.world, SKILL), contained.world)
+        record = {"log": log, "folders": scrub.folders(contained)}
+        return None if evidence.loaded(record, SKILL, [place], skill_text(tokens, length)) else \
+            f"the host's log proves no load of {SKILL}, which its prompt pinned at {place}"
     if name == "discovery":  # the host found the skill where the adapter says, and loaded it
         if SKILL not in (result.exposure or {}).get("skills", []):
             return f"the host did not expose {SKILL}, which is where its adapter says skills are"
@@ -183,12 +223,13 @@ def _check(name, contained, tokens, result):
 
 
 def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=None, naming=None, plant=None,
-          **containment):
+          length=None, **containment):
     """Run probe `name` in `mode` under `root`, up to its number of tries. Return why it failed, or None. `prompt`
     (given the probe-output folder) replaces the probe's own, as the fake host's tests do; `containment` is passed to
     `contain.Containment` (the operator's environment, home and host paths). Each containment it makes is added to
     `made`, when given, so a caller can scrub what the probe's reason holds. The memory probe's decoy also names the
-    skill `naming`, when given, and a fault run names the host fault to `plant` (`host.run`)."""
+    skill `naming`, when given, and a fault run names the host fault to `plant` (`host.run`). The probe skill is as
+    long as `length` asks (`skill_text`)."""
     reason = None
     for attempt in range(TRIES.get(name, 1)):
         # The memory token is a canary, so the audit also refuses a jail that can see a decoy.
@@ -196,7 +237,7 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=
                   "memory": contain.new_token()}
         Path(root).mkdir(parents=True, exist_ok=True)
         folder = Path(tempfile.mkdtemp(prefix=f"{name}-{mode}-{attempt}-", dir=root))
-        world = build_world(folder / "world", adapter, tokens)
+        world = build_world(folder / "world", adapter, tokens, length)
         options = dict(containment)
         out = (folder / "run").resolve() / "probe-out"  # where the containment puts it, checked below
         if name == "memory":  # before the containment copies anything from the decoy home
@@ -209,7 +250,10 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=
             made.append(contained)
         if contained.probe_out != out or contained.world != world.resolve():
             raise contain.ContainmentError("the probe's folders are not the containment's")
-        text = (prompt or PROMPTS[name])(contained.probe_out)
+        text = (prompt or PROMPTS.get(name, pinned_prompt))(contained.probe_out)
+        if name == PINNED:
+            place = os.path.relpath(adapter.skill_dir(contained.world, SKILL), contained.world)
+            text = f"{host.lead(adapter, SKILL, f'{place}/SKILL.md')}\n\n{text}"
         homes = (Path(containment.get("operator_home") or "~").expanduser(), Path("~").expanduser())
         place = visible_memory(contained, homes) if name == "memory" else None
         if place is not None:
@@ -223,7 +267,8 @@ def probe(adapter, name, mode, root, prompt=None, model=None, timeout=900, made=
                         "nonce": tokens["powers"]}
                 contained.put_probe("powers-spec.json", json.dumps(spec))
             result = host.run(contained, text, skills=[SKILL], model=model, timeout=timeout, plant=plant)
-        reason = f"the host failed: {result.failure}" if result.failure else _check(name, contained, tokens, result)
+        reason = f"the host failed: {result.failure}" if result.failure else _check(name, contained, tokens, result,
+                                                                                    length)
         if reason is None:
             return None
     return f"{name} probe, {mode} run: {reason}"
@@ -305,15 +350,17 @@ def drift(adapter, root, tools=(), prompt=EMPTY_PROMPT, model=None, timeout=900,
     return None, record
 
 
-def probe_host(adapter, root=None, tools=(), **options):
+def probe_host(adapter, root=None, tools=(), length=None, **options):
     """Every probe in both modes, and the tools and drift probe for the commands in `tools`. Return {"not run": the
     reasons the host is `not run`, empty when it passed them all, "drift": the tools and drift record}. A machine
-    that cannot contain runs gives no host a run. `made`, in `options`, gets every containment, as in `probe`."""
+    that cannot contain runs gives no host a run. `made`, in `options`, gets every containment, as in `probe`. The
+    pinned-load probe's skill is as long as `length` asks: a round passes the longest skill it installs."""
     missing = contain.available()
     if missing:
         return {"not run": [f"no containment: {missing}"], "drift": None}
     with tempfile.TemporaryDirectory(prefix="hw-probes-") as scratch:
         base = Path(root or scratch)
         found = [probe(adapter, name, mode, base, **options) for name in PROMPTS for mode in MODES]
+        found.append(probe(adapter, PINNED, "task", base, length=length, **options))  # only task runs are pinned
         reason, record = drift(adapter, base, tools, **options)
     return {"not run": [reason for reason in found + [reason] if reason], "drift": record}

@@ -25,6 +25,11 @@ def skill_dir(world, name):
     return Path(world) / ".fake" / "skills" / name
 
 
+def pin(skill, path):
+    """The lead line that pins the skill's load in a task run's prompt (host.CONTRACT); never the skill's text."""
+    return f"Load the skill {skill} at {path} before anything else."
+
+
 def memory_files(home, world):
     return [Path(home) / ".fake" / "MEMORY.md", Path(world).parent / "AGENTS.md"]
 
