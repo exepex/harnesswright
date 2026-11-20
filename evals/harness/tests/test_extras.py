@@ -48,6 +48,12 @@ class Wanted(TempCase):
         self.assertEqual(extras.wanted(found, internal, CASES)[0],
                          {("h", "s", "c1", "with_skill"), ("h", "s", "c1", PREVIOUS)})
 
+    def test_a_gap_too_close_on_the_reference_host_s_split_case_extends_it_on_the_reference_host(self):
+        found = {**label(**{"gap to the reference host": verdict("too close", with_skill=[], **{
+            "reference host: with_skill": ["c2"]})}), "reference": "ref"}
+        self.assertEqual(extras.wanted(found, self.record, CASES)[0], {  # each arm it reads, as for any measure
+            ("ref", "s", "c2", "with_skill"), ("h", "s", "c2", "with_skill")})
+
     def test_a_label_bound_to_be_incomplete_or_inconclusive_by_another_reason_wants_no_run(self):
         close = verdict("too close", with_skill=["c1"])
         for bound, gaps in (("inconclusive", ["c1, with_skill, run 2: not scored (not loaded)"]),

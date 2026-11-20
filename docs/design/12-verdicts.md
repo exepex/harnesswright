@@ -135,7 +135,8 @@ A verdict is `pass`, `fail` or `too close`.
 - Pooled rates are the mean of per-case rates, so extra runs on some cases do not weigh them more.
 - For a measure that reads two arms, such as lift, the gap to the previous version or the gap to the reference
   host, "best" for the skill makes the with-skill arm's flip toward pass and the other arm's toward fail; "worst"
-  does the opposite. For the reference host, the other arm is the reference host's with-skill arm.
+  does the opposite. For the reference host, the other arm is the reference host's with-skill arm. Its split
+  cases get extra runs on the reference host.
 - Format conformance flips the items of one run, not whole runs.
 - **Situation floors.** Every with-skill run of a situation case must pass. One failed run makes that situation
   `too close`; a second failure, extras included, makes it fail. `verified` still needs every floor run, extras
