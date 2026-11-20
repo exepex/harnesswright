@@ -1,6 +1,6 @@
 # .harness/profile.yaml
-harnesswright:
-  folder: skills/
-
 toolchain:
   test: go test ./...
+
+harnesswright:
+  folder: skills/
