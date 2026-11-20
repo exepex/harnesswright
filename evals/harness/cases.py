@@ -57,6 +57,8 @@ import manifest
 REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 SITUATION_FILE = REPO / "evals" / "situations.json"  # the situations each skill's cases must cover
+KIND_FILE = REPO / "evals" / "kinds.json"  # each skill's kind (doc 12, Skill kinds)
+SKILL_KINDS = ("team", "internal")
 KINDS = ("trigger", "task")
 # The arms a case runs in. A grader must never learn its run's arm, so no world, prompt or page may hold these names.
 ARMS = ("without_skill", "with_skill")
@@ -318,6 +320,21 @@ def situations(path=SITUATION_FILE):
                             f"reason}}}}, with each of {SITUATIONS} in exactly one")
         found[skill] = sorted(entry["applies"])
     return found
+
+
+def kinds(path=KIND_FILE):
+    """{skill: kind} from the kind file, a kit part the judges approve: the one reader of a skill's kind (doc 12,
+    Skill kinds), each `team` or `internal`. A plan cannot set one. With no file, no skill has a kind, so every
+    label stays `incomplete`."""
+    if not Path(path).exists():
+        return {}
+    try:
+        data = json.loads(Path(path).read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CaseError(f"{Path(path).name}: {error}") from None
+    if not isinstance(data, dict) or not all(is_name(skill) and kind in SKILL_KINDS for skill, kind in data.items()):
+        raise CaseError(f"{Path(path).name}: must be an object of skills, each {' or '.join(SKILL_KINDS)}")
+    return dict(sorted(data.items()))
 
 
 def load_cases(skill, root=None):

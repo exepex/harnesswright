@@ -5,11 +5,11 @@ One rule: a results entry is a copy, never a new judgement. For each skill the r
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
 hashed, the hosts its probe gate passed (`ran`), the skill's hash and its previous version's (`skill_sha256`,
-`previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), and the file name and sha256 of the
-round's store archive. The
-archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at
-the round's commit. A round is read only when its last attempt passed every gate and the kit check of that attempt
-named the manifest's own kit.
+`previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), whether the round lists the skill as
+shipped (`shipped`: the task label `verified` and the trigger label met on the reference host, both copied whole in
+each host's entry), and the file name and sha256 of the round's store archive. The archive must hold the round's
+store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
+read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
@@ -122,8 +122,16 @@ def entries(folder, archive):
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     own = {skill: {"skill_sha256": record.get("skills", {}).get(skill, {}).get("sha256"),
                    "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
-                   "setup": labels.get("setups", {}).get(skill)} for skill in labels["skills"]}
+                   "setup": labels.get("setups", {}).get(skill),
+                   "shipped": shipped(labels["skills"][skill], labels["reference"])} for skill in labels["skills"]}
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
+
+
+def shipped(hosts, reference):
+    """Whether a round lists the skill as shipped (doc 12, Proven use): on the reference host, its task label is
+    `verified` and its trigger label (`triggers.label`) is met. Either alone is not enough."""
+    entry = hosts.get(reference, {})
+    return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
 
 
 def _order(entry):
@@ -186,7 +194,7 @@ def write(path, data):
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
-                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup"):
+                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped"):
             if key not in entry:  # `not_run` only before situations were labelled; the last three only after setups
                 continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")

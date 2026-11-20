@@ -96,15 +96,17 @@ class Gate(Pages):
         steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
                  ("label", labels.label_gate))
         outcome = self.go(steps, grade=done_or_pond)["gates"][-1]["outcome"]
-        self.assertEqual(outcome, {"haiku-writer": {"fakehost": "incomplete"}})  # the case has no trigger case
+        self.assertEqual(outcome, {"haiku-writer": {"fakehost": "incomplete"}})  # the fixture declares no kind
         [path] = (self.store / "r1" / "labels").iterdir()
         found = json.loads(path.read_text())
         entry = found["skills"]["haiku-writer"]["fakehost"]
         self.assertEqual((entry["task_pass_rate"], entry["baseline_pass_rate"], entry["lift"]), (1.0, 0.0, 1.0))
-        self.assertEqual((entry["runs"], entry["inferred_loads"]), ({"c1, with_skill": 3, "c1, without_skill": 3}, 0))
+        self.assertEqual(entry["runs"], {"c1, with_skill": 3, "c1, without_skill": 3})
         self.assertEqual((entry["model"], entry["gaps"]), ("named-model", [
-            "test trigger cases: none", "situations: the skill is not in evals/situations.json",
-            "the reference host claude-code was not run"]))
+            "kind: none declared in evals/kinds.json", "situations: the skill is not in evals/situations.json",
+            "the reference host claude-code was not run"]))  # no trigger case: the trigger label's gap, not this one
+        self.assertEqual(entry["trigger"], {"accuracy": None, "threshold": 0.9, "cases": 0, "runs": {},
+                                            "inferred_loads": 0, "met": False, "gaps": ["test trigger cases: none"]})
         self.assertEqual(path.stem, found["attempt"])
         # the setup that measured the skill: the one fingerprint its results compare by (doc 12, One setup)
         own = {"c1": cases.Case(self.case_dir, "haiku-writer")}

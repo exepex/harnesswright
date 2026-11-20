@@ -17,25 +17,26 @@ its result is in doubt, by the thresholds of 10 · Skills (`THRESHOLDS`).
   false-done counts per arm, and the cases with no situation apart (`situations`). Every with-skill run of a
   situation case must pass (`floor_gaps`), and the skill's cases must cover each situation `evals/situations.json`
   lists for it (`missing`).
-- Trigger accuracy is the share of test trigger cases that passed (`triggers.passing`).
+- The task label never reads a trigger case: trigger accuracy is the trigger label's (`triggers.label`), a line of
+  its own (doc 12, Proven use).
+- The label reads the skill's kind (doc 12, Labels by kind). A team skill is scored by its lift over a plain agent
+  on top of the floors; an internal skill ran no without-skill arm, so it has no lift and is scored by the floors.
 - Each skill on each host gets one label (`decide`):
-  - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
-    gives the without-skill arm's pass rate and scored runs per case), or no task case the pass rate counts or no
-    test trigger case, or no case of a situation the skill's list names (or no list), with every doubt below
-    named too;
+  - `incomplete` when the host was not run, the skill has no kind declared, no folder yet (a baseline round, whose
+    label file still gives the without-skill arm's pass rate and scored runs per case), or no task case the pass
+    rate counts, or no case of a situation the skill's list names (or no list), with every doubt below named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
-    not run, or it is itself in doubt), or the skill shows no lift over the baseline (`doubts`);
-  - `unsupported` when the task pass rate, the gap to the reference host, the trigger accuracy or the with-skill
-    arm's format conformance misses its threshold, a with-skill run of a situation case failed, or the skill is
-    worse than its previous version, with each gap named. Format conformance is a floor on top of the lift, never
-    in its place (`format_gaps`);
+    not run, or it is itself in doubt) (`doubts`), or a team skill shows no lift over the baseline;
+  - `unsupported` when the task pass rate, the gap to the reference host or the with-skill arm's format conformance
+    misses its threshold, a with-skill run of a situation case failed, or the skill is worse than its previous
+    version, with each gap named. Format conformance is a floor on top of the lift, never in its place
+    (`format_gaps`);
   - `verified` otherwise.
 
 Standard library only.
 """
 
-import triggers as triggers_
 from cases import SKILL_ONLY
 from runs import PREVIOUS
 
@@ -71,22 +72,23 @@ def rate(passed):
     return round(sum(passed) / len(passed), 4) if passed else None
 
 
-def summary(cases, scored, previous=False, absent=False, situations=None):
+def summary(cases, scored, previous=False, absent=False, situations=None, kind=None):
     """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
     by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
     too. With `absent`, the skill has no folder yet and the round ran its task cases without it only. `situations`
     is the manifest's record of the skill's situations (`rounds.plan`): a case a plain agent cannot fail
-    (`SKILL_ONLY`) counts in no pass rate or lift, and each situation is reported apart."""
+    (`SKILL_ONLY`) counts in no pass rate or lift, and each situation is reported apart. `kind` is the skill's
+    declared kind (`cases.kinds`): an internal skill ran no without-skill arm, so it has no baseline and no lift.
+    Trigger cases are the trigger label's (`triggers.label`), never the task label's."""
     situated = (situations or {}).get("cases", {})
     tasks = [i for i, case in cases.items() if case.kind == "task"]
     pooled = [i for i in tasks if situated.get(i) not in SKILL_ONLY]
-    triggers, passing = triggers_.passing(cases, scored)  # the test trigger cases, and which passed
     with_skill = [o for i in pooled for o in scored.get((i, "with_skill"), [])]
     without = [o for i in pooled for o in scored.get((i, "without_skill"), [])]
-    task_arms = ("without_skill",) if absent else ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
+    task_arms = ("without_skill",) if absent else ("with_skill",) + ("without_skill",) * (kind != "internal") + (
+        (PREVIOUS,) if previous else ())
     arms_of = {i: ("with_skill",) if situated.get(i) in SKILL_ONLY else task_arms for i in tasks}
     runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in arms_of[i]}
-    runs.update({f"{i}, with_skill": len(scored.get((i, "with_skill"), [])) for i in triggers})
     task_rate, baseline = rate(with_skill), rate(without)
     earlier = {"previous_pass_rate": rate([o for i in pooled for o in scored.get((i, PREVIOUS), [])])} \
         if previous else {}
@@ -101,21 +103,21 @@ def summary(cases, scored, previous=False, absent=False, situations=None):
             outcomes = [o for i in ids for o in scored.get((i, arm), [])]
             report[name][arm] = {"passed": sum(outcomes), "runs": len(outcomes)}
     listed = (situations or {}).get("listed")
-    return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
+    return {"kind": kind, "task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
-            "trigger_accuracy": rate(passing), "task_cases": len(pooled), "trigger_cases": len(triggers),
-            "runs": runs, "situations_listed": listed,
+            "task_cases": len(pooled), "runs": runs, "situations_listed": listed,
             "uncovered": sorted(set(listed or ()) - set(situated.values())),
             "situations": report}
 
 
 def missing(measures):
-    """What is missing for any label: the skill itself (a baseline round of a skill with no folder yet), a task case,
-    a test trigger case, or a case of each situation `evals/situations.json` lists for the skill (doc 11)."""
+    """What is missing for any label: the skill's declared kind (doc 12, Skill kinds), the skill itself (a baseline
+    round of a skill with no folder yet), a task case, or a case of each situation `evals/situations.json` lists for
+    the skill (doc 11)."""
     listed = measures.get("situations_listed")
-    return ["the skill: no folder yet, a baseline round"] * bool(measures.get("absent")) + [
-        f"{kind}: none" for kind, count in (("task cases", measures["task_cases"]),
-                                            ("test trigger cases", measures["trigger_cases"])) if not count] + (
+    return ["kind: none declared in evals/kinds.json"] * (measures.get("kind") is None) + [
+        "the skill: no folder yet, a baseline round"] * bool(measures.get("absent")) + [
+        "task cases: none"] * (not measures["task_cases"]) + (
         ["situations: the skill is not in evals/situations.json"] if listed is None else
         [f"situation {name}: no case" for name in measures.get("uncovered", [])])
 
@@ -180,21 +182,19 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     floor = floor_gaps(measures)
     if missing(measures):  # a failed floor is named even here, so a trial round still shows it
         return {"label": "incomplete", "gaps": missing(measures) + doubted + floor}
-    gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
+    gaps, task_rate = [], measures["task_pass_rate"]
     if task_rate is not None and task_rate < thresholds["task_pass_rate"] - EPSILON:
         gaps.append(f"task pass rate {task_rate:.0%} below {thresholds['task_pass_rate']:.0%}")
     if reference is not None and task_rate is not None \
             and reference["task_pass_rate"] - task_rate > thresholds["max_gap"] + EPSILON:
         gaps.append(f"task pass rate {reference['task_pass_rate'] - task_rate:.0%} below the reference host")
-    if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
-        gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
     gaps += earlier + formatted
     gaps += floor
     if doubted:
         return {"label": "inconclusive", "gaps": doubted + gaps}
     if gaps:
         return {"label": "unsupported", "gaps": gaps}
-    if measures["lift"] <= thresholds["min_lift"] + EPSILON:
+    if measures["kind"] != "internal" and measures["lift"] <= thresholds["min_lift"] + EPSILON:  # no lift inside
         return {"label": "inconclusive", "gaps": [
             f"no lift over the baseline ({task_rate:.0%} with the skill, {measures['baseline_pass_rate']:.0%} "
             "without)"]}

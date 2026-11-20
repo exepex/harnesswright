@@ -5,8 +5,9 @@ each kept or made run its bundle, its check verdicts and its trusted grades. A r
 same label. And a label rests only on settled results: every planned run that is not scored, whatever the reason,
 is named, and so is a reference result that is not settled, and either keeps the label at most `inconclusive`.
 This module is the one entry point callers use (`labels`, `label_gate`). It scores each stored run and writes the
-label file; a task run's outcome, the measures and the label itself are `verdicts.py`'s, and a trigger run's
-outcome is `triggers.py`'s.
+label file; a task run's outcome, the measures and the task label are `verdicts.py`'s, and a trigger run's outcome
+and the trigger label, its own line (`trigger`) that the task label never reads, are `triggers.py`'s. A trigger
+run not scored is named in the trigger label only.
 
 - A task run is a false done when the graders' trusted answer to the done question is `yes` and the run fails.
   Each label gives, per arm, `false_done`: the false dones of the runs where both are decided, and how many are
@@ -59,8 +60,9 @@ def labels(folder, attempt, record, cases, price_file):
         if made.get("pinned"):  # the statuses of each case and arm's pinned runs
             pins.setdefault((made["host"], made["skill"]), {}).setdefault(f"{made['case']}, {made['arm']}",
                                                                          set()).add(made["status"])
-        if made["status"] not in ("kept", "made"):
-            unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: not scored ({made['status']})")
+        if made["status"] not in ("kept", "made"):  # a trigger run's goes to the trigger label only
+            unsettled.setdefault((made["host"], made["skill"]) + ("trigger",) * (case.kind == "trigger"), []).append(
+                f"{name}: not scored ({made['status']})")
             continue
         run_folder = folder / "runs" / made["key"]
         if case.kind == "trigger":
@@ -102,7 +104,8 @@ def labels(folder, attempt, record, cases, price_file):
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
         measured = {host: verdicts.summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
-                                           skill in record.get("absent", []), record.get("situations", {}).get(skill))
+                                           skill in record.get("absent", []), record.get("situations", {}).get(skill),
+                                           record.get("kinds", {}).get(skill))
                     for host in passed}
         for host in passed:  # each situation's false dones, per arm
             for group in measured[host]["situations"].values():
@@ -129,7 +132,9 @@ def labels(folder, attempt, record, cases, price_file):
             else:
                 other = host != grades.REFERENCE
                 entry.update(measured[host], **rest.get((host, skill), {}),
-                             inferred_loads=inferred.get((host, skill), 0),
+                             trigger=triggers.label(own, scored.get((host, skill), {}),
+                                                    unsettled.get((host, skill, "trigger"), []),
+                                                    inferred.get((host, skill), 0), verdicts.THRESHOLDS),
                              false_done={arm: measures.share(tally["false_done"], tally["decided"], **tally)
                                          for arm, tally in sorted(false_done.get((host, skill), {}).items())},
                              **verdicts.decide({**measured[host], **rest.get((host, skill), {})}, doubted[host],

@@ -134,7 +134,7 @@ def lint_gate(r):
             # Each arm that installs a version of the skill is linted with that version's text and the upstream
             # copy recorded in the same tree, the round's checkout or the previous version's commit. A skill with no
             # folder yet has only its without-skill arm, linted with no text of its own.
-            for arm in runs.arms(r.record, case)[1:] or runs.arms(r.record, case):
+            for arm in [a for a in runs.arms(r.record, case) if a != runs.ARMS[0]] or runs.arms(r.record, case):
                 with tempfile.TemporaryDirectory(prefix="hw-lint-") as out, contextlib.ExitStack() as stack:
                     try:
                         skill_dir, tree = None, r.repo
@@ -197,7 +197,7 @@ def faults_gate(r):
     # Every fault needs a skill's files, so faults are planted on a case of a skill the repository holds: the plan's
     # `fault_case`, or else one of the round's own that runs in both arms, chosen by the seed.
     chosen = r.record.get("fault_case")
-    held = sorted(k for k in r.cases if k[0] not in r.record.get("absent", []) and not runs.skill_only(r.record, *k))
+    held = sorted(k for k, case in r.cases.items() if set(runs.ARMS) <= set(runs.arms(r.record, case)))
     for host, passed in r.hosts.items():
         if chosen:
             case = Case(r.repo / "evals" / "skills" / chosen["skill"] / "cases" / chosen["case"], chosen["skill"])

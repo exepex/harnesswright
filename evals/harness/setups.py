@@ -16,7 +16,7 @@ named so a change can be named (`changed`):
   them. The files a host writes for itself (`own files`) are left out: they may differ by name only;
 - `runs` per case, arm and host, and `pinned`, whether task runs pin the skill's load;
 - `runner`: the code that makes a run (`runs.runner`), and `label rule`: the code that turns a run's bundle into
-  its label (`LABEL_RULE`).
+  its label: the files of the kit's `label rule` part (`evals/kit.json`, `kit.parts`), the one list of them.
 
 It leaves out the skill's own hash and its previous version's: a result records those apart (`results.py`), so a
 changed skill on one setup is still comparable.
@@ -28,12 +28,11 @@ import hashlib
 import json
 from pathlib import Path
 
+import kit
 import manifest
 import runs
 
 HARNESS = Path(__file__).resolve().parent
-LABEL_RULE = ("checks.py", "goldens.py", "grader.py", "grades.py", "grading.py", "labels.py", "measures.py",
-              "setups.py", "triggers.py", "verdicts.py", "view.py")
 
 
 def setup(record, skill, cases, drift, folder=HARNESS):
@@ -51,7 +50,8 @@ def setup(record, skill, cases, drift, folder=HARNESS):
                        for name, host in record["hosts"].items()},
              "graders": sorted(drift), "runs": record["plan"]["runs"], "pinned": record.get("pinned") is True,
              "runner": runs.runner(folder),
-             "label rule": manifest.digest({name: manifest.entry(Path(folder) / name) for name in LABEL_RULE})}
+             "label rule": manifest.digest({Path(path).name: manifest.entry(Path(folder) / Path(path).name)
+                                            for path in kit.parts()["label rule"]})}
     return {"parts": parts, "fingerprint": hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()}
 
 
