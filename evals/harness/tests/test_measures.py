@@ -40,8 +40,8 @@ class Measures(TempCase):
             sheet.write_text(json.dumps({"answers": answers}))
             self.graded.append({"key": key, "agreed": agreed[0], "asked": agreed[1]})
 
-    def golden(self, skill, case_id, name, asked, answers, settled):
-        sheet = self.tmp / "grades" / "a1" / "goldens" / skill / case_id / f"{name}.json"
+    def golden(self, skill, case_id, name, asked, answers, settled, place="goldens"):
+        sheet = self.tmp / "grades" / "a1" / place / skill / case_id / f"{name}.json"
         sheet.parent.mkdir(parents=True, exist_ok=True)
         sheet.write_text(json.dumps({"asked": asked, "answers": answers, "settled": settled}))
 
@@ -83,6 +83,14 @@ class Measures(TempCase):
             "with_skill": {"rate": 0.5, "passed": 1, "decided": 2, "undecided": 0},
             "without_skill": {"rate": 0.0, "passed": 0, "decided": 1, "undecided": 1}})
         self.assertEqual(found["cost"]["with_skill"]["voided"], 1)  # a voided try keeps no evidence to cost
+
+    def test_golden_accuracy_counts_the_goldens_of_every_extra_pass_too(self):
+        self.run_("k1", "with_skill", verdicts=[None] * 3, answers={})
+        all_four = {q: "yes" for q in ("q1", "q2", "q3", "q4")}
+        self.golden("haiku-writer", "t", "yes", sorted(all_four), all_four, all_four)  # 4 of 4 in the base pass
+        self.golden("haiku-writer", "t", "yes", sorted(all_four), {"q1": "yes", "q2": "yes", "q3": "no"}, all_four,
+                    place="extra-1/goldens")  # 2 of 4 in an extra pass: one wrong, one unanswered
+        self.assertEqual(self.measure()["golden_accuracy"], {"rate": 0.75, "right": 6, "asked": 8})
 
     def test_cost_sums_each_arm_and_gives_no_money_when_one_run_has_none(self):
         priced = {"seconds": 12.5, "tokens": {"model-a": counts(1_000_000, output=10_000)}}

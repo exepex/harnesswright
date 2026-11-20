@@ -190,6 +190,18 @@ class Regrade(Pages):
         with self.assertRaisesRegex(regrade.RegradeError, "grade gate passed"):
             self.run_it()
 
+    def test_an_attempt_whose_extra_runs_gate_stopped_part_way_is_no_source(self):
+        self.source()
+        [path] = (self.store / "r1" / "attempts").glob("*.json")
+        attempt = json.loads(path.read_text())
+        attempt["gates"].append({"gate": "extra runs", "passed": False, "reason": "RunError: planted"})
+        path.write_text(json.dumps(attempt))
+        with self.assertRaisesRegex(regrade.RegradeError, f"no attempt {path.stem} whose grade gate passed, and every"):
+            regrade.source(regrade.gates.Round(regrade.gates.read(self.store, "r1", self.repo), self.store, self.repo,
+                                               self.repo / "adapters"), path.stem)
+        with self.assertRaisesRegex(regrade.RegradeError, "whose grade gate passed, and every gate before the label"):
+            self.run_it()
+
     def test_a_route_proves_itself_by_every_probe_and_the_grader_fault_at_each_place(self):
         self.source()
         catalogue = json.loads((regrade.REPO / "evals" / "faults" / "harness.json").read_text())
