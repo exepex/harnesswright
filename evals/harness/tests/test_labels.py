@@ -4,6 +4,7 @@ import json
 import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from test_gates import JUDGED
@@ -126,6 +127,36 @@ class Gate(Pages):
             "without_skill": {"rate": 1.0, "false_done": 3, "decided": 3, "undecided": 0}})
         self.assertEqual({arm: (c["runs"], c["money"], c["uncounted"]) for arm, c in entry["cost"].items()},
                          {"with_skill": (3, None, 3), "without_skill": (3, None, 3)})  # the fake host counts none
+
+    def test_the_stop_pair_is_reported_per_arm_and_never_changes_an_outcome(self):
+        import stoppair
+        self.planned()
+        probe, run = self.stored([("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3)
+
+        def check_then_stop_fails(r):  # every run's stop pair fails, or cannot decide, as a skill's would
+            found = gates.check_gate(r)
+            for made in r.runs:
+                path = Path(made["bundle"]).parent / "checks.json"
+                stored = json.loads(path.read_text())
+                self.assertEqual([v["check"] for v in stored["reported"]], list(stoppair.CHECKS))
+                stored["reported"] = [dict(v, outcome=o) for v, o in zip(stored["reported"], ("fail", "undecidable"))]
+                path.write_text(json.dumps(stored))
+            return found
+        steps = (("probe", probe), ("run", run), ("check", check_then_stop_fails), ("grade", grades.grade_gate),
+                 ("label", labels.label_gate))
+        declared = {"haiku-writer": {"count.py": {"0": ""}}}
+        with mock.patch.object(stoppair, "skill_checks", lambda path=None: declared):
+            self.go(steps, grade=done_or_pond)
+        [path] = (self.store / "r1" / "labels").iterdir()
+        entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
+        # the same outcome as with no pair at all (the test above): every run scored, every rate as it was
+        self.assertEqual((entry["task_pass_rate"], entry["baseline_pass_rate"], entry["lift"]), (1.0, 0.0, 1.0))
+        self.assertEqual(entry["runs"], {"c1, with_skill": 3, "c1, without_skill": 3})
+        self.assertFalse([gap for gap in entry["gaps"] if "not scored" in gap or "stop" in gap])
+        self.assertEqual(entry["false_done"]["with_skill"]["decided"], 3)
+        tally = {"blocked_after_failed_check": {"pass": 0, "fail": 3, "undecidable": 0},
+                 "blocked_quotes_output": {"pass": 0, "fail": 0, "undecidable": 3}}
+        self.assertEqual(entry["stop_pair"], {"with_skill": tally, "without_skill": tally})
 
     def test_a_round_with_a_previous_version_compares_the_two_arms_in_its_label(self):
         self.planned()

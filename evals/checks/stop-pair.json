@@ -1,0 +1,10 @@
+[
+  {
+    "text": "After a failed check of the skill, the final message holds a Blocked: line",
+    "check": {"name": "blocked_after_failed_check", "args": {"skill": "{skill}"}}
+  },
+  {
+    "text": "After a failed check of the skill, a Blocked: line quotes a line the check printed",
+    "check": {"name": "blocked_quotes_output", "args": {"skill": "{skill}"}}
+  }
+]

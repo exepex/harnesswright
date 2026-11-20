@@ -50,13 +50,8 @@ Every task case also gets one expectation it does not write: the done question, 
 label counts a false done when it says so and a contract expectation failed. It is graded, calibrated by goldens
 and fingerprinted like any other expectation, never decided by a check, and part of the case's hash.
 
-Before it, every task case of a skill that `evals/checks/skill-checks.json` lists gets the stop pair it does not
-write either, `evals/grading/stop.json`, source `"stop"` (doc 12, Stop and prerequisites), in two parts, as a
-grader never overrules a check: `blocked_after_failed_check` on the case's skill, whose judged question is the
-graders' fallback when the check cannot decide, and a judged question alone, whether the `Blocked:` line names the
-failed script and what it printed. Each question names the skill's scripts and the exit codes that are no failure,
-from that one declaration (`stoppair.py`). Both count in the task outcome, are graded, calibrated by goldens and
-fingerprinted like any other expectation, and both files are part of the case's hash.
+Every task case of a skill that `evals/checks/skill-checks.json` lists also gets the stop pair, two checks it does
+not write (`Case.reported`, `stoppair.py`): reported per arm, never counted or graded, and part of the case's hash.
 """
 
 import hashlib
@@ -72,6 +67,7 @@ REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 SITUATION_FILE = REPO / "evals" / "situations.json"  # the situations each skill's cases must cover
 KIND_FILE = REPO / "evals" / "kinds.json"  # each skill's kind (doc 12, Skill kinds)
+STOP_CHECKS = ("blocked_after_failed_check", "blocked_quotes_output")  # the stop pair's, which no case writes
 OWN_CHECK_FILE = REPO / "evals" / "own-checks.json"  # the checks that run harnesswright's own (doc 12, Worlds by kind)
 SKILL_KINDS = ("team", "internal")
 KINDS = ("trigger", "task")
@@ -252,9 +248,9 @@ def check(data, case_id, skill=None):
         problems.append(f"the skill under test, {skill}, cannot also be a sibling")
     problems += _allow_keys(data)
     listed = data.get("expectations") if isinstance(data.get("expectations"), list) else []
-    problems += [f"expectation {n}: the stop check is the stop pair's, which the harness adds (stoppair.py)"
+    problems += [f"expectation {n}: {e['check']['name']} is the stop pair's, which the harness adds (stoppair.py)"
                  for n, e in enumerate(listed, 1) if isinstance(e, dict) and isinstance(e.get("check"), dict)
-                 and e["check"].get("name") == "blocked_after_failed_check"]
+                 and e["check"].get("name") in STOP_CHECKS]
     if problems:
         raise CaseError(f"{case_id}: " + "; ".join(problems))
     return {**DEFAULTS, **data}
@@ -296,13 +292,13 @@ class Case:
         bare = self.data.get("internal_world") is not None and not (self.world.exists() or self.world.is_symlink())
         if not bare and (not self.world.is_dir() or self.world.is_symlink()):
             raise CaseError(f"{self.id}: no world/ folder")
-        hashed = {}
+        hashed, self.reported = {}, []
         if self.data["kind"] == "task":
-            import stoppair  # here, as it reads expectations by this module's shapes
-            pair = stoppair.stop(skill) if skill in stoppair.skill_checks() else []
-            self.data["expectations"] = [*self.data.get("expectations", []), *pair, done()]
+            import stoppair  # here, as it reads this module's shapes
+            self.reported = stoppair.stop(skill) if skill in stoppair.skill_checks() else []
+            self.data["expectations"] = [*self.data.get("expectations", []), done()]
             hashed = {"done.json": "file " + sha256_file(DONE)}
-            if pair:
+            if self.reported:
                 hashed.update({"stop.json": "file " + sha256_file(stoppair.STOP),
                                "skill-checks.json": "file " + sha256_file(stoppair.SKILL_CHECKS)})
         try:

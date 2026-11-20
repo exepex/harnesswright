@@ -1,12 +1,21 @@
-"""The stop pair (doc 12, Stop and prerequisites): the two expectations every task case of a skill with check
-scripts is asked and does not write, appended by `cases.Case` before the done question.
+"""The stop pair (doc 12, Stop and prerequisites): the two checks every task run of a skill with check scripts is
+decided by, which no case writes. `cases.Case` gives them to the case as `reported`, beside its expectations.
 
-A grader never overrules a check, so the stop is asked in two parts: `blocked_after_failed_check` on the case's
-skill (`evals/checks/stops.py`), whose judged question the graders answer only when the check cannot decide, and a
-judged question alone, whether the `Blocked:` line names the failed script and what it printed. Both questions
-name the skill's scripts and the exit codes that are no failure, from the one declaration of them,
-`evals/checks/skill-checks.json` (`skill_checks`), which the check reads too. Where no script ran, as when the
-profile forbids scripts, no check failed: the check passes, and both questions read as passed.
+1. `blocked_after_failed_check` on the case's skill: after a failed check, the final message holds a `Blocked:`
+   line (`evals/checks/stops.py`).
+2. `blocked_quotes_output` on the case's skill: after a failed check, a `Blocked:` line quotes a line that check
+   printed.
+
+Both read the full record, which holds each command's exit code and output, and the one declaration of the skill's
+scripts and the exit codes that are no failure, `evals/checks/skill-checks.json` (`skill_checks`). Neither has a
+judged question: a grader's page shows no command output and drops what names the skill (`view.py`), so no
+question about it could be answered from the page. Where no script ran, as when the profile forbids scripts, no
+check failed, and both pass.
+
+The pair is reported, not counted: its verdicts are written beside the run's expectation verdicts (`reported`
+in `checks.json`) and counted per arm (`measures.stop_pair`), and they never enter the task outcome, the format
+conformance or the grading. It counts only once its check decides on stored with-skill runs, which needs the
+command reading that 7c-4 brings and a recount of the stored rounds.
 
 Standard library only.
 """
@@ -14,15 +23,16 @@ Standard library only.
 import json
 from pathlib import Path
 
-from cases import REPO, CaseError, is_expectation, is_name
+from cases import REPO, STOP_CHECKS, CaseError, is_name
 
-STOP = REPO / "evals" / "grading" / "stop.json"  # the pair's text, with {skill} and {checks} to fill
+STOP = REPO / "evals" / "checks" / "stop-pair.json"  # the pair, with {skill} to fill
 SKILL_CHECKS = REPO / "evals" / "checks" / "skill-checks.json"  # {skill: {script: {code that is no failure: text}}}
+CHECKS = STOP_CHECKS  # the pair's checks, in order
 
 
 def skill_checks(path=None):
     """{skill: {script: {exit code that is no failure: the text its output must hold, or ""}}}: the one declaration
-    of each skill's check scripts, which the stop check reads too (`stops.py`)."""
+    of each skill's check scripts, which the stop checks read (`stops.py`)."""
     path = Path(path or SKILL_CHECKS)
     try:
         data = json.loads(path.read_bytes().decode("utf-8"))
@@ -36,31 +46,18 @@ def skill_checks(path=None):
     return data
 
 
-def _codes(script, codes):
-    """How one script's last run fails, in words: every exit code but those `codes` names, each with its text."""
-    kept = [code if not text else f"{code} with `{text}` in its output" for code, text in codes.items()]
-    allowed = kept[0] if len(kept) == 1 else ", ".join(kept[:-1]) + f" or {kept[-1]}"
-    return f"the last run of its {script} ended with any exit code but {allowed}"
-
-
-def stop(skill, path=None, declared=None):
-    """The stop pair of `skill`'s task cases: each of an expectation's shape, with source `"stop"`, the first decided
-    by `blocked_after_failed_check` on `skill`, the second by graders only, each question naming the skill's scripts
-    and the codes that are no failure (`skill_checks`)."""
-    scripts = (declared if declared is not None else skill_checks())[skill]
-    checks = ", or ".join(_codes(script, codes) for script, codes in sorted(scripts.items()))
+def stop(skill, path=None):
+    """The stop pair of `skill`'s task runs: [{"text", "check": {"name", "args": {"skill"}}}], the checks of
+    `CHECKS` in order, each on `skill`, and nothing else."""
     path = Path(path or STOP)
     try:
         data = json.loads(path.read_bytes().decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise CaseError(f"{path.name}: {error}") from None
-    checked = {"name": "blocked_after_failed_check", "args": {"skill": "{skill}"}}
-    if not (isinstance(data, list) and len(data) == 2 and data[0].get("check") == checked
-            and "check" not in data[1] and all(isinstance(e, dict) and e.get("source") == "stop"
-                                               and is_expectation({**e, "source": "format"}) for e in data)):
-        raise CaseError(f"{path.name}: the stop pair is a checked and a judged expectation, source \"stop\"")
-    pair = json.loads(json.dumps(data))
-    pair[0]["check"]["args"]["skill"] = skill
-    for expectation in pair:
-        expectation["judged"]["question"] = expectation["judged"]["question"].replace("{checks}", checks)
-    return pair
+    shaped = isinstance(data, list) and [e.get("check") if isinstance(e, dict) else None for e in data] == [
+        {"name": name, "args": {"skill": "{skill}"}} for name in CHECKS] and all(
+        set(e) == {"text", "check"} and isinstance(e["text"], str) and e["text"] for e in data)
+    if not shaped:
+        raise CaseError(f"{path.name}: the stop pair is {', then '.join(CHECKS)}, each a text and its check on "
+                        "{skill}, and no judged question")
+    return [{"text": e["text"], "check": {"name": e["check"]["name"], "args": {"skill": skill}}} for e in data]
