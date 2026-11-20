@@ -35,7 +35,11 @@ they are measured differently.
     rules and roles it reads), taken from the release;
   - **previous version:** the same set, taken from the previous release;
   - **without skill:** the team repository only.
-- One reader proves the installed files equal the release's entries for that skill.
+- One reader proves the installed files equal the release's entries for that skill, by the proof the manifest's
+  rulebook version picks. A release from 0.8.0 on is proved by its hashes. A previous version built before 0.8.0
+  is proved by its commit: its skill folder hashes to the sha256 the round recorded, and its run-time files are the
+  files of that commit's release that the current run-time list covers. The round's manifest names each arm's
+  proof, and any other release stops the round as a harness fault.
 - Lift is what the skill, with the files it needs to run, adds over a plain agent in the same repository.
 - Contract expectations cite the outcome a team expects, such as a story's outcomes and its tests, never the
   skill's own wording, so a plain agent can meet them.

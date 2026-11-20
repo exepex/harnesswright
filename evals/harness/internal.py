@@ -11,13 +11,13 @@ rebuilt. Then a path that names the skill by its exact name, its folder name suc
 (`world.names`), points at the skill and is dropped, and so is the record of each line that names it: its template
 folder, its row in `AGENTS.md`, its job row in `v2/roles.md` and its `THIRD_PARTY.md` entry all go this way, and no
 file is picked by hand. A record is the line, except in a Markdown table whose header is `Field | Value`: such a
-table describes the one thing its section is about, so its record is that section, with its subsections. Every
-other place the world lint still finds the skill's words (`lint.names`), such as the role `skill designer` in the
-rules, is a mention, not the skill: it is rewritten to the stand-in, so the rules, the roles and the docs stay whole
-and agree. Only a name written as words apart, joined by `-` or `_`, or squashed is rewritten, never words split by
-punctuation, as in `skill. Designer`; the lint still finds those, and a world in which it still finds the skill is
-refused. Every dropped and rewritten line is listed, and the list must equal the kit's `left_out`, the list the
-judges approve with the pin; any other list is refused.
+table describes the one thing its section is about, so its record is that section, with its subsections. These are
+the only two shapes a record has. Every other place the world lint still finds the skill's words (`lint.names`),
+such as the role `skill designer` in the rules, is a mention, not the skill: it is rewritten to the stand-in, so the
+rules, the roles and the docs stay whole and agree. Only a name written as words apart, joined by `-` or `_`, or
+squashed is rewritten, never words split by punctuation, as in `skill. Designer`; the lint still finds those, and a
+world in which it still finds the skill is refused. Every dropped and rewritten line is listed, and the list must
+equal the kit's `left_out`, the list the judges approve with the pin; any other list is refused.
 
 The world's `release/` is then rebuilt by the world's own `v2/build/build.py`, and the world must pass that build,
 `check_rules.py` and `check_release.py` before any case touches it: a world that does not is refused. Last, the
