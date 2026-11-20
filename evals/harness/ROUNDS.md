@@ -22,6 +22,13 @@ version names a skill it runs no task case of is refused. The manifest records t
 the hash, and every run of that arm reads the skill again and must find the same hash. A previous version equal to
 the one under test is refused. Trigger cases run in two arms only, as they measure the description under test.
 
+The manifest records, under `verified`, each held skill's last version `evals/results/<skill>.json` records as
+`verified` on the reference host (`results.verified`). A skill whose hash changed since then must name that version
+as `previous`, so the comparison is made inside the round on one setup (doc 12, One setup); the plan is refused
+otherwise, naming the round and hash. An unchanged skill needs no previous arm, and its round makes no cross-round
+claim. A results entry written before skill hashes were recorded gives no hash: the manifest says it is unknown,
+and the plan asks for nothing.
+
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which
 the lint gate lints; a trigger case or a previous version for it is refused. Every fault needs a skill's files, so
@@ -114,6 +121,15 @@ every file with the same bytes and no other, so it holds every run, check and gr
 Rounds are listed apart, never combined; the same round again replaces its entry. Labels from the phase 2 runner
 stay under `phase_2_runner` for each host no round has run yet. Entries written before pressure situations were
 labelled say `not_run: skill-fault gate`; a label now measures them itself (doc 11, Pressure situations).
+
+Each entry also records the skill's hash and its previous version's (`skill_sha256`, `previous_sha256`), and the
+setup the label file recorded (`setup`, `setups.py`): one fingerprint of everything that measured the skill, the
+kit, cases with their worlds, situations, the other skills installed, adapters, each host's version and model, the
+graders, the runs, whether runs were pinned, the runner and the label rule, but not the skill itself. `rounds.py
+results` is the one place that compares rounds: under `compared`, the results file sets each round beside the round
+before it, and the command prints the list. Two rounds on the same fingerprint are the same setup; otherwise they
+are "not comparable: setup changed", with the parts that changed named. An entry written before setups were
+recorded has none, and the pair is unknown.
 
 ## Cross-model grading
 

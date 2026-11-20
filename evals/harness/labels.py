@@ -44,7 +44,8 @@ is named, and so is a reference result that is not settled, and either keeps the
     worse than its previous version, with each gap named. Format conformance is a floor on top of the lift, never
     in its place (`format_gaps`);
   - `verified` otherwise.
-- The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub.
+- The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
+  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared.
 
 Standard library only.
 """
@@ -56,6 +57,7 @@ import evidence
 import grades
 import measures
 import prices
+import setups
 from cases import SKILL_ONLY
 from runs import PREVIOUS
 
@@ -286,7 +288,8 @@ def labels(folder, attempt, record, cases, price_file):
     false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
                   for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
     found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,
-             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {}}
+             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {},
+             "setups": {skill: setups.setup(record, skill, passed) for skill in sorted(record["cases"])}}
     rest = measures.measures(folder, attempt, gates, cases, price_file)
     for skill in sorted(record["cases"]):
         own = {i: case for (s, i), case in cases.items() if s == skill}

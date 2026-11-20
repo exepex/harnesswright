@@ -32,6 +32,12 @@ Every manifest records `pinned: true`: task runs of the with-skill and previous-
 line that pins the skill's load (`runs.pinned`, doc 12, Proven use). A manifest without the flag, written before
 pinning, is a round whose runs are not pinned, and it resumes as it was planned.
 
+The manifest records, for each skill of the plan with a folder, the last version `evals/results/<skill>.json`
+records as `verified` on the reference host (`verified`, `results.verified`). A skill that changed since then must
+name that version as `previous`, so it is compared inside the round on one setup (doc 12, One setup); the plan is
+refused otherwise, naming the version. An unchanged skill has no previous arm, and its round makes no cross-round
+claim. A results entry written before skill hashes were recorded is unknown, and the manifest says so.
+
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
 
@@ -269,6 +275,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                 if kept["sha256"] == found["skills"][name]["sha256"]:
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
+        found["verified"] = verified(path, repo, data, found)
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {
             "round": data["round"],
@@ -284,6 +291,29 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
         }
     except (CaseError, kit.KitError, contain.ContainmentError) as error:
         raise RoundError(f"{path}: {error}") from None
+
+
+def verified(path, repo, data, found):
+    """{skill: its last verified version (`results.verified`)} for each skill of the plan with a folder. A skill
+    changed since that version must have it as `previous`, so the comparison is made inside the round (doc 12, One
+    setup); an unchanged one has no previous arm and stands alone. A version with no recorded hash is unknown: it
+    is recorded as such and asks for nothing."""
+    import results  # it reads the setups, which read the runner, which imports this module
+    found_verified = {}
+    for name in sorted(set(data["skills"]) - set(found["absent"])):
+        try:
+            last = results.verified(results.recorded(Path(repo) / "evals" / "results", name))
+        except results.ResultsError as error:
+            raise RoundError(f"{path}: {error}") from None
+        if last is None:
+            continue
+        found_verified[name] = last
+        if last["sha256"] in (None, found["skills"][name]["sha256"]):
+            continue
+        if found["previous"].get(name, {}).get("sha256") != last["sha256"]:
+            raise RoundError(f"{path}: {name} was verified in round {last['round']} with hash {last['sha256']}, "
+                             "and it has changed since, so the plan names that version as previous")
+    return found_verified
 
 
 def write(record, store, repo=REPO):
@@ -342,7 +372,9 @@ def main(argv=None):
                 written = results.publish(Path(args.store) / args.round, args.archive, REPO / "evals" / "results")
             except results.ResultsError as error:
                 raise RoundError(error) from None
-            print("\n".join(map(str, written)))
+            for path in written:  # each file, and how each of its rounds sets beside the one before
+                print("\n".join([str(path), *(f"  {line}" for line in results.recorded(path.parent, path.stem)[
+                    "compared"])]))
         else:
             import gates  # it imports this module, so only when a round runs
             attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)

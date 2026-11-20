@@ -152,7 +152,8 @@ class Label(TempCase):
             {"gate": "run", "passed": True, "outcome": found},
             {"gate": "grade", "passed": True, "outcome": {"goldens": {}}}]}))
         record = {"round": "r1", "commit": "0" * 40, "cases": {"haiku-writer": {"c1": "", "c2": ""}},
-                  "hosts": {"h": {"model": "m", "version": {"version": "1"}}}}
+                  "hosts": {"h": {"model": "m", "version": {"version": "1"}}}, "kit": "0" * 64, "skills": {},
+                  "adapters": {}, "plan": {"runs": 3}}  # what the label file's setup reads (`setups.setup`)
         pinned = {"with_skill": {"rate": 0.3333, "loaded": 1, "tries": 3}}
         with mock.patch.object(labels.measures, "measures", lambda *args: {("h", "haiku-writer"): {
                 "pinned_load": pinned}}), mock.patch.object(labels, "missing", lambda found: []):

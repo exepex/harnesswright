@@ -102,6 +102,6 @@ class Results(TempCase):
         [path] = results.publish(folder, archive, out)
         data = json.loads(path.read_text())
         self.assertEqual(data["rounds"][0]["hosts"], {"fakehost": HOST, "otherhost": HOST})
-        self.assertEqual(len(path.read_text().splitlines()), 31)  # 10 fields, each host 4 lines and its braces
+        self.assertEqual(len(path.read_text().splitlines()), 35)  # 13 fields, each host 4 lines and its braces, compared
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)

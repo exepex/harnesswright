@@ -18,6 +18,7 @@ import grader
 import goldens
 import grades
 import labels
+import setups
 
 CONTRACT = {"contract": {"path": "README.md", "line": 1, "quote": "# Notes app"}}
 EXPECTATIONS = [  # a format check, a contract question for the graders, and a contract check
@@ -250,7 +251,7 @@ class Gate(Pages):
         return probe, run
 
     def test_the_label_file_counts_each_scored_run_and_names_what_is_missing(self):
-        self.planned()
+        record = self.planned()
         probe, run = self.stored([("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3)
         steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
                  ("label", labels.label_gate))
@@ -265,6 +266,8 @@ class Gate(Pages):
             "test trigger cases: none", "situations: the skill is not in evals/situations.json",
             "the reference host claude-code was not run"]))
         self.assertEqual(path.stem, found["attempt"])
+        # the setup that measured the skill: the one fingerprint its results compare by (doc 12, One setup)
+        self.assertEqual(found["setups"], {"haiku-writer": setups.setup(record, "haiku-writer", ["fakehost"])})
         self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
                          (PRICES["date"], None, 3))  # no fault gate here
         self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 6, "asked": 6})  # q2 and q4 of 3 goldens
