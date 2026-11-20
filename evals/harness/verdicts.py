@@ -78,12 +78,14 @@ def as_runs(per_case):
     return {i: [[1, 1]] * passed + [[0, 1]] * (count - passed) for i, (passed, count) in per_case.items()}
 
 
-def mean(cases, move=0):
+def mean(cases, move=0, by_items=False):
     """The mean of per-case rates of `cases` ({case: [[passed, asked] of each run]}), each case's rate its passed
     items over its asked items; None with no case. A split case is one whose runs disagree. At its best
     (`move` 1) one run of each split case, its worst, passes whole; at its worst (`move` -1) one, its best, fails
-    whole: a run for a pass rate, the items of one run for format conformance. Unsplit cases never move."""
-    rates = []
+    whole: a run for a pass rate, the items of one run for format conformance. Unsplit cases never move. With
+    `by_items`, each case weighs as many as its items per run (format conformance: doc 10 counts the skill's format
+    expectations), so a clean round gives the pooled items' share, and extra runs on one case weigh it no more."""
+    rates, weights = [], []
     for runs in cases.values():
         runs = [run for run in runs if run[1]]
         if not runs:
@@ -93,7 +95,8 @@ def mean(cases, move=0):
             moved = (min if move > 0 else max)(runs, key=lambda run: run[0] / run[1])
             passed += moved[1] - moved[0] if move > 0 else -moved[0]
         rates.append(passed / asked)
-    return sum(rates) / len(rates) if rates else None
+        weights.append(sum(run[1] for run in runs) / len(runs) if by_items else 1)
+    return sum(w * rate for w, rate in zip(weights, rates)) / sum(weights) if rates else None
 
 
 def split(cases):
@@ -216,8 +219,8 @@ def judged(measures, reference=None, false_done=None, thresholds=THRESHOLDS):
                                                    {"with_skill": ran})
     formats = (measures.get("format_runs") or {}).get("with_skill")
     if formats:
-        found["format conformance"] = judge(lambda m: mean(formats, m), at_least(thresholds["format_conformance"]),
-                                            {"with_skill": formats})
+        found["format conformance"] = judge(lambda m: mean(formats, m, by_items=True),
+                                            at_least(thresholds["format_conformance"]), {"with_skill": formats})
     if measures.get("kind") != "internal":
         found["lift"] = judge(lambda m: _less(mean(ran, m), mean(base, -m)),
                               lambda value: value > thresholds["min_lift"] + EPSILON,

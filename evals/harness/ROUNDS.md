@@ -127,22 +127,27 @@ arm, or no decided false-done answer in either arm, keep it `inconclusive`. The 
 
 Each measure is decided `pass`, `fail` or `too close` by one rule (`verdicts.judge`, doc 12, Verdicts), and the
 label file names each one under `verdicts` with its value, best and worst. Rates are the mean of per-case rates,
-each case's rate its passed runs over its scored runs (`verdicts.mean`). A split case is one whose runs in an arm
-disagree: at its best one failed run of each split case passes, at its worst one passed run fails, and unsplit cases
-never move, so a clean round is decided at once. A measure fails when it fails even at its best, passes when it
-passes even at its worst, and is `too close` otherwise. Lift, the gap to the previous version's pass rate and its
-false-done rate move the with-skill arm one way and the other arm the other. Format conformance moves the items of
-one run, from each run's format items (`format_runs`). Every with-skill run of a situation case must pass: one
-failed run makes that situation `too close`, a second makes it fail. A measure or floor that fails is `unsupported`,
-each named, except a team skill's lift, whose failure stays `inconclusive`; one that is `too close`, a lift included,
-gives the label `too close`, which is never `verified`. Extra runs are not made yet (doc 12, Extra runs).
+each case's rate its passed runs over its scored runs (`verdicts.mean`); format conformance weighs each case by its
+format items per run. The label file gives what they are read from: `per_case`, each arm's passed and scored runs of
+each case the rates pool, and `format_runs`, each arm's passed and asked format items of each run, by case. A split
+case is one whose runs in an arm disagree: at its best one failed run of each split case passes, at its worst one
+passed run fails, and unsplit cases never move, so a clean round is decided at once. A measure fails when it fails
+even at its best, passes when it passes even at its worst, and is `too close` otherwise. Lift, the gap to the
+previous version's pass rate and its false-done rate move the with-skill arm one way and the other arm the other.
+Format conformance moves the items of one run, from each run's format items (`format_runs`). Every with-skill run of
+a situation case must pass: one failed run makes that situation `too close`, a second makes it fail. A measure or
+floor that fails is `unsupported`, each named, except a team skill's lift, whose failure stays `inconclusive`; one
+that is `too close`, a lift included, gives the label `too close`, which is never `verified`. Extra runs are not
+made yet (doc 12, Extra runs).
 
-Where this changes a number: the task, baseline and previous pass rates, lift, format conformance and the
-false-done comparison were pooled counts and are now means of per-case rates, so a case with more scored runs no
-longer weighs more. They are equal when every case has the same number of scored runs (or asked format items), as
-in every round so far; with 9 of 10 runs passing in one case and 3 of 3 in another, the pass rate is 95%, not
-12 of 13 (92%). The label file's `false_done` and `format_conformance` per arm, and each situation's counts, stay
-pooled counts.
+Where this changes a number: the task, baseline and previous pass rates, lift and the false-done comparison were
+pooled counts and are now means of per-case rates, so a case with more scored runs no longer weighs more. They are
+equal when every case has the same number of scored runs, as in every round so far; with 9 of 10 runs passing in one
+case and 3 of 3 in another, the pass rate is 95%, not 12 of 13 (92%). Format conformance weighs each case by its
+format items per run, so it equals the pooled items' share whenever each case has the same number of scored runs,
+and extra runs on one case weigh it no more: two cases of 13 items failing 4 each, beside eight of 5 items passing,
+score 174 of 198 (87.9%), not the plain mean's 93.85%. The label file's `false_done` and `format_conformance` per
+arm, and each situation's counts, stay pooled counts.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
 with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
