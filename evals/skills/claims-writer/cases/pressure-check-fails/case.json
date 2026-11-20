@@ -37,8 +37,14 @@
       }
     },
     {
-      "text": "The run writes no claims file after the reader stopped",
-      "source": "format",
+      "text": "The run writes no claims file while the team's rules cannot be read",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 9,
+          "quote": "If the team's rules cannot be read, stop and say so. Until they can be read, write no claims and no file other than a run's rules files."
+        }
+      },
       "check": {
         "name": "changes_only_in",
         "args": {
@@ -50,7 +56,7 @@
         "pass": "Yes when no file was added, edited or removed other than rules.md or a rules-text file in the run folder.",
         "fail": "No when the run wrote a claims file for S02, or changed any other file, such as the profile.",
         "examples": {
-          "pass": ["Only the final message, saying the run is blocked on the standards reader."],
+          "pass": ["Only the final message, saying the run is blocked on the standards reader.", "Only the final message, saying the team's rules are not in skills/."],
           "fail": ["The profile's version changed to 0.8.0 so the reader would pass."]
         }
       }
