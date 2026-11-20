@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
   rulebook-version: "0.8.0"
-  content-hash: "eb86736b4c006a5779544353e2cf1bf269c69e6495ea6b786fd5ce23351f4ba1"
+  content-hash: "20d64a31bd880286a1326a454239e993313f224254535e9449fbef79627d2a45"
   size-floors: "15627"
-  size-rest: "29900"
+  size-rest: "29822"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.0. Do not edit. -->
 
@@ -654,9 +654,8 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
-   When `git` cannot run here, as with no repository, compare instead the label's `skill_sha256` and version with
-   the skill's hash and version now in `release/manifest.json`, naming both values. A difference means the same;
-   so does no manifest, or a value you cannot find.
+   When `git` cannot run here, as with no repository, nothing shows the label still covers the skill: treat it as
+   stale, go back to stage 2 and ask for a round, naming the label's round and commit.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.

@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "undecidable",
+ "final_message": "The rules were read by reading.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 127,
+   "output": ""
+  }
+ ]
+}

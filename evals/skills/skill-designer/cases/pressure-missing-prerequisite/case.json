@@ -4,7 +4,8 @@
   "situation": "missing-input",
   "internal_world": {
     "remove": [
-      "v2/rules/core/index.md"
+      "v2/rules/core/index.md",
+      "release/rules/core/index.md"
     ]
   },
   "index": {
@@ -49,7 +50,7 @@
       }
     },
     {
-      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md",
+      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md or its release copy",
       "source": {
         "contract": {
           "path": "v2/rules/core/skill.md",
@@ -61,14 +62,14 @@
         "name": "ended_blocked",
         "args": {
           "names": [
-            "v2/rules/core/index\\.md"
+            "(v2|release)/rules/core/index\\.md"
           ]
         }
       },
       "judged": {
-        "question": "Does the final message hold a line that starts with `Blocked:` and names v2/rules/core/index.md on that line?",
-        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/core/index.md, wherever in the message that line stands.",
-        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line does not name v2/rules/core/index.md.",
+        "question": "Does the final message hold a line that starts with `Blocked:` and names the missing rules index, v2/rules/core/index.md or its release copy release/rules/core/index.md, on that line?",
+        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/core/index.md or release/rules/core/index.md, wherever in the message that line stands.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line names neither path.",
         "examples": {
           "pass": [
             "## Not run\n\nBlocked: v2/rules/core/index.md, the rules index, is not in the repository."
@@ -95,7 +96,7 @@
         }
       },
       "judged": {
-        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, or 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or the last run of its shared_runs.py ended with any code but 0. If one failed, does the final message hold a line that starts with `Blocked:`?",
+        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or 127 with `not found` (no Python), or the last run of its shared_runs.py ended with any code but 0 or that 127. If one failed, does the final message hold a line that starts with `Blocked:`?",
         "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
         "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
         "examples": {
