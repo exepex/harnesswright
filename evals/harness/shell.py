@@ -22,11 +22,16 @@ the grader view (`view.py`) share, so the two never disagree on it.
   plain word may hold a variable such as `$S`, which changes no exit code.
 - `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
   as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
-  One rule, two ways to know it. In a list of plain programs joined only by `;` (no `&&`, `||` or pipe), the last
-  program owns the command's code, so it is `code` when `program` is the last; a command of one program owns it as
-  `owns_exit_code` says. And when `program` is a plain program, first or after a `;`, and the program right after
-  it, after a `;`, is `echo` of a text ending in `$?` and holding no other `$`, the code is the number after that
-  text on the one line of `output` that is the text with its number.
+  A command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to
+  it. One rule: the program must be the last of its unit, joined to it by `&&` only, and its code is the unit's
+  code `c` when `owns_exit_code(unit, c)`: so for a unit of programs joined by `&&`, such as `cd x && run`, only
+  when `c` is 0, since a nonzero code may be an earlier program's, which stopped the unit before the run. The
+  unit's code is known two ways. The last unit gives the command's code, when every unit is plain programs joined
+  by `&&` (`CHAIN`). Or the next unit is `echo <words>$?` alone: it prints its words and the code on a line of
+  `output`. Each unit that may print a line that starts with those words is an `echo` of exactly those words and
+  one value, alone in its unit so it always runs, and the output has one such line for each, in order; any other
+  printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line changes
+  nothing; in the run's own unit it leaves the code unknown.
 - `parts(command)`: [(the operator before it, its text)] of each top-level program, as `programs` finds its starts.
 
 Standard library only.
@@ -84,24 +89,54 @@ def exit_code(command, program, code, output):
     found = parts(command)
     if "\n" in command or not 0 <= program < len(found):
         return None
-    if program == len(found) - 1:
-        if len(found) == 1:
-            return code if code is not None and owns_exit_code(command, code) else None
-        listed = all(op in ("", ";") and ALONE.fullmatch(text) for op, text in found)
-        return code if listed else None
-    op, text = found[program]
-    after_op, after = found[program + 1]
-    if op not in ("", ";") or after_op != ";" or not ALONE.fullmatch(text):
+    units = []  # [program numbers] of each unit: a program after the start or a `;`, and what is joined to it
+    for n, (op, _) in enumerate(found):
+        units.append([n]) if op in ("", ";") else units[-1].append(n)
+    at = next(n for n, unit in enumerate(units) if program in unit)
+    if units[at][-1] != program or any(found[n][0] != "&&" for n in units[at][1:]):
         return None
+    if at == len(units) - 1:  # the last unit of a list of plain units gives the command's code
+        known = code if all(CHAIN.fullmatch(_joined(found, u)) for u in units) else None
+    else:
+        known = _echoed(found, units, at + 1, output)
+    return known if known is not None and owns_exit_code(_joined(found, units[at]), known) else None
+
+
+def _joined(found, unit):
+    return found[unit[0]][1] + "".join(found[n][0] + found[n][1] for n in unit[1:])
+
+
+ECHOED = re.compile(r"([^$]*)\$(\?|\{\?\}|[A-Za-z_][A-Za-z0-9_]*|\{[^}\s]*\})")  # `echo <words>` and a value
+
+
+def _echo(text):
+    """(what `echo` prints before a value it ends with, that value), when `text` is an `echo` of words and one
+    value at the end; ("", None) for any other `echo`; None when it is not an `echo` the shell's words split."""
     try:
-        words = shlex.split(after)
+        words = shlex.split(text)
     except ValueError:
         return None
-    said = " ".join(words[1:])
-    if words[:1] != ["echo"] or not said.endswith("$?") or "$" in said[:-2]:
+    if words[:1] != ["echo"]:
         return None
-    lines = re.findall(rf"^{re.escape(said[:-2])}(\d+)$", output or "", re.MULTILINE)
-    return int(lines[0]) if len(lines) == 1 else None
+    said = ECHOED.fullmatch(" ".join(words[1:]))
+    return said.groups() if said else (" ".join(words[1:]), None)
+
+
+def _echoed(found, units, at, output):
+    """The code that unit `at`, `echo <words>$?`, printed, or None (the module's docstring)."""
+    echo = _echo(_joined(found, units[at])) if len(units[at]) == 1 else None
+    if echo is None or echo[1] not in ("?", "{?}"):
+        return None
+    printers = []  # the units that may print a line of `echo[0]` and a number, in order
+    for n, unit in enumerate(units):
+        for program in unit:
+            other = _echo(found[program][1])
+            if other is not None and other[0].startswith(echo[0]):
+                if len(unit) > 1 or other[1] is None or other[0] != echo[0]:
+                    return None  # it may not run, or may print a line of that shape another way
+                printers.append(n)
+    lines = re.findall(rf"^{re.escape(echo[0])}(\d+)$", output or "", re.MULTILINE)
+    return int(lines[printers.index(at)]) if len(lines) == len(printers) else None
 
 
 def _starts(command):

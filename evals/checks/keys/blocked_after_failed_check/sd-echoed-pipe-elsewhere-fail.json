@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "fail",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m unittest 2>&1 | tail -5; echo \"exit ${PIPESTATUS[0]}\"; python3 SKILL_DIR/scripts/resolve.py --repo . --run r1; echo \"exit $?\"",
+   "exit_code": 0,
+   "output": "OK\nexit 0\nresolve: parked core\nexit 3\n"
+  }
+ ]
+}
