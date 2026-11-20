@@ -17,7 +17,7 @@ import world
 from cases import CaseError
 from test_world import Adapter
 
-PROFILE = "harnesswright:  # the release\n  folder: 'skills/'  # unpacked here\nscripts: forbidden\n"
+PROFILE = "scripts: forbidden\nharnesswright:  # the release\n  folder: 'skills/'  # unpacked here\n"
 RUN_TIME = ["skills/manifest.json", "skills/roles.md", "skills/rules/core/work.md"]
 
 
@@ -42,8 +42,14 @@ class TeamArms(TempCase):
         (self.tmp / "w" / teamrelease.PROFILE).write_text("harnesswright:\n  folder: ../out\n")
         with self.assertRaisesRegex(CaseError, "not a path inside the world"):
             teamrelease.release_folder(self.tmp / "w")
-        (self.tmp / "w" / teamrelease.PROFILE).write_text("harnesswright:\n  folder: skills\n  version: 0.8.0\n")
-        with self.assertRaisesRegex(CaseError, "states a version; the harness writes each arm's"):
+        for text in ("harnesswright:\n  folder: skills\n  version: 0.8.0\n",
+                     'harnesswright:\n  "version": "0.8.0"\n  folder: skills\n',
+                     "harnesswright:\n  folder: skills\n  folder: tools\n"):  # an allow list: folder and comments
+            (self.tmp / "w" / teamrelease.PROFILE).write_text(text)
+            with self.assertRaisesRegex(CaseError, "holds only its one `folder:` line and comments"):
+                teamrelease.release_folder(self.tmp / "w")
+        (self.tmp / "w" / teamrelease.PROFILE).write_text("harnesswright:\n  folder: skills\n\nscripts: forbidden\n")
+        with self.assertRaisesRegex(CaseError, "not the profile's last entry; .* moves no line a case cites"):
             teamrelease.release_folder(self.tmp / "w")
 
     def stated(self, arm):
@@ -53,14 +59,16 @@ class TeamArms(TempCase):
 
     def test_each_skill_arm_profile_states_the_version_of_the_release_it_installed(self):
         self.arms({".harness/profile.yaml": PROFILE})
-        self.assertEqual(self.stated(self.tmp / "arm-True"), '  version: "0.8.0"  # as skills/manifest.json says')
+        self.assertEqual(self.stated(self.tmp / "arm-True"),
+                         '  version: "0.8.0"  # checked against skills/manifest.json')
         self.assertEqual((self.tmp / "arm-False" / teamrelease.PROFILE).read_text(), PROFILE)
-        self.assertEqual((self.tmp / "arm-True" / teamrelease.PROFILE).read_text().replace(
-            self.stated(self.tmp / "arm-True") + "\n", ""), PROFILE)
+        self.assertEqual((self.tmp / "arm-True" / teamrelease.PROFILE).read_text(),
+                         PROFILE + self.stated(self.tmp / "arm-True") + "\n")  # no line of the case's profile moves
 
     def test_a_case_may_declare_the_profile_version_it_tests(self):
         self.arms({".harness/profile.yaml": PROFILE}, {"profile_version": "0.5.1"})
-        self.assertEqual(self.stated(self.tmp / "arm-True"), '  version: "0.5.1"  # as skills/manifest.json says')
+        self.assertEqual(self.stated(self.tmp / "arm-True"),
+                         '  version: "0.5.1"  # checked against skills/manifest.json')
         self.assertIsNone(self.stated(self.tmp / "arm-False"))
         case = self.case({}, {"profile_version": "0.5.1"}, skill="claims-writer")
         with self.assertRaisesRegex(CaseError, "profile_version is only for a team skill's case whose profile"):
@@ -121,7 +129,7 @@ class TeamArms(TempCase):
         case = self.case({".harness/profile.yaml": PROFILE}, skill="claims-writer")
         arm = world.build(case, Adapter, self.tmp / "prev", self.tmp / "skills", True, previous / "claims-writer")
         self.assertEqual((arm.path / "skills" / "roles.md").read_text(), "# Roles, as the previous release had them\n")
-        self.assertEqual(self.stated(arm.path), '  version: "0.8.0"  # as skills/manifest.json says')
+        self.assertEqual(self.stated(arm.path), '  version: "0.8.0"  # checked against skills/manifest.json')
 
     def old_release(self):
         """A previous release built before 0.8.0: no hashes, and a rules file the current release does not ship."""
@@ -142,7 +150,7 @@ class TeamArms(TempCase):
         case = self.case({".harness/profile.yaml": PROFILE}, skill="claims-writer")
         arm = world.build(case, Adapter, self.tmp / "old", self.tmp / "skills", True, previous / "claims-writer")
         self.assertEqual((arm.path / "skills" / "rules" / "core" / "old.md").read_text(), "# Old\n")
-        self.assertEqual(self.stated(arm.path), '  version: "0.7.1"  # as skills/manifest.json says')
+        self.assertEqual(self.stated(arm.path), '  version: "0.7.1"  # checked against skills/manifest.json')
         self.assertTrue((arm.path / "skills" / "manifest.json").is_file())
         with self.assertRaisesRegex(CaseError, "before releases hashed their files.*only a previous version"):
             world.plan(case, Adapter, True, previous)
