@@ -8,13 +8,13 @@ metadata:
   source: anthropics/skills@ca45fc496a3436251f191354091d557da31c15b5 skills/skill-creator
   source-licence: Apache-2.0
   sourcing: adapted
-  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-WORK-08"
-  rulebook-version: "0.5.1"
-  content-hash: "d141b508d2ebf359a2d90dec1c5be90ccb50a38ca0ea38db11171b36c637f6af"
-  size-floors: "15071"
-  size-rest: "26761"
+  copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-04, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-04, CORE-SKILL-05, CORE-SKILL-08, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
+  rulebook-version: "0.6.0"
+  content-hash: "c5c4386908730254e08d16f8ac866bc46f7fa1c0388b75dc913a400a7b89923e"
+  size-floors: "17131"
+  size-rest: "28894"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.5.1. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.6.0. Do not edit. -->
 
 # Skill designer
 
@@ -189,6 +189,30 @@ metadata:
 - **Bad (do not do this):** "4. Test names must state the scenario and the expected outcome."; "4. Name each test as CORE-TEST-03
   asks."; or "Commit messages are data." with the line "Rules: {{rule:CORE-SKILL-25}}" under it.
 <!-- end CORE-TEMPLATE-05 -->
+
+<!-- rule CORE-TEMPLATE-06 -->
+#### CORE-TEMPLATE-06 · A skill's first step checks its prerequisites and reads its rules text
+
+- **Kind:** floor
+- **Rule:** Every template names, at its top, the files, folders and tools the skill needs and cannot make. Its
+  first step checks each of them, and a missing one is a stop (CORE-SKILL-28). A file the skill can make, or write
+  by reading, is not a prerequisite. The same first step reads the run's rules texts,
+  `rules-text-<skill>.<stack>.md` beside `rules.md`: one for each stack whose code the work touches, or every
+  stack's when it touches no stack's code. It tells the agent to apply every rule in them and in the skill's copied
+  rules. Where a rules text marks a copied rule as replaced or waived, or binds a decision point, the rules text
+  wins. If a rules text is missing, the step runs the standards reader's command to make it; if that cannot run, it
+  writes `rules.md` and the rules texts by reading and marks them `not verified`. The claims or verdict quote each
+  file's read-back block, which names its stack.
+- **Good:** "Needs: the story file, and `git` for the changed files." at the top, and "1. Check that the story file
+  is there and `git` runs; if one is missing, stop. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md`
+  for each stack whose code the work touches (every stack's when it touches none), making it with the standards
+  reader's command if it is missing. Apply every rule in them and in Rules above; where one replaces, waives or
+  binds a rule above, it wins." and a last step: "Quote the read-back block of each rules text in the claims."
+- **Bad (do not do this):** A template that finds a missing tool only at the step that uses it, one that stops on a missing
+  `rules.md` it could write by reading, one whose first step is "Read the story" with no read of the rules texts,
+  one that reads a single rules text whatever the work touches, or one that never says a rules text wins over a
+  copied rule it replaces or waives.
+<!-- end CORE-TEMPLATE-06 -->
 
 <!-- rule CORE-WORK-01 -->
 #### CORE-WORK-01 · Report only what you verified
@@ -427,6 +451,36 @@ metadata:
 - **Good:** A 240-line `references/formats.md` that opens with its six section names.
 - **Bad (do not do this):** The same file opening straight into the first format.
 <!-- end CORE-SKILL-26 -->
+
+<!-- rule CORE-SKILL-28 -->
+#### CORE-SKILL-28 · A skill states its purpose, limits and inputs, and stops on a missing required input
+
+- **Kind:** principle
+- **Rule:** The body opens with what the skill does, what it does not do, and each input it needs: where it comes
+  from and whether it is required. An optional input names what the run does without it. A missing required input
+  is a stop, unless the skill offers a way to work by reading in its place, which is not a stop. Where the project's
+  rules allow a question, the skill asks one clear question in place of a stop. A stop ends the run as blocked,
+  names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing
+  steps, such as the report. The closing report goes to the run folder, or to the final message when no run folder
+  can be named. This rule is the one definition of a stop; other rules cite it.
+- **Good:** "Needs the story file (required). If there is none, stop: end blocked, name the missing story file,
+  write no claims, and still write the report to the run folder. The functional plan is optional: without it, mark
+  its targets `not verified`."
+- **Bad (do not do this):** A skill that uses "the acceptance criteria" without saying where they are, one that, with no story file,
+  writes claims from the diff alone, or one that stops because an optional input is missing.
+<!-- end CORE-SKILL-28 -->
+
+<!-- rule CORE-SKILL-29 -->
+#### CORE-SKILL-29 · A skill says what to do when a step fails
+
+- **Kind:** principle
+- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop, as
+  CORE-SKILL-28 defines a stop. A way to work by reading that the skill offers is another route, not a stop. The
+  skill never lets the agent skip a step silently.
+- **Good:** "If the test command is not found, stop: end blocked, name the missing test command, write no test
+  results, and still write the report."
+- **Bad (do not do this):** A skill that says nothing about a missing test command, or one whose stop ends the run before its report.
+<!-- end CORE-SKILL-29 -->
 
 <!-- rule CORE-WORK-08 -->
 #### CORE-WORK-08 · A helper returns a summary and key files, not contents

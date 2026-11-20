@@ -116,3 +116,41 @@ with the older rule it carries over.
 - **Source:**
   - own (CORE-TEMPLATE-01; CORE-SKILL-06)
   - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-18 (Apache-2.0)
+
+### CORE-TEMPLATE-06 · A skill's first step checks its prerequisites and reads its rules text
+
+- **Kind:** floor
+- **Status:** active
+- **Review by:** 2027-11-20
+- **Applies to:** skill designer, skill judge
+- **Rule:** Every template names, at its top, the files, folders and tools the skill needs and cannot make. Its
+  first step checks each of them, and a missing one is a stop (CORE-SKILL-28). A file the skill can make, or write
+  by reading, is not a prerequisite. The same first step reads the run's rules texts,
+  `rules-text-<skill>.<stack>.md` beside `rules.md`: one for each stack whose code the work touches, or every
+  stack's when it touches no stack's code. It tells the agent to apply every rule in them and in the skill's copied
+  rules. Where a rules text marks a copied rule as replaced or waived, or binds a decision point, the rules text
+  wins. If a rules text is missing, the step runs the standards reader's command to make it; if that cannot run, it
+  writes `rules.md` and the rules texts by reading and marks them `not verified`. The claims or verdict quote each
+  file's read-back block, which names its stack.
+- **Why:** A prerequisite found missing halfway through leaves part of the work written; checked first, the run
+  stops before it writes anything. Rules of the language, company, department, team and application layers,
+  overrides and decision point bindings reach the agent only through the rules texts. A skill that never reads them
+  applies only the core rules.
+- **Check:** Does the template name, at its top, what it needs and cannot make, and does its first step check each
+  and stop on a missing one? Does it leave out what it can make or write by reading? Is the same first step the read
+  of the rules texts, with which stacks to read and the missing-file path, and does it say a rules text wins over a
+  copied rule? Does the output step quote each read-back block?
+- **Good:** "Needs: the story file, and `git` for the changed files." at the top, and "1. Check that the story file
+  is there and `git` runs; if one is missing, stop. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md`
+  for each stack whose code the work touches (every stack's when it touches none), making it with the standards
+  reader's command if it is missing. Apply every rule in them and in Rules above; where one replaces, waives or
+  binds a rule above, it wins." and a last step: "Quote the read-back block of each rules text in the claims."
+- **Bad:** A template that finds a missing tool only at the step that uses it, one that stops on a missing
+  `rules.md` it could write by reading, one whose first step is "Read the story" with no read of the rules texts,
+  one that reads a single rules text whatever the work touches, or one that never says a rules text wins over a
+  copied rule it replaces or waives.
+- **Eval:** a template with no prerequisite check in its first step, one that lists a file it can make as a
+  prerequisite, one with no rules-text step, one that reads a single rules text whatever the work touches, and one
+  whose rules-text step does not say the rules text wins, which the skill judge must flag.
+- **Source:**
+  - own (CORE-TEMPLATE-04; doc 12, Stop and prerequisites)
