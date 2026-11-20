@@ -6,8 +6,8 @@ rules text with the rules of the more specific layers. These rules govern the te
 good skill says is area `SKILL` ([skill.md](skill.md)); the whole set of skills is area `CATALOG`
 ([catalog.md](catalog.md)).
 
-CORE-TEMPLATE-02 to 05 replace four retired rules ([retired.md](retired.md)); each Source names the one it carries
-over.
+CORE-TEMPLATE-02, 03, 05 and 06 replace retired rules ([retired.md](retired.md)); each Source names the one it
+carries over.
 
 All text below is written new. Each Source names where the idea came from; `own` marks harnesswright's own text,
 with the older rule it carries over.
@@ -57,35 +57,6 @@ with the older rule it carries over.
   - own (CORE-SKILL-02; HW-PORT-01)
   - `anthropics/skills@ca45fc4 skills/skill-creator/scripts/quick_validate.py` (Apache-2.0)
 
-### CORE-TEMPLATE-04 · A skill's first step reads its rules text
-
-- **Kind:** floor
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** The first step of every template reads the run's rules texts, `rules-text-<skill>.<stack>.md` beside
-  `rules.md`: one for each stack whose code the work touches, or every stack's when it touches no stack's code. It
-  tells the agent to apply every rule in them and in the skill's copied rules. Where a rules text marks a copied
-  rule as replaced or waived, or binds a decision point, the rules text wins. If a file is missing, the step runs
-  the standards reader's command to make it; if that cannot run, it writes `rules.md` and the rules texts by reading
-  and marks them `not verified`. The claims or verdict quote each file's read-back block, which names its stack.
-- **Why:** Rules of the language, company, department, team and application layers, overrides and decision point
-  bindings reach the agent only through these files. A skill that never reads them applies only the core rules.
-- **Check:** Is the first step of the template the read of the rules texts, with which stacks to read and the
-  missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each read-back
-  block?
-- **Good:** "1. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md` for each stack whose code the work
-  touches (every stack's when it touches none), making it with the standards reader's command if it is missing.
-  Apply every rule in them and in Rules above; where one replaces, waives or binds a rule above, it wins." and a last
-  step: "Quote the read-back block of each rules text in the claims."
-- **Bad:** A template whose first step is "Read the story", with no read of the rules texts, one that reads a single
-  rules text whatever the work touches, or one that never says a rules text wins over a copied rule it replaces or
-  waives.
-- **Eval:** a template with no rules-text step, one that reads a single rules text whatever the work touches, and
-  one whose rules-text step does not say the rules text wins, which the skill judge must flag.
-- **Source:**
-  - own (CORE-SKILL-06)
-
 ### CORE-TEMPLATE-05 · A template cites rules only as tags on Rules lines and never writes their text
 
 - **Kind:** floor
@@ -116,3 +87,39 @@ with the older rule it carries over.
 - **Source:**
   - own (CORE-TEMPLATE-01; CORE-SKILL-06)
   - `exepex/stratum@cc3ea82 AGENTS.md` ST-AG-18 (Apache-2.0)
+
+### CORE-TEMPLATE-06 · A skill's first step checks its prerequisites and reads its rules text
+
+- **Kind:** floor
+- **Status:** active
+- **Review by:** 2027-11-20
+- **Applies to:** skill designer, skill judge
+- **Rule:** Every template names, at its top, the files, folders and tools the skill needs. Its first step checks
+  each of them, and a missing one is a stop (CORE-SKILL-28). The same first step reads the run's rules texts,
+  `rules-text-<skill>.<stack>.md` beside `rules.md`: one for each stack whose code the work touches, or every
+  stack's when it touches no stack's code. It tells the agent to apply every rule in them and in the skill's copied
+  rules. Where a rules text marks a copied rule as replaced or waived, or binds a decision point, the rules text
+  wins. If a rules text is missing, the step runs the standards reader's command to make it; if that cannot run, it
+  writes `rules.md` and the rules texts by reading and marks them `not verified`. The claims or verdict quote each
+  file's read-back block, which names its stack.
+- **Why:** A prerequisite found missing halfway through leaves part of the work written; checked first, the run
+  stops before it writes anything. Rules of the language, company, department, team and application layers,
+  overrides and decision point bindings reach the agent only through the rules texts. A skill that never reads them
+  applies only the core rules.
+- **Check:** Does the template name its files, folders and tools at its top, and does its first step check each of
+  them and stop on a missing one? Is the same first step the read of the rules texts, with which stacks to read and
+  the missing-file path, and does it say a rules text wins over a copied rule? Does the output step quote each
+  read-back block?
+- **Good:** "Needs: the story file, `rules.md`, `python3`." at the top, and "1. Check that each file, folder and
+  tool under Needs is there; if one is missing, stop. Read `rules-text-invoice-writer.<stack>.md` beside `rules.md`
+  for each stack whose code the work touches (every stack's when it touches none), making it with the standards
+  reader's command if it is missing. Apply every rule in them and in Rules above; where one replaces, waives or
+  binds a rule above, it wins." and a last step: "Quote the read-back block of each rules text in the claims."
+- **Bad:** A template that finds a missing tool only at the step that uses it, one whose first step is "Read the
+  story" with no read of the rules texts, one that reads a single rules text whatever the work touches, or one that
+  never says a rules text wins over a copied rule it replaces or waives.
+- **Eval:** a template with no prerequisite check in its first step, one with no rules-text step, one that reads a
+  single rules text whatever the work touches, and one whose rules-text step does not say the rules text wins, which
+  the skill judge must flag.
+- **Source:**
+  - own (CORE-TEMPLATE-04; doc 12, Stop and prerequisites)
