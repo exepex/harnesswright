@@ -1,8 +1,9 @@
 {
  "changes": {
-  ".harness/runs/2026-11-17-parking-fees/rules.md": "# Rules · 2026-11-17-parking-fees\n\n- Run: 2026-11-17-parking-fees\n- Date: 2026-11-19\n\nnot verified: the standards reader stopped with `.harness/profile.yaml: is missing or cannot be read`; there is no harnesswright set-up, so this file and the rules text were written by reading.\n",
-  ".harness/runs/2026-11-17-parking-fees/rules-text-claims-writer.core.md": "### Changes to rules that reach this run\n\nNone.\n\nNone.\n\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n",
-  ".harness/runs/2026-11-17-parking-fees/claims/S05.md": "## Request\n\n> ---\n> id: S05\n> plan: none\n> depends-on: []\n> covers: [AC-1, AC-2, AC-3]\n> tests: {AC-1: [unit], AC-2: [unit], AC-3: [unit]}\n> targets: {}\n> waivers: []\n> ---\n>\n> ## What\n>\n> Work out the fee for one stay in a city car park from how many minutes the car was parked.\n>\n> ## Request\n>\n> > Short stops should cost nothing: the first half hour is free. After that we charge 2.50 for every hour that has\n> > started, but nobody pays more than 15.00 for a day.\n>\n> ## Acceptance criteria\n>\n> ### AC-1\n>\n> - **Criterion:** A stay of 30 minutes or less costs nothing.\n> - **Test types:** [unit]\n>\n> ### AC-2\n>\n> - **Criterion:** After the first 30 minutes, each started hour costs 2.50.\n> - **Test types:** [unit]\n>\n> ### AC-3\n>\n> - **Criterion:** The fee for one day is never more than 15.00.\n> - **Test types:** [unit]\n>\n> ## Out of scope\n>\n> - Stays that run past midnight, and season tickets.\n\n## Requirements\n\n### AC-1\n\n- **Status:** met\n- **Done:** `parking_fee` returns 0.0 for a stay of `FREE_MINUTES` (30) or less, `src/parking.py:12-13`.\n- **Evidence:** `python3 -m unittest discover -s tests -t .` printed `Ran 3 tests in 0.000s` and `OK`, exit code 0. In that run `test_first_half_hour_is_free` (30 minutes → 0.0) passes.\n- **Test types:**\n  - unit: `test_first_half_hour_is_free`, `tests/test_parking.py:7`\n\n### AC-2\n\n- **Status:** met\n- **Done:** the minutes past the free half hour are rounded up to started hours and charged `HOURLY_FEE` (2.50) each, `src/parking.py:14-15`.\n- **Evidence:** `test_each_started_hour_after_that_costs_2_50` (31 minutes → 2.50, 150 minutes → 5.00) passes in the same run: `Ran 3 tests`, `OK`.\n- **Test types:**\n  - unit: `test_each_started_hour_after_that_costs_2_50`, `tests/test_parking.py:10`\n\n### AC-3\n\n- **Status:** met\n- **Done:** the fee is capped with `min(..., DAILY_CAP)`, and `DAILY_CAP` is 15.00, `src/parking.py:7` and `src/parking.py:15`.\n- **Evidence:** `test_a_day_costs_at_most_15` (600 minutes → 15.00) passes in the same run: `Ran 3 tests`, `OK`.\n- **Test types:**\n  - unit: `test_a_day_costs_at_most_15`, `tests/test_parking.py:14`\n\n## Open proof items\n\nNone.\n\n## Standards\n\n- **rules.md:** bc298eec37657580e0d080f47b229cc263daf4535e45dbf96ac98524ec729a0c\n\n### Skills run\n\n#### claims-writer\n\n- **Source:** this run\n- **Version:** 0.5.1\n- **SKILL.md:** 96f82d541373c3755ad1394ce9dbf5fa838fce645034f0b7700983de5b7fec71\n- **Rules text:** not verified\n\n```text\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n```\n\n### Changes applied\n\nNone.\n\n### Rules applied\n\n- CORE-WORK-01 (this run)\n- CORE-WORK-02 (this run)\n\n### Waivers used\n\nNone.\n\n## Out of scope\n\n- Stays that run past midnight, and season tickets: the story lists them as out of scope.\n- A review or approval of the change: the claims writer worked on it, so it may not judge it (`AGENTS.md:8`); the story judge decides (`AGENTS.md:9`).\n\n## Files changed\n\n- `src/parking.py` (15 lines)\n- `tests/test_parking.py` (19 lines)\n\n## Not verified\n\n- Standards reader not run: `.harness/profile.yaml` is missing (the project has no harnesswright set-up). `rules.md` and the rules texts were written by reading.\n- Claims check: Files changed against the change: no --base given.\n"
+  ".harness/runs/2026-11-17-parking-fees/rules-text-claims-writer.core.md": "# Rules text: claims-writer\n\n- **Release:** 0.8.0\n\n## Stack: core\n\n### Changes to rules that reach this run\n\nNone.\n\n### Decision points\n\nNone.\n\n### Floors\n\nNone.\n\n### Other rules\n\nNone.\n\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n",
+  ".harness/runs/2026-11-17-parking-fees/rules-text-skill-designer.core.md": "# Rules text: skill-designer\n\n- **Release:** 0.8.0\n\n## Stack: core\n\n### Changes to rules that reach this run\n\nNone.\n\n### Decision points\n\nNone.\n\n### Floors\n\nNone.\n\n### Other rules\n\nNone.\n\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n",
+  ".harness/runs/2026-11-17-parking-fees/rules.md": "# Resolved standards\n\n- **Run:** 2026-11-17-parking-fees\n- **Date:** 2026-11-19\n- **Release:** 0.8.0\n\n## Stack: core\n\n### Rules\n\n| ID | Layer | Kind | Changes | Waiver |\n|---|---|---|---|---|\n| CORE-CATALOG-01 | CORE | principle |  |  |\n| CORE-SKILL-01 | CORE | principle |  |  |\n| CORE-SKILL-03 | CORE | principle |  |  |\n| CORE-SKILL-05 | CORE | principle |  |  |\n| CORE-SKILL-07 | CORE | floor |  |  |\n| CORE-SKILL-09 | CORE | principle |  |  |\n| CORE-SKILL-10 | CORE | principle |  |  |\n| CORE-SKILL-12 | CORE | principle |  |  |\n| CORE-SKILL-13 | CORE | principle |  |  |\n| CORE-SKILL-14 | CORE | principle |  |  |\n| CORE-SKILL-15 | CORE | principle |  |  |\n| CORE-SKILL-16 | CORE | principle |  |  |\n| CORE-SKILL-17 | CORE | principle |  |  |\n| CORE-SKILL-18 | CORE | floor |  |  |\n| CORE-SKILL-19 | CORE | floor |  |  |\n| CORE-SKILL-20 | CORE | floor |  |  |\n| CORE-SKILL-21 | CORE | floor |  |  |\n| CORE-SKILL-22 | CORE | floor |  |  |\n| CORE-SKILL-23 | CORE | principle |  |  |\n| CORE-SKILL-24 | CORE | floor |  |  |\n| CORE-SKILL-25 | CORE | floor |  |  |\n| CORE-SKILL-26 | CORE | principle |  |  |\n| CORE-SKILL-27 | CORE | floor |  |  |\n| CORE-SKILL-28 | CORE | principle |  |  |\n| CORE-SKILL-29 | CORE | principle |  |  |\n| CORE-TEMPLATE-02 | CORE | floor |  |  |\n| CORE-TEMPLATE-03 | CORE | floor |  |  |\n| CORE-TEMPLATE-05 | CORE | floor |  |  |\n| CORE-TEMPLATE-06 | CORE | floor |  |  |\n| CORE-WORK-01 | CORE | floor |  |  |\n| CORE-WORK-02 | CORE | floor |  |  |\n| CORE-WORK-03 | CORE | floor |  |  |\n| CORE-WORK-04 | CORE | floor |  |  |\n| CORE-WORK-05 | CORE | floor |  |  |\n| CORE-WORK-06 | CORE | floor |  |  |\n| CORE-WORK-07 | CORE | floor |  |  |\n| CORE-WORK-08 | CORE | principle |  |  |\n\n### Decision points\n\n| Point | Option | From |\n|---|---|---|\n\n### Waivers\n\n| Rule | Reason | Until | Approved by | Status |\n|---|---|---|---|---|\n\n### Replaced\n\n| Rule | Replaced by |\n|---|---|\n\n## Files read\n\n| SHA-256 | File |\n|---|---|\n| f3c7943a9ed1d9718bcd115f33d9170a3199a870e0da233d8672c0ad00a5682a | .harness/profile.yaml |\n| b44b963667e52d995683c5ecbbddc642433d42ffec63b4922a05b9f80793fb66 | skills/manifest.json |\n| 6bcba60819b15f57b88eb0a9a4b6fb73ad323be5603d0a9909e458d12fb31f76 | skills/roles.md |\n| 74caac0c08b5680eb5df1f74fa4be6da6c0458c4ac39aa807d6780b41fa78e6c | skills/rules/core/catalog.md |\n| e2422bfc03f2d93099ce0342dace4d884be9bf34b4ccfa6e089b5f53978f5272 | skills/rules/core/retired.md |\n| 44663eee210b728d1f04c98264ba161364f33ec0308c8aa4e483b875885c059f | skills/rules/core/skill.md |\n| 85ea4e01592ac328a71a898cd92621a523686d20705412095e7fa13e906ae4d9 | skills/rules/core/template.md |\n| 7a40d895b68c6e51b9d6f0a807762548c60acaca456f17fc3c195877a2e27d32 | skills/rules/core/work.md |\n\n## Rules texts\n\n| SHA-256 | File |\n|---|---|\n| e3d30781f7fc94f89b793a43b1f1fc8df310283a43f0437ec6bb47b323930e10 | .harness/runs/2026-11-17-parking-fees/rules-text-claims-writer.core.md |\n| a8987149631ffceaf5bf2c1f797f8a9d453423100eef4c9a679d31560ced5680 | .harness/runs/2026-11-17-parking-fees/rules-text-skill-designer.core.md |\n\n## Parked rules texts\n\n| Skill | Stack | Size | Limit | Owner of the largest layer |\n|---|---|---|---|---|\n",
+  ".harness/runs/2026-11-17-parking-fees/claims/S05.md": "## Request\n\n> ---\n> id: S05\n> plan: none\n> depends-on: []\n> covers: [AC-1, AC-2, AC-3]\n> tests: {AC-1: [unit], AC-2: [unit], AC-3: [unit]}\n> targets: {}\n> waivers: []\n> ---\n>\n> ## What\n>\n> Work out the fee for one stay in a city car park from how many minutes the car was parked.\n>\n> ## Request\n>\n> > Short stops should cost nothing: the first half hour is free. After that we charge 2.50 for every hour that has\n> > started, but nobody pays more than 15.00 for a day.\n>\n> ## Acceptance criteria\n>\n> ### AC-1\n>\n> - **Criterion:** A stay of 30 minutes or less costs nothing.\n> - **Test types:** [unit]\n>\n> ### AC-2\n>\n> - **Criterion:** After the first 30 minutes, each started hour costs 2.50.\n> - **Test types:** [unit]\n>\n> ### AC-3\n>\n> - **Criterion:** The fee for one day is never more than 15.00.\n> - **Test types:** [unit]\n>\n> ## Out of scope\n>\n> - Stays that run past midnight, and season tickets.\n\n## Requirements\n\n### AC-1\n\n- **Status:** met\n- **Done:** `parking_fee` returns 0.0 for a stay of `FREE_MINUTES` (30) or less, `src/parking.py:12-13`.\n- **Evidence:** `python3 -m unittest discover -s tests -t .` printed `Ran 3 tests in 0.000s` and `OK`, exit code 0. In that run `test_first_half_hour_is_free` (30 minutes → 0.0) passes.\n- **Test types:**\n  - unit: `test_first_half_hour_is_free`, `tests/test_parking.py:7`\n\n### AC-2\n\n- **Status:** met\n- **Done:** the minutes past the free half hour are rounded up to started hours and charged `HOURLY_FEE` (2.50) each, `src/parking.py:14-15`.\n- **Evidence:** `test_each_started_hour_after_that_costs_2_50` (31 minutes → 2.50, 150 minutes → 5.00) passes in the same run: `Ran 3 tests`, `OK`.\n- **Test types:**\n  - unit: `test_each_started_hour_after_that_costs_2_50`, `tests/test_parking.py:10`\n\n### AC-3\n\n- **Status:** met\n- **Done:** the fee is capped with `min(..., DAILY_CAP)`, and `DAILY_CAP` is 15.00, `src/parking.py:7` and `src/parking.py:15`.\n- **Evidence:** `test_a_day_costs_at_most_15` (600 minutes → 15.00) passes in the same run: `Ran 3 tests`, `OK`.\n- **Test types:**\n  - unit: `test_a_day_costs_at_most_15`, `tests/test_parking.py:14`\n\n## Open proof items\n\nNone.\n\n## Standards\n\n- **rules.md:** 66e30978c0247609debe823282228d4a2b22155f3ba9906250237d56a7b89b02\n\n### Skills run\n\n#### claims-writer\n\n- **Source:** this run\n- **Version:** 0.8.0\n- **SKILL.md:** a20c2bf613bb1cb430fa20114ce9eca3a15105db5be9f0a112b76a041c5dcc2d\n\n```text\n<!-- read-back -->\nStack: core. Rules in this text: 0. Last rule: none.\n<!-- end read-back -->\n```\n\n### Changes applied\n\nNone.\n\n### Rules applied\n\n- CORE-WORK-01 (this run)\n- CORE-WORK-02 (this run)\n\n### Waivers used\n\nNone.\n\n## Out of scope\n\n- Stays that run past midnight, and season tickets: the story lists them as out of scope.\n- A review or approval of the change: the claims writer worked on it, so it may not judge it (`AGENTS.md:8`); the story judge decides (`AGENTS.md:9`).\n\n## Files changed\n\n- `src/parking.py` (15 lines)\n- `tests/test_parking.py` (19 lines)\n\n## Not verified\n\n- Claims check: Files changed against the change: no --base given.\n"
  },
  "log": [
   {
@@ -26,25 +27,8 @@
    "kind": "command",
    "source": "observed",
    "command": "python3 .claude/skills/claims-writer/scripts/resolve.py --repo . --run 2026-11-17-parking-fees --date 2026-11-19",
-   "exit_code": 1,
-   "output": "resolve stopped: .harness/profile.yaml: is missing or cannot be read (FileNotFoundError)\n"
-  },
-  {
-   "kind": "read",
-   "source": "observed",
-   "path": ".claude/skills/claims-writer/scripts/copyform.py"
-  },
-  {
-   "kind": "write",
-   "source": "observed",
-   "path": ".harness/runs/2026-11-17-parking-fees/rules.md",
-   "sha256": "bc298eec37657580e0d080f47b229cc263daf4535e45dbf96ac98524ec729a0c"
-  },
-  {
-   "kind": "write",
-   "source": "observed",
-   "path": ".harness/runs/2026-11-17-parking-fees/rules-text-claims-writer.core.md",
-   "sha256": "66bec76a2408e1258c8585181ba315af2c2bc12d0261ea4745a6fd035ac4c211"
+   "exit_code": 0,
+   "output": "resolve: wrote .harness/runs/2026-11-17-parking-fees/rules.md and 2 rules texts\n"
   },
   {
    "kind": "read",
@@ -80,14 +64,14 @@
    "source": "observed",
    "command": "python3 -c \"import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())\" .harness/runs/2026-11-17-parking-fees/rules.md",
    "exit_code": 0,
-   "output": "bc298eec37657580e0d080f47b229cc263daf4535e45dbf96ac98524ec729a0c\n"
+   "output": "66e30978c0247609debe823282228d4a2b22155f3ba9906250237d56a7b89b02\n"
   },
   {
    "kind": "command",
    "source": "observed",
    "command": "python3 -c \"import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())\" .claude/skills/claims-writer/SKILL.md",
    "exit_code": 0,
-   "output": "96f82d541373c3755ad1394ce9dbf5fa838fce645034f0b7700983de5b7fec71\n"
+   "output": "a20c2bf613bb1cb430fa20114ce9eca3a15105db5be9f0a112b76a041c5dcc2d\n"
   },
   {
    "kind": "read",
@@ -98,7 +82,7 @@
    "kind": "write",
    "source": "observed",
    "path": ".harness/runs/2026-11-17-parking-fees/claims/S05.md",
-   "sha256": "56b802264ecba2ba15dd5274d714c09e11c2600abdcb86da5f178aa5172f4c48"
+   "sha256": "202730a8feb43288ae0bdfac0ab13346c29891b136ffc24ae310e262f325c44f"
   },
   {
    "kind": "command",
@@ -118,12 +102,12 @@
    "kind": "write",
    "source": "observed",
    "path": ".harness/runs/2026-11-17-parking-fees/claims/S05.md",
-   "sha256": "4c1a79669904fae1e4f67e13a706f7a136b40aff88a079fa650ff05c362d1ffd"
+   "sha256": "b5737a8b4d64e334c28ea4a90e8d66973fbdd9be08b9856a2549400aecd22616"
   },
   {
    "kind": "message",
    "source": "observed",
-   "text": "Scripts not run: the standards reader stopped because the project has no `.harness/profile.yaml`, so `rules.md` and the rules text were written by reading. The claims check ran and passes.\n\nClaims written to `.harness/runs/2026-11-17-parking-fees/claims/S05.md`:\n\n- AC-1: met\n- AC-2: met\n- AC-3: met\n\nI ran `python3 -m unittest discover -s tests -t .` myself: 3 tests, OK. Open proof items: none.\n\nI have not reviewed or approved the change. I wrote its claims, and `AGENTS.md:8` says no agent approves a change it worked on. The story judge, a separate agent that reads only the story, the claims and the diff, decides whether S05 passes, and the merge waits for its pass (`AGENTS.md:9-10`)."
+   "text": "The standards reader wrote `rules.md` and the rules texts, and the claims check ran and passes.\n\nClaims written to `.harness/runs/2026-11-17-parking-fees/claims/S05.md`:\n\n- AC-1: met\n- AC-2: met\n- AC-3: met\n\nI ran `python3 -m unittest discover -s tests -t .` myself: 3 tests, OK. Open proof items: none.\n\nI have not reviewed or approved the change. I wrote its claims, and `AGENTS.md:8` says no agent approves a change it worked on. The story judge, a separate agent that reads only the story, the claims and the diff, decides whether S05 passes, and the merge waits for its pass (`AGENTS.md:9-10`)."
   }
  ],
  "settled": {
