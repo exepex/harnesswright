@@ -13,8 +13,8 @@ services that own a database. It holds no service code.
 ## Working rules
 
 - Agents here run unattended, in the toolkit's pipeline. Nobody reads a question, so never ask one.
-- When a file a task needs is missing, stop. Say first that the run is blocked, name the missing file, and write
-  no file outside `.harness/runs/`.
+- When a file a task needs is missing, stop. Your report holds the line `Blocked: <what is missing or failed>`,
+  naming the missing file, and the run writes no file outside `.harness/runs/`.
 - Report only what you checked, and say what you did not check.
 - Agents keep their working notes under `.harness/runs/`. That folder is not part of the toolkit.
 

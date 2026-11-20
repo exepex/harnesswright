@@ -12,10 +12,6 @@ the grader view (`view.py`) share, so the two never disagree on it.
   only when it has one shape (`CUTTABLE`), in which the splitter's reading of quotes is exact, and every program it
   removes leaves the shell as it found it (`STATELESS`), so no later program reads a folder, a variable or an
   output it set.
-- `owns_exit_code(command, code)`: whether the command's exit code, when it is `code`, is its own program's. That
-  holds for one program with its arguments, each a plain word, a simple quoted string of a plain word's characters
-  and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined by `&&`, which ends with 0
-  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code.
 
 Standard library only.
 """
@@ -39,23 +35,6 @@ STATELESS = frozenset((
     "grep", "head", "ls", "md5sum", "mkdir", "mv", "nl", "node", "python", "python3", "readlink",
     "realpath", "rm", "sed", "sha256sum", "sort", "stat", "tail", "test", "timeout", "touch", "tr", "tree", "uniq",
     "wc", "xargs"))
-
-
-# The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
-# A quoted string holds only a plain word's characters and blanks, since a program such as bash -c may run it as a
-# script, and any other character (an operator, a line break, !) could make that script end with another code.
-PLAIN = r"[A-Za-z0-9_./=:@%+,*?~\[\]-]"
-PLAIN_QUOTED = r"[A-Za-z0-9_./=:@%+,*?~\[\] \t-]"  # a plain word's characters and blanks
-WORD = rf"""(?:{PLAIN}|'{PLAIN_QUOTED}*'|"{PLAIN_QUOTED}*")+"""
-TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
-PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
-ALONE = re.compile(PROGRAM)
-CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
-
-
-def owns_exit_code(command, code):
-    """Whether `command` ending with `code` means its own program ended with it (the module's docstring)."""
-    return bool((CHAIN if code == 0 else ALONE).fullmatch(command))
 
 
 def _starts(command):

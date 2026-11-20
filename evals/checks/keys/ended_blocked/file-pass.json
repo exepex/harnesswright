@@ -1,6 +1,5 @@
 {
  "args": {
-  "says": "(?i)\\bblocked\\b",
   "names": [
    "v2/rules/index\\.md"
   ],
@@ -8,6 +7,6 @@
  },
  "outcome": "pass",
  "after": {
-  "report.md": "# Report\n\nBlocked. Missing: v2/rules/index.md.\n"
+  "report.md": "# Report\n\nBlocked: v2/rules/index.md is missing.\n"
  }
 }

@@ -1,8 +1,0 @@
-{
- "args": {
-  "pattern": "python3 \\S*check\\.py",
-  "says": "(?i)\\bblocked\\b"
- },
- "outcome": "pass",
- "final_message": "Done."
-}
