@@ -66,6 +66,12 @@ class CheckReleaseTest(unittest.TestCase):
         self.setUp()
         (self.release / "golden-skill/notes.md").write_text("Hand-written.\n", encoding="utf-8")
         self.assertFails("golden-skill/notes.md: is not made by the build")
+        self.setUp()
+        (self.release / "rules" / ".gitkeep").write_text("")  # only release/.gitkeep is left out of the rebuild
+        self.assertFails("release/rules/.gitkeep: is not made by the build")
+        self.setUp()
+        (self.release / ".gitkeep").write_text("")
+        self.assertEqual(self.check(), ([], []))
 
     def test_the_copied_layers_and_roles_file_are_not_skills_and_must_equal_their_sources(self):
         self.assertTrue((self.release / "rules/core/test.md").is_file())
