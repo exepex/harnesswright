@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "fail",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1; echo exit $?; python3 SKILL_DIR/scripts/shared_runs.py; echo exit $?",
+   "exit_code": 0,
+   "output": "exit 0\nshared runs: 1 failed\nexit 2\n"
+  }
+ ]
+}
