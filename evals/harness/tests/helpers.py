@@ -54,7 +54,7 @@ class TempCase(unittest.TestCase):
                                                          for p in (root / n).rglob("*") if p.is_file()))}
                   for n in sorted(p.name for p in root.iterdir() if (p / "SKILL.md").is_file())}
         (root / "manifest.json").write_text(json.dumps({
-            "skills": skills, "run-time": ["manifest.json", "roles.md", "rules/"],
+            "rulebook-version": "0.8.0", "skills": skills, "run-time": ["manifest.json", "roles.md", "rules/"],
             "run-time-files": hashes(root, ["roles.md", "rules/core/work.md"])}, indent=2) + "\n")
         self.track(root)
         return folder

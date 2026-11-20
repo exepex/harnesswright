@@ -50,6 +50,9 @@ fault gate's: a round whose skills are all internal names a team skill's `fault_
 list of harnesswright's own checks (`own_checks`, `evals/own-checks.json`, a kit part), which an internal label
 reads.
 
+The manifest records, for each team skill, the proof of its release in each arm (`release_proof`), proved before
+any case runs (`teamrelease.proofs`): `hashes`, or `commit` for a previous version built before 0.8.0.
+
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
 
@@ -82,6 +85,7 @@ import host  # noqa: E402
 import kit  # noqa: E402
 import manifest  # noqa: E402
 import probes  # noqa: E402
+import teamrelease  # noqa: E402
 import skills  # noqa: E402
 from cases import REPO, CaseError, is_name  # noqa: E402
 
@@ -297,6 +301,8 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                 if kept["sha256"] == found["skills"][name]["sha256"]:
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
+        found["release_proof"] = {n: teamrelease.proofs(repo, held[n], n, found["previous"].get(n), previous)
+                                  for n in sorted(set(data["skills"]) - set(found["absent"])) if kinds.get(n) == "team"}
         import versions  # it reads the results, whose setups read the runner, which imports this module
         versions.ordered(path, repo, data["round"], data["skills"])
         found["verified"] = versions.verified(path, repo, found, known_cases)

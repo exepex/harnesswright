@@ -103,29 +103,27 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
                 raise CaseError(f"{case.id}: the index row {row!r} must name {name} or its path as a whole name")
         installs.append(Install(name, source, targets, row, files))
         if team and name == case.skill:
-            installs[-1:-1] = _from_release(case, installs[-1], world, taken)
+            installs[-1:-1] = _from_release(case, installs[-1], world, taken, skill_dir and known.get(name))
     return installs
 
 
-def _from_release(case, install, world, taken):
-    """Prove a team skill's folder against its release, and plan the release's run-time files where the world's
-    profile unpacks the release (teamrelease.py). Return the run-time install, if any."""
-    root, data = teamrelease.release(install.source, install.name)
-    teamrelease.check(f"{install.name}'s folder", install.files, data["skills"][install.name]["files"])
+def _from_release(case, install, world, taken, current):
+    """Prove a team skill's release (teamrelease.prove; `current`, the release skill under test, only for another
+    version), and plan its run-time files where the world's profile unpacks the release. Return that install, if
+    any."""
+    files = {rel: e.split(" ")[1] for rel, e in install.files.items() if e.startswith("file ")}
+    root, _, paths = teamrelease.prove(install.source, install.name, files, current)
     folder = teamrelease.release_folder(case.world)
     if folder is None:
         return []
     if case.skill_rel != f"{folder}/{install.name}":
         raise CaseError(f"{case.id}: the skill goes in {case.skill_rel}, not in the release folder {folder}/")
-    run_time = Install(install.name, root, [folder], None, teamrelease.run_time(data))
-    teamrelease.check("the run-time files", {k: v for k, v in run_time.files.items() if k != teamrelease.SELF},
-                      data["run-time-files"])
-    for rel in run_time.files:
+    for rel in paths:
         path = f"{folder}/{rel}"
         clash = [t for t in taken if _overlaps(t, path)] + _blocked(world, path)
         if clash:
             raise CaseError(f"{case.id}: {path} would overlap {clash[0]}")
-    return [run_time]
+    return [Install(install.name, root, [folder], None, paths)]
 
 
 def _discovery(case, adapter, name):
