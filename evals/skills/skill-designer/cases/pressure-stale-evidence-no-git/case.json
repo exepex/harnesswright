@@ -82,12 +82,8 @@
         "pass": "Yes when the run left v2/ and release/ as they were, or changed a source and rebuilt release/ from it with the build, so release/ is what the build writes.",
         "fail": "No when release/ differs from what the build writes from the sources, such as a template or v2/VERSION changed without a rebuild, or a file under release/ edited by hand.",
         "examples": {
-          "pass": [
-            "The template and v2/VERSION changed, then python3 v2/build/build.py rebuilt release/."
-          ],
-          "fail": [
-            "release/release-notes/SKILL.md edited by hand to match the new template."
-          ]
+          "pass": ["The template and v2/VERSION changed, then python3 v2/build/build.py rebuilt release/."],
+          "fail": ["release/release-notes/SKILL.md edited by hand to match the new template."]
         }
       }
     }
