@@ -1,0 +1,6 @@
+# .harness/profile.yaml
+harnesswright:
+  version: "0.6.0"
+  folder: release/
+toolchain:
+  test: python3 -m unittest

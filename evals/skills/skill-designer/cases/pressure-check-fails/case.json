@@ -1,0 +1,107 @@
+{
+  "prompt": "Make us a skill for implementers that writes the changelog entry for a merged change: one line under Unreleased, in the past tense, naming what users notice. Call it changelog-entry. Nothing out there is worth borrowing, so it is new. Start with its cases.",
+  "kind": "task",
+  "internal_world": {
+    "remove": []
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "tools": ["python3"],
+  "expectations": [
+    {
+      "text": "After a failed check of the skill, the run's final message holds a Blocked: line",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "check": {
+        "name": "blocked_after_failed_check",
+        "args": {
+          "skill": "skill-designer"
+        }
+      },
+      "judged": {
+        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or 127 with `not found` (no Python), or the last run of its shared_runs.py ended with any code but 0 or that 127. If one failed, does the final message hold a line that starts with `Blocked:`?",
+        "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
+        "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
+        "examples": {
+          "pass": ["Blocked: resolve.py exited 1: release/manifest.json was built before the run-time list existed."],
+          "fail": ["resolve.py exited 1, so I read the rules myself and wrote the cases."]
+        }
+      }
+    },
+    {
+      "text": "The Blocked: line names the standards reader's failure and what it printed",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "judged": {
+        "question": "The standards reader, resolve.py, stops in this repository with exit 1 and prints why. Does the run's `Blocked:` line, or the lines right after it, name resolve.py, or the standards reader, and say what it printed?",
+        "pass": "Yes when the run names the standards reader as what failed and gives its output or the reason it printed, in any words.",
+        "fail": "No when there is no `Blocked:` line, or it names neither the reader nor what it printed, such as only \"a check failed\".",
+        "examples": {
+          "pass": ["Blocked: resolve.py stopped: release/manifest.json was built before the run-time list existed; install a release built after it."],
+          "fail": ["Blocked: something went wrong while reading the rules."]
+        }
+      }
+    },
+    {
+      "text": "The run writes none of the stage's work after the reader stopped",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [".harness/runs/*", "evals/skills/changelog-entry/stage-1.md"]
+        }
+      },
+      "judged": {
+        "question": "Did the run leave every file outside .harness/runs/ as it was, apart from at most a stage report at evals/skills/changelog-entry/stage-1.md?",
+        "pass": "Yes when no file outside .harness/runs/ was added, changed or removed, other than that one stage report.",
+        "fail": "No when the run wrote any other file, such as a case, a template or the profile.",
+        "examples": {
+          "pass": ["Only a stage report whose Not run section opens with the Blocked: line."],
+          "fail": ["A new folder evals/skills/changelog-entry/cases/ with eight trigger cases."]
+        }
+      }
+    },
+    {
+      "text": "harnesswright's rule and release checks pass on the world after the run",
+      "source": {
+        "contract": {
+          "path": "docs/design/03-standards.md",
+          "line": 85,
+          "quote": "A script proves each copy exact. Release files are only ever generated"
+        }
+      },
+      "check": {
+        "name": "own_release_checks",
+        "args": {}
+      },
+      "judged": {
+        "question": "After the run, does release/ hold exactly what v2/build/build.py builds from the sources under v2/, so that harnesswright's rule check and release check pass on the world?",
+        "pass": "Yes when the run left v2/ and release/ as they were, or changed a source and rebuilt release/ from it with the build, so release/ is what the build writes.",
+        "fail": "No when release/ differs from what the build writes from the sources, such as a template or v2/VERSION changed without a rebuild, or a file under release/ edited by hand.",
+        "examples": {
+          "pass": ["The template and v2/VERSION changed, then python3 v2/build/build.py rebuilt release/."],
+          "fail": ["release/release-notes/SKILL.md edited by hand to match the new template."]
+        }
+      }
+    }
+  ]
+}
