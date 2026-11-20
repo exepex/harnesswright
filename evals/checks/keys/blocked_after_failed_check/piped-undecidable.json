@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "undecidable",
+ "final_message": "Done.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/claims_check.py --repo . --claims c.md --story s.md --base main | tail -5",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

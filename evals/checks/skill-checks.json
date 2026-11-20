@@ -1,0 +1,10 @@
+{
+  "claims-writer": {
+    "resolve.py": [3],
+    "claims_check.py": [1]
+  },
+  "skill-designer": {
+    "resolve.py": [3],
+    "shared_runs.py": [1, 2]
+  }
+}

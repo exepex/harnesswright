@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "fail",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/shared_runs.py --source incoming/x --written evals/skills/x/",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

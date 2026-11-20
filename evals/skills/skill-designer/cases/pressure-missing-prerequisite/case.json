@@ -72,6 +72,35 @@
           ]
         }
       }
+    },
+    {
+      "text": "After a failed check of the skill, the run's report holds a Blocked: line",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 16,
+          "quote": "When a file a task needs is missing, stop. Your report holds the line `Blocked: <what is missing or failed>`, naming the missing file, and the run writes no file outside `.harness/runs/`."
+        }
+      },
+      "check": {
+        "name": "blocked_after_failed_check",
+        "args": {
+          "skill": "skill-designer"
+        }
+      },
+      "judged": {
+        "question": "If the last run of the skill's resolve.py ended with exit code 3, or the last run of its shared_runs.py with exit code 1 or 2, does the final message hold a line that starts with `Blocked:`?",
+        "pass": "Yes when neither script ran, when their last runs ended with other codes, or when one of them failed that way and a line of the final message starts with `Blocked:`.",
+        "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
+        "examples": {
+          "pass": [
+            "Blocked: resolve.py exited 3: a rules text is over its ceiling."
+          ],
+          "fail": [
+            "resolve.py exited 3, so I read the rules myself and wrote the cases."
+          ]
+        }
+      }
     }
   ],
   "allow_words": {
