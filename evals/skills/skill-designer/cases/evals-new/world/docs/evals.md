@@ -23,8 +23,8 @@ Each world holds the whole project an agent sees; the two `release-notes` cases 
 - Each skill gets at least eight trigger cases that should load it and eight near misses that should not. Each
   trigger case says whether it should load the skill and whether it is in the train or the test split, and half
   of each kind are in the test split.
-- The near misses include, for each other skill in the Skills table of `AGENTS.md`, at least one request that is
-  that skill's job.
+- The near misses include, for each other skill under `v2/skills/`, at least one request that is that skill's
+  job.
 - Each skill gets at least two task cases, and each task case lists what a good run must show.
 - Each item a task case lists names where its rule comes from: a file and line in that case's `world/`, or
   `format` when the rule is only the shape the skill gives its own output.
