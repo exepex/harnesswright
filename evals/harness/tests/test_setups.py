@@ -81,14 +81,19 @@ class Fingerprints(Round):
 
     def test_a_changed_label_rule_changes_the_fingerprint(self):
         record = self.plan()
-        folder = self.tmp / "harness"
+        folder = self.tmp / "evals" / "harness"  # with the kit list beside it, which names the label rule
         shutil.copytree(setups.HARNESS, folder, ignore=shutil.ignore_patterns("__pycache__", "tests"))
+        shutil.copy(REPO / "evals" / "kit.json", folder.parent / "kit.json")
         first = self.setup(record, None, DRIFT, folder)
         self.assertEqual(first, self.setup(record))  # the same code, the same setup
         with open(folder / "labels.py", "a") as handle:
             handle.write("# a changed rule\n")
-        self.assertEqual(setups.changed(first, self.setup(record, None, DRIFT, folder)),
-                         ["label rule"])
+        edited = self.setup(record, None, DRIFT, folder)
+        self.assertEqual(setups.changed(first, edited), ["label rule"])
+        listed = json.loads((folder.parent / "kit.json").read_text())
+        listed["parts"]["label rule"].remove("evals/harness/labels.py")  # the folder's own list, not the default one
+        (folder.parent / "kit.json").write_text(json.dumps(listed))
+        self.assertEqual(setups.changed(edited, self.setup(record, None, DRIFT, folder)), ["label rule"])
 
 
 class RealRepository(TempCase):

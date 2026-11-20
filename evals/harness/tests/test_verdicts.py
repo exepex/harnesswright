@@ -38,6 +38,7 @@ class Outcomes(unittest.TestCase):
         self.assertEqual(triggers.trigger_outcome(should, both), (True, False))
 
 
+OWN = ["file_state"]  # the check the contract expectation of EXPECTATIONS runs, listed as harnesswright's own
 NOTHING = {"listed": [], "cases": {}}  # a skill whose situation list leaves every situation out
 
 
@@ -177,19 +178,36 @@ class Kinds(unittest.TestCase):
                          ("incomplete", ["kind: none declared in evals/kinds.json"]))
 
     def test_an_internal_skill_is_scored_by_its_floors_with_no_lift_and_never_worse_than_before(self):
-        found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3}, kind="internal"), **formatted()}
+        found = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3}, kind="internal", own_checks=OWN),
+                 **formatted()}
         self.assertEqual((found["runs"], found["baseline_pass_rate"], found["lift"]),
                          ({"t, with_skill": 3}, None, None))  # no without-skill arm, so no baseline and no lift
         self.assertEqual(verdicts.decide(found, []), {"label": "verified", "gaps": []})
-        failed = {**summary({"t": case()}, {("t", "with_skill"): [True, True, False]}, kind="internal"), **formatted()}
+        failed = {**summary({"t": case()}, {("t", "with_skill"): [True, True, False]}, kind="internal",
+                            own_checks=OWN), **formatted()}
         self.assertEqual(verdicts.decide(failed, []),
                          {"label": "unsupported", "gaps": ["task pass rate 67% below 90%"]})
         before = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3, ("t", "previous_version"): [True] * 3},
-                            kind="internal", previous=True), **formatted()}
+                            kind="internal", previous=True, own_checks=OWN), **formatted()}
         tally = {"with_skill": {"false_done": 1, "decided": 3, "undecided": 0},
                  "previous_version": {"false_done": 0, "decided": 3, "undecided": 0}}
         self.assertEqual(verdicts.decide(before, [], false_done=tally), {"label": "unsupported", "gaps": [
             "false-done rate 1 of 3 above the previous version's 0 of 3"]})
+
+
+    def test_an_internal_skill_is_inconclusive_while_a_task_case_runs_none_of_harnesswright_s_own_checks(self):
+        gap = ("task case {}: no contract expectation runs one of harnesswright's own checks "
+               "(evals/own-checks.json)")
+        unchecked = {**summary({"t": case()}, {("t", "with_skill"): [True] * 3}, kind="internal"), **formatted()}
+        self.assertEqual(verdicts.decide(unchecked, []), {"label": "inconclusive", "gaps": [gap.format("t")]})
+        only_format = case(expectations=EXPECTATIONS[:2])  # the listed check decides a format expectation only
+        cases = {"t": case(), "u": only_format}
+        found = {**summary(cases, {(i, "with_skill"): [True] * 3 for i in cases}, kind="internal", own_checks=OWN),
+                 **formatted()}
+        self.assertEqual(verdicts.decide(found, []), {"label": "inconclusive", "gaps": [gap.format("u")]})
+        team = {**summary(cases, {(i, arm): [arm == "with_skill"] * 3 for i in cases
+                                  for arm in ("with_skill", "without_skill")}), **formatted()}
+        self.assertEqual(verdicts.decide(team, []), {"label": "verified", "gaps": []})  # a team skill's lift counts
 
 
 class TriggerLabel(unittest.TestCase):

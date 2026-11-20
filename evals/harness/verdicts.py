@@ -21,13 +21,16 @@ its result is in doubt, by the thresholds of 10 · Skills (`THRESHOLDS`).
   its own (doc 12, Proven use).
 - The label reads the skill's kind (doc 12, Labels by kind). A team skill is scored by its lift over a plain agent
   on top of the floors; an internal skill ran no without-skill arm, so it has no lift and is scored by the floors.
+  An internal skill's task case counts only with a contract expectation that one of harnesswright's own checks
+  decides (`cases.own_checks`, doc 12, Worlds by kind); until each has one, the label is at most `inconclusive`.
 - Each skill on each host gets one label (`decide`):
   - `incomplete` when the host was not run, the skill has no kind declared, no folder yet (a baseline round, whose
     label file still gives the without-skill arm's pass rate and scored runs per case), or no task case the pass
     rate counts, or no case of a situation the skill's list names (or no list), with every doubt below named too;
   - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
     scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
-    not run, or it is itself in doubt) (`doubts`), or a team skill shows no lift over the baseline;
+    not run, or it is itself in doubt) (`doubts`), an internal skill's task case runs none of harnesswright's own
+    checks, or a team skill shows no lift over the baseline;
   - `unsupported` when the task pass rate, the gap to the reference host or the with-skill arm's format conformance
     misses its threshold, a with-skill run of a situation case failed, or the skill is worse than its previous
     version, with each gap named. Format conformance is a floor on top of the lift, never in its place
@@ -72,14 +75,15 @@ def rate(passed):
     return round(sum(passed) / len(passed), 4) if passed else None
 
 
-def summary(cases, scored, previous=False, absent=False, situations=None, kind=None):
+def summary(cases, scored, previous=False, absent=False, situations=None, kind=None, own_checks=()):
     """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
     by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
     too. With `absent`, the skill has no folder yet and the round ran its task cases without it only. `situations`
     is the manifest's record of the skill's situations (`rounds.plan`): a case a plain agent cannot fail
     (`SKILL_ONLY`) counts in no pass rate or lift, and each situation is reported apart. `kind` is the skill's
-    declared kind (`cases.kinds`): an internal skill ran no without-skill arm, so it has no baseline and no lift.
-    Trigger cases are the trigger label's (`triggers.label`), never the task label's."""
+    declared kind (`cases.kinds`): an internal skill ran no without-skill arm, so it has no baseline and no lift, and
+    each of its task cases with no contract expectation checked by one of `own_checks` (`cases.own_checks`) is
+    named (`unchecked`). Trigger cases are the trigger label's (`triggers.label`), never the task label's."""
     situated = (situations or {}).get("cases", {})
     tasks = [i for i, case in cases.items() if case.kind == "task"]
     pooled = [i for i in tasks if situated.get(i) not in SKILL_ONLY]
@@ -106,6 +110,9 @@ def summary(cases, scored, previous=False, absent=False, situations=None, kind=N
     return {"kind": kind, "task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
             "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
             "task_cases": len(pooled), "runs": runs, "situations_listed": listed,
+            "unchecked": [i for i in tasks if kind == "internal" and not any(
+                isinstance(e["source"], dict) and e.get("check", {}).get("name") in own_checks
+                for e in cases[i].expectations)],
             "uncovered": sorted(set(listed or ()) - set(situated.values())),
             "situations": report}
 
@@ -178,7 +185,8 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
     earlier = versus(measures, false_done or {})[0]
     formatted, unmeasured = format_gaps(measures, thresholds)
     doubted = doubts(measures, unsettled, false_done or {}, thresholds) + ([reference_doubt] if reference_doubt else [])
-    doubted += unmeasured
+    doubted += unmeasured + [f"task case {i}: no contract expectation runs one of harnesswright's own checks "
+                             "(evals/own-checks.json)" for i in measures.get("unchecked", [])]
     floor = floor_gaps(measures)
     if missing(measures):  # a failed floor is named even here, so a trial round still shows it
         return {"label": "incomplete", "gaps": missing(measures) + doubted + floor}

@@ -1,6 +1,6 @@
 {
   "parts": {
-    "checks": ["evals/checks"],
+    "checks": ["evals/checks", "evals/own-checks.json"],
     "answer keys": ["evals/checks/keys", "evals/grading/keys"],
     "lint rules": ["evals/harness/lint.py", "evals/harness/textruns.py", "evals/fixtures/licences"],
     "power table": ["evals/harness/powers.py"],

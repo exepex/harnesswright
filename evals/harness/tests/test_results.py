@@ -6,6 +6,7 @@ import tarfile
 
 from helpers import TempCase
 
+import labels
 import results
 
 KIT = "a" * 64
@@ -14,7 +15,7 @@ GATES = ["kit check", "lint", "probe", "faults", "run", "check", "grade", "label
 
 
 class Results(TempCase):
-    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None):
+    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None, shipped=None):
         folder = self.tmp / "store" / name
         (folder / "attempts").mkdir(parents=True)
         (folder / "labels").mkdir()
@@ -24,7 +25,8 @@ class Results(TempCase):
         (folder / "attempts" / "t1.json").write_text(json.dumps({"gates": gates}))
         (folder / "labels" / "t1.json").write_text(json.dumps({
             "attempt": "t1", "commit": "c" * 40, "round": name, "reference": "fakehost", "prices": "2026-11-14",
-            "thresholds": {"min_runs": 3}, "skills": skills or {"haiku-writer": {"fakehost": HOST}}}))
+            "thresholds": {"min_runs": 3}, "skills": skills or {"haiku-writer": {"fakehost": HOST}},
+            **({"shipped": shipped} if shipped is not None else {})}))
         archive = self.tmp / f"{name}.tar"
         with tarfile.open(archive, "w") as tar:
             tar.add(folder, arcname=name)
@@ -95,15 +97,19 @@ class Results(TempCase):
         with self.assertRaises(results.ResultsError):
             results.merge(data, "limerick-writer", first)
 
-    def test_a_skill_is_shipped_only_with_its_task_label_verified_and_its_trigger_label_met(self):
+    def test_the_label_file_decides_shipped_from_both_labels_and_results_only_copy_it(self):
         met, missed = {"met": True, "gaps": []}, {"met": False, "gaps": ["trigger accuracy 50% below 90%"]}
         for label, trigger, shipped in (("verified", met, True), ("verified", missed, False),
                                         ("unsupported", met, False), ("verified", None, False)):
             with self.subTest(label=label, trigger=trigger):
                 hosts = {"fakehost": {**HOST, "label": label, **({"trigger": trigger} if trigger else {})}}
-                self.assertIs(results.shipped(hosts, "fakehost"), shipped)
-        folder, archive = self.round("r9", skills={"haiku-writer": {"fakehost": {**HOST, "trigger": missed}}})
-        self.assertIs(results.entries(folder, archive)["haiku-writer"]["shipped"], False)  # the trigger miss blocks it
+                self.assertIs(labels.shipped(hosts, "fakehost"), shipped)
+                self.assertIs(labels.shipped(hosts, "otherhost"), False)  # only the reference host's labels count
+        self.assertFalse(hasattr(results, "shipped"))  # results never decide it
+        folder, archive = self.round("r8", shipped={"haiku-writer": True})
+        self.assertIs(results.entries(folder, archive)["haiku-writer"]["shipped"], True)  # a copy, never a judgement
+        folder, archive = self.round("r9")  # a label file written before it decided shipped
+        self.assertIsNone(results.entries(folder, archive)["haiku-writer"]["shipped"])
 
     def test_the_file_reads_back_as_written_one_line_per_field(self):
         folder, archive = self.round(skills={"haiku-writer": {"fakehost": HOST, "otherhost": HOST}})

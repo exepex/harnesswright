@@ -27,6 +27,18 @@ class Reader(TempCase):
                 path.write_text(json.dumps(wrong))
                 cases.kinds(path)
 
+    def test_the_kit_lists_harnesswright_s_own_checks_by_name_none_yet(self):
+        self.assertEqual(cases.own_checks(cases.OWN_CHECK_FILE), [])
+        self.assertIn("evals/own-checks.json", kit.parts()["checks"])
+        path = self.tmp / "own-checks.json"
+        self.assertEqual(cases.own_checks(path), [])  # no file: no check counts as harnesswright's own
+        path.write_text(json.dumps(["release_check", "files", "files"]))
+        self.assertEqual(cases.own_checks(path), ["files", "release_check"])
+        for wrong in ("files", ["Files"], [1], {"files": True}):
+            with self.subTest(wrong=wrong), self.assertRaisesRegex(cases.CaseError, "list of check names"):
+                path.write_text(json.dumps(wrong))
+                cases.own_checks(path)
+
     def test_the_kinds_and_the_label_rule_are_kit_parts_and_the_label_rule_is_one_list(self):
         parts = kit.parts()
         self.assertEqual(parts["kinds"], ["evals/kinds.json"])
@@ -51,6 +63,8 @@ class Planned(Round):
         self.assertEqual(self.plan()["kinds"], {"haiku-writer": None})  # undeclared: its label is incomplete
         self.kinds(**{"haiku-writer": "team"})
         self.assertEqual(self.plan()["kinds"], {"haiku-writer": "team"})
+        (self.repo / "evals" / "own-checks.json").write_text('["files"]')
+        self.assertEqual(self.plan()["own_checks"], ["files"])  # the list an internal label reads, from the kit
         with self.assertRaisesRegex(rounds.RoundError, "kinds"):
             self.plan(kinds={"haiku-writer": "internal"})
 

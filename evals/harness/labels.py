@@ -18,7 +18,8 @@ run not scored is named in the trigger label only.
 - A host other than the reference host is held to the reference host's measures only when those are settled;
   otherwise its label names why.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
-  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared.
+  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared, and
+  whether the round lists each skill as shipped (`shipped`), which `results.py` copies.
 
 Standard library only.
 """
@@ -105,7 +106,7 @@ def labels(folder, attempt, record, cases, price_file):
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
         measured = {host: verdicts.summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
                                            skill in record.get("absent", []), record.get("situations", {}).get(skill),
-                                           record.get("kinds", {}).get(skill))
+                                           record.get("kinds", {}).get(skill), record.get("own_checks", []))
                     for host in passed}
         for host in passed:  # each situation's false dones, per arm
             for group in measured[host]["situations"].values():
@@ -142,7 +143,15 @@ def labels(folder, attempt, record, cases, price_file):
                                                reference_doubt if other else None,
                                                false_done=false_done.get((host, skill), {})))
             found["skills"][skill][host] = entry
+    found["shipped"] = {skill: shipped(hosts, grades.REFERENCE) for skill, hosts in found["skills"].items()}
     return found
+
+
+def shipped(hosts, reference):
+    """Whether the round lists the skill as shipped (doc 12, Proven use): on the reference host, its task label is
+    `verified` and its trigger label (`triggers.label`) is met. Either alone is not enough."""
+    entry = hosts.get(reference, {})
+    return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
 
 
 def _skill_only(record, skill, case_id):
