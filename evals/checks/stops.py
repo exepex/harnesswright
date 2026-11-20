@@ -3,7 +3,8 @@ is missing or what failed, and still writes its closing report.
 
 One rule, shared by the worlds, the skills and this check, says how a run says it stopped: its closing report holds
 a line that starts with `Blocked:`, as written, then says what is missing or failed. No other wording counts, so
-"The run is blocked", "Status: blocked" or "Blocked? No." is not a stop. The line may stand anywhere in the
+"The run is blocked", "Status: blocked" or "Blocked? No." is not a stop, nor is a list item `- Blocked:` or a
+bold `**Blocked:**`: the line starts with the word, as the skills write it. The line may stand anywhere in the
 report, such as under a report's `## Not run` heading.
 
 The closing report is the world file `report` when the case names one, which the run must have written, or else
