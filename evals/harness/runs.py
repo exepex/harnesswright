@@ -12,7 +12,8 @@ missing or voided runs, and a changed input gives a new key, never a changed run
   plan gives a previous version, `previous_version`, which installs the skill as the manifest's commit holds it.
   A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only, and a case
   of a situation a plain agent cannot fail (`skill_only`) with it only.
-- `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
+- `key(record, skill, case_id, arm, host, number, drift, timeout, lead)`: the run's key, from the manifest `record`,
+  with the manifest's `pinned` flag and a pinned run's lead line.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
@@ -26,7 +27,9 @@ missing or voided runs, and a changed input gives a new key, never a changed run
 - `pinned(record, case, arm)`: the one test of whether a run pins its skill's load (doc 12, Proven use). A pinned run
   whose evidence proves no load (`evidence.loaded`) is `not loaded`, never a void: its bundle is kept under
   `not-loaded/<n>/` and `not-loaded.json` holds why, with its own try count. It is tried once more at once; not
-  loaded again, the slot stays unscored and is not run again.
+  loaded again, the slot stays unscored and is not run again. A pinned run's prompt starts with its lead line
+  (`lead`: the adapter's `pin` of the skill at its declared path, through `host.lead`), never written in the case;
+  every other run's prompt is the case's own. The grader page keeps the case's prompt as its request.
 
 Standard library only.
 """
@@ -82,6 +85,11 @@ def pinned(record, case, arm):
     return case.kind == "task" and arm in ("with_skill", PREVIOUS) and record.get("pinned") is True
 
 
+def lead(record, case, arm, adapter):
+    """The lead line of a pinned run (`pinned`): the skill's load at its declared `SKILL.md`; None for any other."""
+    return host.lead(adapter, case.skill, f"{case.skill_rel}/SKILL.md") if pinned(record, case, arm) else None
+
+
 def arms(record, case):
     """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
     a previous version. Trigger cases measure the description that triggers the skill under test only."""
@@ -93,10 +101,10 @@ def arms(record, case):
     return ARMS + later
 
 
-def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None):
+def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None, lead=None):
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
-    and drift record, and `timeout`, its time budget in seconds (a run that timed out is scored). `code` is the
-    runner's hash (`runner`)."""
+    and drift record, `timeout`, its time budget in seconds (a run that timed out is scored), and `lead`, a pinned
+    run's lead line (`lead`). `code` is the runner's hash (`runner`)."""
     known = ARMS[:1] if skill in record.get("absent", []) else ARMS + ((PREVIOUS,) if skill in record.get(
         "previous", {}) else ())
     if skill_only(record, skill, case_id):
@@ -108,7 +116,9 @@ def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, 
     inputs = {"skill": skill, "case_id": case_id, "case": record["cases"][skill][case_id], "skills": record["skills"],
               "arm": arm, "number": number, "drift": drift, "timeout": timeout,
               "adapter": record["adapters"][host_name], "host": record["hosts"][host_name],
-              "runner": code or runner()}
+              "runner": code or runner(), "pinned": record.get("pinned") is True}
+    if lead is not None:
+        inputs["lead"] = lead
     if arm == PREVIOUS:
         inputs["previous"] = record["previous"][skill]
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
@@ -145,7 +155,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     which gets no more remakes, or `not loaded` for a pinned slot with no proven load in either try."""
     if rounds.commit(repo) != record["commit"]:  # the inputs the run builds are the ones the manifest hashed
         raise RunError(f"{repo} is not at round {record['round']}'s commit {record['commit']}")
-    run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout)
+    line = lead(record, case, arm, adapter)
+    run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout, lead=line)
     path = folder(record, store, run_key, repo)
     found = stored(path)
     if found and found[0] == "kept":
@@ -181,7 +192,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None
         contained = contain.Containment(adapter, case.kind, chosen.path, manifest.manifest(chosen.path),
                                         root=scratch / "run", **containment)
-        result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
+        prompt = case.prompt if line is None else f"{line}\n\n{case.prompt}"
+        result = host.run(contained, prompt, skills=[i.name for i in chosen.installs],
                           model=planned["model"], timeout=timeout)
         layer = evidence.overlay(case, adapter, skills_root, skill_dir)
         # Collected first, failed or not, so a canary in any output stops the round (`scrub.Leak`).

@@ -28,6 +28,10 @@ The manifest records, for each skill, the situations `evals/situations.json` say
 null when the file does not list the skill) and the situation of each of its cases (doc 11, Pressure situations).
 A `check-cannot-run` case runs with the skill only (`runs.arms`), so a skill with no folder yet cannot run one.
 
+Every manifest records `pinned: true`: task runs of the with-skill and previous-version arms start with the lead
+line that pins the skill's load (`runs.pinned`, doc 12, Proven use). A manifest without the flag, written before
+pinning, is a round whose runs are not pinned, and it resumes as it was planned.
+
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
 
@@ -272,6 +276,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             "plan_sha256": cases.sha256_file(Path(path)),
             "commit": at(repo),
             "kit": kit.digest(repo),
+            "pinned": True,  # every round from now on pins its task runs' load (runs.pinned)
             **found,
             "adapters": {name: tracked_digest(Path(adapters) / name) for name in modules},
             "hosts": {h["adapter"]: {"version": version(modules[h["adapter"]], **containment),

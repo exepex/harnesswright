@@ -287,7 +287,7 @@ class Drift(ProbeCase):
         found = probes.probe_host(fake_adapter(), self.tmp / "all", operator_env={
             "PATH": f"{self.tool}:/usr/bin:/bin", "HTTPS_PROXY": self.upstream.url}, timeout=120,
             operator_home=self.tmp / "operator", host_paths=[self.tool])  # the fake host reads no plain prompt
-        self.assertEqual(len(found["not run"]), 2 * len(probes.PROMPTS) + 1)  # one reason a probe and mode, and drift
+        self.assertEqual(len(found["not run"]), 2 * len(probes.PROMPTS) + 2)  # a probe and mode, the pinned load, drift
         self.assertTrue(found["not run"][-1].startswith("tools and drift probe, trigger run: the host failed"))
         self.assertIn("fakehost", found["drift"]["tools"])
 

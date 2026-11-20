@@ -22,6 +22,11 @@ def skill_dir(workspace, skill_name):
     return Path(workspace) / ".claude" / "skills" / skill_name
 
 
+def pin(skill, path):
+    """The lead line that pins the skill's load in a task run's prompt (host.CONTRACT); never the skill's text."""
+    return f"Load the skill {skill} at {path} before anything else."
+
+
 def memory_files(home, world):
     """Where Claude Code reads memory and the user's own instructions outside the world, for a home and a world:
     the user's CLAUDE.md and rules, the project's auto memory under `~/.claude/projects`, and the CLAUDE.md files

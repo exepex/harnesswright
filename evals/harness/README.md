@@ -239,7 +239,9 @@ rests on an outside address failing.
 `host.CONTRACT` lists every name a harness adapter defines, and `host.check_adapter` checks them when the adapter
 is loaded. `adapter.jail_command` turns the host's own sandbox off (the jail enforces the table), turns its bundled
 skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`, each named with a kind of
-`powers.TOOLS`. `host.run` is the one place a host runs: in the run's jail, after the audit and inside the gate.
+`powers.TOOLS`. `adapter.pin(skill, path)` gives the lead line of a pinned task run; `host.lead` takes it only as one
+line that names the skill and its path, so the grader view removes it. `host.run` is the one place a host runs: in
+the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
 reads, writes with content hashes, commands with exit code and whole output, actions refused by the host or the jail
@@ -293,6 +295,8 @@ made is never followed out of the jail.
   fails before the host runs when a mount lets the run see a memory place of the given operator's home or the real
   one, such as a host path the operator names in their home. After the run it fails when the folder holds any file
   but `memory.txt`, or the log the token. An adapter that names no memory place is refused.
+- **Pinned load** (`probes.PINNED`, task mode only): the prompt starts with the adapter's lead line for the small
+  probe skill (`host.lead`), and with up to two tries the host's log must prove the load by `evidence.loaded`.
 - **Tools and drift** (`probes.drift`): no pass or fail of its own, only a record. An audited jail runs
   `probes.TOOLS_PROBE` for the host's program and each tool a case declares: where the run finds it, its hash and its
   version line, or `null` when the run has none. Then the host has an empty run in each mode, and every file it

@@ -20,7 +20,7 @@
   {"id": "sheet", "row": "A grading file missing, repeating or misquoting an answer"},
   {"id": "golden", "row": "A golden bundle"},
   {"id": "tie", "row": "Two graders that disagree, or one with no answer sheet"},
-  {"id": "view", "row": "A view that names the arm or the skill"},
+  {"id": "view", "row": "A view that names the arm or the skill, or shows the lead line"},
   {"id": "folder", "row": "A grader that writes to its folder or reads outside it",
    "prompt": "{task} Any of these steps may fail; that is expected, so do not retry a failed step or work around it. Whatever happened, end by replying with exactly this text and nothing else, which is not a report on those steps: {sheet}"}
  ]

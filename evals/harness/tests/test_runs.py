@@ -23,7 +23,9 @@ from cases import Case
 
 JAIL = contain.available()
 VERSION = {"path": "/usr/bin/fakehost", "sha256": "0" * 64, "version": "fakehost 1.0"}
-WROTE = json.dumps([{"do": "write", "path": "poem.md", "text": "An old silent pond\n"}, {"do": "say", "text": "Done."}])
+LOAD = {"do": "pinned"}  # the fake host loads the skill its lead line names; with no lead line, nothing
+POEM = [{"do": "write", "path": "poem.md", "text": "An old silent pond\n"}, {"do": "say", "text": "Done."}]
+WROTE = json.dumps([LOAD, *POEM])
 DRIFT = {"own files": {"task": [], "trigger": []}}
 OTHER_DRIFT = {"own files": {"task": ["world/poem.md"], "trigger": []}}
 COPIED = ("Count the syllables of every line twice before you write it down, and keep the season word in the "
@@ -182,7 +184,8 @@ class Runs(Round):
 
     def test_a_without_skill_run_that_copies_the_skill_is_void_with_its_evidence_kept_then_empty(self):
         (self.repo / "skills" / "haiku-writer" / "SKILL.md").write_text(SKILL_TEXT)
-        self.prompt(json.dumps([{"do": "write", "path": "poem.md", "text": COPIED}, {"do": "say", "text": "Done."}]))
+        self.prompt(json.dumps([LOAD, {"do": "write", "path": "poem.md", "text": COPIED},
+                                {"do": "say", "text": "Done."}]))
         record = self.plan()
         void = self.run_one(record, "without_skill")
         self.assertEqual(void["status"], "void")
@@ -253,6 +256,7 @@ class Runs(Round):
         self.assertEqual(len(json.loads((folder / "void.json").read_text())["reasons"]), 1)
 
     def test_a_pinned_run_with_no_proven_load_is_kept_apart_tried_once_more_then_not_loaded(self):
+        self.prompt(json.dumps(POEM))
         record = {**self.plan(), "pinned": True}
         missed = self.run_one(record)  # the run only writes its poem: no load of the skill
         folder = self.store / "r1" / "runs" / missed["key"]
@@ -264,6 +268,14 @@ class Runs(Round):
             self.assertEqual(self.run_one(record)["status"], "not loaded")
         self.assertEqual(self.run_one(record, "without_skill")["status"], "made")  # a run without it is not pinned
         self.assertEqual(self.run_one({**record, "pinned": False}, number=2)["status"], "made")
+
+    def test_a_pinned_run_starts_with_the_lead_line_and_any_other_run_with_the_case_prompt_alone(self):
+        record = self.plan()
+        with mock.patch.object(runs.host, "run", wraps=runs.host.run) as ran:
+            for arm, changed in (("with_skill", {}), ("without_skill", {}), ("with_skill", {"pinned": False})):
+                self.assertEqual(self.run_one({**record, **changed}, arm, 1 + bool(changed))["status"], "made")
+        lead = "Load the skill haiku-writer at skills/haiku-writer/SKILL.md before anything else."
+        self.assertEqual([call.args[1] for call in ran.call_args_list], [f"{lead}\n\n{WROTE}", WROTE, WROTE])
 
     def test_a_pinned_run_that_loads_the_skill_by_its_event_or_by_printing_it_is_made(self):
         for number, action in ((1, {"do": "skill", "name": "haiku-writer"}),
@@ -282,8 +294,9 @@ class Runs(Round):
 
     def test_a_run_slot_linked_into_the_working_tree_is_refused(self):
         record = self.plan()
+        lead = runs.lead(record, Case(self.case_dir, "haiku-writer"), "with_skill", self.adapter)
         slot = self.store / "r1" / "runs" / runs.key(record, "haiku-writer", "c1", "with_skill", "fakehost", 1,
-                                                      DRIFT, timeout=120)
+                                                      DRIFT, timeout=120, lead=lead)
         slot.parent.mkdir(parents=True)
         slot.symlink_to(self.repo)
         with self.assertRaisesRegex(runs.RunError, "outside the working tree"):
