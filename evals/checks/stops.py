@@ -35,8 +35,9 @@ fails.
   an echoed `$?` right after it) is `undecidable`. A run with no failed check passes. The action log's command
   entries must be observed (`checks.Bundle.entries`).
 - `blocked_quotes_output`: when the last run of one of the skill's checks failed, by the same rule (`_failed`), a
-  `Blocked:` line of the closing report holds, word for word, one non-empty line that run printed, trimmed, for
-  each failed check. A failed run that printed nothing recorded is `undecidable`: there is nothing to quote. A
+  `Blocked:` line of the closing report holds, word for word, one line that run printed, trimmed, for each failed
+  check: a line of at least `QUOTED` words, or the last non-empty line it printed, so a lone "Error" or "1" that it
+  printed first is no quote. A failed run that printed nothing recorded is `undecidable`: there is nothing to quote. A
   run with no failed check, or that ran none, passes.
 """
 
@@ -50,6 +51,7 @@ import stoppair
 
 DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: {code that is no failure: text}}}
 
+QUOTED = 3  # words a printed line needs to count as a quote; the last line printed counts whatever its length
 LINE = re.compile(r"^Blocked:[ \t]*\S.*$", re.MULTILINE)  # the one shape of the line that says a run stopped
 
 
@@ -196,6 +198,7 @@ def blocked_quotes_output(bundle, skill, report=None):
     lines = LINE.findall(text or "")
     for script, code, output, last in failed:
         printed = [line.strip() for line in output.splitlines() if line.strip()]
+        printed = [line for line in printed if len(line.split()) >= QUOTED] + printed[-1:]  # never a lone "Error"
         if not printed:
             raise Undecidable(f"the last run of {script} failed with exit {code} and printed nothing recorded, so "
                               "no line of it can be quoted", [last])
