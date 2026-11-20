@@ -210,6 +210,12 @@ class Verdicts(unittest.TestCase):
         self.assertEqual(decided(measured(task=(1, 1, 1), baseline=(1, 1, 1)), []), {"label": "inconclusive", "gaps": [
             "no lift over the baseline (100% with the skill, 100% without)"]})  # a failed lift is no failure
 
+    def test_the_gap_to_the_reference_host_moves_both_hosts_one_run_per_split_case(self):
+        reference = measured(task=(1, 1, 1, 1, 0))  # 4 of 5 on the reference host, 9 of 10 here
+        gap = verdicts.judged(measured(task=(1,) * 9 + (0,)), reference)["gap to the reference host"]
+        self.assertEqual(gap, {"verdict": "too close", "value": -0.1, "best": -0.4, "worst": 0.2,
+                               "split": {"with_skill": ["t"]}})  # extra runs go to this host's split case
+
     def test_format_conformance_flips_the_items_of_one_run(self):
         found = {**measured(), "format_runs": {"with_skill": {"t": [[3, 4], [4, 4]]}}}
         self.assertEqual(verdicts.judged(found)["format conformance"],
