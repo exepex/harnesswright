@@ -49,22 +49,6 @@ with the older rule or checklist item it carries over.
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/discovery.md` (MIT)
   - own (doc 10 checklist item 2)
 
-### CORE-SKILL-04 · A skill states its purpose, limits and inputs
-
-- **Kind:** principle
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** The body opens with what the skill does, what it does not do, what inputs it needs, and what to do when an
-  input is missing.
-- **Why:** An agent missing an input guesses it. A guessed input gives a confident wrong result.
-- **Check:** For each input, does the skill say where it comes from and what happens without it?
-- **Good:** "Needs the story file. If there is none, stop and ask for it."
-- **Bad:** A skill that uses "the acceptance criteria" without saying where they are.
-- **Eval:** a skill that uses an input without saying where it comes from, which the skill judge must flag.
-- **Source:**
-  - own (doc 10 checklist items 1 and 3)
-
 ### CORE-SKILL-05 · Steps are numbered, imperative and checkable
 
 - **Kind:** principle
@@ -101,22 +85,6 @@ with the older rule or checklist item it carries over.
 - **Source:**
   - `obra/superpowers@2ce8aa1 skills/writing-skills/references/anthropic-best-practices.md` (MIT)
   - own (doc 10 checklist item 6)
-
-### CORE-SKILL-08 · A skill says what to do when a step fails
-
-- **Kind:** principle
-- **Status:** active
-- **Review by:** 2027-11-03
-- **Applies to:** skill designer, skill judge
-- **Rule:** For each step that can fail, the skill says what to do: retry, use another route, or stop and ask one
-  clear question. It never lets the agent skip the step silently.
-- **Why:** Without a stated path, an agent skips the failed step and reports success.
-- **Check:** For each step that can fail, is there a stated next action?
-- **Good:** "If the test command is not found, stop and ask which command runs the tests."
-- **Bad:** A skill that says nothing about a missing test command.
-- **Eval:** a skill that runs a command and says nothing about its failure, which the skill judge must flag.
-- **Source:**
-  - own (doc 10 checklist item 7)
 
 ### CORE-SKILL-09 · Output follows its contract
 
