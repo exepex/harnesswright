@@ -6,6 +6,7 @@ test breaks one thing and asserts the message that names it.
 """
 
 import io
+import json
 import shutil
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from pathlib import Path
 
 from test_repoprofile import PROFILE, ROOT  # puts v2/build on sys.path
 
+import build  # noqa: E402
 import resolve  # noqa: E402
 
 TODAY = date(2026, 11, 12)
@@ -68,7 +70,8 @@ class Application(unittest.TestCase):
         # The fixture is the release at 0.1.0 with no skills, whatever v2/VERSION and v2/skills hold now.
         for skill in [p for p in release.iterdir() if p.is_dir() and p.name != "rules"]:
             shutil.rmtree(skill)
-        (release / "manifest.json").write_text('{"rulebook-version": "0.1.0", "skills": {}}\n', encoding="utf-8")
+        manifest = {"rulebook-version": "0.1.0", "run-time": list(build.RUN_TIME), "skills": {}}
+        (release / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
         roles = (release / "roles.md").read_text(encoding="utf-8")
         jobs = "| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n"
         (release / "roles.md").write_text(roles[:roles.index(jobs) + len(jobs)], encoding="utf-8")
@@ -126,6 +129,23 @@ class LayersTest(Application):
         self.assertEqual(names[:3], ["profile.yaml", "manifest.json", "roles.md"])
         self.assertIn("layer.yaml", names)
         self.assertIn("work.md", names)
+        release = (self.repo / ".agents/harnesswright").resolve()
+        listed = json.loads((release / "manifest.json").read_text())["run-time"]
+        for path in inputs.files[1:]:  # every read of the release is on the run-time list its manifest ships
+            rel = Path(path).resolve().relative_to(release).as_posix() if release in Path(path).resolve().parents \
+                else None
+            if rel is not None:
+                self.assertTrue(any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed), rel)
+
+    def test_a_release_read_off_its_run_time_list_stops(self):
+        for listed, expected in ((["manifest.json", "rules/"], "roles.md is not on the run-time list"),
+                                 (["manifest.json", "roles.md"], "rules/core is not on the run-time list")):
+            with self.subTest(listed=listed):
+                self.setUp()
+                path = self.repo / ".agents/harnesswright/manifest.json"
+                data = json.loads(path.read_text())
+                path.write_text(json.dumps(dict(data, **{"run-time": listed})) + "\n")
+                self.assertStops(expected)
 
     def test_release_and_layer_versions_and_folders(self):
         cases = [

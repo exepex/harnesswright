@@ -9,12 +9,12 @@ metadata:
   source-licence: Apache-2.0
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
-  rulebook-version: "0.7.1"
-  content-hash: "6b5644b6a572f1cb96120d13c2e792585e0018f1b8dc58f150e629ef6c5c8050"
+  rulebook-version: "0.7.2"
+  content-hash: "7e2fd43e23507ca693ef73f6742538ed43cdcbdb6a2c0559372d16ab731e4373"
   size-floors: "15627"
   size-rest: "29475"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.7.1. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.7.2. Do not edit. -->
 
 # Skill designer
 

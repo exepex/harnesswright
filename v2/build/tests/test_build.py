@@ -199,7 +199,9 @@ class BuildTest(unittest.TestCase):
         shutil.rmtree(self.skill)
         (self.root / "v2" / "roles.md").write_text(roles_without_jobs(), encoding="utf-8")
         files = build.build(self.root)
-        self.assertEqual(files["manifest.json"], '{\n  "rulebook-version": "0.1.0",\n  "skills": {}\n}\n')
+        self.assertEqual(json.loads(files["manifest.json"]), {"rulebook-version": "0.1.0", "skills": {},
+                                                              "run-time": list(build.RUN_TIME), "run-time-files": {
+            rel: hashlib.sha256(data).hexdigest() for rel, data in files.items() if build.is_copy(rel)}})
         self.assertEqual(sorted(p for p in files if not build.is_copy(p)), ["manifest.json"])
 
     def test_a_skill_named_like_the_layout_or_a_non_rule_file_in_a_layer_fails(self):
