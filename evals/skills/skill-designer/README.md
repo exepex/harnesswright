@@ -6,10 +6,10 @@ says.
 
 `cases/` holds the cases of the new harness ([11 · Evals](../../../docs/design/11-evals.md)) for the skill
 designer template. It runs in stages, and each case measures one: stage 1 writes a skill's cases, stage 2 drafts
-the template once goldens and a baseline round exist. Each world but those of `draft-adapt` and
-`pressure-lower-the-bar` is the internal world: harnesswright's own files at the kit's pinned commit, with the
-case's files on top. Contract expectations cite the pinned files, or a case file where the pinned world does not
-state the rule. Those two keep their own hand-written worlds for now. The cases:
+the template once goldens and a baseline round exist. Each world but `draft-adapt`'s is the internal
+world: harnesswright's own files at the kit's pinned commit, with the case's files on top. Contract expectations
+cite the pinned files, or a case file where the pinned world does not state the rule. `draft-adapt` keeps its own
+hand-written world for now. The cases:
 
 - `evals-new` (stage 1): a new commit-message skill with nothing to borrow, asked for whole and by Friday. The
   case keeps its case rules in `docs/evals.md` and has two sibling templates, so the near misses must cover
