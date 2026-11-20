@@ -53,6 +53,12 @@ class Endings(Gated):
 
     def test_an_interrupt_and_a_time_limit_s_signal_write_why_as_they_arrive(self):
         self.planned()
+        # A runner started in the background or under nohup inherits SIGINT or SIGHUP ignored, and the round leaves
+        # an ignored signal alone; this test is about the signals the round catches, so it sets them to the default.
+        numbers = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+        inherited = {number: signal.signal(number, signal.default_int_handler if number == signal.SIGINT
+                                           else signal.SIG_DFL) for number in numbers}
+        self.addCleanup(lambda: [signal.signal(n, h) for n, h in inherited.items()])
         before = signal.getsignal(signal.SIGTERM)
         for number, name in ((signal.SIGINT, "SIGINT"), (signal.SIGTERM, "SIGTERM"), (signal.SIGHUP, "SIGHUP")):
             seen = []
@@ -102,7 +108,8 @@ class Endings(Gated):
     def test_a_round_process_killed_by_its_time_limit_writes_why_before_it_exits(self):
         self.planned()
         mark = self.tmp / "slow-started"
-        script = (f"import sys, time, pathlib\nsys.path.insert(0, {str(Path(gates.__file__).parent)!r})\n"
+        script = (f"import signal, sys, time, pathlib\nsys.path.insert(0, {str(Path(gates.__file__).parent)!r})\n"
+                  "signal.signal(signal.SIGTERM, signal.SIG_DFL)  # caught by the round, whatever the runner ignores\n"
                   "import gates, rounds\n"
                   f"def slow(r):\n    pathlib.Path({str(mark)!r}).write_text('x')\n    time.sleep(60)\n"
                   f"try:\n    gates.run({str(self.store)!r}, 'r1', repo=pathlib.Path({str(self.repo)!r}), "
