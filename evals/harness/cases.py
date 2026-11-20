@@ -37,6 +37,8 @@ case.json fields:
   the world is the skill's internal world (`internal.py`, doc 12, Internal worlds) with `world/` copied on top,
   when the case has one, the `jobs` rows added to the Jobs table of `v2/roles.md`, its release rebuilt and checked,
   less the `remove` paths, each inside the kit's allow list. Without it, `world/` is the whole world, as before.
+- `profile_version`: in a team skill's case whose profile names a release folder only, the version the arms'
+  profiles state when the case tests a mismatch on purpose; without it each arm's states its release's (doc 12).
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -207,6 +209,8 @@ SCHEMA = {
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
     "situation": (lambda v: v in SITUATIONS, f"one of {SITUATIONS}"),
+    "profile_version": (lambda v: isinstance(v, str) and re.fullmatch(r"\d+\.\d+\.\d+", v) is not None,
+                        "a version of three numbers, such as 0.7.1"),
     "internal_world": (lambda v: isinstance(v, dict) and "remove" in v and set(v) <= {"remove", "jobs"}
                        and list_of(is_path)(v["remove"]) and list_of(is_job_row)(v.get("jobs", [])),
                        "{remove: [paths], jobs: [rows]}: paths of the internal world, rows of its Jobs table"),

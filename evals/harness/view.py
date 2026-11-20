@@ -21,10 +21,10 @@ known to be risky. Each rule is applied the same way in both arms, so the same r
 
 The diff is the diff of the view's own entries, so a change that only touched overlay lines is no change. A file's
 entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
-file's entry is the arm's own, and the index file's is the one it has in the without-skill arm, as the arms differ
-there only by the row. A write's hash is shown only when it is the hash of its file's view bytes. What the agent
-wrote of what it saw, such as a folder listing it saved to a file, or a word it made from the skill's name, is its
-own output and is not hidden.
+file's entry is the arm's own, and a file the install edits in place (the index, a team profile) has the entry it
+has in the without-skill arm, as the arms differ there only by the line the install adds. A write's hash is shown
+only when it is the hash of its file's view bytes. What the agent wrote of what it saw, such as a folder listing it
+saved to a file, or a word it made from the skill's name, is its own output and is not hidden.
 
 Standard library only.
 """
@@ -52,6 +52,7 @@ def view(record, blob):
     words = world.names([overlay["skill"], *evidence.places(overlay)])
     acts = overlay_names(overlay, record["files_after"], record["diff"])  # what puts an action on the overlay
     places, own = evidence.places(overlay), record["own_files"]
+    edited = overlay.get("edited") or {overlay["index"]: overlay.get("index_without")}  # stored before profiles
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
 
     def after(path, entry):
@@ -68,8 +69,8 @@ def view(record, blob):
     def before(path, entry):
         if evidence.covers(places, path, entry, entry):
             return None  # a folder that held the skill before the run is the overlay's
-        if path == overlay["index"] and manifest.is_file(entry):
-            return overlay["index_without"]
+        if path in edited and manifest.is_file(entry):
+            return edited[path]
         return "link " + text(entry[len("link "):], words, folders) if manifest.kind(entry) == "link" else entry
 
     entries = {path: after(path, entry) for path, entry in record["files_after"].items()}

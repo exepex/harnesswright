@@ -7,7 +7,8 @@ git tracks in its folder. When the world has a history, the installs and the ind
 the same message, author and date in both arms, so `git status` is the same in both and the logs have the same shape.
 
 A team skill's arms take the skill, and the run-time files where the world's profile names a release folder, from
-the release, proved against its manifest's hashes (`teamrelease.py`). In a team skill's task case, where lift is
+the release, proved against its manifest's hashes (`teamrelease.py`); there the arm's profile gets the version of
+the release it installed. In a team skill's task case, where lift is
 measured, nothing in the without-skill arm comes from the release, so it installs no sibling. A trigger case
 measures the description, so it installs every other skill as a sibling in both arms, as in real use.
 
@@ -47,6 +48,7 @@ class Install:
 
     def __init__(self, name, source, targets, row, tracked):
         self.name, self.source, self.targets, self.row = name, Path(source), targets, row
+        self.version = None  # a release install: the version its arm's profile states (`teamrelease.with_version`)
         self.files = {}
         for rel in tracked:
             self.files.update({str(p): "dir" for p in PurePosixPath(rel).parents if str(p) != "."})
@@ -75,6 +77,8 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
             raise CaseError(f"{case.id}: a trigger case installs every other skill as a sibling: missing "
                             f"{sorted(every - set(case.siblings))}, unknown {sorted(set(case.siblings) - every)}")
     team = kinds().get(case.skill) == "team"
+    if (teamrelease.release_folder(case.world) if team else None) is None and case.profile_version:
+        raise CaseError(f"{case.id}: profile_version is only for a team skill's case whose profile names a folder")
     if team and case.kind == "task" and case.siblings:  # lift: nothing from the release without the skill
         raise CaseError(f"{case.id}: a team skill's task case installs no sibling (teamrelease.py)")
     missing = [name for name in case.siblings + ([] if skill_dir or not with_skill else [case.skill])
@@ -123,7 +127,9 @@ def _from_release(case, install, world, taken, current):
         clash = [t for t in taken if _overlaps(t, path)] + _blocked(world, path)
         if clash:
             raise CaseError(f"{case.id}: {path} would overlap {clash[0]}")
-    return [Install(install.name, root, [folder], None, paths)]
+    release = Install(install.name, root, [folder], None, paths)
+    release.version = case.profile_version or teamrelease.version_of(root)
+    return [release]
 
 
 def _discovery(case, adapter, name):
@@ -177,8 +183,22 @@ def with_rows(data, after, rows):
     return b"".join(lines)
 
 
+def edits(case, installs):
+    """{path: bytes} of the world files an arm with `installs` edits in place, each written in one step from the
+    written world: the index with every row of the arm, and the profile with the version of the release installed."""
+    found = {}
+    rows = [install.row for install in installs if install.row is not None]
+    if rows:
+        found[case.index["file"]] = with_rows((case.world / case.index["file"]).read_bytes(), case.index["after"], rows)
+    for install in installs:
+        if install.version is not None:
+            found[teamrelease.PROFILE] = teamrelease.with_version((case.world / teamrelease.PROFILE).read_bytes(),
+                                                                  install.targets[0], install.version)
+    return found
+
+
 def expected(case, installs):
-    """The manifest an arm with `installs` must have, without `.git`, and its index text (or None)."""
+    """The manifest an arm with `installs` must have, without `.git`, and the files it edits (`edits`)."""
     entries = manifest.manifest(case.world)
     for install in installs:
         for target in install.targets:
@@ -187,14 +207,11 @@ def expected(case, installs):
                     entries.setdefault(str(parent), "dir")
             entries[target] = "dir"
             entries.update({f"{target}/{name}": entry for name, entry in install.files.items()})
-    rows = [install.row for install in installs if install.row is not None]
-    if not rows:
-        return entries, None
-    index = case.index["file"]
-    text = with_rows((case.world / index).read_bytes(), case.index["after"], rows)
-    executable = entries[index].endswith(f" {manifest.EXEC}")
-    entries[index] = "file " + sha256_bytes(text) + (f" {manifest.EXEC}" if executable else "")
-    return entries, text
+    edited = edits(case, installs)
+    for path, text in edited.items():
+        executable = entries[path].endswith(f" {manifest.EXEC}")
+        entries[path] = "file " + sha256_bytes(text) + (f" {manifest.EXEC}" if executable else "")
+    return entries, edited
 
 
 class Arm:
@@ -246,8 +263,8 @@ def _empty(out):
 
 
 def _write(folder, case, installs):
-    """Write an arm in `folder`: the world as written, its declared history, the installs, the index written in
-    one step from the written world with every row of the arm, exactly as `expected` does, and the setup commit."""
+    """Write an arm in `folder`: the world as written, its declared history, the installs, the files it edits in
+    place (`edits`), exactly as `expected` does, and the setup commit."""
     shutil.copytree(case.world, folder, symlinks=True, dirs_exist_ok=True)
     _history(folder, case.commits)
     for install in installs:
@@ -259,13 +276,13 @@ def _write(folder, case, installs):
                 else:
                     (folder / target / rel).parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(install.source / rel, folder / target / rel)
-    rows = [install.row for install in installs if install.row is not None]
-    if rows:
-        text = with_rows((case.world / case.index["file"]).read_bytes(), case.index["after"], rows)
-        (folder / case.index["file"]).write_bytes(text)
+    edited = edits(case, installs)
+    for path, text in edited.items():
+        (folder / path).write_bytes(text)
     if case.commits:
         added = [target for install in installs for target in install.targets]
         added += [case.index["file"]] if case.index else []
+        added += [path for path in edited if path != (case.index or {}).get("file")]
         if added:
             _git(folder, "add", "--force", "--", *added)
         _git(folder, "commit", "-q", "--allow-empty", "-m", SETUP_MESSAGE)

@@ -22,6 +22,13 @@ One reader, `prove`, proves a release skill and its run-time files, and its proo
   `rounds.previous`, which holds it to the sha256 the round recorded, and the run-time files are the files of that
   commit's release that the current release's `run-time` list covers.
 
+Where the profile names a folder, the arm's profile also gets the `version:` line a team that installed that
+release has: its manifest's `rulebook-version`, which `v2/build/resolve.py` holds the profile to (`with_version`).
+So a case's profile states the folder and what else it tests, never a version that must track `v2/VERSION`, and a
+profile that states one is refused. A case that tests a mismatch on purpose declares the version it wants
+(`profile_version`, cases.py). The line names the release manifest, a file of the install, so the grader view
+removes it as it removes the index row, and every arm shows the same profile.
+
 A release that is neither is a harness fault, and the round stops. `rounds.plan` proves each arm before any case
 runs and records which proof each had. A profile with a `harnesswright` entry in any other shape is refused, never
 read as naming no folder.
@@ -45,11 +52,13 @@ ENTRY = re.compile(r"^harnesswright[ \t]*:", re.MULTILINE)
 BLOCK = re.compile(r"^harnesswright:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", re.MULTILINE)
 FOLDER = re.compile(r"^[ \t]+folder:[ \t]*([\"']?)([^\"'#\s]+?)/?\1[ \t]*(?:#.*)?$", re.MULTILINE)
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+STATED = re.compile(r"^[ \t]+version[ \t]*:", re.MULTILINE)
 
 
 def release_folder(world):
     """The folder the world's profile unpacks the release into, relative to the world, or None when the profile,
-    or its `harnesswright` entry, is not there. An entry in another shape is refused."""
+    or its `harnesswright` entry, is not there. An entry in another shape, or one that states a version, is
+    refused."""
     path = Path(world) / PROFILE
     if not path.is_file():
         return None
@@ -63,7 +72,25 @@ def release_folder(world):
                         "this reader takes")
     if not is_path(found.group(2)):
         raise CaseError(f"{PROFILE}: harnesswright.folder {found.group(2)!r} is not a path inside the world")
+    if STATED.search(block.group(1)):
+        raise CaseError(f"{PROFILE}: the harnesswright entry states a version; the harness writes each arm's from "
+                        "its release, and a case that tests another declares profile_version")
     return found.group(2)
+
+
+def with_version(data, folder, version):
+    """The profile bytes `data`, which `release_folder` read, with `version` as the first line of its
+    `harnesswright` block, indented like the block's next line and naming the release manifest in `folder`."""
+    text = data.decode("utf-8")
+    block = BLOCK.search(text + "\n")
+    indent = re.match(r"[ \t]*", block.group(1)).group(0) or "  "
+    line = f'{indent}version: "{version}"  # as {folder}/{SELF} says\n'
+    return (text[:block.start(1)] + line + text[block.start(1):]).encode("utf-8")
+
+
+def version_of(root):
+    """The `rulebook-version` of the release in `root`, as its manifest states it."""
+    return _manifest(root)[0]["rulebook-version"]
 
 
 def covers(listed, rel):

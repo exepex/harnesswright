@@ -73,7 +73,7 @@ class Goldens(TempCase):
         record, _ = goldens.bundle(golden, new, fake_adapter(), self.tmp / "out", DRIFT, "fakehost 1.0", "fast",
                                    self.tmp / "skills")  # the grade gate builds every golden so
         self.assertEqual(record["overlay"], {"skill": "limerick-writer", "paths": [], "release": [], "index": None,
-                                             "row": None, "index_without": None})
+                                             "row": None, "index_without": None, "edited": {}})
         self.assertEqual(sorted(record["diff"]), ["README.md", "notes.txt"])
 
     def test_a_golden_s_text_is_seen_through_the_same_view_as_a_run_s(self):

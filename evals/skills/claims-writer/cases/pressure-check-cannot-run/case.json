@@ -122,7 +122,7 @@
       "source": {
         "contract": {
           "path": ".harness/profile.yaml",
-          "line": 9,
+          "line": 8,
           "quote": "scripts: forbidden # the team decided: no helper script of an agent skill runs here"
         }
       },
