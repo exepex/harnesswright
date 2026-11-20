@@ -13,6 +13,9 @@
       "reference": "claude-code",
       "prices": "2026-11-14",
       "thresholds": {"max_gap": 0.1, "min_lift": 0.0, "min_runs": 3, "task_pass_rate": 0.9, "trigger_accuracy": 0.9},
+      "skill_sha256": "7a3bbde3856e4bee7a0976565435da226105de43ae58dc1f2667b35a2932fb48",
+      "previous_sha256": "fd66fbf05c4333438946ab8925d6bd0d8b9e5343ebb3222a064e5f2e5f66c885",
+      "backfilled": {"archive": "claims-writer-6.tar", "fields": {"previous_sha256": "previous.claims-writer.sha256", "skill_sha256": "skills.claims-writer.sha256"}, "manifest": "claims-writer-6/manifest.json"},
       "hosts": {
         "claude-code": {
           "baseline_pass_rate": 0.5556,

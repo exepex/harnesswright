@@ -21,6 +21,9 @@ read only when its last attempt passed every gate and the kit check of that atte
   setups were recorded do. The results file keeps the list (`compared`), and `rounds.py results` prints it.
 - `verified(data)`: the last round whose reference host's label is `verified`, with the skill hash it recorded, or
   None for that hash when the entry was written before skill hashes were recorded: unknown, never guessed.
+- `backfill(entry, skill, archive)`: an entry written before skill hashes were recorded, with them filled from the
+  manifest its own archive holds, the one source `entries` reads them from (`_hashes`), and `backfilled` naming
+  the archive, the manifest and the field each came from. `backfill_problems` checks them against that archive.
 - `write(path, data)`: the results file, one line per field of each host entry, so a round stays short.
 
 Standard library only.
@@ -32,6 +35,9 @@ import tarfile
 from pathlib import Path
 
 import setups
+
+
+HASHED = {"skill_sha256": "skills", "previous_sha256": "previous"}  # entry field: the manifest part it copies
 
 
 class ResultsError(ValueError):
@@ -120,11 +126,53 @@ def entries(folder, archive):
               "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"], "ran": ran,
               "archive": {"file": archive.name, "sha256": _sha256(archive)},
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
-    own = {skill: {"skill_sha256": record.get("skills", {}).get(skill, {}).get("sha256"),
-                   "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
-                   "setup": labels.get("setups", {}).get(skill),
+    own = {skill: {**_hashes(record, skill), "setup": labels.get("setups", {}).get(skill),
                    "shipped": labels.get("shipped", {}).get(skill)} for skill in labels["skills"]}
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
+
+
+def _hashes(record, skill):
+    """{"skill_sha256", "previous_sha256"} of `skill` as the round manifest `record` states them, None when it
+    states none: the one place results read skill hashes from."""
+    return {key: record.get(part, {}).get(skill, {}).get("sha256") for key, part in HASHED.items()}
+
+
+def _archived_manifest(entry, archive):
+    """The manifest `archive` holds for the round of `entry`, once the archive and the manifest are the entry's own:
+    the archive's name and sha256, and the manifest's sha256, are what the entry records."""
+    archive = Path(archive)
+    if archive.name != entry["archive"]["file"] or _sha256(archive) != entry["archive"]["sha256"]:
+        raise ResultsError(f"{archive}: not the archive {entry['archive']['file']} that round {entry['round']} names")
+    member = f"{entry['round']}/manifest.json"
+    try:
+        with tarfile.open(archive) as tar:
+            data = tar.extractfile(tar.getmember(member)).read()
+    except (OSError, KeyError, tarfile.TarError) as error:
+        raise ResultsError(f"{archive}: holds no readable {member}: {error}") from None
+    if hashlib.sha256(data).hexdigest() != entry["manifest_sha256"]:
+        raise ResultsError(f"{archive}: {member} is not the manifest round {entry['round']} records")
+    return json.loads(data), member
+
+
+def backfill(entry, skill, archive):
+    """`entry`, written before results recorded skill hashes, with them filled from its own archive (see the
+    module). An entry that holds them already is refused: a backfill never changes a recorded value."""
+    if any(key in entry for key in HASHED):
+        raise ResultsError(f"round {entry['round']} already records skill hashes; a backfill fills only missing ones")
+    record, member = _archived_manifest(entry, archive)
+    where = {key: f"{part}.{skill}.sha256" for key, part in HASHED.items()}
+    return {**entry, **_hashes(record, skill),
+            "backfilled": {"archive": entry["archive"]["file"], "manifest": member, "fields": where}}
+
+
+def backfill_problems(entry, skill, archive):
+    """[] when each hash `backfill` filled in `entry` is what its archive's manifest states, else what differs."""
+    try:
+        record, member = _archived_manifest(entry, archive)
+    except ResultsError as error:
+        return [str(error)]
+    return [f"round {entry['round']}: {key} is {entry.get(key)}, but {member} states {value}"
+            for key, value in _hashes(record, skill).items() if entry.get(key) != value]
 
 
 def order(entry):
@@ -188,7 +236,7 @@ def write(path, data):
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
-                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped"):
+                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped", "backfilled"):
             if key not in entry:  # `not_run` only before situations were labelled; the last three only after setups
                 continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")

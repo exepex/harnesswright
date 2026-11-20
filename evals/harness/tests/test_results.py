@@ -1,13 +1,18 @@
 """Round results: a finished round's labels are copied whole into evals/results, named by its manifest, kit and
-archive, and a round that did not finish, or whose kit or archive is not its own, is refused."""
+archive, and a round that did not finish, or whose kit or archive is not its own, is refused. Skill hashes missing
+from an older entry are filled from its own archive only, and each filled hash matches it."""
 
 import json
+import os
 import tarfile
+import unittest
+from pathlib import Path
 
 from helpers import TempCase
 
 import labels
 import results
+from cases import REPO
 
 KIT = "a" * 64
 HOST = {"label": "verified", "lift": 0.5, "model": "named-model", "runs": {"c1, with_skill": 3}}
@@ -15,11 +20,11 @@ GATES = ["kit check", "lint", "probe", "faults", "run", "check", "grade", "label
 
 
 class Results(TempCase):
-    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None, shipped=None):
+    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None, shipped=None, manifest=None):
         folder = self.tmp / "store" / name
         (folder / "attempts").mkdir(parents=True)
         (folder / "labels").mkdir()
-        (folder / "manifest.json").write_text(json.dumps({"round": name, "kit": KIT}))
+        (folder / "manifest.json").write_text(json.dumps({"round": name, "kit": KIT, **(manifest or {})}))
         outcomes = {"kit check": {"approved": approved}, "probe": {"passed": ran or ["fakehost"], "not run": {}}}
         gates = [{"gate": g, "passed": passed or g != "label", "outcome": outcomes.get(g, {})} for g in GATES]
         (folder / "attempts" / "t1.json").write_text(json.dumps({"gates": gates}))
@@ -121,3 +126,43 @@ class Results(TempCase):
         self.assertEqual(len(path.read_text().splitlines()), 36)  # 14 fields, each host 4 lines and its braces, compared
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)
+
+    def test_a_backfill_fills_skill_hashes_from_the_entry_s_own_archive_only(self):
+        sha, skill = "d" * 64, "haiku-writer"
+        folder, archive = self.round("r-11", manifest={"skills": {skill: {"sha256": sha}}})
+        entry = results.entries(folder, archive)[skill]
+        old = {k: v for k, v in entry.items() if k not in results.HASHED}  # written before hashes were recorded
+        filled = results.backfill(old, skill, archive)
+        self.assertEqual({k: filled[k] for k in results.HASHED}, {"skill_sha256": sha, "previous_sha256": None})
+        self.assertEqual({k: filled[k] for k in results.HASHED}, {k: entry[k] for k in results.HASHED})  # as copied
+        self.assertEqual(filled["backfilled"], {"archive": "r-11.tar", "manifest": "r-11/manifest.json", "fields": {
+            "skill_sha256": f"skills.{skill}.sha256", "previous_sha256": f"previous.{skill}.sha256"}})
+        self.assertEqual(results.backfill_problems(filled, skill, archive), [])
+        [problem] = results.backfill_problems(dict(filled, skill_sha256="e" * 64), skill, archive)
+        self.assertIn(f"skill_sha256 is {'e' * 64}, but r-11/manifest.json states {sha}", problem)
+        with self.assertRaisesRegex(results.ResultsError, "already records skill hashes"):
+            results.backfill(filled, skill, archive)
+        _, other = self.round("r-12")
+        (self.tmp / "elsewhere").mkdir()
+        (self.tmp / "elsewhere" / "r-11.tar").write_bytes(other.read_bytes())  # the right name, other bytes
+        with self.assertRaisesRegex(results.ResultsError, "not the archive r-11.tar that round r-11 names"):
+            results.backfill(old, skill, self.tmp / "elsewhere" / "r-11.tar")
+        path = results.write(self.tmp / "out.json", {"skill": skill, "rounds": [filled], "compared": []})
+        self.assertEqual(json.loads(path.read_text())["rounds"][0]["backfilled"], filled["backfilled"])
+
+    @unittest.skipUnless(os.environ.get("HW_EVAL_STORE"), "HW_EVAL_STORE names no folders of round archives")
+    def test_every_backfilled_hash_of_the_repository_matches_its_archive(self):
+        stores = [Path(p) for p in os.environ["HW_EVAL_STORE"].split(os.pathsep) if p]
+        checked = 0
+        for path in sorted((REPO / "evals" / "results").glob("*.json")):
+            data = json.loads(path.read_text())
+            for entry in data.get("rounds", []) if "skill" in data else []:
+                if "backfilled" not in entry:
+                    continue
+                found = [s / entry["backfilled"]["archive"] for s in stores
+                         if (s / entry["backfilled"]["archive"]).is_file()]
+                with self.subTest(round=entry["round"]):
+                    self.assertTrue(found, f"no folder of HW_EVAL_STORE holds {entry['backfilled']['archive']}")
+                    self.assertEqual(results.backfill_problems(entry, data["skill"], found[0]), [])
+                    checked += 1
+        self.assertGreater(checked, 0)

@@ -13,6 +13,9 @@
       "reference": "claude-code",
       "prices": "2026-11-14",
       "thresholds": {"format_conformance": 0.9, "max_gap": 0.1, "min_lift": 0.0, "min_runs": 3, "task_pass_rate": 0.9, "trigger_accuracy": 0.9},
+      "skill_sha256": "57aa941c6a155fd1bf2683af4a52f3b44dde4076b552a896420b7f477ad40cd7",
+      "previous_sha256": null,
+      "backfilled": {"archive": "skill-designer-8.tar", "fields": {"previous_sha256": "previous.skill-designer.sha256", "skill_sha256": "skills.skill-designer.sha256"}, "manifest": "skill-designer-8/manifest.json"},
       "hosts": {
         "claude-code": {
           "baseline_pass_rate": 0.8333,
@@ -50,6 +53,9 @@
       "reference": "claude-code",
       "prices": "2026-11-14",
       "thresholds": {"format_conformance": 0.9, "max_gap": 0.1, "min_lift": 0.0, "min_runs": 3, "task_pass_rate": 0.9, "trigger_accuracy": 0.9},
+      "skill_sha256": "57aa941c6a155fd1bf2683af4a52f3b44dde4076b552a896420b7f477ad40cd7",
+      "previous_sha256": null,
+      "backfilled": {"archive": "skill-designer-9.tar", "fields": {"previous_sha256": "previous.skill-designer.sha256", "skill_sha256": "skills.skill-designer.sha256"}, "manifest": "skill-designer-9/manifest.json"},
       "hosts": {
         "claude-code": {
           "baseline_pass_rate": 0.75,
