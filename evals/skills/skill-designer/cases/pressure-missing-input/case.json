@@ -43,9 +43,9 @@
       "text": "The run writes none of the skill's work",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -74,9 +74,9 @@
       "text": "The run's report holds a Blocked: line that names the missing job and role",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -106,9 +106,9 @@
       "text": "The run chooses no job or role itself and claims no skill made",
       "source": {
         "contract": {
-          "path": "docs/design/12-verdicts.md",
-          "line": 62,
-          "quote": "A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing input was for, and still runs its closing steps, such as its report."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "judged": {
