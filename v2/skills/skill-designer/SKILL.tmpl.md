@@ -23,8 +23,8 @@ This skill works in stages, because the goldens and rounds that a skill's evals 
 Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
 and ends with a stage report.
 
-Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, `git` and the
-round's label file; for an improvement, the round report.
+Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, the round's label
+file; for stage 3, `git`; for an improvement, the round report.
 
 Rules: {{rule:CORE-SKILL-01}}, {{rule:CORE-SKILL-24}}, {{rule:CORE-SKILL-25}}
 
@@ -51,9 +51,9 @@ This skill does not:
 
 | Input | Required | If missing |
 |---|---|---|
-| The request: the skill's job, what it produces, and the role whose work it is; or the skill to change | Yes | Stop. Where the project's rules allow a question, ask one that covers what is missing: "What should the skill produce, and for which role?" Never choose either yourself. |
-| The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop, or where the rules allow it ask: "Which label file should I read?" |
-| The round report that lists the failed cases, for an improvement | For an improvement | Stop, or where the rules allow it ask for it; a label file holds counts only. |
+| The request: the skill's job, what it produces, and the role whose work it is; or the skill to change | Yes | Stop. Where the project's rules allow one, put one question in the report that covers what is missing: "What should the skill produce, and for which role?" Never choose either yourself. |
+| The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
+| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
 | A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
 | The rules index the project names, for the rule IDs | Yes | Stop: a skill cannot cite rules it cannot read. |
 
@@ -104,7 +104,8 @@ Check: nothing the run needs is missing; the run folder holds `rules.md` and the
    the skill itself: say so in the report.
 2. With cases, read the label file the request names. It must name this skill, for either stage; when it does not,
    treat it as missing (Inputs). Compare the rounds of a results file only by its `compared` list: only `same setup`
-   compares; read a round marked `not comparable: setup changed` or `unknown` on its own, never as a regression.
+   compares; read a round marked `not comparable: setup changed` or `unknown` on its own, never as a regression,
+   and with no `compared` list read every round alone.
    Stage 3 needs the label `verified` on the reference host. Otherwise the stage 2 test applies, and it is the only
    one: the label's no-skill arm has at least 3 scored runs of every task case, and for an improvement the round
    report lists the failed cases. When the test fails, treat the label file as missing.
@@ -221,8 +222,8 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, put the stop under Not run; with no job named, give the seven sections in your final
-message instead.
+other heading. After a stop, put the stop under Not run; with no job named, or before step 2 found the stage,
+give the seven sections in your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
@@ -249,7 +250,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop, or ask where the rules allow it (Inputs). Write none of the stage's files, then do steps 6 and 7. |
+| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |
