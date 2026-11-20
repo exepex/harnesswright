@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from helpers import TempCase
+from helpers import TempCase, expect
 
 import internal
 import lint
@@ -18,6 +18,9 @@ import world
 from cases import REPO, CaseError, load_cases
 
 SKILL = "skill-designer"  # internal in evals/kinds.json
+# A task case of a skill with a kind needs a contract expectation (cited.py); this one cites incoming/notes.md.
+SCORED = {"internal_world": {"remove": []}, "expectations": [expect("The release ships on Friday", {"contract": {
+    "path": "incoming/notes.md", "line": 1, "quote": "Ship the release on Friday."}})]}
 COPIED = ["AGENTS.md", "docs/design", "v2/VERSION", "v2/roles.md", "v2/rules", "v2/skills"] + [
     f"v2/build/{p.name}" for p in sorted((REPO / "v2" / "build").glob("*.py"))]
 NOTES = ("# Notes\n\nThe skill designer keeps its cases apart. SkillDesigner, as one word, too.\n"
@@ -204,11 +207,16 @@ class Reader(TempCase):
                 internal.resolve(case).world
 
     def test_a_clean_case_on_the_pinned_base_has_no_problems(self):
-        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, {"internal_world": {"remove": []}},
-                         skill=SKILL)
+        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, SCORED, skill=SKILL)
         problems, built = self.lint(case)
         self.assertTrue((built / "docs" / "design" / "11-evals.md").is_file())  # tells and arm names in the base
         self.assertEqual(problems, [])
+        unscored = self.case({"incoming/notes.md": "Ship the release on Friday.\n"},
+                             dict(SCORED, expectations=[expect("The release ships on Friday")]), skill=SKILL)
+        shutil.rmtree(self.tmp / "arms")
+        self.assertEqual(self.lint(unscored)[0], [
+            f"{unscored.id}: a task case needs at least one contract expectation: with none, no run of it is scored "
+            "(verdicts.task_outcome), and its skill's label stays at most inconclusive"])
 
     def test_the_lint_reads_the_pinned_base_as_project_text_and_the_case_own_files_by_every_rule(self):
         pinned = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
@@ -216,7 +224,8 @@ class Reader(TempCase):
         # `pinned` is base text that the kit's eval text repeats, so it is project text even in the case's own file
         measured = "Each run of this case is scored on the stage report it writes for the next owner."
         case = self.case({"incoming/source.md": f"A borrowed source, with its test fixture.\n{measured}\n{pinned}\n",
-                          "incoming/with_skill.md": "Notes.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+                          "incoming/with_skill.md": "Notes.\n", "incoming/notes.md": "Ship the release on Friday.\n"},
+                         SCORED, skill=SKILL)
         problems, built = self.lint(case, [measured, pinned])
         base = [p for p in manifest.manifest(built) if (built / p).is_file() and not p.startswith("incoming/")
                 and lint.told(lint.Place(p, (built / p).read_text(), "world"), "eval")
@@ -277,8 +286,7 @@ class Reader(TempCase):
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")
     def test_a_clean_case_on_the_real_pin_has_no_problems(self):
         from test_adapters import CLAUDE
-        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, {"internal_world": {"remove": []}},
-                         skill=SKILL)
+        case = self.case({"incoming/notes.md": "Ship the release on Friday.\n"}, SCORED, skill=SKILL)
         self.assertEqual(lint.lint_case(case, CLAUDE, self.tmp / "arms", None), [])
 
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,

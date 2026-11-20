@@ -123,7 +123,8 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
   also reads every world before it is approved;
 - a `.git` folder, or a symlink that points outside the world;
 - a document copied from this repository that is not its tracked source with the skill rows removed, or whose
-  source has changed since it was copied.
+  source has changed since it was copied;
+- a task case of a skill with a kind that has no contract expectation, since none of its runs would be scored.
 
 In an internal world ([12 · Verdicts](12-verdicts.md#internal-worlds)), the pinned base is project text: the judges
 approve it with the pin, and it is the same in every arm. So the lint reads it only for the skill's name; the
