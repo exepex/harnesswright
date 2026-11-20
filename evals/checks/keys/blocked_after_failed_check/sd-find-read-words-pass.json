@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "pass",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "find SKILL_DIR -maxdepth 2 -type f ( -name resolve.py -o -name '*.md' ) -print",
+   "exit_code": 0,
+   "output": "SKILL_DIR/scripts/resolve.py\n"
+  }
+ ]
+}
