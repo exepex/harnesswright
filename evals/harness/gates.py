@@ -17,8 +17,11 @@ canaries and credentials of every containment its gates made, taken while its ho
   the round's seed chooses, and every one must be caught. The bundles of its runs are copied to the store.
 - `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
   the host's version measured just before it, so a host that changed during the round voids its runs. A run that
-  is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does. The gate's
-  report gives why each slot is void or empty, and each without-skill run's shorter backstop matches.
+  is kept, made, void, empty or not loaded does not stop the round; a canary, a failed audit or a broken run does.
+  The gate's report gives why each slot is void, empty or not loaded, marks each pinned run (`runs.pinned`), and
+  gives each without-skill run's shorter backstop matches. When half or more of the pinned tries are not loaded,
+  counted as the pinned-load rate counts them (`runs.misses`), the gate stops the round as a harness fault: the pin
+  is broken, not the skill (doc 12, Proven use).
 - `check`: every expectation that has a check is decided on the bundle of each kept or made run
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
@@ -234,12 +237,20 @@ def run_gate(r):
                           r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
         made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,
                      "key": result["key"], "status": result["status"]})
-        if result.get("reason"):  # why a slot is void or empty, such as a backstop hit, for a judge to read
+        if result.get("reason"):  # why a slot is void, empty or not loaded, such as a backstop hit, for a judge
             made[-1]["reason"] = result["reason"]
+        if runs.pinned(r.record, r.cases[(skill, case_id)], arm):
+            made[-1]["pinned"] = True
         short = Path(result["bundle"]).parent / runs.SHORT if result.get("bundle") else None
         if short and short.is_file():  # the backstop's shorter matches, listed and never a void
             made[-1]["backstop"] = json.loads(short.read_text())["short"]
         r.runs.append({**made[-1], "bundle": result.get("bundle")})
+    pinned = [m for m in made if m.get("pinned")]  # counted by try, as the pinned-load rate counts them
+    missed = sum(runs.misses(r.folder / "runs" / m["key"]) for m in pinned)
+    tries = missed + sum(m["status"] in ("kept", "made") for m in pinned)
+    if missed and 2 * missed >= tries:
+        raise Stop(f"harness fault: {missed} of {tries} pinned tries are not loaded, so the pin is broken, "
+                   "not the skill", made)
     return made
 
 

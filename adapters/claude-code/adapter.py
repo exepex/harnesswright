@@ -130,8 +130,10 @@ def _tool_entries(name, tool_input, result):
         return [{"kind": "failed", "source": "observed", "action": f"{name}: {path}", "path": path, "reason": text}]
     if failed and name != "Bash":
         return []
-    if name == "Read" or name == "Grep":
-        found = SKILL_FILE.search(path) if name == "Read" else None  # reading a skill's SKILL.md loads it
+    if name == "Grep":  # a search shows only what matched, so the read of the whole file is worked out, not seen
+        return [{"kind": "read", "source": "inferred", "path": path}]
+    if name == "Read":
+        found = SKILL_FILE.search(path)  # reading a skill's SKILL.md loads it
         return [{"kind": "read", "source": "observed", "path": path}] + (
             [{"kind": "skill", "source": "inferred", "name": found.group(1)}] if found else [])
     if name == "Write":

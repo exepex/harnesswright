@@ -95,8 +95,8 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
 - **Not loaded.** A pinned run with no proven load is `not loaded`. It is tried once more. Still not loaded, the run
   is unscored, never a skill failure and never a pass, and the label is at most `inconclusive`, naming it. A case
   with no loaded run is named the same way. `not loaded` is not a void: voids stay harness faults.
-- If half or more of a round's pinned runs are not loaded, the round stops as a harness fault: the pin is broken,
-  not the skill. A pinned-load probe checks the pin before any real run.
+- If half or more of a round's pinned tries are not loaded, each try counted as the pinned-load rate counts it, the
+  round stops as a harness fault: the pin is broken, not the skill. A pinned-load probe checks the pin before any real run.
 - The label gives the pinned-load rate per arm.
 - **Trigger runs are not pinned.** Whether a host picks the skill by itself is measured by the trigger cases and
   reported as its own label line: the trigger label. A task verdict never reads it. In a trigger run an inferred
