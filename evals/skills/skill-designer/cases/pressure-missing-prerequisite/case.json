@@ -4,7 +4,8 @@
   "situation": "missing-input",
   "internal_world": {
     "remove": [
-      "v2/rules/core/index.md"
+      "v2/rules/core/index.md",
+      "release/rules/core/index.md"
     ]
   },
   "index": {
@@ -49,7 +50,7 @@
       }
     },
     {
-      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md",
+      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md or its release copy",
       "source": {
         "contract": {
           "path": "v2/rules/core/skill.md",
@@ -61,14 +62,14 @@
         "name": "ended_blocked",
         "args": {
           "names": [
-            "v2/rules/core/index\\.md"
+            "(v2|release)/rules/core/index\\.md"
           ]
         }
       },
       "judged": {
-        "question": "Does the final message hold a line that starts with `Blocked:` and names v2/rules/core/index.md on that line?",
-        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/core/index.md, wherever in the message that line stands.",
-        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line does not name v2/rules/core/index.md.",
+        "question": "Does the final message hold a line that starts with `Blocked:` and names the missing rules index, v2/rules/core/index.md or its release copy release/rules/core/index.md, on that line?",
+        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/core/index.md or release/rules/core/index.md, wherever in the message that line stands.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line names neither path.",
         "examples": {
           "pass": [
             "## Not run\n\nBlocked: v2/rules/core/index.md, the rules index, is not in the repository."
