@@ -6,8 +6,8 @@ label file entry for every host whole (`labels.py`), with the file's reference h
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
 hashed, the hosts its probe gate passed (`ran`), the skill's hash and its previous version's (`skill_sha256`,
 `previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), whether the round lists the skill as
-shipped (`shipped`: the task label `verified` and the trigger label met on the reference host, both copied whole in
-each host's entry), and the file name and sha256 of the round's store archive. The archive must hold the round's
+shipped (`shipped`, as the label file decides it, `labels.shipped`, or null when it does not; never decided here),
+and the file name and sha256 of the round's store archive. The archive must hold the round's
 store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
 read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
@@ -123,19 +123,13 @@ def entries(folder, archive):
     own = {skill: {"skill_sha256": record.get("skills", {}).get(skill, {}).get("sha256"),
                    "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
                    "setup": labels.get("setups", {}).get(skill),
-                   "shipped": shipped(labels["skills"][skill], labels["reference"])} for skill in labels["skills"]}
+                   "shipped": labels.get("shipped", {}).get(skill)} for skill in labels["skills"]}
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
 
 
-def shipped(hosts, reference):
-    """Whether a round lists the skill as shipped (doc 12, Proven use): on the reference host, its task label is
-    `verified` and its trigger label (`triggers.label`) is met. Either alone is not enough."""
-    entry = hosts.get(reference, {})
-    return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
-
-
-def _order(entry):
-    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10)."""
+def order(entry):
+    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10). A plan
+    keeps name order run order (`versions.ordered`)."""
     stem, _, number = entry["round"].rpartition("-")
     return (stem, int(number)) if number.isdigit() else (entry["round"], -1)
 
@@ -146,7 +140,7 @@ def merge(current, skill, entry):
     if current and current.get("skill", current.get("skill_name")) != skill:
         raise ResultsError(f"the results file is not {skill}'s")
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
-    rounds.sort(key=_order)
+    rounds.sort(key=order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
     measured = {host for r in rounds for host in r["ran"]}  # a host the round planned but did not run keeps it
     data = {"skill": skill, "rounds": rounds, "compared": compared(rounds)}

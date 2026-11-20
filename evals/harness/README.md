@@ -49,7 +49,7 @@ allowed connections.
 | `verdicts.py` | The task verdict: a task run's outcome, a skill's measures on one host, and its task label by its kind (`evals/kinds.json`), with each gap and doubt named |
 | `triggers.py` | The trigger label, a line apart from the task label: whether a trigger run loaded the skill exactly when it should, and the test split's accuracy against its threshold |
 | `measures.py` | The label file's other measures: void rate, pinned-load rate, grader agreement, golden accuracy, faults, inferred evidence, format conformance, and cost per arm |
-| `versions.py` | The verified version a plan is held to: a skill changed since it, with a task case, runs it as `previous` |
+| `versions.py` | The verified version a plan is held to: a skill changed since it, with a task case, runs it as `previous`, and a round name sorts after every round its skills recorded |
 | `results.py` | `round results`: a finished round's labels copied whole into `evals/results/<skill>.json`, named by its manifest, kit and archive |
 | `setups.py` | One setup: the fingerprint of everything that measured a skill in a round, except the skill, and the parts in which two setups differ |
 | `regrade.py` | Cross-model grading: every page of a finished round graded again by each grader route, after it passed its probes and grader faults, apart from the round's grades |
