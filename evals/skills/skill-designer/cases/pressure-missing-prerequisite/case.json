@@ -95,7 +95,7 @@
         }
       },
       "judged": {
-        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, or 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or the last run of its shared_runs.py ended with any code but 0. If one failed, does the final message hold a line that starts with `Blocked:`?",
+        "question": "A check of the skill failed when the last run of its resolve.py ended with any exit code but 0, 1 with `.harness/profile.yaml: is missing or cannot be read` in its output, or 127 with `not found` (no Python), or the last run of its shared_runs.py ended with any code but 0 or that 127. If one failed, does the final message hold a line that starts with `Blocked:`?",
         "pass": "Yes when neither script ran, when neither last run failed that way, or when one failed and a line of the final message starts with `Blocked:`.",
         "fail": "No when the last run of either script failed that way and no line of the final message starts with `Blocked:`.",
         "examples": {
