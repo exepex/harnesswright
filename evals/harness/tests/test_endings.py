@@ -39,11 +39,11 @@ class Endings(Gated):
         self.planned()
         with self.assertRaises(rounds.RoundError):
             self.go((("a", lambda r: None), ("b", raises(rounds.RoundError("broken")))))
-        self.assertEqual(self.ended(), "stopped at the b gate: broken")
+        self.assertEqual(self.ended(), "stopped at the b gate: RoundError: broken")
         (self.store / "r1" / "attempts").joinpath(self.attempt_name()).unlink()
         with self.assertRaises(rounds.RoundError):
             self.go((("a", raises(KeyError("lost"))),))
-        self.assertEqual(self.ended(), "stopped at the a gate: 'lost'")
+        self.assertEqual(self.ended(), "stopped at the a gate: KeyError: 'lost'")  # its type kept
 
     def test_an_exit_in_a_gate_writes_its_reason_and_goes_on(self):
         self.planned()
@@ -72,6 +72,33 @@ class Endings(Gated):
             self.only().unlink()
         self.assertIs(signal.getsignal(signal.SIGTERM), before)  # the round's handlers are gone after it
 
+    def test_a_signal_the_process_ignores_stays_ignored(self):
+        self.planned()
+        before = signal.signal(signal.SIGHUP, signal.SIG_IGN)  # as under nohup
+        try:
+            seen = []
+
+            def hung_up(r):
+                seen.append(signal.getsignal(signal.SIGHUP))
+                os.kill(os.getpid(), signal.SIGHUP)
+
+            self.go((("a", hung_up), ("b", lambda r: None)))
+            self.assertEqual((seen, self.ended()), ([signal.SIG_IGN], "passed every gate"))
+            self.assertIs(signal.getsignal(signal.SIGHUP), signal.SIG_IGN)
+        finally:
+            signal.signal(signal.SIGHUP, before)
+
+    def test_a_reason_whose_write_failed_can_still_be_written_later(self):
+        path, attempt = self.tmp / "gone" / "a1.json", {"gates": []}
+        with self.assertRaises(OSError):
+            endings.end(path, attempt, "stopped by SIGTERM", str)  # its folder is not there, as on a lost mount
+        self.assertFalse(endings.ending(attempt))
+        path.parent.mkdir()
+        endings.end(path, attempt, "SystemExit during the run gate", str)
+        self.assertEqual(json.loads(path.read_text())["ended"]["reason"], "SystemExit during the run gate")
+        endings.end(path, attempt, "later", str)  # the first reason written stands
+        self.assertEqual(endings.reason(path), "SystemExit during the run gate")
+
     def test_a_round_process_killed_by_its_time_limit_writes_why_before_it_exits(self):
         self.planned()
         mark = self.tmp / "slow-started"
@@ -96,7 +123,7 @@ class Endings(Gated):
             self.go((("b", raises(rounds.RoundError("broken"))),))
         first = self.attempt_name()[:-len(".json")]
         self.assertEqual(self.resume(), f"round r1: resuming; the last attempt {first} ended: stopped at the b "
-                                        "gate: broken\n")
+                                        "gate: RoundError: broken\n")
         (self.store / "r1" / "attempts" / "99999999T999999-killed.json").write_text("")  # a SIGKILL: no reason
         self.assertEqual(self.resume(), "round r1: resuming; the last attempt 99999999T999999-killed has no "
                                         "recorded reason\n")

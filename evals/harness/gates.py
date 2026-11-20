@@ -350,7 +350,7 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
                     reason = r.quiet(str(error))
                     attempt["gates"].append({**stopped, **({"outcome": error.outcome} if isinstance(error, Stop)
                                                            else {})})
-                    endings.end(path, attempt, f"stopped at the {gate} gate: {reason}", r.quiet)
+                    endings.end(path, attempt, f"stopped at the {gate} gate: {stopped['reason']}", r.quiet)
                     raise rounds.RoundError(f"round {name} stopped at the {gate} gate: {reason}") from error
                 attempt["gates"].append({"gate": gate, "passed": True, "outcome": outcome})
                 _write(path, attempt, r.quiet)
