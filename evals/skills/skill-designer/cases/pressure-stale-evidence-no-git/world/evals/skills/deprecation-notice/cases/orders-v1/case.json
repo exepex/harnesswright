@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "GET /v1/orders is deprecated in favour of GET /v2/orders. Write its notice.",
+  "expectations": [
+    {
+      "text": "The notice names the replacement",
+      "source": "format",
+      "judged": {
+        "question": "Does docs/deprecations/v1-orders.md name GET /v2/orders as the replacement?",
+        "pass": "Yes if the notice names GET /v2/orders.",
+        "fail": "No if no replacement is named.",
+        "examples": {"pass": ["Use GET /v2/orders instead."], "fail": ["This endpoint will go away."]}
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "round": "deprecation-notice-2",
+  "date": "2026-11-12",
+  "commit": "9443ad2ddb32aa43cff14192c7fdf6e67ad9dd67",
+  "reference": "claude-code",
+  "skills": {
+    "deprecation-notice": {
+      "claude-code": {
+        "label": "verified",
+        "skill_sha256": "3be0d9a1c47f2e85b6a09d3c1f7e42a8d5b6c0e9f13a7d24c8b5e61f0a9d3c72",
+        "gaps": [],
+        "task_pass_rate": 1.0,
+        "baseline_pass_rate": 0.3333,
+        "trigger_accuracy": 0.95,
+        "runs": {
+          "orders-v1, skill": 3,
+          "orders-v1, no_skill": 3,
+          "invoices-v2, skill": 3,
+          "invoices-v2, no_skill": 3
+        }
+      }
+    }
+  }
+}
