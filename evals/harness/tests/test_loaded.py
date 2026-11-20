@@ -156,7 +156,7 @@ class Label(TempCase):
                   "adapters": {}, "plan": {"runs": 3}}  # what the label file's setup reads (`setups.setup`)
         pinned = {"with_skill": {"rate": 0.3333, "loaded": 1, "tries": 3}}
         with mock.patch.object(labels.measures, "measures", lambda *args: {("h", "haiku-writer"): {
-                "pinned_load": pinned}}), mock.patch.object(labels, "missing", lambda found: []):
+                "pinned_load": pinned}}), mock.patch.object(labels.verdicts, "missing", lambda found: []):
             entry = labels.labels(self.tmp, "a1", record, {("haiku-writer", "c1"): task, ("haiku-writer", "c2"): task},
                                   {"date": "2026-11-20"})["skills"]["haiku-writer"]["h"]
         self.assertEqual((entry["label"], entry["pinned_load"]), ("inconclusive", pinned))
