@@ -196,6 +196,23 @@ class Reader(TempCase):
         with self.assertRaisesRegex(CaseError, "incoming/source.md -> ../brief.md"):
             internal.world_of(case, self.tmp / "out", self.repo, self.kit())
 
+    def test_the_lint_holds_only_the_case_own_files_to_the_tell_and_eval_rules(self):
+        measured = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
+                        if len(line.split()) > 12)  # pinned base text that is also eval text
+        case = self.case({"incoming/source.md": f"A borrowed source, with its test fixture.\n{measured}\n"},
+                         {"internal_world": {"remove": []}}, skill=SKILL)
+        with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
+            problems = lint.lint_case(case, Adapter, self.tmp / "arms", self.skill().parent, kit=[measured])
+            built = internal.resolve(case).world
+        base = [p for p in manifest.manifest(built) if (built / p).is_file()
+                and lint.told(lint.Place(p, (built / p).read_text(), "world"), "eval")]
+        self.assertTrue(base)  # the pinned base holds tell words, such as docs/design/11-evals.md
+        own = f"{case.id}: incoming/source.md: "
+        ruled = [p for p in problems if "test-tell word" in p or "holds eval text" in p]
+        self.assertEqual(ruled, [p for p in problems if p.startswith(own)], problems)  # none from the base
+        found = {p[len(own):].split(",")[0] for p in ruled}
+        self.assertLessEqual({"holds eval text", "test-tell word 'fixture'"}, found)
+
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")
     def test_the_kit_left_out_list_matches_the_pin(self):
