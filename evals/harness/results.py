@@ -127,8 +127,9 @@ def entries(folder, archive):
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
 
 
-def _order(entry):
-    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10)."""
+def order(entry):
+    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10). A plan
+    keeps name order run order (`versions.ordered`)."""
     stem, _, number = entry["round"].rpartition("-")
     return (stem, int(number)) if number.isdigit() else (entry["round"], -1)
 
@@ -139,7 +140,7 @@ def merge(current, skill, entry):
     if current and current.get("skill", current.get("skill_name")) != skill:
         raise ResultsError(f"the results file is not {skill}'s")
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
-    rounds.sort(key=_order)
+    rounds.sort(key=order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
     measured = {host for r in rounds for host in r["ran"]}  # a host the round planned but did not run keeps it
     data = {"skill": skill, "rounds": rounds, "compared": compared(rounds)}

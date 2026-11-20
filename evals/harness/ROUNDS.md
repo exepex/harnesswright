@@ -156,6 +156,10 @@ Each entry copies whether the round lists the skill as shipped (`shipped`), as t
 (`labels.shipped`): only when, on the reference host, its task label is `verified` and its trigger label is met (doc
 12, Proven use). Each host's entry holds both, copied whole. A label file written before it decided this gives null.
 
+Results files keep rounds in name order, its trailing number read as a number (`results.order`), and that order
+picks the verified version a plan is held to. So a plan is refused unless its round's name sorts after every round
+in each planned skill's results file (`versions.ordered`); planning the same round again is allowed.
+
 ## Cross-model grading
 
 `regrade.py` grades every page a finished round graded again, once per grader route (doc 11, Cross-model grading).

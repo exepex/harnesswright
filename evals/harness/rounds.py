@@ -37,7 +37,9 @@ records as `verified` on the reference host (`versions.verified`, `results.verif
 then, and that the plan runs a task case of, must name that version as `previous`, so it is compared inside the
 round on one setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or
 one run in trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry
-written before skill hashes were recorded is unknown, and the manifest says so.
+written before skill hashes were recorded is unknown, and the manifest says so. Results keep rounds in name order,
+which picks that version, so a round's name must sort after every round in each planned skill's results file
+(`versions.ordered`); planning the same round again is allowed.
 
 The manifest records each planned skill's kind (`kinds`), as `evals/kinds.json`, a kit part, declares it
 (`cases.kinds`, doc 12, Skill kinds); a plan cannot set one, and an undeclared kind is null. An internal skill runs
@@ -293,6 +295,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
         import versions  # it reads the results, whose setups read the runner, which imports this module
+        versions.ordered(path, repo, data["round"], data["skills"])
         found["verified"] = versions.verified(path, repo, found, known_cases)
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {
