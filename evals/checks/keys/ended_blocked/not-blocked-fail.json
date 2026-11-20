@@ -1,0 +1,10 @@
+{
+ "args": {
+  "says": "(?i)\\bblocked\\b",
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "fail",
+ "final_message": "The rules index `v2/rules/index.md` is not there. I wrote the cases anyway."
+}

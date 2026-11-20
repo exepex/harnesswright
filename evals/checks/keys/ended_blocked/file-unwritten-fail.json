@@ -1,0 +1,17 @@
+{
+ "args": {
+  "says": "(?i)\\bblocked\\b",
+  "names": [
+   "v2/rules/index\\.md"
+  ],
+  "report": "report.md"
+ },
+ "outcome": "fail",
+ "before": {
+  "report.md": "Blocked: v2/rules/index.md.\n"
+ },
+ "after": {
+  "report.md": "Blocked: v2/rules/index.md.\n"
+ },
+ "final_message": "Blocked: v2/rules/index.md is missing."
+}

@@ -1,0 +1,10 @@
+{
+ "args": {
+  "says": "(?i)\\bblocked\\b",
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "pass",
+ "final_message": "Blocked: the rules index `v2/rules/index.md` is not in the repository, so no case was written."
+}

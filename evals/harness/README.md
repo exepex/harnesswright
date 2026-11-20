@@ -416,6 +416,8 @@ The unit tests run every key, and a stored bundle is decided as its key is.
 | `sections` | The Markdown headings of `level` are exactly `headings`, in order |
 | `frontmatter` | Each line is a field given once or part of one: `required`, only `allowed`, with `values` |
 | `ends_with_one_question` | The text holds exactly one question, and ends with it |
+| `ended_blocked` | The closing report, the run's `report` file or else its final message, matches `says` and each of `names` |
+| `blocked_after_failed_check` | When the last check matching `pattern` failed, the closing report matches `says` |
 | `shares_words` | The text shares a run of `run` words with the world file `source`, or none (`shared`) |
 | `no_shared_words` | No file the run wrote in the `written` globs shares a run of `run` words with the world file `source`, or only with its `lines`, read as one text |
 | `field_words` | The frontmatter field `field` holds at most `most` words |

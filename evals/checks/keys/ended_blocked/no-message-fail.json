@@ -1,0 +1,9 @@
+{
+ "args": {
+  "says": "(?i)\\bblocked\\b",
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "fail"
+}

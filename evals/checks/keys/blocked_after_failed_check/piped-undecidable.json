@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "python3 \\S*check\\.py",
+  "says": "(?i)\\bblocked\\b"
+ },
+ "outcome": "undecidable",
+ "final_message": "Done.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 scripts/check.py claims.md | tail -5",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

@@ -10,7 +10,7 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
   (`timeout 60 go test`), may or may not have run it, so when only such commands match, it is `undecidable`. An
   action the host or the jail refused that matches the pattern anywhere is a try.
   With `exit_code`, a command that counts must also have ended with that code, and it must be one whose code is
-  known to be its own (`ALONE`): one program with its arguments, each a plain word, a simple quoted string of a
+  known to be its own (`shell.owns_exit_code`): one program with its arguments, each a plain word, a simple quoted string of a
   plain word's characters and blanks, or a redirect such as `2>&1`; or, for exit code 0 only, such programs joined
   by `&&`, which ends with 0 only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with
   the code of another program, so when only such commands match, or a matching command's code was not reported, it
@@ -21,18 +21,7 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
 import re
 
 from checks import Check, Undecidable, is_pattern
-from shell import programs  # the one splitter the grader view also cuts commands by
-
-# The one shape of a command whose exit code is its own program's: plain words, simple quoted strings, redirects.
-# A quoted string holds only a plain word's characters and blanks, since a program such as bash -c may run it as a
-# script, and any other character (an operator, a line break, !) could make that script end with another code.
-PLAIN = r"[A-Za-z0-9_./=:@%+,*?~\[\]-]"
-QUOTED = r"[A-Za-z0-9_./=:@%+,*?~\[\] \t-]"  # a plain word's characters and blanks
-WORD = rf"""(?:{PLAIN}|'{QUOTED}*'|"{QUOTED}*")+"""
-TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
-PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
-ALONE = re.compile(PROGRAM)
-CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
+from shell import owns_exit_code, programs  # the one splitter the grader view also cuts commands by
 
 
 def command_ran(bundle, pattern, ran, exit_code=None):
@@ -43,8 +32,7 @@ def command_ran(bundle, pattern, ran, exit_code=None):
     if exit_code is None:
         found, unsure = named, []
     else:
-        shape = CHAIN if exit_code == 0 else ALONE
-        alone = [e for e in named if shape.fullmatch(e["command"]) and e["exit_code"] is not None]
+        alone = [e for e in named if owns_exit_code(e["command"], exit_code) and e["exit_code"] is not None]
         found = [e for e in alone if e["exit_code"] == exit_code]
         unsure = [e for e in named if e not in alone]
     ended = "" if exit_code is None else f", ending with exit code {exit_code},"
