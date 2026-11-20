@@ -20,6 +20,7 @@ import gates
 import labels
 import rounds
 import runs
+import verdicts
 from cases import ARMS
 
 BOTH = {"haiku-writer": ["c1", "s1"]}
@@ -128,7 +129,7 @@ def situated(scored, situation_of, listed_=None, plain="t"):
     scored = {("g", "with_skill"): [True] * 3, **{(i, "with_skill"): [True] * 3 for i in plain},
               **{(i, "without_skill"): [False] * 3 for i in plain}, **scored}
     record = {"listed": sorted(set(situation_of.values())) if listed_ is None else listed_, "cases": situation_of}
-    return {**labels.summary(own, scored, situations=record), **formatted()}
+    return {**verdicts.summary(own, scored, situations=record), **formatted()}
 
 
 class Label(unittest.TestCase):
