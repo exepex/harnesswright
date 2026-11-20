@@ -206,7 +206,8 @@ python3 evals/harness/regrade.py ROUND --store DIR --route goose=MODEL@UPSTREAM 
 ```
 
 It refuses a kit that is not the approved one, a changed case or adapter, a page that does not hash as the round's
-grade record says, and a source attempt with a gate before the label gate, extra runs included, that did not pass. Each route passes every probe and the grader faults before any route grades. Then each
+grade record says, and a source attempt with a gate before the label gate, extra runs included, that did not pass.
+Each route passes every probe and the grader faults before any route grades. Then each
 route grades every page with two fresh graders, and the pass is written to `<store>/<round>/regrade/<pass>/`,
 apart from the round's grades and labels. `--pages` and `--graders` grade fewer pages, or with one grader, to
 stay in budget; `regrade.json` records the choice, and its `finished` time stays empty when the pass stopped.
