@@ -77,6 +77,7 @@ for each skill:
 | **Verified** | The skill's evals were run on this host and model and met the thresholds below |
 | **Compatible** | The host reads the Agent Skills standard, but the evals have not been run on it yet |
 | **Unsupported** | The evals were run and did not meet the thresholds; the gap is recorded |
+| **Too close** | The evals were run, but a measure or floor stayed too close to its line after the extra runs |
 | **Inconclusive** | The evals were run, but too few times to decide, or the skill showed no lift over the baseline |
 | **Incomplete** | A result is missing, or the model that produced the results is not known |
 
@@ -84,6 +85,11 @@ Every result records what produced it: the harnesswright commit, the host versio
 host's permissions, and hashes of the skill and the eval files. Each host runs tasks with the same powers: it may run
 commands and write inside the task's workspace, and reaches only its model hosts, through the gate
 ([11 · Evals](11-evals.md)).
+
+Skills are of two kinds. A `team` skill ships in the release zip and is used by teams; it is measured in a team
+repository by its lift over a plain agent. An `internal` skill, such as the skill designer, only builds
+harnesswright; it is measured in a copy of the harnesswright layout by its reliability and by its output passing
+harnesswright's own checks. A `verified` label means that for its kind. [12 · Verdicts](12-verdicts.md) gives both.
 
 The labels for every skill are kept in `evals/results/` and updated whenever evals run. How evals are built, run and scored is set in [11 Evals](11-evals.md).
 
@@ -123,9 +129,9 @@ change, are:
 | Gap to the reference host | At most 10 percentage points |
 | Trigger accuracy on each host | At least 90% of should-trigger and should-not-trigger cases |
 | Runs behind each result | At least 3 successful runs per trigger query, per task and per baseline task |
-| Lift over the baseline | Task pass rate with the skill above the rate without it |
+| Lift over the baseline | Task pass rate with the skill above the rate without it (team skills only) |
 | Format conformance with the skill | At least 90% of the skill's format expectations passed, one not decided counting as failed; a floor on top of the lift, never in its place |
-| Each pressure situation with the skill | Every run passes ([11 · Evals](11-evals.md)); a pooled pass rate never hides one |
+| Each pressure situation with the skill | Every run passes; one failure is `too close` and earns extra runs ([12 · Verdicts](12-verdicts.md)); a pooled pass rate never hides one |
 
 ## The skill designer
 
