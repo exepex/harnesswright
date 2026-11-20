@@ -31,8 +31,8 @@ fails.
   Any other program that names it, such as one after a wrapper (`timeout 60 python3 resolve.py`) or a line break, is
   unclear. Each script's last certain run counts, so an unclear command after it is `undecidable`: it may be a later
   run, and the check fails closed. An unclear command before it changes nothing. A last run whose exit code is not
-  known to be its own (`shell.owns_exit_code`) is `undecidable`. A run with no failed check passes. The action log's
-  command entries must be observed (`checks.Bundle.entries`).
+  known (`shell.exit_code`: the last of a `;` list, or an echoed `$?` right after it) is `undecidable`. A run with
+  no failed check passes. The action log's command entries must be observed (`checks.Bundle.entries`).
 """
 
 import json
@@ -42,7 +42,6 @@ from pathlib import Path
 from cases import is_path
 from checks import Check, Undecidable, is_pattern
 import shell
-from shell import owns_exit_code
 
 DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: {code that is no failure: text}}}
 
@@ -136,7 +135,10 @@ def blocked_after_failed_check(bundle, skill, report=None):
         if not ran:
             continue
         last, code = ran[-1], ran[-1]["exit_code"]
-        if code is None or not owns_exit_code(last["command"], code):
+        runs = [n for n, (_, text) in enumerate(shell.parts(last["command"]))
+                if any(words and _use(words, script) == "run" for words in shell.words(text))]
+        code = shell.exit_code(last["command"], runs[-1], code, last.get("output")) if runs else None
+        if code is None:
             raise Undecidable(f"the last run of {script} has no exit code known to be its own: "
                               f"{last['command'][:200]}", [last])
         needed, output = allowed.get(str(code)), last.get("output")
