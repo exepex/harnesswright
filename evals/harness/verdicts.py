@@ -5,10 +5,9 @@ its result is in doubt, by the thresholds of 10 · Skills (`THRESHOLDS`).
 
 - A task run passes when every contract expectation of its case passed, fails when one failed, and is not scored
   when one has no trusted answer and none failed (`task_outcome`). A check's verdict decides first; a grader's
-  trusted answer decides what no check did, `yes` passing. Only contract expectations and the stop pair
-  (`stoppair.py`) count: format ones are the skill's own format, which the without-skill arm cannot know, and the
-  done question (`cases.done`) asks what the run says, not what it did. The stop pair asks what a run did after a
-  failed check of the skill; a plain agent runs none of its scripts, so it meets the pair as it is.
+  trusted answer decides what no check did, `yes` passing. Only contract expectations count: format ones are the
+  skill's own format, which the without-skill arm cannot know, and the done question (`cases.done`) asks what the
+  run says, not what it did.
 - A skill the plan gives a previous version (`runs.PREVIOUS`) must be at least as good as it on the same task
   cases: its pass rate not below the previous version's, and its false-done rate not above it (plan decision 2,
   eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
@@ -55,16 +54,10 @@ EPSILON = 1e-9
 THEIRS = "reference host: "  # a `split` key naming an arm of the reference host, not of the host judged
 
 
-def counts(expectation):
-    """Whether `expectation` counts in a task run's outcome: a contract expectation, or one of the stop pair
-    (`stoppair.py`), which a plain agent meets too, as it runs none of the skill's check scripts."""
-    return isinstance(expectation["source"], dict) or expectation["source"] == "stop"
-
-
 def task_outcome(case, verdicts, answers):
     """(True, False or None, why) of one task run of `case`: `verdicts` are its check verdicts (one per expectation,
     None where it has no check), `answers` its trusted grader answers by question id (`q1` is the first)."""
-    counted = [number for number, e in enumerate(case.expectations, start=1) if counts(e)]
+    counted = [number for number, e in enumerate(case.expectations, start=1) if isinstance(e["source"], dict)]
     if not counted:
         return None, "the case has no contract expectation"
     found = {}

@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "fail",
+ "final_message": "Blocked: the standards reader failed.\n\nresolve stopped: release (skills): version 0.8.0 is not the profile's 0.7.0\n",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 1,
+   "output": "resolve stopped: release (skills): version 0.8.0 is not the profile's 0.7.0\n"
+  }
+ ]
+}

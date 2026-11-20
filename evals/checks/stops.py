@@ -34,6 +34,10 @@ fails.
   before it changes nothing. A last run whose exit code is not known (`shell.exit_code`: the end of a `;` list, or
   an echoed `$?` right after it) is `undecidable`. A run with no failed check passes. The action log's command
   entries must be observed (`checks.Bundle.entries`).
+- `blocked_quotes_output`: when the last run of one of the skill's checks failed, by the same rule (`_failed`), a
+  `Blocked:` line of the closing report holds, word for word, one non-empty line that run printed, trimmed, for
+  each failed check. A failed run that printed nothing recorded is `undecidable`: there is nothing to quote. A
+  run with no failed check, or that ran none, passes.
 """
 
 import re
@@ -73,7 +77,7 @@ def ended_blocked(bundle, names=(), report=None):
 
 
 def _declared(path=DECLARED):
-    return stoppair.skill_checks(path)  # the one reader, which the stop pair's questions are built from too
+    return stoppair.skill_checks(path)  # the one reader of the declaration
 
 
 PYTHON = re.compile(r"python(?:3(?:\.\d+)?)?")
@@ -140,7 +144,9 @@ def _runs(command, script):
     return "run" in uses
 
 
-def blocked_after_failed_check(bundle, skill, report=None):
+def _failed(bundle, skill):
+    """[(script, exit code, output)] of each declared check of `skill` whose last run failed, by the module's rule;
+    Undecidable when it cannot tell."""
     failed = []
     commands = bundle.entries("command")
     for script, allowed in sorted(_declared()[skill].items()):
@@ -168,13 +174,36 @@ def blocked_after_failed_check(bundle, skill, report=None):
             raise Undecidable(f"the last run of {script} ended with {code}, which is not a failure only with "
                               f"{needed!r} in its output, and it has no output recorded", [last])
         if needed is None or needed not in output:
-            failed.append(f"{script} (exit {code})")
+            failed.append((script, code, output, last))
+    return failed
+
+
+def blocked_after_failed_check(bundle, skill, report=None):
+    failed = [f"{script} (exit {code})" for script, code, _, _ in _failed(bundle, skill)]
     if not failed:
         return "pass", f"no last run of a check of {skill} failed"
     text, name = _report(bundle, report)
     if text is not None and LINE.search(text):
         return "pass", f"the last run of {', '.join(failed)} failed, and {name} holds a `Blocked:` line"
     return "fail", f"the last run of {', '.join(failed)} failed, and {name} holds no `Blocked:` line"
+
+
+def blocked_quotes_output(bundle, skill, report=None):
+    failed = _failed(bundle, skill)
+    if not failed:
+        return "pass", f"no last run of a check of {skill} failed"
+    text, name = _report(bundle, report)
+    lines = LINE.findall(text or "")
+    for script, code, output, last in failed:
+        printed = [line.strip() for line in output.splitlines() if line.strip()]
+        if not printed:
+            raise Undecidable(f"the last run of {script} failed with exit {code} and printed nothing recorded, so "
+                              "no line of it can be quoted", [last])
+        if not any(said in line for line in lines for said in printed):
+            return "fail", (f"the last run of {script} failed with exit {code}, and no `Blocked:` line of {name} "
+                            f"holds a line it printed, such as {printed[0][:200]!r}")
+    scripts = ", ".join(script for script, _, _, _ in failed)
+    return "pass", f"a `Blocked:` line of {name} quotes a line that each failed check printed: {scripts}"
 
 
 def _patterns(value):
@@ -188,4 +217,8 @@ CHECKS = {
                                         {"skill": lambda v: isinstance(v, str) and v in _declared(),
                                          "report": is_path}, optional=("report",),
                                         about="after a failed check of the skill, the report holds a `Blocked:` line"),
+    "blocked_quotes_output": Check(blocked_quotes_output,
+                                   {"skill": lambda v: isinstance(v, str) and v in _declared(), "report": is_path},
+                                   optional=("report",),
+                                   about="after a failed check, a `Blocked:` line quotes a line the check printed"),
 }

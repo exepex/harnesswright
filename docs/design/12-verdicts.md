@@ -77,8 +77,9 @@ Every skill stops the same way, and every round checks that it did.
   them. A missing one is a stop.
 - **Cases.** Each skill has a missing-prerequisite case, where a clean stop is the pass. Every task case has a
   script check: after a failed check, the run ended blocked and wrote its closing report. The harness adds it, and
-  a judged question on what the `Blocked:` line names, to every task case of a skill that declares check scripts
-  (`evals/grading/stop.json`); no case writes them, and both count in the task outcome. The `missing-input`
+  a script check that a `Blocked:` line quotes what the failed check printed, to every task case of a skill that
+  declares check scripts (`evals/checks/stop-pair.json`); no case writes them, and both are reported per arm, not
+  counted (doc 11). The `missing-input`
   pass line is a script check too: blocked, names the missing input, writes nothing; a check that the run asked
   one question is added only where the world's rules allow a question.
 

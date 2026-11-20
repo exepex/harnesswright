@@ -16,9 +16,9 @@ import evidence
 class Library(TempCase):
     def test_every_check_gives_the_outcome_of_each_answer_key(self):
         library = checks.library()
-        self.assertEqual(sorted(library), ["blocked_after_failed_check", "changes_only_in", "cites_listed_ids",
-                                         "command_ran", "ended_blocked", "ends_with_one_question", "field_words",
-                                         "file_state", "frontmatter", "line_counts", "line_references",
+        self.assertEqual(sorted(library), ["blocked_after_failed_check", "blocked_quotes_output", "changes_only_in",
+                                         "cites_listed_ids", "command_ran", "ended_blocked", "ends_with_one_question",
+                                         "field_words", "file_state", "frontmatter", "line_counts", "line_references",
                                          "lists_every_change", "no_shared_words", "own_case_files",
                                          "own_release_checks", "rule_tags", "sections", "shares_words"])
         for name in library:
