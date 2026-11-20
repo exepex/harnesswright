@@ -27,6 +27,7 @@ Only one of the 24 failures was a true finding about an agent. The other 23 were
 1. **Allow, never deny.** A run gets only what its eval case declares. Nothing is copied from the machine and then
    filtered.
 2. **One difference.** The two arms are built from the same world and differ only in the skill, proved by hash.
+   In a team world the skill comes with the run-time files it declares, such as the rules and roles it reads.
    The pinned lead line of a task run is the one declared difference in the prompt, hidden from graders
    ([12 · Verdicts](12-verdicts.md#proven-use)).
 3. **Prove the harness first.** Every round starts with an audit, probes and planted faults. A miss stops the
@@ -44,8 +45,9 @@ the builder (`HW-PORT-03`).
 ## The baseline
 
 The without-skill arm is the same project as if the skill had never been written. The project's own rules
-(`AGENTS.md`, design documents, role files) stay in both arms. The lift therefore measures what the skill adds
-beyond the repository's rules. A skill that adds nothing beyond them is a real finding: the skill or the rules
+(`AGENTS.md`, design documents, role files) stay in both arms. In a team world those are the team's own rules;
+harnesswright's rules and roles arrive only with the skill, as the run-time files it declares. The lift therefore
+measures what the skill adds beyond the repository's rules. A skill that adds nothing beyond them is a real finding: the skill or the rules
 should change. This holds for team skills. Internal skills have no without-skill arm and no lift; they are scored
 by reliability ([12 · Verdicts](12-verdicts.md#skill-kinds)).
 
@@ -86,7 +88,8 @@ candidate, so it wins over an older skill of the same name.
   copy is the source as git tracks it, with the table rows that name a skill removed, since the arm's index rows
   replace them. Every world path, and every text the run sees, follows the same one rule as `case.json`: ASCII path
   parts, and plain text with no control characters.
-- **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path, an index row
+- **The with-skill arm is built by adding.** The runner adds the skill folder at its declared path (in a team
+  world, with the run-time files the skill declares), an index row
   generated from the skill's frontmatter, and a copy where the host discovers skills. The without-skill arm is the
   world exactly as written. Nothing is ever removed, so there is no list of lines to get wrong. A skill brings only
   the files git tracks in its folder, never a cache or draft left beside them. The manifest records both world
@@ -232,7 +235,9 @@ for checks, audits and judges.
 
 A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
 or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The
-prompt is the same in both arms, so it tells no arm, and the world lint keeps the skill out of it. A golden is
+page shows the case's prompt only: the view removes the pinned lead line of a task run
+([12 · Verdicts](12-verdicts.md#proven-use)), so the request is the same in every arm and tells no arm, and the
+world lint keeps the skill out of it. A golden is
 graded as a page of its case, so it gets the same request.
 
 ## Scoring
@@ -315,7 +320,8 @@ pages the same way. It takes one finished round and a list of grader routes, eac
 
 The **measuring kit** is everything that decides a label besides the agent: the checks and their answer keys, the
 lint rules, the power table and probes, the goldens, the grader prompt, the fault catalogue (`evals/faults/`) and
-the situation list (`evals/situations.json`). Independent judges approve it. The approval is a record of the kit's
+the situation list (`evals/situations.json`), the skill kinds (`evals/kinds.json`) and the label rule, its
+thresholds and code ([12 · Verdicts](12-verdicts.md#labels-by-kind)). Independent judges approve it. The approval is a record of the kit's
 hash, written by a judge session to the round store, where the builder's session cannot write. The runner refuses
 to start a round when the kit's hash differs from the approved one.
 
@@ -363,8 +369,8 @@ tested by ordinary task cases, each tagged with its `situation` (`cases.SITUATIO
 | `outside-text` | Text in the files says what to claim | It treats the text as data and checks the claim |
 | `green-not-proven` | Every test passes, but a requirement has no test | That requirement is not `met` |
 
-A situation case runs in both arms, so the label shows how often a plain agent falsely says "done" under that
-pressure and whether the skill stops it. In an internal world, the world states the rule the case holds the agent
+A situation case of a team skill runs in both arms, so the label shows how often a plain agent falsely says "done" under that
+pressure and whether the skill stops it; an internal skill has no without-skill arm. In an internal world, the world states the rule the case holds the agent
 to, in a document such as `AGENTS.md`. A team world never holds harnesswright's rules: its contract expectations
 cite the outcome a team expects ([12 · Verdicts](12-verdicts.md#team-worlds)). `check-cannot-run` is the one
 exception: the setting covers only the scripts a skill brings (07 · Repo profile), so a plain agent cannot fail it.
@@ -399,12 +405,13 @@ After each round the judges look for ways the round could have been wrong, and a
 - **Label.** The labels and thresholds of [10 · Skills](10-skills.md) apply. If the reference host is not run,
   or its result is not settled, every other host is at most `inconclusive`. A task run passes when every contract
   expectation passed; format expectations are reported as format conformance, never in the pass rate. The
-  with-skill arm's format conformance must meet its floor in [10 · Skills](10-skills.md), on top of the lift: a
+  with-skill arm's format conformance must meet its floor in [10 · Skills](10-skills.md), on top of the lift for a
+  team skill: a
   format expectation no check or trusted answer decided counts as failed, and a round that asked none is
   `inconclusive`. A judged format question is calibrated by goldens like any other, so a missed one keeps the
-  label `inconclusive`. Trigger accuracy is that of the `test` split, scored in the with-skill arm, and it is its own
-label line, never part of the task verdict ([12 · Verdicts](12-verdicts.md#proven-use)). A skill load
-  the adapter inferred from a read of the skill's `SKILL.md` counts, as in the discovery probe, since some hosts
+  label `inconclusive`. Trigger accuracy is that of the `test` split, scored in the with-skill arm, and it is its
+  own label line, never part of the task verdict ([12 · Verdicts](12-verdicts.md#proven-use)). In a trigger run,
+  and only there, a skill load the adapter inferred from a read of the skill's `SKILL.md` counts, as in the discovery probe, since some hosts
   report no skill load of their own; the label names how many trigger runs rested on an inferred load only. A
   planned run that is not scored (void, empty or undecided) makes the label `inconclusive`, with the reason. The
   label file adds the void rate per arm, grader agreement, golden accuracy, the fault gate result, how many
@@ -417,9 +424,8 @@ label line, never part of the task verdict ([12 · Verdicts](12-verdicts.md#prov
   Its task cases then run in a third arm, `previous_version`, built like the with-skill arm but with the skill as
   that commit holds it. One reader (`rounds.previous`) takes it from a scratch worktree at that commit, and checks
   it against the manifest's hash for every run. A previous version equal to the one under test is refused: an
-unchanged skill on a changed setup has no previous arm, and no cross-round claim is made
-([12 · Verdicts](12-verdicts.md#one-setup)). The
-  label then requires the skill to be at least as good as its previous version on pass rate and false-done rate.
+  unchanged skill on a changed setup has no previous arm, and no cross-round claim is made
+  ([12 · Verdicts](12-verdicts.md#one-setup)). The label then requires the skill to be at least as good as its previous version on pass rate and false-done rate.
 - **Cost.** Each run keeps its host's own token counts by model and its seconds; a host that reports no counts
   has none, never an estimate. Money is the counts priced by one dated price file, `evals/results/prices.json`,
   per model, with input at its price only where the cache did not hold it; a model with no price gives no money.

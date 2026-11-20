@@ -55,6 +55,20 @@ they are measured differently.
 - Every internal task case has a script check, counted as a contract expectation, that runs harnesswright's own
   checks on the output, such as the release check, the rule check and the case's own tests.
 
+### Stop and prerequisites
+
+Every skill stops the same way, and every round checks that it did.
+
+- **Stop.** A stopped run ends as blocked, names exactly what is missing, writes none of the work the missing
+  input was for, and still runs its closing steps, such as its report. A by-reading fallback the skill offers is
+  not a stop.
+- **Prerequisites.** A skill names at its top the files, folders and tools it needs, and its first step checks
+  them. A missing one is a stop.
+- **Cases.** Each skill has a missing-prerequisite case, where a clean stop is the pass. Every task case has a
+  script check: after a failed check, the run ended blocked and wrote its closing report. The `missing-input`
+  pass line is a script check too: blocked, names the missing input, writes nothing; a check that the run asked
+  one question is added only where the world's rules allow a question.
+
 ### Hand-offs
 
 A skill that hands its output to another role is also tested at the hand-off: the next role's skill is given the
@@ -69,9 +83,10 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
   never pasted into the prompt. A host with its own way to invoke a skill may use it only if it reports a load
   event that the load proof accepts.
 - The lead line is the one declared difference between the arms' prompts. It is hashed into the run key, never
-  written in `case.json`, and hidden from graders by the view, so a grader still cannot tell the arm.
-- **Load proof.** One reader decides whether a run loaded the skill. A load is proven by an observed event, never
-  by an inferred one:
+  written in `case.json`, and hidden from graders by the view, so a grader still cannot tell the arm. A planted
+  grader fault, a page that shows the lead line, proves the view hides it.
+- **Load proof.** One reader decides whether a pinned run loaded the skill. A load is proven by an observed event,
+  never by an inferred one:
   - the host's own skill event for that skill;
   - an observed read of the exact `SKILL.md` path of either installed copy;
   - an observed command whose own path argument is that `SKILL.md`, and whose output holds the whole file.
@@ -83,9 +98,11 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
 - If half or more of a round's pinned runs are not loaded, the round stops as a harness fault: the pin is broken,
   not the skill. A pinned-load probe checks the pin before any real run.
 - The label gives the pinned-load rate per arm.
-- **Trigger runs are not pinned.** Whether a host picks the skill by itself is measured by the trigger cases, with
-  the same load proof, and reported as its own label line: the trigger label. A task verdict never reads it.
-- To list a skill as shipped, both are needed: the task verdict `verified` and the trigger label met.
+- **Trigger runs are not pinned.** Whether a host picks the skill by itself is measured by the trigger cases and
+  reported as its own label line: the trigger label. A task verdict never reads it. In a trigger run an inferred
+  load still counts, as [11 · Evals](11-evals.md) says, since some hosts report no load of their own; the label
+  names how many trigger runs rest on an inferred load only.
+- To list a skill as shipped, both are needed: the task label `verified` and the trigger label met.
 
 ## One setup
 
@@ -112,11 +129,14 @@ A verdict is `pass`, `fail` or `too close`.
   with every split case flipped to its worst. Anything else is `too close`.
 - Unsplit cases are never flipped, so a clean round is decided at once.
 - Pooled rates are the mean of per-case rates, so extra runs on some cases do not weigh them more.
+- For a measure that reads two arms, such as lift or the gap to the previous version, "best" for the skill flips
+  the with-skill arm's split cases to pass and the other arm's to fail; "worst" does the opposite.
 - Format conformance flips the items of one run, not whole runs.
 - **Situation floors.** Every with-skill run of a situation case must pass. One failed run makes that situation
   `too close`; a second failure, extras included, makes it fail. `verified` still needs every floor run, extras
   included, to pass (owner decision, 2026-11-20).
-- **Extra runs.** The plan names `extra_runs` (0, 3 or 6) up front, and the manifest records it. When a measure or
+- **Extra runs.** The plan names `extra_runs` (0, 3 or 6) up front, and the manifest records it; it caps the extra
+  runs per split case and arm, and 0 turns them off. When a measure or
   floor is `too close`, the round adds 3 runs, in each arm the measure reads, to each split case, at most twice, and
   decides again by the same rule. The fault gate's planted runs are never extended.
 - Deciding again gives a borderline skill at most two more chances. This is accepted: the bar for `pass` does not
@@ -139,18 +159,21 @@ A verdict is `pass`, `fail` or `too close`.
 ## Why an attempt ended
 
 Every way an attempt ends, a gate stop, a time limit or a crash, writes its reason to the attempt record before
-the process exits. A resumed round prints the last reason. An attempt with no recorded reason is a harness fault.
+the process exits. A resumed round prints the last reason, and the round report names every attempt with no
+recorded reason.
 
 ## Labels by kind
 
-The labels of [10 · Skills](10-skills.md) apply, read this way:
+The labels and thresholds of [10 · Skills](10-skills.md) apply (pass rate, format conformance and trigger
+accuracy at 90%, and the floors), read this way. The label rule, its thresholds and its code, is a part of the
+measuring kit in `evals/kit.json`, so the judges approve any change to it.
 
 | Label | Team skill | Internal skill |
 |---|---|---|
 | `verified` | Every measure and floor passes, lift above zero, not worse than the previous version | Every measure and floor passes, not worse than the previous version |
 | `too close` | A measure or floor is still too close after the extra runs | The same |
-| `unsupported` | A measure or floor fails | The same |
-| `inconclusive` | Unscored runs, not-loaded runs, too few runs, or no lift | Unscored runs, not-loaded runs or too few runs |
+| `unsupported` | A measure or floor fails, other than lift | The same |
+| `inconclusive` | Unscored runs, not-loaded runs, too few runs, or lift that fails (as today, no lift is not a failure of the skill); a lift still too close after the extra runs gives `too close` | Unscored runs, not-loaded runs or too few runs |
 | `incomplete` | A result is missing, or no kind is declared | The same |
 
 ## Build order

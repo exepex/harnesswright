@@ -78,7 +78,7 @@ for each skill:
 | **Compatible** | The host reads the Agent Skills standard, but the evals have not been run on it yet |
 | **Unsupported** | The evals were run and did not meet the thresholds; the gap is recorded |
 | **Too close** | The evals were run, but a measure or floor stayed too close to its line after the extra runs |
-| **Inconclusive** | The evals were run, but too few times to decide, or the skill showed no lift over the baseline |
+| **Inconclusive** | The evals were run, but too few times to decide, or a team skill showed no lift over the baseline |
 | **Incomplete** | A result is missing, or the model that produced the results is not known |
 
 Every result records what produced it: the harnesswright commit, the host version, the model the host used, the
