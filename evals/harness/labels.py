@@ -79,6 +79,10 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
             graded = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
             answers = json.loads(graded.read_text())["answers"] if graded.is_file() else {}
             passed_, why = verdicts.task_outcome(case, checked, answers)
+            doubt = record.get("kinds", {}).get(made["skill"]) == "internal" and verdicts.own_doubt(
+                case, checked, record.get("own_checks", []))
+            if doubt:  # an internal run its own check did not decide is in doubt, whatever the graders said
+                unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: {doubt}")
             said = [answers.get(f"q{n}") for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"]
             tally = by_case.setdefault((made["host"], made["skill"]), {}).setdefault(
                 (made["case"], made["arm"]), {"false_done": 0, "decided": 0, "undecided": 0})

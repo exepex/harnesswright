@@ -26,6 +26,8 @@ its result is in doubt, by the thresholds of 10 · Skills (`THRESHOLDS`).
   on top of the floors; an internal skill ran no without-skill arm, so it has no lift and is scored by the floors.
   An internal skill's task case counts only with a contract expectation that one of harnesswright's own checks
   decides (`cases.own_checks`, doc 12, Worlds by kind); until each has one, the label is at most `inconclusive`.
+  On each run, one of those checks must decide it, pass or fail; a run where none did is a named doubt
+  (`own_doubt`), as a grader's answer never stands in for an own check.
 - Each skill on each host gets one label (`decide`):
   - `incomplete` when the host was not run, the skill has no kind declared, no folder yet (a baseline round, whose
     label file still gives the without-skill arm's pass rate and scored runs per case), or no task case the pass
@@ -71,6 +73,22 @@ def task_outcome(case, verdicts, answers):
         return False, f"expectation {failed[0]} failed"
     open_ = [n for n, passed in found.items() if passed is None]
     return (None, f"expectation {open_[0]} has no trusted answer") if open_ else (True, "")
+
+
+def own_checked(expectation, own_checks):
+    """Whether `expectation` is a contract expectation that one of harnesswright's own checks decides
+    (`cases.own_checks`): the one test both an internal case's configuration and each of its runs are held to."""
+    return isinstance(expectation["source"], dict) and expectation.get("check", {}).get("name") in own_checks
+
+
+def own_doubt(case, verdicts, own_checks):
+    """Why one run of an internal skill's task `case` is in doubt, or None: a case with an own-check expectation counts
+    as checked on a run only when one of those checks decided it on that run, pass or fail (`verdicts`, the run's
+    check verdicts). A grader's answer never stands in for an own check."""
+    listed = [n for n, e in enumerate(case.expectations) if own_checked(e, own_checks)]
+    if not listed or any((verdicts[n] or {}).get("outcome") in ("pass", "fail") for n in listed):
+        return None
+    return "no own check decided it on this run, and a grader's answer does not stand in for one"
 
 
 def as_runs(per_case):
@@ -159,8 +177,7 @@ def summary(cases, scored, previous=False, absent=False, situations=None, kind=N
             "situation_cases": {i: [sum(scored.get((i, "with_skill"), [])), len(scored.get((i, "with_skill"), []))]
                                 for i in tasks if situated.get(i)},  # each floor's with-skill runs per case
             "unchecked": [i for i in tasks if kind == "internal" and not any(
-                isinstance(e["source"], dict) and e.get("check", {}).get("name") in own_checks
-                for e in cases[i].expectations)],
+                own_checked(e, own_checks) for e in cases[i].expectations)],
             "uncovered": sorted(set(listed or ()) - set(situated.values())),
             "situations": report}
 
