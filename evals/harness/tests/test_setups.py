@@ -50,6 +50,7 @@ class Fingerprints(Round):
                 "adapters": lambda r: r["adapters"].update(fakehost="0" * 64),
                 "hosts": lambda r: r["hosts"]["fakehost"].update(model="other-model"),
                 "runs": lambda r: r["plan"].update(runs=5),
+                "extra runs": lambda r: r["plan"].update(extra_runs=3),
                 "pinned": lambda r: r.pop("pinned")}.items():
             with self.subTest(part):
                 changed = json.loads(json.dumps(record))
@@ -58,6 +59,12 @@ class Fingerprints(Round):
                 self.assertNotEqual(after["fingerprint"], first["fingerprint"])
                 self.assertEqual(setups.changed(first, after), [part])
         self.assertEqual(setups.changed(first, self.setup(record, drift={})), ["graders", "tools"])
+        off = json.loads(json.dumps(record))
+        off["plan"]["extra_runs"] = 0  # no extra runs, named or not: the fingerprint it had before the cap existed
+        self.assertEqual(self.setup(off), first)
+        three, six = (json.loads(json.dumps(record)) for _ in range(2))
+        three["plan"]["extra_runs"], six["plan"]["extra_runs"] = 3, 6
+        self.assertEqual(setups.changed(self.setup(three), self.setup(six)), ["extra runs"])
 
     def test_only_the_skill_s_own_siblings_and_tools_are_parts(self):
         record = self.plan()
