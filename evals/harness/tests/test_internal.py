@@ -196,22 +196,36 @@ class Reader(TempCase):
         with self.assertRaisesRegex(CaseError, "incoming/source.md -> ../brief.md"):
             internal.world_of(case, self.tmp / "out", self.repo, self.kit())
 
-    def test_the_lint_holds_only_the_case_own_files_to_the_tell_and_eval_rules(self):
-        measured = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
-                        if len(line.split()) > 12)  # pinned base text that is also eval text
-        case = self.case({"incoming/source.md": f"A borrowed source, with its test fixture.\n{measured}\n"},
-                         {"internal_world": {"remove": []}}, skill=SKILL)
+    def test_the_lint_reads_the_pinned_base_as_project_text_and_the_case_own_files_by_every_rule(self):
+        pinned = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
+                      if len(line.split()) > 12)  # pinned base text that the kit's eval text repeats
+        measured = "Each run of this case is scored on the stage report it writes for the next owner."
+        case = self.case({"incoming/source.md": f"A borrowed source, with its test fixture.\n{measured}\n{pinned}\n",
+                          "incoming/with_skill.md": "Notes.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
         with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
-            problems = lint.lint_case(case, Adapter, self.tmp / "arms", self.skill().parent, kit=[measured])
+            problems = lint.lint_case(case, Adapter, self.tmp / "arms", self.skill().parent, kit=[measured, pinned])
             built = internal.resolve(case).world
-        base = [p for p in manifest.manifest(built) if (built / p).is_file()
-                and lint.told(lint.Place(p, (built / p).read_text(), "world"), "eval")]
-        self.assertTrue(base)  # the pinned base holds tell words, such as docs/design/11-evals.md
-        own = f"{case.id}: incoming/source.md: "
-        ruled = [p for p in problems if "test-tell word" in p or "holds eval text" in p]
-        self.assertEqual(ruled, [p for p in problems if p.startswith(own)], problems)  # none from the base
-        found = {p[len(own):].split(",")[0] for p in ruled}
-        self.assertLessEqual({"holds eval text", "test-tell word 'fixture'"}, found)
+        base = [p for p in manifest.manifest(built) if (built / p).is_file() and not p.startswith("incoming/")
+                and lint.told(lint.Place(p, (built / p).read_text(), "world"), "eval")
+                and "with_skill" in (built / p).read_text()]
+        self.assertTrue(base)  # the base holds tell words and arm names, such as docs/design/11-evals.md
+        own = f"{case.id}: incoming/"
+        self.assertEqual([p for p in problems if not p.startswith(own)], [])  # none from the base
+        found = {p[len(own):].split(",")[0] for p in problems}
+        self.assertLessEqual({"source.md: holds eval text", "source.md: test-tell word 'fixture'",
+                              "with_skill.md: names the arm 'with_skill'"}, found)
+
+    def test_an_internal_case_may_add_no_file(self):
+        case = self.case({}, {"internal_world": {"remove": ["notes.md"]}}, skill=SKILL)
+        shutil.rmtree(case.folder / "world")
+        case = type(case)(case.folder, SKILL)
+        out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
+        self.assertFalse((out / "notes.md").exists())
+        self.assertTrue((out / "AGENTS.md").is_file())
+        plain = self.case({}, skill=SKILL)
+        shutil.rmtree(plain.folder / "world")
+        with self.assertRaisesRegex(CaseError, "no world/ folder"):
+            type(plain)(plain.folder, SKILL)
 
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")

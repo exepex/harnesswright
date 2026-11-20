@@ -125,6 +125,9 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 - a document copied from this repository that is not its tracked source with the skill rows removed, or whose
   source has changed since it was copied.
 
+In an internal world ([12 · Verdicts](12-verdicts.md#internal-worlds)), the pinned base is project text: it is the
+same in every arm, so the lint reads it only for the skill's name. The case's own files meet every rule.
+
 ## Containment: what a run can see
 
 A run sees only its world, its scratch folder, its private home and temp folders, read-only system folders and its

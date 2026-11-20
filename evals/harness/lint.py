@@ -15,12 +15,12 @@ rule reads them. `installed` places are real project content, checked for the sk
 every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
 
 No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees the world's files, and
-an arm's name there would tell it which arm it grades.
+an arm's name would tell it the arm, but for an internal world's pinned base, which is the same in every arm.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
-verified copies, installed sibling files, the recorded upstream source and the standard licence texts in
-`evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never project text: the case
-author writes it for this case.
+verified copies, installed sibling files, an internal world's pinned base, the recorded upstream source and the
+standard licence texts in `evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never
+project text: the case author writes it for this case.
 
 What the lint reads is what an agent reads: every world file must be UTF-8 text with no control character other
 than tab, line feed and carriage return. A file in any other form, such as UTF-16, an archive or a binary, is
@@ -61,11 +61,11 @@ PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
                 ("skills", None, "cases", None, "world"))
 CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
-EVERY = ("names", "skill", "tells", "eval", "expectations")
-# An internal world's pinned base is approved text (internal.py), so only the case's own files meet the tell and
-# eval rules there; the base still may not name the skill or hold its text or an expectation's.
-RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "skill"),
-         "rows": ("names", "skill", "eval", "expectations"), "base": ("names", "skill", "expectations")}
+EVERY = ("names", "arms", "skill", "tells", "eval", "expectations")
+# An internal world's pinned base is approved project text (internal.py), the same in every arm, so it is read only
+# for the skill's name; the case's own files meet every rule.
+RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "arms", "skill"),
+         "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",)}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
 # licence. Only text found in them is excused, never a file by its name.
 LICENCES = ("evals", "fixtures", "licences")
@@ -101,7 +101,8 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    own = None if case.internal_world is None else manifest.manifest(case.folder / "world")  # the rest is the base
+    own = case.folder / "world"  # an internal world's case files; the rest is the base, and a case may add none
+    own = None if case.internal_world is None else manifest.manifest(own) if own.is_dir() else {}
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
@@ -286,10 +287,10 @@ def stated_quotes(text):
 
 def protected(case, places, copied, skill_dir, upstream=(), repo=REPO, sizes=frozenset()):
     """(project, skill): the runs, of RUN words and `sizes`, of the project text the run sees (its verified copies,
-    its installed siblings, the skill's upstream source and the licences), and the runs of the skill's own text that
-    are not project text. Only those are the skill's to protect: the lint refuses them, and the names fault plants
-    one of them."""
-    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
+    its installed siblings, an internal world's base, the skill's upstream source and the licences), and the runs of
+    the skill's own text that are not project text. Only those are the skill's to protect: the lint refuses them,
+    and the names fault plants one of them."""
+    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind in ("installed", "base"))]
                        + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | set(sizes))
     if skill_dir is None:  # a skill with no folder yet (a baseline round) has no text of its own to protect
         return project, set()
@@ -345,7 +346,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
                  else "names the skill ({!r})")
         if "names" in rules:
             problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
-            # A grader sees the world's files, so an arm's name there would tell it the run's arm.
+        if "arms" in rules:  # a grader sees the world's files, so an arm's name there would tell it the run's arm
             problems += [f"{place.key}: names the arm {name!r}" for name in (*ARMS, PREVIOUS)
                          if name in place.key or name in place.text]
         if team and place.kind == "world":
