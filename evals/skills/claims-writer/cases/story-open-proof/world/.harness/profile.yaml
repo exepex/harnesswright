@@ -2,5 +2,6 @@
 toolchain:
   test: go test ./...
 
+# where the release zip is unpacked
 harnesswright:
   folder: skills/
