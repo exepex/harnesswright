@@ -1,5 +1,5 @@
 {
-  "prompt": "add the story judge's section to docs/design/04-roles.md: purpose, reads, produces, model class and access, like the other roles",
+  "prompt": "add a docs writer row to the Roles table of v2/roles.md: its group, purpose, what it produces, what it never does, its model class and whether it is independent, like the other rows",
   "kind": "trigger",
   "should_trigger": false,
   "split": "test",
