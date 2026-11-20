@@ -22,6 +22,9 @@ The claims writer runs when a story is finished, as its own step after the imple
 file that tells the story judge, for each requirement the story covers, whether it is met and the evidence that
 proves it. The judge never sees how the work was done, so the claims and the change are all it has.
 
+Needs: the story, as a file or in the request, and the list of files the change touched, from `git` or from the
+request.
+
 Rules: {{rule:CORE-WORK-01}}, {{rule:CORE-WORK-02}}, {{rule:CORE-SKILL-25}}
 
 This skill does not:
@@ -36,11 +39,13 @@ This skill does not:
 
 | Input | Required | If missing |
 |---|---|---|
-| The story, in the story contract's format: its requirements (`covers`), the test types each one needs (`tests`), its waivers, and the request when `plan` is `none` | Yes | Look in the run folder, `.harness/runs/<run-id>/stories/<story ID>.md`. If there is none, ask one question: "Which story or request does this change deliver?" Never write requirements yourself. If the story's criteria have no IDs, number them `AC-1`, `AC-2`, … in the order written, and say so under **Not verified**. |
-| The functional plan, when the story's `plan` is not `none`: what each covered target measures, and its number or range | Yes, for a planned story | `<run folder>/functional-plan.md`. Without it, the targets are `not verified`, with the reason. |
-| The change: the files it touched | Yes | With git, `git diff --name-only <base>` and `git status --short`. Without git, the files the request names; if none are named, ask which files changed. |
-| The commands that prove the work: build, test, lint | No | The `toolchain` in `.harness/profile.yaml`; else the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
+| The story, in the story contract's format: its requirements (`covers`), the test types each one needs (`tests`), its waivers, and the request when `plan` is `none` | Yes | Step 1 checks it, in the run folder: `.harness/runs/<run-id>/stories/<story ID>.md`. If there is none, stop. Where the project's rules allow one, put one question in your report: "Which story or request does this change deliver?" Never write requirements yourself. If the story's criteria have no IDs, number them `AC-1`, `AC-2`, … in the order written, and say so under **Not verified**. |
+| The functional plan, when the story's `plan` is not `none`: what each covered target measures, and its number or range | No | `<run folder>/functional-plan.md`. Without it, the targets are `not verified`, with the reason. |
+| The change: the files it touched | Yes | With git, `git diff --name-only <base>` and `git status --short`. Without git, the files the request names. If neither gives them, stop. Where the rules allow one, ask in your report which files changed. |
+| The commands that prove the work: build, test, lint | No | Take them from the `toolchain` in `.harness/profile.yaml`; else the commands in the README or the build files. If none exist, record the gap under **Not verified**. |
 | Where and when proof outside the change is made, and who owns it | No | Take each from a line you read, never from memory: in the story, the functional plan, the request or any project file, cited as `path:line` (the request quoted). Before you write `not named`, look everywhere: read the story, the plan and the request; read in full every Markdown or text file at the project root and `CODEOWNERS`; search every other text file of the project outside `.harness/runs/` and vendored or generated folders, such as `docs/`, `doc/`, `.github/` and the READMEs beside the code and tests, for the proof's place and kind in several words (for performance: `load`, `benchmark`, `latency`, `staging`), and read each hit with the lines around it. Only then write `not named`, followed by the files read and the words searched, and say so in the report. Never invent an owner or a date. |
+
+Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
 The run folder is the folder that holds the story's `stories/` folder. When the story is not in a run folder, use
 `.harness/runs/<YYYY-MM-DD>-<short-name>/`, with `S01` as the story ID when the story has none. Run every command
@@ -48,14 +53,16 @@ from the project root, the folder that holds `.harness/`, and write every path r
 
 ## Steps
 
-Do the steps in order. Each ends with a check; do not start the next until it passes.
+Do the steps in order. Each ends with a check; do not start the next until it passes. After any stop, write no
+claims file and still do step 7.
 
-### 1. Read the run's rules
+### 1. Check what the run needs, and read its rules
 
 The rules of the more specific layers reach this skill only through its rules texts, so read them first. One rule
 decides what to do: the standards reader's result stands, unless it could not run at all.
 
-1. List the files the change touched (see Inputs), to know which stacks it touches.
+1. Check that the story is there, as a file or in the request, and list the files the change touched (see
+   Inputs), to know which stacks it touches. If either is missing, do as Inputs says, and write nothing.
 2. If `rules.md` or a rules text you need, `rules-text-claims-writer.<stack>.md`, is missing from the run folder,
    run the standards reader's command from the project root, with the run folder's name as the run ID, and the
    date `rules.md` records when it exists, else today's date. It writes each file once, so running it again is
@@ -87,7 +94,8 @@ decides what to do: the standards reader's result stands, unless it could not ru
    code. Apply every rule in it and in "Rules for this skill" above; where it replaces, waives or binds a rule
    above, it wins.
 
-Check: the run folder holds `rules.md` and the rules texts you read, and you know which ones they are.
+Check: the story and the changed files are known; the run folder holds `rules.md` and the rules texts you read,
+and you know which ones they are.
 
 ### 2. Find the story and the change
 
@@ -204,12 +212,15 @@ Check: the last run of the check exits 0, or the by-reading checks are done; **N
 
 ### 7. Report
 
-Say first which scripts did not run, and why: the claims check script when it could not run, and the standards
-reader when you wrote the rules texts by reading. Then give where the claims file is and one line per requirement
-with its status. List the open proof items, ready for the top of the pull request description, and
-name any place, time or owner that is `not named`. Do not call the story done unless every requirement is `met`.
+After a stop, say first that the run is blocked, what is missing or failed, what is done and what is not, and what
+you could not verify; there is no claims file. Otherwise, say first which scripts did not run, and why: the claims
+check script when it could not run, and the standards reader when you wrote the rules texts by reading. Then give
+where the claims file is and one line per requirement with its status. List the open proof items, ready for the top
+of the pull request description, and name any place, time or owner that is `not named`. Do not call the story done
+unless every requirement is `met`.
 
-Check: your report matches the statuses in the file.
+Check: your report matches the statuses in the file or, after a stop, names what is missing and says that no
+claims file was written.
 
 ## Failure handling
 
@@ -219,7 +230,7 @@ Check: your report matches the statuses in the file.
 | A command cannot run here | Record it under **Not verified**, for example "`go test ./...` not run: no Go toolchain". Never write that it passes. |
 | A test type cannot be run here | Write an open proof item for it, with where and when the proof comes from. |
 | The story has no testable requirements | Write the claims against the request, and say under **Not verified** that the requirements were not testable. |
-| You cannot tell which story the change delivers | Ask one clear question; do not guess. |
+| The story or the changed files are missing, or you cannot tell which story the change delivers | Stop, with one clear question in your report where the rules allow one (Inputs); do not guess. Write no claims file, then do step 7. |
 
 ## Examples
 
