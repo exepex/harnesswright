@@ -17,6 +17,11 @@ file the skill folder holds outside that list fails the build. Last, what the st
 (plan/b01-plan.md part e0), byte for byte: every layer folder under v2/rules/ as release/rules/<folder>/, and
 v2/roles.md as release/roles.md.
 
+The manifest also says what each file is, so a reader can prove a copy byte for byte: `files`, the sha256 of every
+file of each skill folder, `run-time`, the one list of what a run reads from the release besides the skill
+(`RUN_TIME`; resolve.py reads it from the manifest it ships with and reads nothing else there), and `run-time-files`,
+the sha256 of every file the list covers. manifest.json is on the list but cannot hold its own hash.
+
 Run: python3 v2/build/build.py [--root ROOT] [--out OUT]
 """
 
@@ -31,12 +36,14 @@ import copyform
 import reach
 import rulebook
 import tags
+from resolve import covers
 
 SHIPPED = ("rulebook.py", "reach.py", "copyform.py", "repoprofile.py", "resolve.py", "runfiles.py")
 GENERATED = ("copied-ids", "rulebook-version", "content-hash", "size-floors", "size-rest")
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 TEMPLATE = "SKILL.tmpl.md"
-LAYOUT = ("manifest.json", "roles.md", "rules")  # release/ holds these and one folder per skill, nothing else
+RUN_TIME = ("manifest.json", "roles.md", "rules/")  # what a run reads from the release; declared here only
+LAYOUT = tuple(p.rstrip("/") for p in RUN_TIME)  # release/ holds these and one folder per skill, nothing else
 LAYER_FILE = re.compile(r"[a-z0-9-]+\.(?:md|yaml)")  # a layer folder holds rule files, its index, layer.yaml
 LICENCE = re.compile(r"LICENSE(?:-[A-Za-z0-9.]+)?\.txt")  # an adapted skill keeps its source's licence notice
 SCRIPT = re.compile(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.(?:py|sh)")  # HW-PORT-04: Python or POSIX sh
@@ -161,8 +168,21 @@ def build(root):
             files[f"{folder.name}/scripts/{module}"] = (Path(__file__).parent / module).read_bytes()
     files.update(layer_files(root / "v2" / "rules"))
     files["roles.md"] = (root / "v2" / "roles.md").read_bytes()
+    for name, entry in manifest["skills"].items():
+        entry["files"] = {rel[len(name) + 1:]: sha256(files[rel]) for rel in files if rel.startswith(f"{name}/")}
+    manifest["run-time"] = list(RUN_TIME)
+    manifest["run-time-files"] = {rel: sha256(content) for rel, content in files.items() if run_time(rel)}
     files["manifest.json"] = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     return files
+
+
+def sha256(content):
+    return hashlib.sha256(content if isinstance(content, bytes) else content.encode("utf-8")).hexdigest()
+
+
+def run_time(rel):
+    """True for a release path the run-time list covers, other than manifest.json, which cannot hash itself."""
+    return rel != "manifest.json" and covers(RUN_TIME, rel)
 
 
 def layer_files(rules):

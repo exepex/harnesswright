@@ -71,7 +71,8 @@ class BuildTest(unittest.TestCase):
             "<!-- Generated from v2/skills/demo-skill/SKILL.tmpl.md at version 0.1.0. Do not edit. -->",
             "", "# Demo skill", "", "## Rules for this skill"])
         self.assertEqual(lines[-6:], [
-            "1. Read the rules text first.", "   Rules: CORE-TEMPLATE-04 (A skill's first step reads its rules text)",
+            "1. Read the rules text first.",
+            "   Rules: CORE-TEMPLATE-06 (A skill's first step checks its prerequisites and reads its rules text)",
             "2. Report only what you checked.", "   Rules: CORE-WORK-01 (Report only what you verified)",
             "3. Follow [the guide](references/guide.md).", ""])
         self.assertNotIn("\n\n\n", "\n".join(lines))
@@ -134,7 +135,7 @@ class BuildTest(unittest.TestCase):
         meta = data["metadata"]
         copied = entry["copied-ids"]
         self.assertEqual(meta["copied-ids"], ", ".join(copied))
-        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-05", "CORE-TEMPLATE-04"):
+        for rule_id in ("CORE-WORK-01", "CORE-TEMPLATE-05", "CORE-TEMPLATE-06"):
             self.assertIn(rule_id, copied)
             self.assertEqual(text.count(f"<!-- rule {rule_id} -->"), 1)
         self.assertEqual(len(copied), text.count("<!-- rule "))
@@ -198,7 +199,9 @@ class BuildTest(unittest.TestCase):
         shutil.rmtree(self.skill)
         (self.root / "v2" / "roles.md").write_text(roles_without_jobs(), encoding="utf-8")
         files = build.build(self.root)
-        self.assertEqual(files["manifest.json"], '{\n  "rulebook-version": "0.1.0",\n  "skills": {}\n}\n')
+        self.assertEqual(json.loads(files["manifest.json"]), {"rulebook-version": "0.1.0", "skills": {},
+                                                              "run-time": list(build.RUN_TIME), "run-time-files": {
+            rel: hashlib.sha256(data).hexdigest() for rel, data in files.items() if build.is_copy(rel)}})
         self.assertEqual(sorted(p for p in files if not build.is_copy(p)), ["manifest.json"])
 
     def test_a_skill_named_like_the_layout_or_a_non_rule_file_in_a_layer_fails(self):

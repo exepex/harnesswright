@@ -32,9 +32,9 @@ class CheckReleaseTest(unittest.TestCase):
         shutil.copytree(GOLDEN / "root", self.root)
         shutil.copytree(GOLDEN / "expected", self.release)
         for rel, data in build.build(self.root).items():
-            if build.is_copy(rel):
+            if build.is_copy(rel) or rel == "manifest.json":  # test_golden checks the manifest beside its hashes
                 (self.release / rel).parent.mkdir(parents=True, exist_ok=True)
-                (self.release / rel).write_bytes(data)
+                (self.release / rel).write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
 
     def edit(self, path, old, new):
         path = self.tmp / path
@@ -66,6 +66,12 @@ class CheckReleaseTest(unittest.TestCase):
         self.setUp()
         (self.release / "golden-skill/notes.md").write_text("Hand-written.\n", encoding="utf-8")
         self.assertFails("golden-skill/notes.md: is not made by the build")
+        self.setUp()
+        (self.release / "rules" / ".gitkeep").write_text("")  # only release/.gitkeep is left out of the rebuild
+        self.assertFails("release/rules/.gitkeep: is not made by the build")
+        self.setUp()
+        (self.release / ".gitkeep").write_text("")
+        self.assertEqual(self.check(), ([], []))
 
     def test_the_copied_layers_and_roles_file_are_not_skills_and_must_equal_their_sources(self):
         self.assertTrue((self.release / "rules/core/test.md").is_file())
@@ -148,6 +154,37 @@ class CheckReleaseTest(unittest.TestCase):
                   "- **Rule:** Name each test after the situation\n  it sets up and the  result it expects.")
         self.assertNoFailure("differs from the rule")
         self.assertFails("SKILL.md: differs from a rebuild")
+
+    def test_every_skill_and_run_time_file_is_hashed_both_ways(self):
+        """A file with no hash, a hash for a missing file and other bytes all fail; manifest.json alone is exempt."""
+        def changed(change):
+            self.setUp()
+            data = json.loads((self.release / "manifest.json").read_text(encoding="utf-8"))
+            change(data)
+            (self.release / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+        self.assertNotIn("manifest.json", json.loads((self.release / "manifest.json").read_text())["run-time-files"])
+        cases = [(lambda d: d["skills"]["golden-skill"]["files"].pop("SKILL.md"), "files: SKILL.md has no hash"),
+                 (lambda d: d["skills"]["golden-skill"]["files"].update({"gone.md": "0" * 64}),
+                  "files: gone.md is hashed but missing"),
+                 (lambda d: d["run-time-files"].pop("roles.md"), "run-time-files: roles.md has no hash"),
+                 (lambda d: d["run-time-files"].update({"rules/core/gone.md": "0" * 64}),
+                  "run-time-files: rules/core/gone.md is hashed but missing"),
+                 (lambda d: d["run-time-files"].update({"roles.md": "0" * 64}),
+                  "run-time-files: roles.md does not have the bytes its hash names"),
+                 (lambda d: d["run-time-files"].update({"manifest.json": "0" * 64}),
+                  "run-time-files: manifest.json is hashed but missing"),
+                 (lambda d: d.pop("run-time"), "has no run-time list of paths")]
+        for change, expected in cases:
+            with self.subTest(expected=expected):
+                changed(change)
+                self.assertFails(expected)
+
+    def test_a_link_anywhere_in_the_release_fails_and_only_regular_files_are_hashed(self):
+        (self.release / "rules" / "core" / "linked.md").symlink_to(self.release / "roles.md")
+        self.assertFails("release/rules/core/linked.md: is not a regular file or folder; a release holds no link")
+        self.setUp()
+        (self.release / "golden-skill" / ".gitkeep").write_text("")  # only release/.gitkeep is not the release's
+        self.assertFails("golden-skill files: .gitkeep has no hash")
 
     def test_a_manifest_that_disagrees_with_its_skills_fails(self):
         manifest = self.release / "manifest.json"
