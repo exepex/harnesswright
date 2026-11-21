@@ -124,7 +124,11 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 - a `.git` folder, or a symlink that points outside the world;
 - a document copied from this repository that is not its tracked source with the skill rows removed, or whose
   source has changed since it was copied;
-- a task case of a skill with a kind that has no contract expectation, since none of its runs would be scored.
+- a task case of a skill with a kind that has no contract expectation, since none of its runs would be scored;
+- a value a case's prompt or expectation texts state that the built world does not give, so a changed world or
+  pin cannot leave a case stating the old one: a version that is not the world's `v2/VERSION` or one raise of
+  it, a commit that is not in the built history and no world file spells, or a world file's line named by its
+  number instead of its section or a contract source.
 
 In an internal world ([12 · Verdicts](12-verdicts.md#internal-worlds)), the pinned base is project text: the judges
 approve it with the pin, and it is the same in every arm. So the lint reads it only for the skill's name; the
