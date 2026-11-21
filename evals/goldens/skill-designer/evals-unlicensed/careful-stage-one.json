@@ -224,7 +224,7 @@
   },
   "q3": {
    "expectation": "At least eight should-load trigger cases and eight near misses",
-   "sha256": "a6fd3fd3507a10a5bf854bbea13188c33c627b0a3816f13120653bf4a2f841bc",
+   "sha256": "c2108c091ab328ab0c98ea0827fafbfb4f059e188d69850f26137cf5df9a0f66",
    "answer": "yes",
    "by": "judge-f"
   },
@@ -236,7 +236,7 @@
   },
   "q5": {
    "expectation": "At least two task cases, each listing what a good run must show",
-   "sha256": "99c96add41026e92c9a2e92ce7913b9217cb3f661bec4b6d6e60be0a8e84d8b0",
+   "sha256": "d4ac0260eeb59371897445097fdbf58fcb1cbad9ccb2d2a6cc8c838d97c0dab8",
    "answer": "yes",
    "by": "judge-f"
   },
