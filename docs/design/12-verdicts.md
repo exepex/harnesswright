@@ -61,6 +61,8 @@ they are measured differently.
 - A case adds or removes files on top of that world. Its files are copied in and its Jobs rows added to
   `v2/roles.md`; the world is then rebuilt and checked by the same build before the run, so a skill the case
   brings that is in no job is refused. The case's `remove` paths go after the build, so it never puts them back.
+  When the sources left still build, the release is rebuilt from them, so the world passes the release check
+  before the run; a removed path that this build puts back is refused.
 - Arms: with skill and previous version only. There is no without-skill arm, so there is no lift and no baseline
   backstop. A round of internal skills names a fault case of a team skill for the fault gate.
 - Every internal task case has a script check, counted as a contract expectation, that runs harnesswright's own

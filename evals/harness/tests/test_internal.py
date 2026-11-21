@@ -19,8 +19,9 @@ from cases import REPO, CaseError, load_cases
 
 SKILL = "skill-designer"  # internal in evals/kinds.json
 # A task case of a skill with a kind needs a contract expectation (cited.py); this one cites incoming/notes.md.
-SCORED = {"internal_world": {"remove": []}, "expectations": [expect("The release ships on Friday", {"contract": {
-    "path": "incoming/notes.md", "line": 1, "quote": "Ship the release on Friday."}})]}
+NOTE = {"contract": {"path": "incoming/notes.md", "line": 1, "quote": "Ship the release on Friday."}}
+SCORED = {"internal_world": {"remove": []}, "expectations": [
+    expect("The release ships on Friday", NOTE, {"name": "own_release_checks", "args": {}})]}
 COPIED = ["AGENTS.md", "docs/design", "v2/VERSION", "v2/roles.md", "v2/rules", "v2/skills"] + [
     f"v2/build/{p.name}" for p in sorted((REPO / "v2" / "build").glob("*.py"))]
 NOTES = ("# Notes\n\nThe skill designer keeps its cases apart. SkillDesigner, as one word, too.\n"
@@ -214,9 +215,17 @@ class Reader(TempCase):
         unscored = self.case({"incoming/notes.md": "Ship the release on Friday.\n"},
                              dict(SCORED, expectations=[expect("The release ships on Friday")]), skill=SKILL)
         shutil.rmtree(self.tmp / "arms")
+        unchecked = (f"{unscored.id}: an internal task case needs a contract expectation that one of harnesswright's "
+                     "own checks decides (evals/own-checks.json): with none, the round lists it unchecked and its "
+                     "skill's label stays at most inconclusive (verdicts.decide)")
         self.assertEqual(self.lint(unscored)[0], [
             f"{unscored.id}: a task case needs at least one contract expectation: with none, no run of it is scored "
-            "(verdicts.task_outcome), and its skill's label stays at most inconclusive"])
+            "(verdicts.task_outcome), and its skill's label stays at most inconclusive", unchecked])
+        judged = self.case({"incoming/notes.md": "Ship the release on Friday.\n"},
+                           dict(SCORED, expectations=[expect("The release ships on Friday", NOTE)]), skill=SKILL)
+        shutil.rmtree(self.tmp / "arms")
+        # a contract expectation, but none that an own check decides
+        self.assertEqual(self.lint(judged)[0], [unchecked.replace(unscored.id, judged.id, 1)])
 
     def test_the_lint_reads_the_pinned_base_as_project_text_and_the_case_own_files_by_every_rule(self):
         pinned = next(line for line in (REPO / "docs" / "design" / "11-evals.md").read_text().splitlines()
@@ -242,6 +251,20 @@ class Reader(TempCase):
         with mock.patch.object(internal, "leave_out", return_value=[]):  # a base the one rule did not clean
             problems, _ = self.lint(case)
         self.assertTrue(any(p.startswith(f"{case.id}: notes.md: names the skill") for p in problems), problems)
+
+    def test_a_removed_source_leaves_a_release_the_build_makes_and_a_removed_copy_alone_is_refused(self):
+        source, copy = "v2/rules/core/index.md", "release/rules/core/index.md"
+        self.write("release/README.md", "Built by v2/build/build.py.\n")  # so the kit may list release/
+        kit = self.kit(self.git_commit("Add a release folder"), self.paths + ["release"])
+        case = self.case({}, {"internal_world": {"remove": [source, copy]}}, skill=SKILL)
+        shutil.rmtree(case.folder / "world")
+        out = internal.world_of(type(case)(case.folder, SKILL), self.tmp / "out", self.repo, kit)
+        self.assertFalse((out / source).exists() or (out / copy).exists())
+        self.assertNotIn("rules/core/index.md", (out / "release" / "manifest.json").read_text())  # rebuilt without it
+        alone = self.case({}, {"internal_world": {"remove": [copy]}}, skill=SKILL)
+        shutil.rmtree(alone.folder / "world")
+        with self.assertRaisesRegex(CaseError, f"remove {copy}: the build puts it back"):
+            internal.world_of(type(alone)(alone.folder, SKILL), self.tmp / "alone", self.repo, kit)
 
     def test_an_internal_case_may_add_no_file(self):
         case = self.case({}, {"internal_world": {"remove": ["notes.md"]}}, skill=SKILL)
