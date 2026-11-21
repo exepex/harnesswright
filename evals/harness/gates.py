@@ -17,19 +17,26 @@ canaries and credentials of every containment its gates made, taken while its ho
   the round's seed chooses, and every one must be caught. The bundles of its runs are copied to the store.
 - `run`: every planned run of each host that passed (`runs.run`), cases and arms interleaved (`order`), each with
   the host's version measured just before it, so a host that changed during the round voids its runs. A run that
-  is kept, made, void or empty does not stop the round; a canary, a failed audit or a broken run does. The gate's
-  report gives why each slot is void or empty, and each without-skill run's shorter backstop matches.
+  is kept, made, void, empty or not loaded does not stop the round; a canary, a failed audit or a broken run does.
+  The gate's report gives why each slot is void, empty or not loaded, marks each pinned run (`runs.pinned`), and
+  gives each without-skill run's shorter backstop matches. When half or more of the pinned tries are not loaded,
+  counted as the pinned-load rate counts them (`runs.misses`), the gate stops the round as a harness fault: the pin
+  is broken, not the skill (doc 12, Proven use).
 - `check`: every expectation that has a check is decided on the bundle of each kept or made run
   (`checks.decide`), with the check library of the round's commit. The verdicts are written beside the bundle
   (`checks.json`, one per expectation, null for one with no check), and what no check decided is kept for the
   graders (`grading.questions`). A check that breaks stops the round.
 - `grade`: what no check decided, answered by blind panels of graders with the goldens mixed in, each page's
   grading written to the attempt's own folder (`grades.grade_gate`).
+- `extra runs`: while a measure or floor is `too close`, 3 more runs of each split case it reads, in each arm it
+  reads, through the run, check and grade steps above, at most as many as the plan's `extra_runs` allows
+  (`extras.extra_gate`). The fault gate's planted runs are never extended.
 - `label`: the labels of 10 · Skills for each skill on each host, computed from the store alone and written to
   `labels/<attempt>.json` (`labels.label_gate`).
 
 The store gate follows in a later step. Every gate runs again when a round is run again,
-as each proves the kit and the hosts as they are now; only runs are kept (`runs.run`).
+as each proves the kit and the hosts as they are now; only runs (`runs.run`) and their grades
+(`grades.KEPT`) are kept.
 
 Run from the repository root:
 
@@ -49,6 +56,7 @@ import tempfile
 from pathlib import Path
 
 import checks
+import extras
 import faults
 import grader
 import grades
@@ -131,7 +139,7 @@ def lint_gate(r):
             # Each arm that installs a version of the skill is linted with that version's text and the upstream
             # copy recorded in the same tree, the round's checkout or the previous version's commit. A skill with no
             # folder yet has only its without-skill arm, linted with no text of its own.
-            for arm in runs.arms(r.record, case)[1:] or runs.arms(r.record, case):
+            for arm in [a for a in runs.arms(r.record, case) if a != runs.ARMS[0]] or runs.arms(r.record, case):
                 with tempfile.TemporaryDirectory(prefix="hw-lint-") as out, contextlib.ExitStack() as stack:
                     try:
                         skill_dir, tree = None, r.repo
@@ -152,15 +160,27 @@ def lint_gate(r):
     return {"cases": len(r.cases), "hosts": len(r.modules)}
 
 
+def installed(r):
+    """{"lines", "bytes"} of the longest `SKILL.md` the round installs (`probes.length`): each skill its manifest
+    records and each previous version, the length the pinned-load probe's skill must reach."""
+    with contextlib.ExitStack() as stack:
+        paths = [r.skills[name] / "SKILL.md" for name in sorted(r.record["skills"])]
+        for name, kept in sorted(r.record.get("previous", {}).items()):
+            folder, _ = stack.enter_context(rounds.previous(r.repo, name, kept["commit"], kept["sha256"]))
+            paths.append(folder / "SKILL.md")
+        return probes.length(paths)
+
+
 def probe_gate(r):
     tools = sorted({tool for case in r.cases.values() for tool in case.tools})
+    longest = installed(r)
     not_run, drift = {}, {}
     for host, module in r.modules.items():
         made = []
         with tempfile.TemporaryDirectory(prefix="hw-p-") as scratch:  # the probes' homes, kept until scrubbed
             try:
                 found = probes.probe_host(module, scratch, tools=tools, model=r.model(host), timeout=r.timeout,
-                                          made=made, **r.containment)
+                                          made=made, length=longest, **r.containment)
             finally:  # a probe that raised made containments too, whose words its error may carry
                 r.keep(made)
         found = json.loads(r.quiet(json.dumps(found)))  # its reasons and drift record, as they may be kept
@@ -182,7 +202,7 @@ def faults_gate(r):
     # Every fault needs a skill's files, so faults are planted on a case of a skill the repository holds: the plan's
     # `fault_case`, or else one of the round's own that runs in both arms, chosen by the seed.
     chosen = r.record.get("fault_case")
-    held = sorted(k for k in r.cases if k[0] not in r.record.get("absent", []) and not runs.skill_only(r.record, *k))
+    held = sorted(k for k, case in r.cases.items() if set(runs.ARMS) <= set(runs.arms(r.record, case)))
     for host, passed in r.hosts.items():
         if chosen:
             case = Case(r.repo / "evals" / "skills" / chosen["skill"] / "cases" / chosen["case"], chosen["skill"])
@@ -213,55 +233,79 @@ def faults_gate(r):
     return found
 
 
-def order(record, hosts, cases):
+def order(record, hosts, cases, extra=None, steps=None):
     """Every planned run of `hosts`, as (host, skill, case id, arm, number): for each number, each case in turn,
     its arms (`runs.arms`, from `cases` by (skill, case id)) one after the other, the arm that goes first turning
-    from case to case and number to number."""
+    from case to case and number to number. With `extra` ({(host, skill, case id, arm): the runs it has}), the
+    `steps` next runs of each of those slots only, in the same turn (`extras.extra_gate`): one order for both."""
     planned = [(skill, i) for skill in sorted(record["cases"]) for i in sorted(record["cases"][skill])]
-    for number in range(1, record["plan"]["runs"] + 1):
+    for step in range(1, (steps or record["plan"]["runs"]) + 1):
         for index, (skill, case_id) in enumerate(planned):
             arms = runs.arms(record, cases[(skill, case_id)])
-            turn = (number + index + 1) % len(arms)  # two arms: ARMS on odd sums, reversed on even ones
+            turn = (step + index + 1) % len(arms)  # the first arm moves on by one each case and number
             for arm in arms[turn:] + arms[:turn]:
                 for host in sorted(hosts):
-                    yield host, skill, case_id, arm, number
+                    if extra is None:
+                        yield host, skill, case_id, arm, step
+                    elif (host, skill, case_id, arm) in extra:
+                        yield host, skill, case_id, arm, extra[(host, skill, case_id, arm)] + step
 
 
 def run_gate(r):
-    made = []
-    for host, skill, case_id, arm, number in order(r.record, r.hosts, r.cases):
-        result = runs.run(r.record, r.store, r.cases[(skill, case_id)], arm, host, number, r.modules[host],
-                          r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
-        made.append({"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number,
-                     "key": result["key"], "status": result["status"]})
-        if result.get("reason"):  # why a slot is void or empty, such as a backstop hit, for a judge to read
-            made[-1]["reason"] = result["reason"]
-        short = Path(result["bundle"]).parent / runs.SHORT if result.get("bundle") else None
-        if short and short.is_file():  # the backstop's shorter matches, listed and never a void
-            made[-1]["backstop"] = json.loads(short.read_text())["short"]
-        r.runs.append({**made[-1], "bundle": result.get("bundle")})
+    made = [run_one(r, *slot) for slot in order(r.record, r.hosts, r.cases)]
+    pinned_stop(r, made)
     return made
 
 
+def run_one(r, host, skill, case_id, arm, number):
+    """One run of the round `r`, as the run gate reports it, kept in `r.runs` with its bundle."""
+    result = runs.run(r.record, r.store, r.cases[(skill, case_id)], arm, host, number, r.modules[host],
+                      r.hosts[host]["drift"], r.version(host), timeout=r.timeout, repo=r.repo, **r.containment)
+    made = {"host": host, "skill": skill, "case": case_id, "arm": arm, "number": number, "key": result["key"],
+            "status": result["status"]}
+    if result.get("reason"):  # why a slot is void, empty or not loaded, such as a backstop hit, for a judge
+        made["reason"] = result["reason"]
+    if runs.pinned(r.record, r.cases[(skill, case_id)], arm):
+        made["pinned"] = True
+    short = Path(result["bundle"]).parent / runs.SHORT if result.get("bundle") else None
+    if short and short.is_file():  # the backstop's shorter matches, listed and never a void
+        made["backstop"] = json.loads(short.read_text())["short"]
+    r.runs.append({**made, "bundle": result.get("bundle")})
+    return made
+
+
+def pinned_stop(r, made):
+    """Stop the round as a harness fault when half or more of the pinned tries of `made` are not loaded."""
+    pinned = [m for m in made if m.get("pinned")]  # counted by try, as the pinned-load rate counts them
+    missed = sum(runs.misses(r.folder / "runs" / m["key"]) for m in pinned)
+    tries = missed + sum(m["status"] in ("kept", "made") for m in pinned)
+    if missed and 2 * missed >= tries:
+        raise Stop(f"harness fault: {missed} of {tries} pinned tries are not loaded, so the pin is broken, "
+                   "not the skill", made)
+
+
 def check_gate(r):
-    library, found = checks.library(r.repo / "evals" / "checks"), []
-    for made in r.runs:
-        if made["status"] not in ("kept", "made"):
-            continue
-        expectations = r.cases[(made["skill"], made["case"])].expectations
-        bundle = checks.Bundle.load(made["bundle"])
-        verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
-                    if "check" in e else None for e in expectations]
-        r.asked[made["key"]] = grading.questions(expectations, verdicts)
-        r.write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts})
-        outcomes = [v["outcome"] for v in verdicts if v]
-        found.append({"key": made["key"], **{o: outcomes.count(o) for o in checks.OUTCOMES},
-                      "asked": [question["id"] for question in r.asked[made["key"]]]})
-    return found
+    return [check_one(r, made) for made in r.runs if made["status"] in ("kept", "made")]
+
+
+def check_one(r, made):
+    """The check verdicts of one kept or made run, written beside its bundle; what no check decided goes to
+    `r.asked` for the graders."""
+    library = checks.library(r.repo / "evals" / "checks")
+    expectations = r.cases[(made["skill"], made["case"])].expectations
+    bundle = checks.Bundle.load(made["bundle"])
+    verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
+                if "check" in e else None for e in expectations]
+    r.asked[made["key"]] = grading.questions(expectations, verdicts)
+    r.write(Path(made["bundle"]).parent / "checks.json", {"verdicts": verdicts})
+    outcomes = [v["outcome"] for v in verdicts if v]
+    return {"key": made["key"], **{o: outcomes.count(o) for o in checks.OUTCOMES},
+            "asked": [question["id"] for question in r.asked[made["key"]]]}
 
 
 GATES = (("kit check", kit_check), ("lint", lint_gate), ("probe", probe_gate), ("faults", faults_gate),
-         ("run", run_gate), ("check", check_gate), ("grade", grades.grade_gate), ("label", labels.label_gate))
+         ("run", run_gate), ("check", check_gate), ("grade", grades.grade_gate), ("extra runs", extras.extra_gate),
+         ("label", labels.label_gate))
 
 
 def read(store, name, repo=REPO):

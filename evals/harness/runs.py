@@ -12,7 +12,9 @@ missing or voided runs, and a changed input gives a new key, never a changed run
   plan gives a previous version, `previous_version`, which installs the skill as the manifest's commit holds it.
   A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only, and a case
   of a situation a plain agent cannot fail (`skill_only`) with it only.
-- `key(record, skill, case_id, arm, host, number, drift, timeout)`: the run's key, from the manifest `record`.
+- `key(record, skill, case_id, arm, host, number, drift, timeout, lead)`: the run's key, from the manifest `record`,
+  with the manifest's `pinned` flag and a pinned run's lead line. Its number is 1 to the plan's `runs`, plus its
+  `extra_runs` (`extra`) for the extra runs of a split case.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
@@ -23,6 +25,12 @@ missing or voided runs, and a changed input gives a new key, never a changed run
   empty. `void.json` keeps every void of the slot, a remade one too, for the void rate. A jail that fails its audit
   or a canary in the output raises: the round stops. A run is made only from the repository at the round's commit,
   so it builds exactly the inputs the manifest hashed.
+- `pinned(record, case, arm)`: the one test of whether a run pins its skill's load (doc 12, Proven use). A pinned run
+  whose evidence proves no load (`evidence.loaded`) is `not loaded`, never a void: its bundle is kept under
+  `not-loaded/<n>/` and `not-loaded.json` holds why, with its own try count. It is tried once more at once; not
+  loaded again, the slot stays unscored and is not run again. A pinned run's prompt starts with its lead line
+  (`lead`: the adapter's `pin` of the skill at its declared path, through `host.lead`), never written in the case;
+  every other run's prompt is the case's own. The grader page keeps the case's prompt as its request.
 
 Standard library only.
 """
@@ -52,8 +60,10 @@ HARNESS = Path(__file__).resolve().parent
 RUNNER = ("audit.py", "backstop.py", "cases.py", "contain.py", "evidence.py", "gate.py", "host.py", "lint.py",
           "manifest.py", "powers.py", "runs.py", "scrub.py", "skills.py", "textruns.py", "world.py")
 BUNDLE, VOID, VOIDS, SHORT = "bundle", "void.json", "voids", "backstop.json"
+UNLOADED, UNLOADED_RUNS = "not-loaded.json", "not-loaded"
 TIMEOUT = 900  # seconds a run may take, unless the caller names another
 TRIES = 2  # a voided slot gets at most one remake (doc 11, Blocked actions and voids)
+LOAD_TRIES = 2  # a pinned run that is not loaded is tried once more (doc 12, Proven use)
 
 
 class RunError(RuntimeError):
@@ -70,33 +80,60 @@ def skill_only(record, skill, case_id):
     return record.get("situations", {}).get(skill, {}).get("cases", {}).get(case_id) in SKILL_ONLY
 
 
+def pinned(record, case, arm):
+    """True for a task run of the with-skill or the previous version's arm in a round whose manifest pins the load
+    (its `pinned` flag): only such a run can be `not loaded`."""
+    return case.kind == "task" and arm in ("with_skill", PREVIOUS) and record.get("pinned") is True
+
+
+def lead(record, case, arm, adapter):
+    """The lead line of a pinned run (`pinned`): the skill's load at its declared `SKILL.md`; None for any other."""
+    return host.lead(adapter, case.skill, f"{case.skill_rel}/SKILL.md") if pinned(record, case, arm) else None
+
+
+def internal(record, skill):
+    """True for a skill the manifest records as `internal` (`rounds.plan`, from `cases.kinds`, doc 12, Skill kinds):
+    it runs with the skill and its previous version only, never without itself, so it has no lift and no baseline
+    backstop."""
+    return record.get("kinds", {}).get(skill) == "internal"
+
+
 def arms(record, case):
-    """The arms `case` runs in, in round `record`: `ARMS`, and `PREVIOUS` for a task case of a skill the plan gives
-    a previous version. Trigger cases measure the description that triggers the skill under test only."""
+    """The arms `case` runs in, in round `record`: `ARMS` (the with-skill one only for an internal skill), and
+    `PREVIOUS` for a task case of a skill the plan gives a previous version. Trigger cases measure the description
+    that triggers the skill under test only."""
     if case.skill in record.get("absent", []):  # no folder yet: a baseline round runs without the skill only
         return ARMS[:1]
     if skill_only(record, case.skill, case.id):
         return ARMS[1:]
     later = (PREVIOUS,) if case.kind == "task" and case.skill in record.get("previous", {}) else ()
-    return ARMS + later
+    return (ARMS[1:] if internal(record, case.skill) else ARMS) + later
 
 
-def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None):
+def extra(record):
+    """The extra runs the plan of round `record` allows per split case and arm (`extras.wanted`): 0, 3 or 6, and 0
+    for a manifest written before plans named them. A run numbered above `runs` is one of them."""
+    return record["plan"].get("extra_runs", 0)
+
+
+def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None, lead=None):
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
-    and drift record, and `timeout`, its time budget in seconds (a run that timed out is scored). `code` is the
-    runner's hash (`runner`)."""
-    known = ARMS[:1] if skill in record.get("absent", []) else ARMS + ((PREVIOUS,) if skill in record.get(
-        "previous", {}) else ())
+    and drift record, `timeout`, its time budget in seconds (a run that timed out is scored), and `lead`, a pinned
+    run's lead line (`lead`). `code` is the runner's hash (`runner`)."""
+    known = ARMS[:1] if skill in record.get("absent", []) else (ARMS[1:] if internal(record, skill) else ARMS) + (
+        (PREVIOUS,) if skill in record.get("previous", {}) else ())
     if skill_only(record, skill, case_id):
         known = ARMS[1:]
     if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
-    if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
+    if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"] + extra(record):
         raise RunError(f"{host_name}, run {number}: not a run of round {record['round']}")
     inputs = {"skill": skill, "case_id": case_id, "case": record["cases"][skill][case_id], "skills": record["skills"],
               "arm": arm, "number": number, "drift": drift, "timeout": timeout,
               "adapter": record["adapters"][host_name], "host": record["hosts"][host_name],
-              "runner": code or runner()}
+              "runner": code or runner(), "pinned": record.get("pinned") is True}
+    if lead is not None:
+        inputs["lead"] = lead
     if arm == PREVIOUS:
         inputs["previous"] = record["previous"][skill]
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
@@ -129,11 +166,12 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     """The run of `case` in `arm` on `host_name`, number `number`, in round `record`, from the repository `repo`
     at the round's commit. `version` is the host's version as its jail finds it now; `drift` its tools and drift
     record (`probes.drift`); `containment` passes on to `contain.Containment`. Return {"key", "status", and
-    "bundle" or "reason"}: `kept` or `made` with its bundle, `void` with why, or `empty` for a slot voided twice,
-    which gets no more remakes."""
+    "bundle" or "reason"}: `kept` or `made` with its bundle, `void` with why, `empty` for a slot voided twice,
+    which gets no more remakes, or `not loaded` for a pinned slot with no proven load in either try."""
     if rounds.commit(repo) != record["commit"]:  # the inputs the run builds are the ones the manifest hashed
         raise RunError(f"{repo} is not at round {record['round']}'s commit {record['commit']}")
-    run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout)
+    line = lead(record, case, arm, adapter)
+    run_key = key(record, case.skill, case.id, arm, host_name, number, drift, timeout, lead=line)
     path = folder(record, store, run_key, repo)
     found = stored(path)
     if found and found[0] == "kept":
@@ -141,6 +179,9 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
     voids = found[1] if found else []
     if len(voids) >= TRIES:
         return {"key": run_key, "status": "empty", "reason": "; ".join(voids)}
+    unloaded = _reasons(path / UNLOADED)
+    if len(unloaded) >= LOAD_TRIES:
+        return {"key": run_key, "status": "not loaded", "reason": "; ".join(unloaded)}
     planned = record["hosts"][host_name]
     if version != planned["version"]:
         return _void(path, run_key, voids, f"the host's version {version} is not the manifest's "
@@ -166,7 +207,8 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
         own = backstop.protected(case, base, skill_dir, repo) if arm == "without_skill" else None
         contained = contain.Containment(adapter, case.kind, chosen.path, manifest.manifest(chosen.path),
                                         root=scratch / "run", **containment)
-        result = host.run(contained, case.prompt, skills=[i.name for i in chosen.installs],
+        prompt = case.prompt if line is None else f"{line}\n\n{case.prompt}"
+        result = host.run(contained, prompt, skills=[i.name for i in chosen.installs],
                           model=planned["model"], timeout=timeout)
         layer = evidence.overlay(case, adapter, skills_root, skill_dir)
         # Collected first, failed or not, so a canary in any output stops the round (`scrub.Leak`).
@@ -186,18 +228,44 @@ def run(record, store, case, arm, host_name, number, adapter, drift, version, ti
             where, length, span = found["void"][0]
             return _void(path, run_key, voids, f"fingerprint hit: {length} words of the skill's own text in {where}: "
                                                f"{span[:200]}")
-        made = path / f".{BUNDLE}.{os.getpid()}"
-        shutil.rmtree(made, ignore_errors=True)
-        evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
-        if found is not None:
-            (path / SHORT).write_text(json.dumps({"short": found["short"]}, indent=1) + "\n")
-        os.rename(made, path / BUNDLE)
+        text = (Path(skill_dir) / "SKILL.md").read_text(errors="replace") if skill_dir else ""
+        missed = pinned(record, case, arm) and not evidence.loaded(bundle, case.skill, layer["paths"], text)
+        if missed:  # kept where no reader scores it, under its own marker: not a void, never a harness fault
+            kept = path / UNLOADED_RUNS / str(len(unloaded))
+            shutil.rmtree(kept, ignore_errors=True)
+            kept.parent.mkdir(exist_ok=True)
+            evidence.store(bundle, blobs, kept / BUNDLE)
+            _mark(path / UNLOADED, [*unloaded, "the run's evidence proves no load of the skill"])
+        else:
+            made = path / f".{BUNDLE}.{os.getpid()}"
+            shutil.rmtree(made, ignore_errors=True)
+            evidence.store(bundle, blobs, made)  # written and read back beside its name, then moved into place
+            if found is not None:
+                (path / SHORT).write_text(json.dumps({"short": found["short"]}, indent=1) + "\n")
+            os.rename(made, path / BUNDLE)
+    if missed:  # tried once more; not loaded then too, the slot is `not loaded` and stays so
+        return run(record, store, case, arm, host_name, number, adapter, drift, version, timeout, repo, **containment)
     return {"key": run_key, "status": "made", "bundle": str(stored(path)[1])}
+
+
+def misses(path):
+    """How many tries of the run slot at `path` (`folder`) were not loaded: the one count of them, which the run
+    gate's stop and the pinned-load rate both read."""
+    return len(_reasons(Path(path) / UNLOADED))
+
+
+def _reasons(marker):
+    """The reasons a slot's marker file keeps, one for each try it names, or none."""
+    return json.loads(marker.read_text())["reasons"] if marker.is_file() and not marker.is_symlink() else []
+
+
+def _mark(marker, reasons):
+    fresh = marker.with_name(f".{marker.name}.{os.getpid()}")
+    fresh.write_text(json.dumps({"reasons": reasons}, indent=1) + "\n")
+    os.replace(fresh, marker)
 
 
 def _void(path, run_key, voids, reason):
     path.mkdir(exist_ok=True)
-    fresh = path / f".{VOID}.{os.getpid()}"
-    fresh.write_text(json.dumps({"reasons": [*voids, reason]}, indent=1) + "\n")
-    os.replace(fresh, path / VOID)
+    _mark(path / VOID, [*voids, reason])
     return {"key": run_key, "status": "void", "reason": reason}

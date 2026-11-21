@@ -16,6 +16,7 @@ order; each one builds on the ones before.
 | 09 | [Roadmap](09-roadmap.md) | Phases, the harvest method, open questions |
 | 10 | [Skills](10-skills.md) | Borrow-first sourcing, the quality checklist, portability across hosts, the skill designer |
 | 11 | [Evals](11-evals.md) | How skills are measured: worlds, containment, equal powers, evidence, scoring, judge-owned faults, rounds |
+| 12 | [Verdicts](12-verdicts.md) | What a round may claim: skill kinds, proven use, one setup, pass, fail or too close |
 
 ## Decisions already made
 

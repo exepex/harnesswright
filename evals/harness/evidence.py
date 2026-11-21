@@ -15,12 +15,15 @@ The record's fields are the ones `collect` writes, as doc 11 lists them. The wor
 files (those paths only) and both copies of the installed skill with the folders above them, the same in both arms.
 A pipe, socket or device the agent made is an `other` entry. `.git` is not read: the agent's git commands are logged.
 
+`loaded` is the one reader of whether a run loaded its skill (doc 12, Proven use), from observed entries only.
+
 Standard library only.
 """
 
 import hashlib
 import json
 import os
+import shlex
 from pathlib import Path, PurePosixPath
 
 import host
@@ -51,6 +54,46 @@ def overlay(case, adapter, skills_root=None, skill_dir=None):
     without = worlds.expected(case, worlds.plan(case, adapter, False, skills_root, skill_dir))[0]
     return {"skill": skill.name, "paths": list(skill.targets), "index": index, "row": skill.row,
             "index_without": without.get(index) if index else None}
+
+
+def loaded(record, skill, paths, text):
+    """Whether the run `record` (a bundle's record) proves it loaded `skill`, installed at `paths` (the overlay's
+    paths) with `text` its `SKILL.md` as installed. One allow list, of observed entries only: the host's own skill
+    event naming it; a read of the exact `SKILL.md` of either installed copy; or a command one of whose own words is
+    that `SKILL.md` and whose output holds the whole file. Nothing else proves a load: an inferred entry, such as a
+    read an adapter parsed from a command, never does, nor a search whose output only mentions the skill."""
+    world = next((path for path, word in record.get("folders", {}).items()
+                  if word == scrubs.NEUTRAL_FOLDERS["world"]), None)
+    files = {os.path.normpath(f"{path}/SKILL.md") for path in paths}
+    whole = text.strip()
+
+    def installed(path):  # a path in the world, as the overlay names it, or the path itself
+        path = str(path)
+        if world and path.startswith(world.rstrip("/") + "/"):
+            path = path[len(world.rstrip("/")) + 1:]
+        return os.path.normpath(path) in files
+
+    for item in record["log"]:
+        if not isinstance(item, dict) or item.get("source") != "observed":
+            continue
+        if item.get("kind") == "skill" and item.get("name") == skill:
+            return True
+        if item.get("kind") == "read" and installed(item.get("path", "")):
+            return True
+        if item.get("kind") == "command" and whole and whole in str(item.get("output", "")) \
+                and any(installed(word) for word in _words(str(item.get("command", "")))):
+            return True
+    return False
+
+
+def _words(command):
+    """The words of a shell command, its operators apart; none when it cannot be split."""
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        return list(lexer)
+    except ValueError:
+        return []
 
 
 def own_files(drift, mode):

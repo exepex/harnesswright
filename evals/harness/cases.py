@@ -57,6 +57,9 @@ import manifest
 REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 SITUATION_FILE = REPO / "evals" / "situations.json"  # the situations each skill's cases must cover
+KIND_FILE = REPO / "evals" / "kinds.json"  # each skill's kind (doc 12, Skill kinds)
+OWN_CHECK_FILE = REPO / "evals" / "own-checks.json"  # the checks that run harnesswright's own (doc 12, Worlds by kind)
+SKILL_KINDS = ("team", "internal")
 KINDS = ("trigger", "task")
 # The arms a case runs in. A grader must never learn its run's arm, so no world, prompt or page may hold these names.
 ARMS = ("without_skill", "with_skill")
@@ -318,6 +321,36 @@ def situations(path=SITUATION_FILE):
                             f"reason}}}}, with each of {SITUATIONS} in exactly one")
         found[skill] = sorted(entry["applies"])
     return found
+
+
+def kinds(path=KIND_FILE):
+    """{skill: kind} from the kind file, a kit part the judges approve: the one reader of a skill's kind (doc 12,
+    Skill kinds), each `team` or `internal`. A plan cannot set one. With no file, no skill has a kind, so every
+    label stays `incomplete`."""
+    if not Path(path).exists():
+        return {}
+    try:
+        data = json.loads(Path(path).read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CaseError(f"{Path(path).name}: {error}") from None
+    if not isinstance(data, dict) or not all(is_name(skill) and kind in SKILL_KINDS for skill, kind in data.items()):
+        raise CaseError(f"{Path(path).name}: must be an object of skills, each {' or '.join(SKILL_KINDS)}")
+    return dict(sorted(data.items()))
+
+
+def own_checks(path=OWN_CHECK_FILE):
+    """The names of the script checks of `evals/checks/` that run harnesswright's own checks, from a kit part: the
+    one list of them. An internal skill's task case counts only with a contract expectation one of them checks
+    (`verdicts.decide`). With no file, no check counts."""
+    if not Path(path).exists():
+        return []
+    try:
+        data = json.loads(Path(path).read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CaseError(f"{Path(path).name}: {error}") from None
+    if not isinstance(data, list) or not all(isinstance(name, str) and CHECK_NAME.fullmatch(name) for name in data):
+        raise CaseError(f"{Path(path).name}: must be a list of check names")
+    return sorted(set(data))
 
 
 def load_cases(skill, root=None):

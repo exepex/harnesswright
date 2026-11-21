@@ -4,15 +4,23 @@ each skill on each host can be checked against the round's archive.
 One rule: a results entry is a copy, never a new judgement. For each skill the round labelled, it keeps the round's
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
-hashed, the hosts its probe gate passed (`ran`), and the file name and sha256 of the round's store archive. The
-archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at
-the round's commit. A round is read only when its last attempt passed every gate and the kit check of that attempt
-named the manifest's own kit.
+hashed, the hosts its probe gate passed (`ran`), the skill's hash and its previous version's (`skill_sha256`,
+`previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), whether the round lists the skill as
+shipped (`shipped`, as the label file decides it, `labels.shipped`, or null when it does not; never decided here),
+and the file name and sha256 of the round's store archive. The archive must hold the round's
+store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
+read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
   round is replaced; other rounds are kept, each listed apart, never combined. Labels from the phase 2 runner stay,
   under `phase_2_runner`, for each host no round of this harness has run yet.
+- `compared(rounds)`: the one place that compares rounds (doc 12, One setup). Each round is set beside the round
+  before it: the same setup when their fingerprints match; otherwise "not comparable: setup changed", naming the
+  parts that changed (`setups.changed`); and "unknown" when either recorded no setup, as entries written before
+  setups were recorded do. The results file keeps the list (`compared`), and `rounds.py results` prints it.
+- `verified(data)`: the last round whose reference host's label is `verified`, with the skill hash it recorded, or
+  None for that hash when the entry was written before skill hashes were recorded: unknown, never guessed.
 - `write(path, data)`: the results file, one line per field of each host entry, so a round stays short.
 
 Standard library only.
@@ -22,6 +30,9 @@ import hashlib
 import json
 import tarfile
 from pathlib import Path
+
+import setups
+
 
 class ResultsError(ValueError):
     """The round is not a finished round this module can copy. Nothing is written."""
@@ -109,11 +120,16 @@ def entries(folder, archive):
               "manifest_sha256": hashlib.sha256(manifest).hexdigest(), "kit": record["kit"], "ran": ran,
               "archive": {"file": archive.name, "sha256": _sha256(archive)},
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
-    return {skill: {**common, "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
+    own = {skill: {"skill_sha256": record.get("skills", {}).get(skill, {}).get("sha256"),
+                   "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
+                   "setup": labels.get("setups", {}).get(skill),
+                   "shipped": labels.get("shipped", {}).get(skill)} for skill in labels["skills"]}
+    return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
 
 
-def _order(entry):
-    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10)."""
+def order(entry):
+    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10). A plan
+    keeps name order run order (`versions.ordered`)."""
     stem, _, number = entry["round"].rpartition("-")
     return (stem, int(number)) if number.isdigit() else (entry["round"], -1)
 
@@ -124,12 +140,46 @@ def merge(current, skill, entry):
     if current and current.get("skill", current.get("skill_name")) != skill:
         raise ResultsError(f"the results file is not {skill}'s")
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
-    rounds.sort(key=_order)
+    rounds.sort(key=order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
     measured = {host for r in rounds for host in r["ran"]}  # a host the round planned but did not run keeps it
-    data = {"skill": skill, "rounds": rounds}
+    data = {"skill": skill, "rounds": rounds, "compared": compared(rounds)}
     kept = [h for h in old if h["host"] not in measured]
     return {**data, "phase_2_runner": kept} if kept else data
+
+
+def compared(rounds):
+    """One line for each round after the first, set beside the round before it (see the module)."""
+    found = []
+    for before, after in zip(rounds, rounds[1:]):
+        pair = f"{after['round']} beside {before['round']}"
+        missing = [r["round"] for r in (before, after) if not r.get("setup")]
+        if missing:
+            found.append(f"{pair}: unknown: {', '.join(missing)} recorded no setup")
+        elif before["setup"]["fingerprint"] == after["setup"]["fingerprint"]:
+            found.append(f"{pair}: same setup")
+        else:
+            parts = ", ".join(setups.changed(before["setup"], after["setup"]))
+            found.append(f"{pair}: not comparable: setup changed: {parts}")
+    return found
+
+
+def verified(data):
+    """{"round", "sha256"} of the last round of the results `data` whose reference host is `verified`, or None. An
+    entry with no skill hash gives None for it, and says why: unknown, never guessed."""
+    for entry in reversed((data or {}).get("rounds", [])):
+        if entry["hosts"].get(entry.get("reference"), {}).get("label") == "verified":
+            if entry.get("skill_sha256") is None:
+                return {"round": entry["round"], "sha256": None,
+                        "unknown": "the entry was written before results recorded the skill's hash"}
+            return {"round": entry["round"], "sha256": entry["skill_sha256"]}
+    return None
+
+
+def recorded(results_dir, skill):
+    """The results file of `skill` in `results_dir`, or None when it has none."""
+    path = Path(results_dir) / f"{skill}.json"
+    return _read(path) if path.exists() else None
 
 
 def write(path, data):
@@ -138,8 +188,8 @@ def write(path, data):
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
-                    "prices", "thresholds"):
-            if key not in entry:  # `not_run` is only in entries written before situations were labelled
+                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped"):
+            if key not in entry:  # `not_run` only before situations were labelled; the last three only after setups
                 continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")
         lines.append('      "hosts": {')
@@ -150,10 +200,9 @@ def write(path, data):
             lines.append("        }" + ("," if m < len(entry["hosts"]) - 1 else ""))
         lines.append("      }")
         lines.append("    }" + ("," if n < len(data["rounds"]) - 1 else ""))
-    lines.append("  ]" + ("," if "phase_2_runner" in data else ""))
-    if "phase_2_runner" in data:
-        lines.append(f'  "phase_2_runner": {json.dumps(data["phase_2_runner"], sort_keys=True)}')
-    lines.append("}")
+    tail = [f"  {json.dumps(key)}: {json.dumps(data[key], sort_keys=True)}" for key in ("compared", "phase_2_runner")
+            if key in data]
+    lines += ["  ]" + ("," if tail else ""), *[line + "," for line in tail[:-1]], *tail[-1:], "}"]
     text = "\n".join(lines) + "\n"
     if json.loads(text) != data:  # the layout never changes what is written
         raise ResultsError(f"{path}: the written layout does not read back as the results")
@@ -165,7 +214,5 @@ def publish(folder, archive, results_dir):
     """Merge the round in `folder` into each labelled skill's results file in `results_dir`. Return the paths."""
     written = []
     for skill, entry in entries(folder, archive).items():
-        path = Path(results_dir) / f"{skill}.json"
-        current = _read(path) if path.exists() else None
-        written.append(write(path, merge(current, skill, entry)))
+        written.append(write(Path(results_dir) / f"{skill}.json", merge(recorded(results_dir, skill), skill, entry)))
     return written

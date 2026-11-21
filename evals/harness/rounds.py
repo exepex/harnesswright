@@ -14,6 +14,8 @@ Plan file fields (`PLAN`), each with the one shape it may take; anything else is
   that does not report the model it used (Codex does not) must have one named here, and a host's default model
   changes over time, so every plan pins the model each host runs.
 - `runs`: runs per case, per arm and per host, 1 to 20.
+- `extra_runs` (optional): 0, 3 or 6, the extra runs a split case may get per arm when a measure is too close
+  (`extras.wanted`); 0, or none named, turns them off. The manifest keeps it with the plan.
 - `previous` (optional): `{skill: commit}`, for a skill of `skills`, the full commit of its previous version. Its
   task cases then run in a third arm, `previous_version`, with the skill as that commit holds it (`previous`).
 - `fault_case` (optional): `{"skill", "case"}`, a case of a skill the repository holds, on which the fault gate
@@ -27,6 +29,26 @@ needs a skill's files, and that runs in both arms.
 The manifest records, for each skill, the situations `evals/situations.json` says its cases must cover (`listed`,
 null when the file does not list the skill) and the situation of each of its cases (doc 11, Pressure situations).
 A `check-cannot-run` case runs with the skill only (`runs.arms`), so a skill with no folder yet cannot run one.
+
+Every manifest records `pinned: true`: task runs of the with-skill and previous-version arms start with the lead
+line that pins the skill's load (`runs.pinned`, doc 12, Proven use). A manifest without the flag, written before
+pinning, is a round whose runs are not pinned, and it resumes as it was planned.
+
+The manifest records, for each skill of the plan with a folder, the last version `evals/results/<skill>.json`
+records as `verified` on the reference host (`versions.verified`, `results.verified`). A skill that changed since
+then, and that the plan runs a task case of, must name that version as `previous`, so it is compared inside the
+round on one setup (doc 12, One setup); the plan is refused otherwise, naming the version. An unchanged skill, or
+one run in trigger cases only, has no previous arm, and its round makes no cross-round claim. A results entry
+written before skill hashes were recorded is unknown, and the manifest says so. Results keep rounds in name order,
+which picks that version, so a round's name must sort after every round in each planned skill's results file
+(`versions.ordered`); planning the same round again is allowed.
+
+The manifest records each planned skill's kind (`kinds`), as `evals/kinds.json`, a kit part, declares it
+(`cases.kinds`, doc 12, Skill kinds); a plan cannot set one, and an undeclared kind is null. An internal skill runs
+with the skill and its previous version only (`runs.arms`), so it cannot be absent, and its cases are never the
+fault gate's: a round whose skills are all internal names a team skill's `fault_case`. The manifest records the
+list of harnesswright's own checks (`own_checks`, `evals/own-checks.json`, a kit part), which an internal label
+reads.
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -88,11 +110,12 @@ PLAN = {
     "hosts": lambda v: (isinstance(v, list) and v and all(_host(h) for h in v)
                         and len({h["adapter"] for h in v}) == len(v)),
     "runs": lambda v: type(v) is int and v in RUNS,
+    "extra_runs": lambda v: type(v) is int and v in (0, 3, 6),
     "previous": lambda v: (isinstance(v, dict) and v and all(
         is_name(k) and isinstance(c, str) and COMMIT.fullmatch(c) for k, c in v.items())),
     "fault_case": lambda v: isinstance(v, dict) and set(v) == {"skill", "case"} and all(map(is_name, v.values())),
 }
-OPTIONAL = {"previous": {}, "fault_case": None}
+OPTIONAL = {"previous": {}, "fault_case": None, "extra_runs": 0}
 
 
 def read_plan(path):
@@ -234,7 +257,12 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             siblings.update(sibling for i in ids for sibling in known[i].siblings or ())
         held = skills.folders(repo)
         found["absent"] = sorted(name for name in data["skills"] if name not in held)  # cases, no folder yet
+        kinds = cases.kinds(Path(repo) / "evals" / "kinds.json")  # a kit part: the one reader, never the plan
+        found["kinds"] = {name: kinds.get(name) for name in sorted(data["skills"])}
+        found["own_checks"] = cases.own_checks(Path(repo) / "evals" / "own-checks.json")  # a kit part
         for name in found["absent"]:
+            if kinds.get(name) == "internal":  # an internal skill never runs without itself (runs.arms)
+                raise RoundError(f"{path}: {name} is internal and has no folder yet, so it has no arm to run")
             if name in data.get("previous", {}) or any(c.kind != "task" or c.situation in cases.SKILL_ONLY
                                                        for c in known_cases[name].values()):
                 raise RoundError(f"{path}: {name} has no folder yet, so its round runs task cases without it only")
@@ -250,9 +278,13 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             planted_on = cases.Case(folder, chosen["skill"])
             if planted_on.situation in cases.SKILL_ONLY:  # the fault gate needs both arms of its case
                 raise RoundError(f"{path}: fault_case runs with the skill only, so no fault can be planted on it")
+            if kinds.get(chosen["skill"]) == "internal":  # nor does an internal skill's case
+                raise RoundError(f"{path}: fault_case is a case of an internal skill; a team skill's case runs in "
+                                 "both arms")
             found["fault_case"] = {**chosen, "sha256": planted_on.sha256}
             installed.add(chosen["skill"])
-        elif not any(name not in found["absent"] and c.situation not in cases.SKILL_ONLY
+        elif not any(name not in found["absent"] and kinds.get(name) != "internal"
+                     and c.situation not in cases.SKILL_ONLY
                      for name, known in known_cases.items() for c in known.values()):
             # the fault gate plants on a case that runs in both arms, of a skill the repository holds
             raise RoundError(f"{path}: no case of a skill with a folder runs in both arms, so it names a fault_case")
@@ -265,6 +297,9 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
                 if kept["sha256"] == found["skills"][name]["sha256"]:
                     raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
+        import versions  # it reads the results, whose setups read the runner, which imports this module
+        versions.ordered(path, repo, data["round"], data["skills"])
+        found["verified"] = versions.verified(path, repo, found, known_cases)
         modules = {h["adapter"]: adapter(h["adapter"], adapters) for h in data["hosts"]}
         return {
             "round": data["round"],
@@ -272,6 +307,7 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             "plan_sha256": cases.sha256_file(Path(path)),
             "commit": at(repo),
             "kit": kit.digest(repo),
+            "pinned": True,  # every round from now on pins its task runs' load (runs.pinned)
             **found,
             "adapters": {name: tracked_digest(Path(adapters) / name) for name in modules},
             "hosts": {h["adapter"]: {"version": version(modules[h["adapter"]], **containment),
@@ -337,7 +373,9 @@ def main(argv=None):
                 written = results.publish(Path(args.store) / args.round, args.archive, REPO / "evals" / "results")
             except results.ResultsError as error:
                 raise RoundError(error) from None
-            print("\n".join(map(str, written)))
+            for path in written:  # each file, and how each of its rounds sets beside the one before
+                print("\n".join([str(path), *(f"  {line}" for line in results.recorded(path.parent, path.stem)[
+                    "compared"])]))
         else:
             import gates  # it imports this module, so only when a round runs
             attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)

@@ -18,12 +18,18 @@ on that question, with why.
   unanswered, the agreement, and each grader's host, model, sheet, failed tries, refused messages and costs, the
   tie-breaker last. A golden's record adds its settled answers; a run's names its skill and case, keeps only its
   trusted answers and names the untrusted questions, with why.
+- A run's grade is made once and kept across attempts (`KEPT`), whole, with the golden result its graders were
+  trusted under (`trusted`), written only where none is, so a resumed round never sees a grade move under it. Each
+  later grading rebuilds the run's page and refuses a kept grade of another page or questions; its goldens are
+  graded again, and an answer counts only when its question is trusted both now and when the grade was made, so a
+  grade whose graders lose trust is unscored. Goldens are never kept: every grading grades them, mixed in.
 - The gate's outcome names, per case, each question some page was asked: None when its grading is trusted, or why
   not. A grader that breaks its jail, or a golden that cannot be built, stops the round.
 
 Standard library only.
 """
 
+import json
 import tempfile
 
 import checks
@@ -34,6 +40,7 @@ import grading
 import view
 
 REFERENCE = "claude-code"  # the reference host (doc 10, Hosts)
+KEPT = "kept-grades"  # each run's grade, made once and kept across attempts: `<store>/<round>/kept-grades/<key>.json`
 
 
 def reference(hosts):
@@ -49,14 +56,27 @@ def text(case, record, blob):
 
 def grade_gate(r):
     """The grade gate of the round `r` (`gates.Round`)."""
+    return grade(r, r.runs, r.folder / "grades" / r.attempt)
+
+
+def grade(r, made_runs, folder):
+    """Grade the kept or made runs of `made_runs` with every golden mixed in, the goldens' records in `folder` and
+    each run's in the attempt's own folder. A run with a kept grade (`KEPT`) is not graded again."""
     library, top = checks.library(r.repo / "evals" / "checks"), reference(r.hosts)
     pages, asked, sheets, case_of = {}, {}, {}, {}  # by page name: its text, its questions, its panel, its case
-    for made in r.runs:
+    kept = {}  # by run key: its kept grade, made once in an earlier grading
+    for made in made_runs:
         if made["status"] in ("kept", "made") and r.asked[made["key"]]:
             record, blob = evidence.load(made["bundle"])
             pages[made["key"]] = text(r.cases[(made["skill"], made["case"])], record, blob)
             asked[made["key"]] = r.asked[made["key"]]
             case_of[made["key"]] = (made["skill"], made["case"])
+            path = r.folder / KEPT / f"{made['key']}.json"
+            if path.is_file():  # a kept grade is of this very page and questions, or the round stops
+                kept[made["key"]] = json.loads(path.read_text())
+                digest = grader.digest(pages[made["key"]], asked[made["key"]])
+                if {name: kept[made["key"]].get(name) for name in digest} != digest:
+                    raise ValueError(f"{path}: the kept grade is not of run {made['key']}'s page and questions")
     calibrated = {}  # (skill, case id): (case, its goldens)
     for (skill, case_id), case in r.cases.items():
         found = goldens.load(case, r.repo / "evals" / "goldens" / skill / case_id)
@@ -74,9 +94,8 @@ def grade_gate(r):
             if asked[name]:  # a golden whose every question a check decided has no page to grade
                 pages[name], case_of[name] = text(case, record, blobs.__getitem__), (skill, case_id)
     panel, pair = _panel(r, top)
-    for name, _ in grader.blind(pages, r.seed):
+    for name, _ in grader.blind({name: page for name, page in pages.items() if name not in kept}, r.seed):
         sheets[name] = panel(pages[name], asked[name])
-    folder = r.folder / "grades" / r.attempt
     outcome = {"goldens": {}, "runs": []}
     trusted = {}
     for (skill, case_id), (case, found) in calibrated.items():
@@ -92,18 +111,26 @@ def grade_gate(r):
                     "settled": {q["id"]: golden.settled[q["id"]] for q in asked[names[golden.name]]}})
         ids = {q["id"] for name in pages if case_of[name] == (skill, case_id) for q in asked[name]}  # graded ones
         outcome["goldens"][f"{skill}/{case_id}"] = {id_: why for id_, why in gate.items() if id_ in ids}
-    for made in r.runs:
+    for made in made_runs:
         if made["key"] not in pages:
             continue
-        doubted, given = trusted[(made["skill"], made["case"])], sheets[made["key"]]
-        untrusted = {q["id"]: doubted[q["id"]] for q in asked[made["key"]] if doubted[q["id"]] is not None}
-        record = _record(pages[made["key"]], asked[made["key"]], given, pair, top, r)
-        record.update(answers={id_: answer for id_, answer in given.answers.items() if id_ not in untrusted},
-                      untrusted=untrusted, case=f"{made['skill']}/{made['case']}")
-        r.write(_path(folder / "runs", made["key"]), record)
+        doubted, ids = trusted[(made["skill"], made["case"])], [q["id"] for q in asked[made["key"]]]
+        if made["key"] in kept:  # graded once: its graders must be trusted now and when it was made
+            whole = kept[made["key"]]
+            untrusted = {id_: doubted[id_] if doubted[id_] is not None else f"when graded: {whole['trusted'][id_]}"
+                         for id_ in ids if doubted[id_] is not None or whole["trusted"][id_] is not None}
+        else:
+            whole = {**_record(pages[made["key"]], asked[made["key"]], sheets[made["key"]], pair, top, r),
+                     "trusted": {id_: doubted[id_] for id_ in ids}, "attempt": r.attempt}
+            r.write(_path(r.folder / KEPT, made["key"]), whole)  # made once, never replaced
+            untrusted = {id_: doubted[id_] for id_ in ids if doubted[id_] is not None}
+        record = {key: value for key, value in whole.items() if key not in ("trusted", "attempt")}
+        record.update(answers={id_: answer for id_, answer in whole["answers"].items() if id_ not in untrusted},
+                      untrusted=untrusted, case=f"{made['skill']}/{made['case']}", graded_in=whole["attempt"])
+        r.write(_path(r.folder / "grades" / r.attempt / "runs", made["key"]), record)
         outcome["runs"].append({"key": made["key"], "answered": sorted(record["answers"]),
-                                "unanswered": given.unanswered, "untrusted": sorted(untrusted),
-                                "agreed": given.agreed, "asked": given.asked})
+                                "unanswered": whole["unanswered"], "untrusted": sorted(untrusted),
+                                "agreed": whole["agreed"], "asked": len(ids), "graded_in": whole["attempt"]})
     return outcome
 
 

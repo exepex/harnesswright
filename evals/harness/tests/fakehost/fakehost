@@ -8,12 +8,14 @@ sandbox (on unless `--sandbox off`), bundled skills (unless `--no-bundled`) and 
 
 Actions: {"do": "read", "path"}, {"do": "write", "path", "text"}, {"do": "command", "command", "block": reason
 (optional: the host refuses it)}, {"do": "skill", "name"}, {"do": "agent", "task"}, {"do": "say", "text"}, and
-{"do": "usage", "usage"}: the token counts its done event reports.
+{"do": "usage", "usage"}: the token counts its done event reports. A pinned run's lead line may come before the
+list: {"do": "pinned"} then loads the skill it names, and does nothing without one.
 """
 
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -52,7 +54,13 @@ def main():
     exposed = skills(options.world, not options.no_bundled)
     emit(event="start", skills=sorted(exposed), tools=tools)
     usage = {}
-    for action in json.loads(sys.stdin.read()):
+    prompt = sys.stdin.read()
+    pinned = re.match(r"Load the skill (\S+) at ", prompt)  # a pinned run's lead line, before the list
+    for action in json.loads(prompt[prompt.find("["):]):
+        if action["do"] == "pinned":  # load the skill the lead line names, as a host that follows it; none, nothing
+            if not pinned:
+                continue
+            action = {"do": "skill", "name": pinned.group(1)}
         tool = TOOLS.get(action["do"]) if action["do"] not in ("say", "usage") else None
         if action["do"] == "usage":
             usage = action["usage"]
