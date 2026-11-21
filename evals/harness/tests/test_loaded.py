@@ -153,7 +153,7 @@ class Label(TempCase):
         (self.tmp / "attempts" / "a1.json").write_text(json.dumps({"gates": [
             {"gate": "probe", "passed": True, "outcome": {"passed": ["h"], "not run": {}}},
             {"gate": "run", "passed": True, "outcome": found},
-            {"gate": "grade", "passed": True, "outcome": {"goldens": {}}}]}))
+            {"gate": "grade", "passed": True, "outcome": {"goldens": {}, "runs": []}}]}))
         record = {"round": "r1", "commit": "0" * 40, "cases": {"haiku-writer": {"c1": "", "c2": ""}},
                   "hosts": {"h": {"model": "m", "version": {"version": "1"}}}, "kit": "0" * 64, "skills": {},
                   "adapters": {}, "plan": {"runs": 3}}  # what the label file's setup reads (`setups.setup`)

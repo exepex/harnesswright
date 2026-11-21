@@ -8,8 +8,6 @@ Each skill on each host gets (`measures`):
 - `void_rate`, per arm: `voids` of `tries`, every void that `void.json` keeps counting, a remade one too.
 - `pinned_load`, per arm with pinned runs (`runs.pinned`, marked by the run gate): the tries that loaded the skill
   (`loaded`, the runs kept or made) of the pinned tries (`tries`), every try not loaded counting too (`runs.misses`).
-- `grader_agreement`: the questions the two graders answered the same (`agreed`) of those graded (`asked`), over
-  the host's task runs.
 - `golden_accuracy`: the questions of the skill's graded goldens that the panel answered as settled (`right`) of
   those asked (`asked`), read from each golden's grade record, an extra pass's too, the list trust is read from
   (`grades.golden_records`). The same for every host, as goldens are graded once per attempt and pass.
@@ -49,10 +47,9 @@ def measures(folder, attempt, gates, cases, price_file):
     """{(host, skill): measures} of the attempt `attempt` of the round in `folder`, whose gates by name are `gates`,
     with the round's `cases` by (skill, case id) and the checked `price_file`."""
     found = {}
-    graded = {run["key"]: run for run in gates["grade"]["outcome"]["runs"]}
     for made in gates["run"]["outcome"]:
         case, arm = cases[(made["skill"], made["case"])], made["arm"]
-        here = found.setdefault((made["host"], made["skill"]), {"agreed": 0, "asked": 0, "arms": {}})
+        here = found.setdefault((made["host"], made["skill"]), {"arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
                                             "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
                                             "pinned": 0, "loaded": 0, "format_runs": {}})
@@ -76,9 +73,6 @@ def measures(folder, attempt, gates, cases, price_file):
         _cost(own["cost"], record, price_file)
         if case.kind != "task":
             continue
-        if made["key"] in graded:
-            here["agreed"] += graded[made["key"]]["agreed"]
-            here["asked"] += graded[made["key"]]["asked"]
         verdicts = json.loads((run_folder / "checks.json").read_text())["verdicts"]
         sheet = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
         answers = json.loads(sheet.read_text())["answers"] if sheet.is_file() else {}
@@ -107,7 +101,6 @@ def measures(folder, attempt, gates, cases, price_file):
                           for arm, own in arms},
             "pinned_load": {arm: share(own["loaded"], own["pinned"], loaded=own["loaded"], tries=own["pinned"])
                             for arm, own in arms if own["pinned"]},
-            "grader_agreement": share(here["agreed"], here["asked"], agreed=here["agreed"], asked=here["asked"]),
             "golden_accuracy": _goldens(folder / "grades" / attempt, skill),
             "faults": None if caught is None else {"caught": sum(bool(f["caught"]) for f in caught),
                                                    "planted": len(caught)},

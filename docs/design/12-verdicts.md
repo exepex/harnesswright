@@ -155,9 +155,11 @@ A verdict is `pass`, `fail` or `too close`.
 ## Grader agreement
 
 - Agreement is counted for each judged question across the round, including answers refused for their form and
-  asked again.
+  asked again. A page counts only when at least two different graders answered it.
 - A page's answer is settled when the graders and the tie-breaker give a majority and no retry flipped it. A run is
   unscored on a question only when that page's own answer is not settled, for a pass and a fail alike.
+- A golden passes a question only when its answer is settled at the right value, so an unsettled golden, flipped
+  or with no majority, is a miss, and its reason names a flipped retry.
 - The label names every question below 90% agreement and every question whose retry flipped. Those questions are
   rewritten as a script check, sharpened, or dropped, and their goldens settled again by a judge who did not write
   them. Low agreement unscores nothing by itself.

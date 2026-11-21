@@ -156,6 +156,40 @@ class Panel(unittest.TestCase):
             grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="yes", q3="yes")], sheet_of())
 
 
+def retried(first, then):
+    """A grader whose first try gave the refused answers `first` and whose retry gave the sheet `then`."""
+    def grade_one(page, asked):
+        answers = [{"id": q["id"], "answer": then[q["id"]], "evidence": "Done."} for q in asked]
+        return grader.Graded({"answers": answers}, ["refused: not found word for word"], [[], []], offered=[first])
+    return grade_one
+
+
+class Settled(unittest.TestCase):
+    THREE = Panel.THREE
+
+    def test_a_retry_that_flipped_unsettles_that_question_on_that_page_alone(self):
+        flip = retried({"q1": ["yes"]}, {"q1": "no", "q2": "no", "q3": "yes"})
+        found = grader.panel(PAGE, self.THREE, [flip, sheet_of(q1="no", q2="no", q3="yes")], sheet_of())
+        self.assertEqual((found.answers, found.unanswered, found.flipped), ({"q2": "no", "q3": "yes"}, ["q1"], ["q1"]))
+        same = retried({"q1": ["no"]}, {"q1": "no", "q2": "no", "q3": "yes"})  # refused, then the same answer
+        other = grader.panel(PAGE, self.THREE, [same, sheet_of(q1="no", q2="no", q3="yes")], sheet_of())
+        self.assertEqual((other.answers, other.flipped), ({"q1": "no", "q2": "no", "q3": "yes"}, []))
+
+    def test_a_refused_sheet_that_answered_a_question_twice_two_ways_flipped_it(self):
+        twice = {"answers": [{"id": "q1", "answer": said, "evidence": "Done."} for said in ("no", "yes")]}
+        offered = grader.given(twice, {"q1", "q2", "q3"})
+        self.assertEqual(offered, {"q1": ["no", "yes"]})  # every answer is kept, not the last
+        flip = retried(offered, {"q1": "yes", "q2": "no", "q3": "yes"})
+        found = grader.panel(PAGE, self.THREE, [flip, sheet_of(q1="yes", q2="no", q3="yes")], sheet_of())
+        self.assertEqual((found.answers, found.unanswered, found.flipped), ({"q2": "no", "q3": "yes"}, ["q1"], ["q1"]))
+
+    def test_a_split_settled_by_the_tie_breaker_stays_settled_however_low_agreement_is(self):
+        found = grader.panel(PAGE, self.THREE, [sheet_of(q1="yes", q2="yes", q3="yes"),
+                                                sheet_of(q1="no", q2="no", q3="no")], sheet_of(q1="yes", q2="no",
+                                                                                                q3="yes"))
+        self.assertEqual((found.answers, found.agreed), ({"q1": "yes", "q2": "no", "q3": "yes"}, 0))
+
+
 class Folder(TempCase):
     def test_a_grader_folder_holds_only_the_page_and_the_questions_and_names_no_run(self):
         made, world = grader.folder(PAGE, ASKED)
@@ -221,6 +255,7 @@ class FakeGrader(TempCase):
         self.assertEqual(len(set(made)), grader.TRIES)
         self.assertEqual((graded.sheet, len(graded.logs)), (None, grader.TRIES))
         self.assertEqual(graded.refused, [json.dumps(bad)] * grader.TRIES)
+        self.assertEqual(graded.offered, [{"q1": ["yes"]}] * grader.TRIES)  # its refused answers count in agreement
 
     def test_a_final_message_that_is_not_a_sheet_is_refused(self):
         graded, _ = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])

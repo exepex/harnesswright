@@ -126,6 +126,19 @@ class Graded(Pages):
         self.assertEqual(found["answers"], {})
         self.assertIn("a golden was missed", found["untrusted"]["q2"])
 
+    def test_a_golden_whose_retry_flipped_is_a_miss_named_as_flipped(self):
+        def flipping(adapter, page, asked, model=None, timeout=None, **containment):
+            found = answering(pond)(adapter, page, asked)
+            if HELLO.strip() in page:  # the golden settled `no`: each grader was refused once for a `yes` to q2
+                found.offered.append({"q2": ["yes"]})
+            return found
+
+        outcome = self.graded([POND], flipping)
+        self.assertEqual(outcome["goldens"]["haiku-writer/c1"]["q2"],
+                         "a golden was missed: no got flipped retry, not no")
+        self.assertEqual(self.grades("haiku-writer/c1/no", "goldens")["flipped"], ["q2"])
+        self.assertEqual(outcome["runs"][0]["untrusted"], ["q2"])
+
     def test_a_case_with_no_goldens_is_never_trusted(self):
         for path in self.goldens.iterdir():
             path.unlink()

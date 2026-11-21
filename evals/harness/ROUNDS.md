@@ -80,29 +80,34 @@ when no host passed. The drift record of the first attempt a host passed is kept
 (`<store>/<round>/drift/<host>.json`) and used by every later attempt, so run keys stay the same from one attempt to
 the next. Tools that are not the round's stop the round. Every fault of the catalogue is planted on each host that
 passed, at a place the round's seed chooses, and every one must be caught. The runs follow `gates.order`: for each
-number, each case in turn, its arms one after the other, the arm that goes first turning. The host's version
-is measured just before each run, so a host that changed during the round voids its runs. The check gate decides
-every expectation that has a check on the bundle of each kept or made run, with the check library of the round's
-commit, and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided
-goes on to the graders. The grade gate grades every run's and golden's page in one blind order (`grades.py`). A
-run's answer counts only where the goldens got their settled answers. Each graded page leaves one record in the
-attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is made once and kept across attempts
-(`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders were trusted under; a later attempt
-grades its goldens again and counts a kept answer only when its question is trusted both now and then, and only
-when its panel has the kept grade's routes, each grader's host and model; a kept grade is never made again. When a
-measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to each split case it reads, in each
-arm it reads, through the run, check and grade steps, at most as many per case and arm as the plan's `extra_runs`
-(0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label already bound to be
-`incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why (`skipped`). A regrade
-reads the same runs as the label (`labels.with_extras`), and golden accuracy the same goldens, every pass's
-(`grades.golden_records`). The label file names the extra runs of
-each case and arm (`extra_runs`). A check that breaks, a grader that breaks its jail or a
-golden that cannot be built stops the round. Each gate's outcome, that of the gate that stopped the round too, is
-written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
-Everything a round writes or reports, its drift records included, passes one scrub: the canaries and credentials of
-every containment its gates made, taken while its home is still there. Every gate, grading too, as goldens
-calibrate only their own attempt's graders, runs again when the round runs again; only runs and their grades are
-kept.
+number, each case in turn, its arms one after the other, the arm that goes first turning. The host's version is
+measured just before each run, so a host that changed during the round voids its runs. The check gate decides every
+expectation that has a check on the bundle of each kept or made run, with the check library of the round's commit,
+and writes the verdicts beside the bundle (`<store>/<round>/runs/<key>/checks.json`); what no check decided goes on
+to the graders. The grade gate grades every run's and golden's page in one blind order (`grades.py`). A run's answer
+counts only where the goldens got their settled answers, and only where that page's answer is settled: two answers
+the same, the tie-breaker's included, and no grader's retry flipped it (`grader.flipped`), a sheet refused for its
+form still counting as that grader's answer (`offered`). A golden passes a question only when its answer is settled at
+the right value: an unsettled golden, flipped or with no majority, is a miss, named `flipped retry` or `no answer`.
+The label file names each judged question's agreement over every page that two different graders answered and every
+answer a grader gave, refused tries included, the overall share and the 90% bar, and lists every question below the
+bar or with a flipped retry for rewriting (`agreement`, `agreement.py`); agreement unscores nothing by itself. Each
+graded page leaves one record in the attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is
+made once and kept across attempts (`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders
+were trusted under; a later attempt grades its goldens again and counts a kept answer only when its question is
+trusted both now and then, and only when its panel has the kept grade's routes, each grader's host and model; a kept
+grade is never made again. When a measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to
+each split case it reads, in each arm it reads, through the run, check and grade steps, at most as many per case and
+arm as the plan's `extra_runs` (0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label
+already bound to be `incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why
+(`skipped`). A regrade reads the same runs as the label (`labels.with_extras`), and golden accuracy and agreement the
+same goldens, every pass's (`grades.golden_records`). The label file names the extra runs of each case and arm
+(`extra_runs`). A check that breaks, a grader that breaks its jail or a golden that cannot be built stops the round.
+Each gate's outcome, that of the gate that stopped the round too, is written, as it ends, to the attempt record
+`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Everything a round writes or reports, its drift
+records included, passes one scrub: the canaries and credentials of every containment its gates made, taken while
+its home is still there. Every gate, grading too, as goldens calibrate only their own attempt's graders, runs again
+when the round runs again; only runs and their grades are kept.
 
 The label gate (`labels.py`, with `verdicts.py` and `triggers.py`) gives each skill on each host one label of [10 ·
 Skills](../../docs/design/10-skills.md), computed from the store alone: the attempt record, and for each kept or
@@ -155,7 +160,7 @@ score 174 of 198 (87.9%), not the plain mean's 93.85%. The label file's `false_d
 arm, and each situation's counts, stay pooled counts.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
-with its counts: the void rate and the pinned-load rate per arm, grader agreement, golden accuracy from the goldens' grade records, the
+with its counts: the void rate and the pinned-load rate per arm, golden accuracy from the goldens' grade records, the
 faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, format
 conformance per arm with the expectations left undecided, and per arm the runs, seconds, token counts by model and
 money at the price file, whose date the label file names. A run with no token counts, or a model with no price,

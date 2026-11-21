@@ -173,14 +173,15 @@ def uncovered(case, goldens):
 
 def gate(case, goldens, graded):
     """{question id: None, or why its grading is not trusted this round} for every expectation of `case`.
-    `goldens` are its goldens (`load`); `graded` is {golden name: (the ids it was asked, the answers its panel gave)},
-    one entry for every golden. A question left unanswered is a miss."""
+    `goldens` are its goldens (`load`); `graded` is {golden name: (the ids it was asked, the answers its panel gave,
+    the ids a grader's retry flipped on it)}, one entry for every golden. A golden passes a question only when its
+    answer is settled at the right value, so an unsettled one is a miss: a flipped retry, or no answer."""
     if set(graded) != {golden.name for golden in goldens}:
         raise GoldenError("the gate needs the grading of every golden, and of no other run")
     found = {}
     for id_ in (f"q{number}" for number in range(1, len(case.expectations or []) + 1)):
         asked = [golden for golden in goldens if id_ in graded[golden.name][0]]
-        missed = [f"{golden.name} got {graded[golden.name][1].get(id_, 'no answer')}, not {golden.settled[id_]}"
+        missed = [f"{golden.name} got {_given(graded[golden.name], id_)}, not {golden.settled[id_]}"
                   for golden in asked if graded[golden.name][1].get(id_) != golden.settled[id_]]
         if missed:
             found[id_] = "a golden was missed: " + "; ".join(missed)
@@ -189,3 +190,9 @@ def gate(case, goldens, graded):
         else:
             found[id_] = None
     return found
+
+
+def _given(graded, id_):
+    """What a golden's panel gave question `id_`: its settled answer, a flipped retry, or no answer."""
+    _, answers, flipped = graded
+    return answers.get(id_) or ("flipped retry" if id_ in flipped else "no answer")

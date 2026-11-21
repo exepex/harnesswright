@@ -161,20 +161,21 @@ def _path(folder, name):
 def _record(page, asked, panel, pair, top, r):
     """What a page's panel found, as the store keeps it: the hashes of the page and its questions
     (`grader.digest`), the questions asked, the panel's answers, those left unanswered, the agreement, and each
-    grader's host, model, sheet, failed tries, refused messages and each try's seconds and token counts, the
-    tie-breaker last."""
+    grader's host, model, sheet, failed tries, refused messages, the answers each refused sheet gave (`offered`) and
+    each try's seconds and token counts, the tie-breaker last, with the questions a retry flipped (`flipped`)."""
     hosts = [*pair, top][:len(panel.graded)]
     return {**grader.digest(page, asked), "asked": [q["id"] for q in asked], "answers": panel.answers,
-            "unanswered": panel.unanswered, "agreed": panel.agreed,
+            "unanswered": panel.unanswered, "agreed": panel.agreed, "flipped": panel.flipped,
             "graders": [{"host": host, "model": r.model(host), "sheet": g.sheet, "tries": g.tries,
-                         "refused": g.refused, "costs": g.costs}
+                         "refused": g.refused, "offered": g.offered, "costs": g.costs}
                         for host, g in zip(hosts, panel.graded)]}
 
 
 def _graded(asked, sheets, name):
-    """(the ids a golden was asked, the answers its panel gave), as `goldens.gate` reads them."""
+    """(the ids a golden was asked, the answers its panel gave, the ids a retry flipped), as `goldens.gate` reads
+    them."""
     ids = [question["id"] for question in asked[name]]
-    return ids, (sheets[name].answers if name in sheets else {})
+    return ids, (sheets[name].answers if name in sheets else {}), (sheets[name].flipped if name in sheets else [])
 
 
 def _panel(r, top):

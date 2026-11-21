@@ -109,6 +109,7 @@ class Gate(Pages):
                                             "inferred_loads": 0, "met": False, "gaps": ["test trigger cases: none"]})
         self.assertEqual(path.stem, found["attempt"])
         self.assertEqual(found["shipped"], {"haiku-writer": False})  # decided here, on the reference host's labels
+        self.assertEqual(sorted(found["agreement"]["questions"]), ["haiku-writer/c1 q2", "haiku-writer/c1 q4"])
         # the setup that measured the skill: the one fingerprint its results compare by (doc 12, One setup)
         own = {"c1": cases.Case(self.case_dir, "haiku-writer")}
         self.assertEqual(found["setups"], {"haiku-writer": setups.setup(record, "haiku-writer", own, {

@@ -73,7 +73,7 @@ class Measures(TempCase):
         found = self.measure(faults={"h": [{"caught": True}, {"caught": True}], "other": [{"caught": True}]})
         self.assertEqual(found["void_rate"], {"with_skill": {"rate": 0.25, "voids": 1, "tries": 4},
                                               "without_skill": {"rate": 0.5, "voids": 2, "tries": 4}})
-        self.assertEqual(found["grader_agreement"], {"rate": 0.8, "agreed": 4, "asked": 5})
+        self.assertNotIn("grader_agreement", found)  # one measure of agreement: the label file's (`agreement`)
         self.assertEqual(found["golden_accuracy"], {"rate": 0.5, "right": 2, "asked": 4})
         self.assertEqual(found["faults"], {"caught": 2, "planted": 2})
         self.assertEqual(found["inferred_evidence"], {"with_skill": 1, "without_skill": 2})
@@ -109,8 +109,7 @@ class Measures(TempCase):
         self.assertEqual((without["runs"], without["untimed"], without["uncounted"], without["unpriced"]),
                          (3, 1, 1, 1))
         self.assertIsNone(found["faults"])  # no fault gate in this attempt
-        self.assertEqual((found["grader_agreement"]["rate"], found["golden_accuracy"]), (None, {
-            "rate": None, "right": 0, "asked": 0}))
+        self.assertEqual(found["golden_accuracy"], {"rate": None, "right": 0, "asked": 0})
 
     def test_the_pinned_load_rate_and_the_cost_count_every_pinned_try_and_only_arms_with_pinned_runs(self):
         for key, status, missed in (("k1", "made", 1), ("k2", "not loaded", 2), ("k3", "kept", 0)):

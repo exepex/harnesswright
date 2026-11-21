@@ -153,18 +153,18 @@ class Gate(TempCase):
         self.goldens = [goldens.Golden("a", GOLDEN), goldens.Golden("b", {**GOLDEN, "settled": settled(("no", "yes", "no"))})]
 
     def test_a_question_is_trusted_when_every_golden_asked_it_got_its_settled_answer_both_ways(self):
-        graded = {"a": (["q1", "q2", "q3"], {"q1": "yes", "q2": "no", "q3": "yes"}),
-                  "b": (["q1", "q2", "q3"], {"q1": "no", "q2": "yes", "q3": "no"})}
+        graded = {"a": (["q1", "q2", "q3"], {"q1": "yes", "q2": "no", "q3": "yes"}, []),
+                  "b": (["q1", "q2", "q3"], {"q1": "no", "q2": "yes", "q3": "no"}, [])}
         self.assertEqual(goldens.gate(self.subject, self.goldens, graded), {"q1": None, "q2": None, "q3": None})
 
     def test_one_miss_or_one_unanswered_golden_is_enough(self):
-        graded = {"a": (["q1", "q2"], {"q1": "yes", "q2": "yes"}), "b": (["q1", "q2"], {"q2": "yes"})}
+        graded = {"a": (["q1", "q2"], {"q1": "yes", "q2": "yes"}, []), "b": (["q1", "q2"], {"q2": "yes"}, [])}
         found = goldens.gate(self.subject, self.goldens, graded)
         self.assertEqual(found["q2"], "a golden was missed: a got yes, not no")
         self.assertEqual(found["q1"], "a golden was missed: b got no answer, not no")
 
     def test_a_question_no_golden_was_asked_both_ways_is_not_trusted(self):
-        graded = {"a": (["q2"], {"q2": "no"}), "b": ([], {})}  # a check decided q1 on both, and q2 on b
+        graded = {"a": (["q2"], {"q2": "no"}, []), "b": ([], {}, [])}  # a check decided q1 on both, and q2 on b
         found = goldens.gate(self.subject, self.goldens, graded)
         self.assertIn("settled yes and one with a settled no", found["q1"])
         self.assertIn("settled yes and one with a settled no", found["q2"])
@@ -173,7 +173,8 @@ class Gate(TempCase):
                          ([], ["q1", "q2", "q3"]))
 
     def test_a_golden_that_was_not_graded_cannot_drop_out(self):
-        for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"})}, {"a": ([], {}), "b": ([], {}), "c": ([], {})}):
+        for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"}, [])},
+                       {"a": ([], {}, []), "b": ([], {}, []), "c": ([], {}, [])}):
             with self.subTest(graded=sorted(graded)), self.assertRaisesRegex(goldens.GoldenError, "every golden"):
                 goldens.gate(self.subject, self.goldens, graded)
 
