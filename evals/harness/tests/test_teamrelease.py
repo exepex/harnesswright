@@ -155,8 +155,9 @@ class TeamArms(TempCase):
         with self.assertRaisesRegex(CaseError, "before releases hashed their files.*only a previous version"):
             world.plan(case, Adapter, True, previous)
         read = contextlib.contextmanager(lambda repo, name, commit, sha256: iter([(previous / name, {})]))
-        self.assertEqual(teamrelease.proofs(self.tmp, self.tmp / "skills" / "claims-writer", "claims-writer",
-                                            {"commit": "c" * 40, "sha256": "s"}, read),
+        found = teamrelease.proofs(self.tmp, self.tmp / "skills" / "claims-writer", "claims-writer",
+                                   {"commit": "c" * 40, "sha256": "s"}, read)
+        self.assertEqual({arm: kept["proof"] for arm, kept in found.items()},
                          {"with_skill": "hashes", "previous_version": "commit"})
 
     def test_a_release_from_0_8_0_without_its_run_time_list_is_a_fault(self):

@@ -70,12 +70,39 @@ class Planned(Round):
             "rulebook-version": "0.8.0", "run-time": ["manifest.json"], "run-time-files": {},
             "skills": {"haiku-writer": {"files": {"SKILL.md": hashlib.sha256(skill.read_bytes()).hexdigest()}}}}))
         record = self.plan()
-        self.assertEqual((record["kinds"], record["release_proof"]),
-                         ({"haiku-writer": "team"}, {"haiku-writer": {"with_skill": "hashes"}}))
+        self.assertEqual((record["kinds"], record["release_proof"]), ({"haiku-writer": "team"}, {"haiku-writer": {
+            "with_skill": {"proof": "hashes", "run_time": {"manifest.json": hashlib.sha256(
+                (self.repo / "skills" / "manifest.json").read_bytes()).hexdigest()}}}}))
         (self.repo / "evals" / "own-checks.json").write_text('["files"]')
         self.assertEqual(self.plan()["own_checks"], ["files"])  # the list an internal label reads, from the kit
         with self.assertRaisesRegex(rounds.RoundError, "kinds"):
             self.plan(kinds={"haiku-writer": "internal"})
+
+    def release(self, roles, text="# Haiku writer\n"):
+        """A team release of haiku-writer whose run-time files are its manifest and `roles.md`, holding `roles`."""
+        folder, skill = self.repo / "skills", self.repo / "skills" / "haiku-writer" / "SKILL.md"
+        (folder / "roles.md").write_text(roles)
+        skill.write_text(skill.read_text().split("\n# ")[0] + "\n" + text)
+        (folder / "manifest.json").write_text(json.dumps({
+            "rulebook-version": "0.8.0", "run-time": ["manifest.json", "roles.md"],
+            "run-time-files": {"roles.md": hashlib.sha256(roles.encode()).hexdigest()},
+            "skills": {"haiku-writer": {"files": {"SKILL.md": hashlib.sha256(skill.read_bytes()).hexdigest()}}}}))
+
+    def test_changed_run_time_files_change_the_install_so_the_setup_and_the_previous_arm_see_it(self):
+        self.kinds(**{"haiku-writer": "team"})
+        self.release("# Roles\n")
+        before = self.plan()
+        old = self.git("rev-parse", "HEAD")
+        self.release("# Roles, with another job\n")  # the skill folder is unchanged
+        after = self.plan(previous={"haiku-writer": old})  # not refused: the arms install different roles.md
+        self.assertEqual(after["skills"]["haiku-writer"]["sha256"], before["skills"]["haiku-writer"]["sha256"])
+        own = {"c1": cases.Case(self.case_dir, "haiku-writer")}
+        made = [setups.setup(record, "haiku-writer", own, DRIFT) for record in (before, after)]
+        self.assertNotEqual(made[0]["fingerprint"], made[1]["fingerprint"])
+        self.assertEqual(setups.changed(*made), ["release"])
+        self.release("# Roles, with another job\n", "# Haiku writer, better\n")  # the skill alone changed
+        changed = setups.setup(self.plan(previous={"haiku-writer": old}), "haiku-writer", own, DRIFT)
+        self.assertEqual(changed["fingerprint"], made[1]["fingerprint"])  # its manifest's new hash is no part
 
     def test_an_internal_skill_runs_with_the_skill_and_its_previous_version_only(self):
         self.kinds(**{"haiku-writer": "internal", "limerick-writer": "team"})

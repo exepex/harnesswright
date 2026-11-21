@@ -169,15 +169,33 @@ def prove(skill_dir, name, files, current=None):
 
 
 def proof(skill_dir, name, current=None):
-    """The proof `prove` gives the release skill `skill_dir`, from its tracked files: what a round records."""
+    """What a round records of the release skill `skill_dir`, from its tracked files: the proof `prove` gives it and
+    every run-time file an arm installs with it, by its sha256 (`run_time`), the manifest included. With the
+    skill's folder hash, that is everything the arm installs for the skill."""
     import skills  # the one reader of a skill's tracked files
     files, _ = skills.skill_files(skill_dir, name)
-    return prove(skill_dir, name, {rel: hashlib.sha256(data).hexdigest() for rel, data in files.items()},
-                 current)[1]
+    root, how, paths = prove(skill_dir, name, {rel: hashlib.sha256(data).hexdigest() for rel, data in files.items()},
+                             current)
+    return {"proof": how, "run_time": {rel: hashlib.sha256((root / rel).read_bytes()).hexdigest() for rel in paths}}
+
+
+def installed(record, name, arm):
+    """Everything arm `arm` (`with_skill` or `previous_version`) of the round whose manifest is `record` installs for
+    the skill `name`: its folder's hash and, for a team skill, its release's `proof` and run-time files
+    (`release_proof`). The one reader of a skill's identity in a round; the setup holds the with-skill arm's."""
+    folder = record["skills"] if arm == "with_skill" else record["previous"]
+    return {"sha256": folder.get(name, {}).get("sha256"),
+            "release": record.get("release_proof", {}).get(name, {}).get(arm)}
+
+
+def unchanged(record):
+    """The skills whose previous version would install the same as the version under test (`installed`)."""
+    return sorted(name for name in record["previous"]
+                  if installed(record, name, "previous_version") == installed(record, name, "with_skill"))
 
 
 def proofs(repo, skill_dir, name, kept, read):
-    """{arm: proof} of a team skill's releases in a round: the release under test, and, with `kept` (the round's
+    """{arm: `proof`} of a team skill's releases in a round: the release under test, and, with `kept` (the round's
     record of the previous version), the previous one, read as `read` (`rounds.previous`) reads it, by its commit."""
     found = {"with_skill": proof(skill_dir, name)}
     if kept:
