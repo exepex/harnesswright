@@ -3,7 +3,7 @@
  "outcome": "pass",
  "after": {
   "release/": "",
-  "release/manifest.json": "{\n  \"rulebook-version\": \"0.8.0\",\n  \"skills\": {}\n}\n",
+  "release/manifest.json": "{\n  \"rulebook-version\": \"0.8.0\",\n  \"run-time\": [\n    \"manifest.json\",\n    \"roles.md\",\n    \"rules/\"\n  ],\n  \"run-time-files\": {\n    \"roles.md\": \"a4757ae5766bbce4bf18c1ed60c7b250c8a1ca11337c79db67e384535f384f69\",\n    \"rules/core/index.md\": \"213f448eba3fc82c0005d6d1278f2c88ec63e191bfa3a78bf984f1ea167885a7\",\n    \"rules/core/work.md\": \"bd355d7fc61c85ccd722d6850990215106525a4a6a562444aa06c88a32054d1d\"\n  },\n  \"skills\": {}\n}\n",
   "release/roles.md": "# Roles\n\n## Roles\n\n| Role | Group | Purpose | Produces | Never does | Model class | Independent |\n|---|---|---|---|---|---|---|\n| implementer | delivery | Builds one story | The change | Judge its own work | standard | no |\n\n## Jobs\n\n| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n",
   "release/rules/": "",
   "release/rules/core/": "",
@@ -21,7 +21,7 @@
  "final_message": "Done.",
  "before": {
   "release/": "",
-  "release/manifest.json": "{\n  \"rulebook-version\": \"0.8.0\",\n  \"skills\": {}\n}\n",
+  "release/manifest.json": "{\n  \"rulebook-version\": \"0.8.0\",\n  \"run-time\": [\n    \"manifest.json\",\n    \"roles.md\",\n    \"rules/\"\n  ],\n  \"run-time-files\": {\n    \"roles.md\": \"a4757ae5766bbce4bf18c1ed60c7b250c8a1ca11337c79db67e384535f384f69\",\n    \"rules/core/index.md\": \"213f448eba3fc82c0005d6d1278f2c88ec63e191bfa3a78bf984f1ea167885a7\",\n    \"rules/core/work.md\": \"bd355d7fc61c85ccd722d6850990215106525a4a6a562444aa06c88a32054d1d\"\n  },\n  \"skills\": {}\n}\n",
   "release/roles.md": "# Roles\n\n## Roles\n\n| Role | Group | Purpose | Produces | Never does | Model class | Independent |\n|---|---|---|---|---|---|---|\n| implementer | delivery | Builds one story | The change | Judge its own work | standard | no |\n\n## Jobs\n\n| Job | Roles | Skills in order | `rest` skill |\n|---|---|---|---|\n",
   "release/rules/": "",
   "release/rules/core/": "",
