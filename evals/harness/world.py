@@ -62,8 +62,9 @@ class Install:
 def names(words):
     """A pattern that finds each of `words` (a skill's name and paths) as a whole name: not inside a longer name,
     so a skill named `test` is not found in `pytest` or `test_save`. A name character is an ASCII letter, digit, `_`
-    or `-`, the same for text and bytes. The grader view removes each line it finds, and every index row must be
-    one (`plan`)."""
+    or `-`, the same for text and bytes. The lint and the internal world read it, and every index row must hold one
+    (`plan`). The grader view does not: it finds the skill's name in any spelling (`view.spelled`), which holds
+    every whole name too."""
     return re.compile("(?<![\\w-])(?:" + "|".join(re.escape(word) for word in words) + ")(?![\\w-])", re.ASCII)
 
 
@@ -103,7 +104,7 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
         row = None
         if case.index:
             row = case.index["row"].format(name=name, path=f"{rel}/SKILL.md", description=meta["description"])
-            if not names([name, *targets]).search(row):  # the grader view finds the row only by a whole name
+            if not names([name, *targets]).search(row):  # a whole name, which the grader view finds too
                 raise CaseError(f"{case.id}: the index row {row!r} must name {name} or its path as a whole name")
         installs.append(Install(name, source, targets, row, files))
         if team and name == case.skill:

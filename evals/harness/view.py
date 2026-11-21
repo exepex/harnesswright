@@ -6,9 +6,13 @@ known to be risky. Each rule is applied the same way in both arms, so the same r
 - **The skill's name, in any spelling.** The view never shows the skill's name or one of its paths, whole or inside a
   longer name such as `rules-text-<skill>.core.md`: one pattern finds them (`spelled`), and every rule below that
   names the skill uses it, the checks' question of what the view shows too (`overlay_names`, `checks.decide`).
+- **A run's rules files.** The view never shows the files a run writes beside its rules, `rules.md` and each
+  `rules-text-<skill>.<stack>.md` of a run folder, in either arm: only a skill's resolver writes them, so they tell
+  the arm whichever skill they name. Their names are the resolver's own (`RUN_FILES`, from `v2/build/runfiles.py`),
+  never a list here. A path that is one is left out, and an action on one is the overlay's (`overlay_names`).
 - **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
-  copies of the skill, and the folders above them while they only hold them), outside the host's own files, and
-  that do not name the skill (`spelled`).
+  copies of the skill, and the folders above them while they only hold them), outside the host's own files, that do
+  not name the skill (`spelled`) and that are not a run's rules file.
 - **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path, command or
   refused action names the skill, one of its paths, or a folder above them that only the overlay made
   (`on_overlay`, `overlay_names`). The view hides what is on the overlay, not what sits beside it: a command is
@@ -33,10 +37,11 @@ saved to a file, or a word it made from the skill's name, is its own output and 
 Standard library only.
 """
 
+import ast
 import hashlib
 import os
 import re
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import evidence
 import host
@@ -47,6 +52,7 @@ import shell
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
 ACTION_FIELDS = ("path", "command", "action")  # the fields that say what an action acts on
 COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command: what the agent ran
+RUNFILES = Path(__file__).resolve().parents[2] / "v2" / "build" / "runfiles.py"  # the resolver's names of its files
 
 
 def view(record, blob):
@@ -80,10 +86,10 @@ def view(record, blob):
     old = {path: before(path, change["before"]) for path, change in record["diff"].items() if change["before"]}
     old = {path: entry for path, entry in old.items() if entry is not None}
     new = {path: entries[path] for path, change in record["diff"].items() if change["after"]}
+    hidden = lambda path: words.search(path) or RUN_FILES.search(path)  # noqa: E731
     files = {path: entry for path, entry in entries.items()
-             if path not in own and not evidence.covers(places, path, entry, entry) and not words.search(path)}
-    changes = {path: change for path, change in evidence.diff(old, new, places, own).items()
-               if not words.search(path)}
+             if path not in own and not evidence.covers(places, path, entry, entry) and not hidden(path)}
+    changes = {path: change for path, change in evidence.diff(old, new, places, own).items() if not hidden(path)}
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
@@ -122,7 +128,8 @@ def view(record, blob):
 
 
 def overlay_names(overlay, files_after, diff):
-    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`spelled`), and,
+    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`spelled`), a run's
+    rules files (`RUN_FILES`), and,
     as a path, each folder above one of its paths that the overlay alone made: before the run it held nothing but
     the overlay (`evidence.covers`), or was not there. A folder of that name the world holds itself does not count,
     and both arms find the same folders, so the same run in either arm gives the same view."""
@@ -136,7 +143,7 @@ def overlay_names(overlay, files_after, diff):
     # a folder is named as a path from the world: at a word's start or after ./, whole or with a path below it
     start, end = r"""(?<![^\s'"`;&|<>()=])(?:\./)?""", r"""(?=/|$|[\s'"`;&|<>()*])"""
     folders = "".join(f"|{start}{re.escape(folder)}{end}" for folder in only)
-    return re.compile(pattern + folders, re.ASCII)
+    return re.compile(pattern + folders + "|" + RUN_FILES.pattern, re.ASCII)
 
 
 def shown(item, words):
@@ -151,6 +158,39 @@ def shown(item, words):
     if not command or not command.strip(" \t"):
         return None
     return {**item, "command": command, "exit_code": None}  # the code was the whole command's, not its shown part's
+
+
+def run_names(source=RUNFILES):
+    """[the resolver's own names of a run's rules files]: `RULES_MD` and `RULES_TEXT`, built on `RUN`, in `source`,
+    with their fields such as `{run}` and `{skill}`. Raise ValueError when the source does not name them as strings."""
+    known = {}
+    for node in ast.parse(source.read_text()).body:
+        if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] in (["RUN"], ["RULES_MD"],
+                                                                                              ["RULES_TEXT"]):
+            known[node.targets[0].id] = _joined(node.value, known)
+    if set(known) != {"RUN", "RULES_MD", "RULES_TEXT"}:
+        raise ValueError(f"{source}: names no RUN, RULES_MD and RULES_TEXT")
+    return [known["RULES_MD"], known["RULES_TEXT"]]
+
+
+def run_files(source=RUNFILES):
+    """The pattern that finds a run's rules files (`run_names`) as a path from the world, whole, each of their
+    fields any one path part."""
+    part = r"""[^/\s'"`;&|<>()*]+"""
+    names = [re.sub(r"\\\{\w+\\\}", lambda _: part, re.escape(name)) for name in run_names(source)]
+    return re.compile(r"""(?<![^/\s'"`;&|<>()=])(?:\./)?(?:""" + "|".join(names) + r""")(?=$|[\s'"`;&|<>()*])""",
+                      re.ASCII)
+
+
+def _joined(node, known):
+    """The string a module-level expression of strings and names joined by `+` gives."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name) and node.id in known:
+        return known[node.id]
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _joined(node.left, known) + _joined(node.right, known)
+    raise ValueError(f"not a string of strings and names: {ast.dump(node)}")
 
 
 def spelled(words):
@@ -194,3 +234,6 @@ def _relative(path, world):
     if world and path.startswith(world.rstrip("/") + "/"):
         return path[len(world.rstrip("/")) + 1:]
     return path
+
+
+RUN_FILES = run_files()  # a run's rules files, as the resolver names them

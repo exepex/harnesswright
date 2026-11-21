@@ -167,6 +167,17 @@ class Views(TempCase):
         self.assertEqual([item["command"] for item in shown["log"] if item["kind"] == "command"][-1:], [
             LISTED[2]["command"]])  # views() also proves both arms' views equal and that neither names the skill
 
+    def test_a_run_s_rules_files_are_never_shown_whatever_skill_they_name(self):
+        run = ".harness/runs/2026-11-20-r"  # a run folder both arms hold; only a skill's resolver writes its rules
+        made = [{"do": "write", "path": f"{run}/{name}", "text": "| CORE-WORK-01 | core |\n"}
+                for name in ("rules.md", "rules-text-other-skill.core.md", "rules-text-other-skill.java-spring.md")]
+        shown, _ = self.views(LISTED, {"world": {f"{run}/stories/S01.md": "# S01\n"}}, SKILL_ONLY + made + [
+            {"do": "command", "command": f"cat ./{run}/rules.md"}])
+        self.assertEqual(sorted(path for path in shown["files_after"] if path.startswith(run)),
+                         [run, f"{run}/stories", f"{run}/stories/S01.md"])
+        self.assertEqual([name.split("/")[-1] for name in view.run_names()],
+                         ["rules.md", "rules-text-{skill}.{stack}.md"])  # the resolver's names, read from its source
+
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)
         self.assertEqual(shown["diff"], {"skills": {"before": None, "after": shown["files_after"]["skills"]}})

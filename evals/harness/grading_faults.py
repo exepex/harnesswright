@@ -280,19 +280,21 @@ def view_(setup, fault, rng, place):
     golden's record at `place`, everywhere that place can carry them: the arm and what the host reported; the final
     message; every kind of log entry (`host.ENTRIES`), as an action on each path, with an inferred entry after its
     command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
-    their writes and changes), a link to one, and a world file's text and its write. Its control is the same record with
-    the plant's actions on the overlay left out, its lines that name the skill left out, its run folders as their
-    neutral words and its command output empty. Caught when the clean view and page name none of them, by the one
-    rule of `tells` (an arm word may be only in a world file both arms of the case are built holding byte for byte),
-    and the planted view and page equal the control's: nothing of the plant shows, not even an entry with its names
-    taken out. The world file that takes the plant's lines is one whose text names no arm word."""
+    their writes and changes), a link to one, a world file's text and its write, and a run's rules files as the
+    resolver names them (`view.run_names`), written in a run folder that both records hold. Its control is the same
+    record with the plant's actions on the overlay and its rules files left out, its lines that name the skill left
+    out, its run folders as their neutral words and its command output empty. Caught when the clean view and page
+    name none of them, by the one rule of `tells` (an arm word may be only in a world file both arms of the case are
+    built holding byte for byte), and the planted view and page equal the control's: nothing of the plant shows, not
+    even an entry with its names taken out. The world file that takes the plant's lines is one whose text names no
+    arm word."""
     case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
     names = [skill, *evidence.places(layer)]  # the skill's paths and the files a team install adds
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
-    edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
+    edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[A-Za-z0-9]", c)]  # each not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
                                              *(host.lead(setup.adapter, skill, file) for file in files),  # a pin
                                              *(f"cat {world}/{file}" for file in files),
@@ -351,6 +353,18 @@ def view_(setup, fault, rng, place):
             one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
         for one, root in ((planted, world), (control, word)):  # a link to a world file by the world's own folder
             one["files_after"][f"{link}-world"] = f"link {root}/{target}"
+        rules = [name.format(run="hw-run", skill=f"hw-{rng.getrandbits(16):04x}", stack="core")
+                 for name in view.run_names()]  # the files only a skill's resolver writes, whatever skill it names
+        above = {str(f) for file in rules for f in PurePosixPath(file).parents if str(f) != "."}
+        for one in (planted, control):  # their run folder is in both records; only the planted one holds them
+            made = {folder: "dir" for folder in sorted(above) if folder not in record["files_after"]}
+            one["files_after"].update(made)
+            one["diff"].update({name: {"before": None, "after": "dir"} for name in made})
+        for file in rules:
+            digest = stored(b"| CORE-WORK-01 | core | principle |  |  |\n")  # names no skill: only its path tells
+            planted["files_after"][file] = f"file {digest}{rest}"
+            planted["diff"][file] = {"before": None, "after": f"file {digest}{rest}"}
+            planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": digest})
         for path in evidence.places(layer):  # the overlay as a run holds it: its folders, those above, its files
             above = [str(folder) for folder in PurePosixPath(path).parents if str(folder) != "."]
             own = stored(f"# {skill}\n{lines}".encode())  # the skill's own bytes, which the view must not hold
