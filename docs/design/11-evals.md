@@ -242,12 +242,12 @@ exit code, since the two arms are different worlds and what a world prints back 
 "the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
 removed from the view's text, and every file whose path names one is left out, in any spelling: whole, or inside a
 longer name. A run's rules files, `rules.md` and each `rules-text-<skill>.<stack>.md` of a run folder, are left out in
-both arms, with every action on them: only a skill's resolver writes them, so they tell the arm whatever skill they
-name. Their names are the resolver's own. A command is cut where the command checks find its programs, so it loses
-only the pipelines on the overlay (naming the skill, its paths, a folder only the overlay made or a run's rules
-file) and what depends on them, by `$?`, `&&` or `||`; it is dropped whole only when nothing else is left or no
-clean cut can be made. What the agent itself wrote or said about what it saw is its own output and stays visible.
-The full bundle is kept for checks, audits and judges.
+both arms, with every action that names one by its path: only a skill's resolver writes them, so they tell the arm
+whatever skill they name. Their names are the resolver's own. A command is cut where the command checks find its
+programs, so it loses only the pipelines on the overlay (naming the skill, its paths, a folder only the overlay made
+or a run's rules file) and what depends on them, by `$?`, `&&` or `||`; it is dropped whole only when nothing else
+is left or no clean cut can be made. What the agent itself wrote or said about what it saw is its own output and
+stays visible. The full bundle is kept for checks, audits and judges.
 
 A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
 or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The

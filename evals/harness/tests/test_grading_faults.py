@@ -60,6 +60,11 @@ def after_slash(words):
     return re.compile(NAMES(words).pattern.replace("(?<![A-Za-z0-9])", "(?<![A-Za-z0-9/])"), re.ASCII)
 
 
+def whole_names(words):
+    """A names pattern that finds a name only whole, with `-` and `_` as name characters, as the view had it."""
+    return re.compile(NAMES(words).pattern.replace("[A-Za-z0-9]", "[\\w-]"), re.ASCII)
+
+
 def quote_is_name(words):
     """A names pattern that counts quotes as part of a name."""
     return re.compile(NAMES(words).pattern.replace("[A-Za-z0-9]", "[A-Za-z0-9\"']"), re.ASCII)
@@ -162,6 +167,9 @@ class Missed(Fake):
                   for place in ("message", "log", "file")),
                 *(("view", place, mock.patch.object(view, "spelled", quote_is_name), "the view a grader gets")
                   for place in ("message", "log", "file")),
+                *(("view", place, mock.patch.object(view, "spelled", whole_names), "the view a grader gets")
+                  for place in ("message", "log", "file")),  # the plant puts - and _ next to the name
+                ("view", "file", mock.patch.object(view, "RUN_FILES", re.compile("(?!)")), "the view a grader gets"),
                 *(("view", place, mock.patch.object(view, "text", lambda value, words, folders: TEXT(value, words, {
                     f"{folder}/": f"{word}/" for folder, word in folders.items()})), "the view a grader gets")
                   for place in ("message", "log", "file")),
