@@ -3,7 +3,8 @@
 One rule: a round goes through `GATES` in order, each gate reads only the round's manifest and what the gates before
 it found, and the first gate that fails stops the round with its reason. Each gate's outcome is written to the
 round's attempt record as the gate ends, that of the gate that stopped the round too (`Stop`), so every gate a round
-ran can be read back from the store. Everything the round writes or reports passes one scrub (`Round.quiet`): the
+ran can be read back from the store. Every way an attempt ends, a caught signal too, writes why to the record before
+the process exits (`endings`). Everything the round writes or reports passes one scrub (`Round.quiet`): the
 canaries and credentials of every containment its gates made, taken while its home is still there (`Round.keep`).
 
 - `kit check`: the measuring kit matches the judges' approval (`kit.check`), and it is the kit the manifest hashed.
@@ -56,6 +57,7 @@ import tempfile
 from pathlib import Path
 
 import checks
+import endings
 import extras
 import faults
 import grader
@@ -330,24 +332,31 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
     r = Round(record, store, repo, adapters, **options)
     started = datetime.datetime.now(datetime.timezone.utc)
     attempt = {"round": name, "seed": r.seed, "started": started.isoformat(timespec="seconds"), "gates": []}
-    folder = r.folder / "attempts"
-    folder.mkdir(parents=True, exist_ok=True)
-    handle, path = tempfile.mkstemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", suffix=".json", dir=folder)
-    os.close(handle)  # a new name for every attempt, never another attempt's
-    path = Path(path)
+    path = endings.claim(r.folder / "attempts")  # a new name for every attempt, in the order they start
     r.attempt = path.stem  # names what this attempt alone writes, such as its grades
-    for gate, step in gates:
+    gate = None
+    with endings.signals(path, attempt, lambda: gate, r.quiet):  # every end writes why (`endings.end`)
         try:
-            outcome = step(r)
-        except Exception as error:  # any error stops the round at this gate, with its reason
-            reason = r.quiet(str(error) if isinstance(error, Stop) else f"{type(error).__name__}: {error}")
-            stopped = {"gate": gate, "passed": False, "reason": reason}
-            reason = r.quiet(str(error))
-            attempt["gates"].append({**stopped, **({"outcome": error.outcome} if isinstance(error, Stop) else {})})
-            _write(path, attempt, r.quiet)
-            raise rounds.RoundError(f"round {name} stopped at the {gate} gate: {reason}") from error
-        attempt["gates"].append({"gate": gate, "passed": True, "outcome": outcome})
-        _write(path, attempt, r.quiet)
+            for gate, step in gates:
+                try:
+                    outcome = step(r)
+                except Exception as error:  # any error stops the round at this gate, with its reason
+                    reason = r.quiet(str(error) if isinstance(error, Stop) else f"{type(error).__name__}: {error}")
+                    stopped = {"gate": gate, "passed": False, "reason": reason}
+                    reason = r.quiet(str(error))
+                    attempt["gates"].append({**stopped, **({"outcome": error.outcome} if isinstance(error, Stop)
+                                                           else {})})
+                    endings.end(path, attempt, f"stopped at the {gate} gate: {stopped['reason']}", r.quiet)
+                    raise rounds.RoundError(f"round {name} stopped at the {gate} gate: {reason}") from error
+                attempt["gates"].append({"gate": gate, "passed": True, "outcome": outcome})
+                _write(path, attempt, r.quiet)
+            endings.end(path, attempt, endings.PASSED, r.quiet)
+        except BaseException as error:  # an exit or an interrupt not caught as a signal: why, before it goes on
+            said = f": {error}" if str(error) else ""
+            endings.end(path, attempt, f"{type(error).__name__} during the {gate} gate{said}", r.quiet)
+            if isinstance(error, endings.Ended):
+                raise rounds.RoundError(f"round {name} {error}") from None
+            raise
     return json.loads(r.quiet(json.dumps(attempt)))
 
 

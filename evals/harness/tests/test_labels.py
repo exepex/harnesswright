@@ -95,6 +95,8 @@ class Gate(Pages):
         probe, run = self.stored([("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3)
         steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
                  ("label", labels.label_gate))
+        (self.store / "r1" / "attempts").mkdir(parents=True)
+        (self.store / "r1" / "attempts" / "20000101T000000-killed.json").write_text("")  # an earlier, killed attempt
         outcome = self.go(steps, grade=done_or_pond)["gates"][-1]["outcome"]
         self.assertEqual(outcome, {"haiku-writer": {"fakehost": "incomplete"}})  # the fixture declares no kind
         [path] = (self.store / "r1" / "labels").iterdir()
@@ -108,6 +110,7 @@ class Gate(Pages):
         self.assertEqual(entry["trigger"], {"accuracy": None, "threshold": 0.9, "cases": 0, "runs": {},
                                             "inferred_loads": 0, "met": False, "gaps": ["test trigger cases: none"]})
         self.assertEqual(path.stem, found["attempt"])
+        self.assertEqual(found["no_reason"], ["20000101T000000-killed"])  # the label file names it
         self.assertEqual(found["shipped"], {"haiku-writer": False})  # decided here, on the reference host's labels
         self.assertEqual(sorted(found["agreement"]["questions"]), ["haiku-writer/c1 q2", "haiku-writer/c1 q4"])
         # the setup that measured the skill: the one fingerprint its results compare by (doc 12, One setup)

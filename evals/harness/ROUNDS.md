@@ -104,7 +104,14 @@ already bound to be `incomplete` or `inconclusive` by another reason gets none, 
 same goldens, every pass's (`grades.golden_records`). The label file names the extra runs of each case and arm
 (`extra_runs`). A check that breaks, a grader that breaks its jail or a golden that cannot be built stops the round.
 Each gate's outcome, that of the gate that stopped the round too, is written, as it ends, to the attempt record
-`<store>/<round>/attempts/<time>-<random>.json`, with the seed. Everything a round writes or reports, its drift
+`<store>/<round>/attempts/<number>.json`, with the seed; the number, one past the highest any attempt's record,
+grades or label file holds, taken by exclusive create, is never used twice and orders the attempts as they
+started, after those an older store named by time (`endings.attempts`).
+Every way an attempt ends, every gate passed, a gate stop, an error, an exit, or an interrupt or the SIGTERM a tool's
+time limit sends, writes why to the record (`ended`, `endings.py`) before the process exits; a signal's reason is
+written as it arrives, and a signal the process ignores, as under `nohup`, stays ignored. A kill no process can catch
+leaves none: a resumed round prints why its last attempt ended, or that it has no recorded reason, and the label file
+names every attempt with none (`no_reason`). Everything a round writes or reports, its drift
 records included, passes one scrub: the canaries and credentials of every containment its gates made, taken while
 its home is still there. Every gate, grading too, as goldens calibrate only their own attempt's graders, runs again
 when the round runs again; only runs and their grades are kept.

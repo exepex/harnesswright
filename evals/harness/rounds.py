@@ -377,7 +377,11 @@ def main(argv=None):
                 print("\n".join([str(path), *(f"  {line}" for line in results.recorded(path.parent, path.stem)[
                     "compared"])]))
         else:
+            import endings
             import gates  # it imports this module, so only when a round runs
+            gates.read(args.store, args.round)  # a planned round, before its folder is read
+            for line in endings.resumed(kit.store_folder(args.store, REPO) / args.round / "attempts", args.round):
+                print(line, file=sys.stderr, flush=True)  # why the last attempt ended, before this one starts
             attempt = gates.run(args.store, args.round, seed=args.seed, host_paths=args.host_paths)
             print(json.dumps(attempt, indent=1, sort_keys=True))
     except RoundError as error:

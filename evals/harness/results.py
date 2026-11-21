@@ -33,6 +33,7 @@ import json
 import tarfile
 from pathlib import Path
 
+import endings
 import setups
 
 
@@ -57,7 +58,7 @@ def _sha256(path):
 
 def finished(folder):
     """The paths of the round's last attempt record and its label file. That attempt must have passed every gate."""
-    attempts = sorted(Path(folder, "attempts").glob("*.json"))
+    attempts = endings.attempts(Path(folder, "attempts"))  # in the order they started
     if not attempts:
         raise ResultsError(f"{folder}: the round has no attempt")
     attempt = _read(attempts[-1])
