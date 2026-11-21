@@ -5,6 +5,9 @@ the grader view (`view.py`) share, so the two never disagree on it.
   start of the command, after an operator outside quotes (`&&`, `||`, `;`, `|`), after any `NAME=value` words, and
   the same way inside the script of a shell's `-c` flag. A command with a line break is read only from its start,
   since a later line may be a heredoc's text.
+- `words(command)`: the words of each program `programs` finds, as the shell splits them, quotes taken off, each
+  program to the operator after it: None for a program it cannot split, such as one with an open quote or a line
+  break, and nothing for a shell's `-c` program, whose script's programs are listed in its place.
 - `cut(command, drop)`: the command without each of its pipelines that `drop` takes, or None when no clean cut is
   possible. A cut removes each pipeline `drop` takes and everything that depends on a removed pipeline: what reads
   its exit code (`$?`) or is joined to it by `&&` or `||`, down the chain. Each takes the operator before it with it
@@ -15,12 +18,27 @@ the grader view (`view.py`) share, so the two never disagree on it.
 - `owns_exit_code(command, code)`: whether the command's exit code, when it is `code`, is its own program's. That
   holds for one program with its arguments, each a plain word, a simple quoted string of a plain word's characters
   and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined by `&&`, which ends with 0
-  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code.
+  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code. A
+  plain word may hold a variable such as `$S`, which changes no exit code.
+- `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
+  as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
+  A command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to
+  it. One rule: the program must be the last of its unit, joined to it by `&&` only, and its code is the unit's
+  code `c` when `owns_exit_code(unit, c)`: so for a unit of programs joined by `&&`, such as `cd x && run`, only
+  when `c` is 0, since a nonzero code may be an earlier program's, which stopped the unit before the run. The
+  unit's code is known two ways. The last unit gives the command's code, when every unit is plain programs joined
+  by `&&` (`CHAIN`). Or the next unit is `echo <words>$?` alone: it prints its words and the code on a line of
+  `output`. Each unit that may print a line that starts with those words is an `echo` of exactly those words and
+  one value, alone in its unit so it always runs, and the output has one such line for each, in order; any other
+  printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line changes
+  nothing; in the run's own unit it leaves the code unknown.
+- `parts(command)`: [(the operator before it, its text)] of each top-level program, as `programs` finds its starts.
 
 Standard library only.
 """
 
 import re
+import shlex
 
 OPERATOR = re.compile(r"&&|\|\||[;|]")
 ASSIGNMENT = re.compile(r"""(?:[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|[^\s'"])*[ \t]+)*""")
@@ -46,7 +64,8 @@ STATELESS = frozenset((
 # script, and any other character (an operator, a line break, !) could make that script end with another code.
 PLAIN = r"[A-Za-z0-9_./=:@%+,*?~\[\]-]"
 PLAIN_QUOTED = r"[A-Za-z0-9_./=:@%+,*?~\[\] \t-]"  # a plain word's characters and blanks
-WORD = rf"""(?:{PLAIN}|'{PLAIN_QUOTED}*'|"{PLAIN_QUOTED}*")+"""
+VARIABLE_WORD = r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})"  # `$S`: a value, never a program
+WORD = rf"""(?:{PLAIN}|{VARIABLE_WORD}|'{PLAIN_QUOTED}*'|"{PLAIN_QUOTED}*")+"""
 TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{WORD}|<[ \t]*{WORD}|{WORD})"
 PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
@@ -56,6 +75,68 @@ CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every
 def owns_exit_code(command, code):
     """Whether `command` ending with `code` means its own program ended with it (the module's docstring)."""
     return bool((CHAIN if code == 0 else ALONE).fullmatch(command))
+
+
+def parts(command):
+    """[(operator before it, text)] of each top-level program of `command` (the module's docstring)."""
+    starts = _starts(command)
+    ends = [where for _, where, _ in starts[1:]] + [len(command)]
+    return [(operator, command[start:end]) for (operator, _, start), end in zip(starts, ends)]
+
+
+def exit_code(command, program, code, output):
+    """The exit code of program `program` of `command`, or None when it cannot be known (the module's docstring)."""
+    found = parts(command)
+    if "\n" in command or not 0 <= program < len(found):
+        return None
+    units = []  # [program numbers] of each unit: a program after the start or a `;`, and what is joined to it
+    for n, (op, _) in enumerate(found):
+        units.append([n]) if op in ("", ";") else units[-1].append(n)
+    at = next(n for n, unit in enumerate(units) if program in unit)
+    if units[at][-1] != program or any(found[n][0] != "&&" for n in units[at][1:]):
+        return None
+    if at == len(units) - 1:  # the last unit of a list of plain units gives the command's code
+        known = code if all(CHAIN.fullmatch(_joined(found, u)) for u in units) else None
+    else:
+        known = _echoed(found, units, at + 1, output)
+    return known if known is not None and owns_exit_code(_joined(found, units[at]), known) else None
+
+
+def _joined(found, unit):
+    return found[unit[0]][1] + "".join(found[n][0] + found[n][1] for n in unit[1:])
+
+
+ECHOED = re.compile(r"([^$]*)\$(\?|\{\?\}|[A-Za-z_][A-Za-z0-9_]*|\{[^}\s]*\})")  # `echo <words>` and a value
+
+
+def _echo(text):
+    """(what `echo` prints before a value it ends with, that value), when `text` is an `echo` of words and one
+    value at the end; ("", None) for any other `echo`; None when it is not an `echo` the shell's words split."""
+    try:
+        words = shlex.split(text)
+    except ValueError:
+        return None
+    if words[:1] != ["echo"]:
+        return None
+    said = ECHOED.fullmatch(" ".join(words[1:]))
+    return said.groups() if said else (" ".join(words[1:]), None)
+
+
+def _echoed(found, units, at, output):
+    """The code that unit `at`, `echo <words>$?`, printed, or None (the module's docstring)."""
+    echo = _echo(_joined(found, units[at])) if len(units[at]) == 1 else None
+    if echo is None or echo[1] not in ("?", "{?}"):
+        return None
+    printers = []  # the units that may print a line of `echo[0]` and a number, in order
+    for n, unit in enumerate(units):
+        for program in unit:
+            other = _echo(found[program][1])
+            if other is not None and other[0].startswith(echo[0]):
+                if len(unit) > 1 or other[1] is None or other[0] != echo[0]:
+                    return None  # it may not run, or may print a line of that shape another way
+                printers.append(n)
+    lines = re.findall(rf"^{re.escape(echo[0])}(\d+)$", output or "", re.MULTILINE)
+    return int(lines[printers.index(at)]) if len(lines) == len(printers) else None
 
 
 def _starts(command):
@@ -84,6 +165,20 @@ def programs(command):
         found.append(text)
         if script := SHELL_SCRIPT.match(text):
             found += programs(script.group(1)[1:-1])
+    return found
+
+
+def words(command):
+    """[the words of each program of `command`, or None where they cannot be split], as the module's docstring says."""
+    found = []
+    for text in programs(command):
+        if SHELL_SCRIPT.match(text):
+            continue  # its script's programs follow, from `programs`
+        own = text[:_starts(text)[1][1]] if len(_starts(text)) > 1 else text
+        try:
+            found.append(None if "\n" in own else shlex.split(own))
+        except ValueError:
+            found.append(None)
     return found
 
 
