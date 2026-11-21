@@ -1,0 +1,9 @@
+{
+ "args": {
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "pass",
+ "final_message": "Blocked: the rules index `v2/rules/index.md` is not in the repository.\nNo case or template was written."
+}

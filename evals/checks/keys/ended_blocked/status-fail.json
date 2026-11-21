@@ -1,0 +1,9 @@
+{
+ "args": {
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "fail",
+ "final_message": "Status: blocked. Missing: v2/rules/index.md."
+}

@@ -1,0 +1,9 @@
+{
+ "args": {
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "pass",
+ "final_message": "## Stage\n\nUnknown: the run stopped in step 1.\n\n## Not run\n\nBlocked: v2/rules/index.md, the rules index, is missing.\n"
+}

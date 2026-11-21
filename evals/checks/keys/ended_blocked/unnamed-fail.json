@@ -1,0 +1,9 @@
+{
+ "args": {
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "fail",
+ "final_message": "Blocked: a file the run needs is missing.\nIt is the rules index, v2/rules/index.md."
+}

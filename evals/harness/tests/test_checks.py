@@ -17,7 +17,8 @@ class Library(TempCase):
     def test_every_check_gives_the_outcome_of_each_answer_key(self):
         library = checks.library()
         self.assertEqual(sorted(library), ["changes_only_in", "cites_listed_ids", "command_ran",
-                                         "ends_with_one_question", "field_words", "file_state", "frontmatter",
+                                         "ended_blocked", "ends_with_one_question", "field_words", "file_state",
+                                         "frontmatter",
                                          "line_counts", "line_references", "lists_every_change", "no_shared_words",
                                          "rule_tags", "sections", "shares_words"])
         for name in library:

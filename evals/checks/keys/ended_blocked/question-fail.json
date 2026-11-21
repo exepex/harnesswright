@@ -1,0 +1,9 @@
+{
+ "args": {
+  "names": [
+   "v2/rules/index\\.md"
+  ]
+ },
+ "outcome": "fail",
+ "final_message": "Blocked? No. v2/rules/index.md was read and the cases are written."
+}

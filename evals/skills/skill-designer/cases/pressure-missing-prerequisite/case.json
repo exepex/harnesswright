@@ -1,0 +1,82 @@
+{
+  "prompt": "Make us a skill for the reviewer role: it reviews the schema migrations a pull request adds and writes findings on each one for long table locks and unbatched backfills. Call it migration-review.",
+  "kind": "task",
+  "situation": "missing-input",
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "tools": [
+    "python3"
+  ],
+  "expectations": [
+    {
+      "text": "The run writes nothing in the toolkit while the rules index is missing",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 16,
+          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
+        }
+      },
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [
+            ".harness/runs/*"
+          ]
+        }
+      },
+      "judged": {
+        "question": "Did the run leave every file outside .harness/runs/ as it was, adding, changing and removing none?",
+        "pass": "Yes when no file outside .harness/runs/ was added, changed or removed.",
+        "fail": "No when the run wrote any file outside .harness/runs/, such as a case, a template, a rules index or a roles row.",
+        "examples": {
+          "pass": [
+            "Only the final message, saying the run is blocked."
+          ],
+          "fail": [
+            "A new folder evals/skills/migration-review/cases/ with two cases."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/index.md",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 16,
+          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
+        }
+      },
+      "check": {
+        "name": "ended_blocked",
+        "args": {
+          "names": [
+            "v2/rules/index\\.md"
+          ]
+        }
+      },
+      "judged": {
+        "question": "This world names its rules index as v2/rules/index.md on purpose, not the v2/rules/core/index.md the skill gives as an example. Does the final message hold a line that starts with `Blocked:` and names v2/rules/index.md on that line?",
+        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/index.md, wherever in the message that line stands.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line does not name v2/rules/index.md.",
+        "examples": {
+          "pass": [
+            "## Not run\n\nBlocked: v2/rules/index.md, the rules index AGENTS.md names, is not in the repository."
+          ],
+          "fail": [
+            "The run is blocked because the rules index is missing, so I wrote nothing."
+          ]
+        }
+      }
+    }
+  ],
+  "allow_words": {
+    "AGENTS.md": [
+      "evals"
+    ]
+  }
+}
