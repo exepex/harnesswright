@@ -131,9 +131,29 @@ class Endings(Gated):
         first = self.attempt_name()[:-len(".json")]
         self.assertEqual(self.resume(), f"round r1: resuming; the last attempt {first} ended: stopped at the b "
                                         "gate: RoundError: broken\n")
-        (self.store / "r1" / "attempts" / "99999999T999999-killed.json").write_text("")  # a SIGKILL: no reason
-        self.assertEqual(self.resume(), "round r1: resuming; the last attempt 99999999T999999-killed has no "
-                                        "recorded reason\n")
+        killed = endings.claim(self.store / "r1" / "attempts").stem  # a SIGKILL as it started: no reason
+        self.assertEqual(self.resume(), f"round r1: resuming; the last attempt {killed} has no recorded reason\n")
+
+    def test_attempts_started_in_one_second_are_read_in_the_order_they_started(self):
+        self.planned()
+        folder = self.store / "r1" / "attempts"
+        folder.mkdir(parents=True)
+        (folder / "99999999T999999-older.json").write_text("")  # an older store's name, read before every number
+        for number in range(10):  # well within one second, as the clock names them
+            with self.assertRaises(rounds.RoundError):
+                self.go((("a", raises(rounds.RoundError(f"stop {number}"))),))
+        self.assertEqual([endings.reason(p) for p in endings.attempts(folder)],
+                         [None] + [f"stopped at the a gate: RoundError: stop {n}" for n in range(10)])
+        self.assertIn("ended: stopped at the a gate: RoundError: stop 9", self.resume())
+
+    def test_an_attempt_takes_the_next_free_number(self):
+        folder = self.tmp / "attempts"
+        self.assertEqual(endings.claim(folder).name, "000001.json")
+        with mock.patch.object(endings, "attempts", return_value=[]):  # another process took 1 since it looked
+            self.assertEqual(endings.claim(folder).name, "000002.json")
+        (folder / "000009.json").write_text("")
+        (folder / ".000010.json").write_text("{")  # a write under way, never an attempt
+        self.assertEqual(endings.claim(folder).name, "000010.json")
 
     def resume(self):
         told = io.StringIO()

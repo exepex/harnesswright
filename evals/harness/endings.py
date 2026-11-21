@@ -11,6 +11,12 @@ label file names every attempt with no recorded reason (`unrecorded`).
 A record written before `ended` existed is read by its gates (`reason`): a stopped gate's reason, or every gate
 passed when its label gate passed. Anything else, an empty or unreadable record too, has no recorded reason.
 
+The attempts of a round have one order, the order they started, read through one function (`attempts`) by every
+reader of the last or the latest attempt. An attempt is named by its number (`claim`): one more than the last
+numbered attempt, taken by exclusive create, so no two attempts share one and number order is start order whatever
+the clock's resolution. An attempt of an older store, named by its start time to the second and a random suffix,
+comes before every numbered one, in name order; two of those started in the same second have no known order.
+
 Standard library only.
 """
 
@@ -18,11 +24,13 @@ import contextlib
 import datetime
 import json
 import os
+import re
 import signal
 
 PASSED = "passed every gate"
 _WRITING = set()  # the ids of the attempts whose reason `end` is writing now
 CAUGHT = ("SIGINT", "SIGTERM", "SIGHUP")
+NUMBERED = re.compile(r"[0-9]+")  # the name of an attempt `claim` made
 
 
 class Ended(BaseException):
@@ -95,8 +103,29 @@ def reason(path):
 
 
 def attempts(folder):
-    """The attempt records in `folder`, oldest first, as their names start with their start time."""
-    return sorted(p for p in folder.glob("*.json") if not p.name.startswith(".")) if folder.is_dir() else []
+    """The attempt records in `folder` in the order they started: every attempt of an older store first, in name
+    order, then every numbered attempt, in number order. A name that starts with a dot is a write under way."""
+    def order(path):
+        return (1, int(path.stem), path.stem) if NUMBERED.fullmatch(path.stem) else (0, 0, path.stem)
+
+    if not folder.is_dir():
+        return []
+    return sorted((p for p in folder.glob("*.json") if not p.name.startswith(".")), key=order)
+
+
+def claim(folder):
+    """The path of a new, empty attempt record in `folder`, named by the next number: one more than the last
+    numbered attempt's, the next free one when another process took it first."""
+    folder.mkdir(parents=True, exist_ok=True)
+    numbered = [int(p.stem) for p in attempts(folder) if NUMBERED.fullmatch(p.stem)]
+    number = max(numbered, default=0) + 1
+    while True:
+        path = folder / f"{number:06d}.json"
+        try:
+            os.close(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))  # only where no entry has its name
+            return path
+        except FileExistsError:
+            number += 1
 
 
 def resumed(folder, name):

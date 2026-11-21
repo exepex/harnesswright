@@ -39,6 +39,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # its imports leave no bytecode in the kit's folder, which must hold only tracked files
 
 import checks  # noqa: E402
+import endings  # noqa: E402
 import evidence  # noqa: E402
 import faults  # noqa: E402
 import gates  # noqa: E402
@@ -82,12 +83,12 @@ def source(r, attempt=None):
     it ran before the label gate, so an extra runs gate stopped part way never leaves grades the outcome does not
     name."""
     found = {}
-    for path in sorted((r.folder / "attempts").glob("*.json")):
+    for path in endings.attempts(r.folder / "attempts"):  # in the order they started
         recorded = json.loads(path.read_text())["gates"]
         ran = {g["gate"]: g.get("outcome") for g in recorded if g["passed"]}
         if "grade" in ran and all(g["passed"] for g in recorded if g["gate"] != "label"):
             found[path.stem] = ran
-    named = attempt or max(found, default=None)
+    named = attempt or next(reversed(found), None)
     if named not in found:
         raise RegradeError(f"round {r.record['round']}: no attempt {attempt or ''} whose grade gate passed, and "
                            f"every gate before the label gate")

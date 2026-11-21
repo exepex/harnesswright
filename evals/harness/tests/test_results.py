@@ -72,6 +72,11 @@ class Results(TempCase):
         (folder / "labels" / "t2.json").write_bytes((folder / "labels" / "t1.json").read_bytes())
         with self.assertRaisesRegex(results.ResultsError, "such as attempts/t2.json, labels/t2.json"):
             results.entries(folder, archive)  # an archive made before a later attempt
+        folder, _ = self.round("r8")
+        failed = {"gates": [{"gate": "kit check", "passed": False}]}
+        (folder / "attempts" / "000001.json").write_text(json.dumps(failed))
+        with self.assertRaisesRegex(results.ResultsError, "000001.json: the last attempt did not pass"):
+            results.finished(folder)  # numbered attempts come after those an older store named
         folder, archive = self.round("r7")
         (folder / "runs" / "k1").mkdir(parents=True)
         (folder / "runs" / "k1" / "checks.json").write_text("{}")
