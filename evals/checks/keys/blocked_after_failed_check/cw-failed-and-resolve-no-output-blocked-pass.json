@@ -1,0 +1,23 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "pass",
+ "final_message": "Blocked: claims_check.py exited 1.\n",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/claims_check.py --repo . --claims c.md --story s.md --base main",
+   "exit_code": 1,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

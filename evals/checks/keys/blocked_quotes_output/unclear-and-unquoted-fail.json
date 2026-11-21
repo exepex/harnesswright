@@ -1,0 +1,23 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "fail",
+ "final_message": "Blocked: the checks failed.\n",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "timeout 60 python3 SKILL_DIR/scripts/claims_check.py --repo . --claims c.md --story s.md --base main",
+   "exit_code": 1,
+   "output": ""
+  },
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 1,
+   "output": "resolve stopped: release (skills): version 0.8.0 is not the profile's 0.7.0\n"
+  }
+ ]
+}
