@@ -12,10 +12,11 @@ A record written before `ended` existed is read by its gates (`reason`): a stopp
 passed when its label gate passed. Anything else, an empty or unreadable record too, has no recorded reason.
 
 The attempts of a round have one order, the order they started, read through one function (`attempts`) by every
-reader of the last or the latest attempt. An attempt is named by its number (`claim`): one more than the last
-numbered attempt, taken by exclusive create, so no two attempts share one and number order is start order whatever
-the clock's resolution. An attempt of an older store, named by its start time to the second and a random suffix,
-comes before every numbered one, in name order; two of those started in the same second have no known order.
+reader of the last or the latest attempt. An attempt is named by its number (`claim`): one past the highest that any
+place an attempt's name owns holds, its record, grades or label file, taken by exclusive create of the record, so no
+two attempts share a name, a deleted one's neither, and number order is start order whatever the clock's
+resolution. An attempt of an older store, named by its start time to the second and a random suffix, comes before
+every numbered one, in name order; two of those started in the same second have no known order.
 
 Standard library only.
 """
@@ -31,6 +32,7 @@ PASSED = "passed every gate"
 _WRITING = set()  # the ids of the attempts whose reason `end` is writing now
 CAUGHT = ("SIGINT", "SIGTERM", "SIGHUP")
 NUMBERED = re.compile(r"[0-9]+")  # the name of an attempt `claim` made
+OWNED = ("attempts", "grades", "labels")  # the folders of a round where an attempt's name names what it wrote
 
 
 class Ended(BaseException):
@@ -114,10 +116,13 @@ def attempts(folder):
 
 
 def claim(folder):
-    """The path of a new, empty attempt record in `folder`, named by the next number: one more than the last
-    numbered attempt's, the next free one when another process took it first."""
+    """The path of a new, empty attempt record in `folder` (`<store>/<round>/attempts`), named by the next number:
+    one past the highest number any place an attempt's name owns (`OWNED`) holds, so a name is never used twice,
+    even when a record was deleted, or the next free one when another process took it first."""
     folder.mkdir(parents=True, exist_ok=True)
-    numbered = [int(p.stem) for p in attempts(folder) if NUMBERED.fullmatch(p.stem)]
+    owned = [folder.parent / place for place in OWNED if (folder.parent / place).is_dir()]
+    numbered = [int(p.name.split(".")[0]) for place in owned for p in place.iterdir()
+                if NUMBERED.fullmatch(p.name.split(".")[0]) and not p.name.startswith(".")]
     number = max(numbered, default=0) + 1
     while True:
         path = folder / f"{number:06d}.json"

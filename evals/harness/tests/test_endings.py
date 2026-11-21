@@ -5,6 +5,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -149,11 +150,25 @@ class Endings(Gated):
     def test_an_attempt_takes_the_next_free_number(self):
         folder = self.tmp / "attempts"
         self.assertEqual(endings.claim(folder).name, "000001.json")
-        with mock.patch.object(endings, "attempts", return_value=[]):  # another process took 1 since it looked
-            self.assertEqual(endings.claim(folder).name, "000002.json")
-        (folder / "000009.json").write_text("")
-        (folder / ".000010.json").write_text("{")  # a write under way, never an attempt
-        self.assertEqual(endings.claim(folder).name, "000010.json")
+        with mock.patch.object(endings, "OWNED", ("grades", "labels")):  # another process took 2 since it looked
+            (folder / "000002.json").write_text("")
+            self.assertEqual(endings.claim(folder).name, "000003.json")
+        (folder / ".000004.json").write_text("{")  # a write under way, never an attempt
+        self.assertEqual(endings.claim(folder).name, "000004.json")
+
+    def test_a_deleted_attempt_s_name_is_never_taken_again(self):
+        folder = self.tmp / "attempts"
+        for _ in range(3):
+            endings.claim(folder)
+        (self.tmp / "grades" / "000003" / "goldens").mkdir(parents=True)  # what attempt 3 graded stays
+        (self.tmp / "labels").mkdir()
+        (self.tmp / "labels" / "000002.json").write_text("{}")
+        (folder / "000003.json").unlink()  # the highest record deleted
+        self.assertEqual(endings.claim(folder).name, "000004.json")
+        for name in ("000004.json", "000002.json", "000001.json"):
+            (folder / name).unlink()
+        shutil.rmtree(self.tmp / "grades")
+        self.assertEqual(endings.claim(folder).name, "000003.json")  # one past the label of 000002
 
     def resume(self):
         told = io.StringIO()

@@ -84,7 +84,10 @@ def source(r, attempt=None):
     name."""
     found = {}
     for path in endings.attempts(r.folder / "attempts"):  # in the order they started
-        recorded = json.loads(path.read_text())["gates"]
+        try:
+            recorded = json.loads(path.read_text())["gates"]
+        except (ValueError, KeyError, TypeError):  # an empty record, as a kill just after it started leaves
+            continue
         ran = {g["gate"]: g.get("outcome") for g in recorded if g["passed"]}
         if "grade" in ran and all(g["passed"] for g in recorded if g["gate"] != "label"):
             found[path.stem] = ran
