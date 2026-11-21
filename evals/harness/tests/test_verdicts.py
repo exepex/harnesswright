@@ -184,8 +184,10 @@ class Decide(unittest.TestCase):
 class Verdicts(unittest.TestCase):
     def test_a_clean_round_is_decided_at_once(self):
         found = verdicts.decide(measured(), [])["verdicts"]
-        self.assertEqual(found["task pass rate"], {"verdict": "pass", "value": 1.0, "best": 1.0, "worst": 1.0})
-        self.assertEqual(found["lift"], {"verdict": "pass", "value": 1.0, "best": 1.0, "worst": 1.0})
+        self.assertEqual(found["task pass rate"], {"verdict": "pass", "value": 1.0, "best": 1.0, "worst": 1.0,
+                                                  "split": {"with_skill": []}})  # nothing to extend
+        self.assertEqual(found["lift"], {"verdict": "pass", "value": 1.0, "best": 1.0, "worst": 1.0,
+                                         "split": {"with_skill": [], "without_skill": []}})
 
     def test_a_split_case_makes_a_measure_too_close_and_one_failing_at_its_best_fails(self):
         two = {"t": case(), "u": case()}  # the rate is the mean of per-case rates: (9/10 + 1) / 2
@@ -194,7 +196,7 @@ class Verdicts(unittest.TestCase):
         found = {**summary(two, scored), **formatted()}
         self.assertEqual(found["task_pass_rate"], 0.95)  # pooled counts would give 12 of 13, 92%
         self.assertEqual(verdicts.decide(found, [])["verdicts"]["task pass rate"],
-                         {"verdict": "pass", "value": 0.95, "best": 1.0, "worst": 0.9})
+                         {"verdict": "pass", "value": 0.95, "best": 1.0, "worst": 0.9, "split": {"with_skill": ["t"]}})
         self.assertEqual(decided(measured(task=(1, 1, 1, 1, 0)), []), {"label": "too close", "gaps": [
             "task pass rate too close: 80% as measured, 60% at worst, 100% at best"]})
         self.assertEqual(decided(measured(task=(1, 0, 0)), []), {"label": "unsupported", "gaps": [
@@ -202,7 +204,8 @@ class Verdicts(unittest.TestCase):
 
     def test_a_two_arm_measure_moves_each_arm_its_own_way(self):
         lift = verdicts.judged(measured(task=(1, 1, 0), baseline=(1, 0, 0)))["lift"]
-        self.assertEqual(lift, {"verdict": "too close", "value": 0.3333, "best": 1.0, "worst": -0.3333})
+        self.assertEqual(lift, {"verdict": "too close", "value": 0.3333, "best": 1.0, "worst": -0.3333,
+                                "split": {"with_skill": ["t"], "without_skill": ["t"]}})
         self.assertEqual(decided(measured(task=(1, 1, 1), baseline=(1, 1, 0)), [])["label"], "too close")
         self.assertEqual(decided(measured(task=(1, 1, 1), baseline=(1, 1, 1)), []), {"label": "inconclusive", "gaps": [
             "no lift over the baseline (100% with the skill, 100% without)"]})  # a failed lift is no failure
@@ -210,12 +213,14 @@ class Verdicts(unittest.TestCase):
     def test_the_gap_to_the_reference_host_moves_both_hosts_one_run_per_split_case(self):
         reference = measured(task=(1, 1, 1, 1, 0))  # 4 of 5 on the reference host, 9 of 10 here
         gap = verdicts.judged(measured(task=(1,) * 9 + (0,)), reference)["gap to the reference host"]
-        self.assertEqual(gap, {"verdict": "too close", "value": -0.1, "best": -0.4, "worst": 0.2})
+        self.assertEqual(gap, {"verdict": "too close", "value": -0.1, "best": -0.4, "worst": 0.2,
+                               "split": {"with_skill": ["t"]}})  # extra runs go to this host's split case
 
     def test_format_conformance_flips_the_items_of_one_run(self):
         found = {**measured(), "format_runs": {"with_skill": {"t": [[3, 4], [4, 4]]}}}
         self.assertEqual(verdicts.judged(found)["format conformance"],
-                         {"verdict": "too close", "value": 0.875, "best": 1.0, "worst": 0.375})
+                         {"verdict": "too close", "value": 0.875, "best": 1.0, "worst": 0.375,
+                          "split": {"with_skill": ["t"]}})
         self.assertEqual(verdicts.mean({"t": [[3, 4]]}, 1), 0.75)  # one run: no split, never moved
 
     def test_format_conformance_weighs_each_case_by_its_format_items_so_a_clean_round_gives_the_pooled_items(self):

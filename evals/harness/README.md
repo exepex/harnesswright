@@ -42,6 +42,7 @@ allowed connections.
 | `goldens.py` | Hand-made runs of a case with settled answers, built as runs, and the golden gate |
 | `rounds.py` | A round's plan file and its manifest: the hash of every input and each host's version, written once to the store |
 | `gates.py` | `round run`: a planned round through its gates in order, the first that fails stopping it, each outcome in the attempt record |
+| `extras.py` | The extra runs gate: 3 more runs of each split case a too-close measure or floor reads, capped by the plan's `extra_runs` |
 | `grades.py` | The grade gate: what no check decided, answered by blind panels with the goldens mixed in, trusted only where the goldens were |
 | `runs.py` | One run of a round, named by the hash of its inputs, stored once, kept on resume, and void only for a harness fault |
 | `backstop.py` | The baseline backstop: a without-skill run holding a long passage of the skill's own text is void |

@@ -165,6 +165,24 @@ class Graded(Pages):
                  for attempt in (self.store / "r1" / "grades").iterdir()]
         self.assertCountEqual(found, [{}, {"q2": "yes", "q4": "yes"}])
 
+    def test_a_kept_grade_is_not_made_again_on_resume_and_counts_only_while_its_graders_are_trusted(self):
+        self.graded([POND], answering(pond))
+        kept = (self.store / "r1" / grades.KEPT / "k1.json").read_text()
+        self.assertEqual(json.loads(kept)["trusted"], {"q2": None, "q4": None})  # the goldens it was graded under
+        calls, steps = [], (("run", self.ran([POND])), ("check", gates.check_gate), ("grade", grades.grade_gate))
+        outcome = self.go(steps, grade=answering(pond, calls))["gates"][2]["outcome"]
+        self.assertEqual(len(calls), 4)  # the two goldens, graded again by two graders each; the run's page is not
+        self.assertEqual((outcome["runs"][0]["answered"], outcome["runs"][0]["graded_in"]),
+                         (["q2", "q4"], json.loads(kept)["attempt"]))
+        self.assertEqual((self.store / "r1" / grades.KEPT / "k1.json").read_text(), kept)  # never replaced
+        lost = self.go(steps, grade=answering(lambda page: "yes"))["gates"][2]["outcome"]  # its graders lose trust
+        self.assertEqual((lost["runs"][0]["answered"], lost["runs"][0]["untrusted"]), ([], ["q2", "q4"]))
+        self.assertEqual((self.store / "r1" / grades.KEPT / "k1.json").read_text(), kept)
+        record = json.loads(kept)
+        (self.store / "r1" / grades.KEPT / "k1.json").write_text(json.dumps({**record, "page": "0" * 64}))
+        with self.assertRaisesRegex(rounds.RoundError, "the kept grade is not of run k1's page and questions"):
+            self.go(steps, grade=answering(pond))
+
     def test_a_golden_that_cannot_be_built_stops_the_round(self):
         self.golden("bad", {**wrote(POND), "changes": {"README.md/poem.md": POND}})
         with self.assertRaisesRegex(rounds.RoundError, "stopped at the grade gate: .*bad: not a file of the world"):

@@ -145,7 +145,8 @@ class Gate(Pages):
             "previous pass rate too close: -33% as measured, -67% at worst, 0% at best",
             "previous false-done rate too close: -33% as measured, -67% at worst, 0% at best"]))
         self.assertEqual(entry["verdicts"]["task pass rate"],
-                         {"verdict": "too close", "value": 0.6667, "best": 1.0, "worst": 0.3333})
+                         {"verdict": "too close", "value": 0.6667, "best": 1.0, "worst": 0.3333,
+                          "split": {"with_skill": ["c1"]}})
 
     def test_a_run_not_scored_and_the_goldens_missed_are_named(self):
         self.planned()

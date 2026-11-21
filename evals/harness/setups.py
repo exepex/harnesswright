@@ -14,7 +14,9 @@ named so a change can be named (`changed`):
   which grade the round's pages (`grades.panel`); `tools`: for each of those hosts, the tools and drift probe's
   record (`probes.drift`, `<round>/drift/<host>.json`) of each tool this skill's own cases declare, as a check runs
   them. The files a host writes for itself (`own files`) are left out: they may differ by name only;
-- `runs` per case, arm and host, and `pinned`, whether task runs pin the skill's load;
+- `runs` per case, arm and host, `extra runs`, the cap on a split case's extra runs (`runs.extra`), which changes
+  what a verdict may conclude, and `pinned`, whether task runs pin the skill's load. A round with no extra runs has
+  no `extra runs` part, so its fingerprint is the one it had before the cap existed;
 - `runner`: the code that makes a run (`runs.runner`), and `label rule`: the code that turns a run's bundle into
   its label: the files of the kit's `label rule` part (`evals/kit.json`, `kit.parts`), the one list of them.
 
@@ -49,6 +51,7 @@ def setup(record, skill, cases, drift, folder=HARNESS):
              "hosts": {name: {"version": host["version"], "model": host["model"]}
                        for name, host in record["hosts"].items()},
              "graders": sorted(drift), "runs": record["plan"]["runs"], "pinned": record.get("pinned") is True,
+             **({"extra runs": runs.extra(record)} if runs.extra(record) else {}),  # none: as before the cap was
              "runner": runs.runner(folder),
              "label rule": manifest.digest({Path(path).name: manifest.entry(Path(folder) / Path(path).name)
                                             for path in kit.parts(Path(folder).parents[1])["label rule"]})}

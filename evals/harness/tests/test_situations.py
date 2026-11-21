@@ -160,7 +160,8 @@ class Label(unittest.TestCase):
                          {"s": "self-judge"}, plain="abcdefhi")
         self.assertEqual(decided(found, []), {"label": "unsupported", "gaps": [
             "situation self-judge: 2 of 4 with-skill runs failed"]})
-        self.assertEqual(verdicts.floors(found), {"situation self-judge": {"verdict": "fail", "failed": 2, "runs": 4}})
+        self.assertEqual(verdicts.floors(found), {"situation self-judge": {
+            "verdict": "fail", "failed": 2, "runs": 4, "split": {"with_skill": ["s"]}}})
 
     def test_a_skill_whose_only_task_cases_run_with_the_skill_only_has_no_task_case_for_its_rates(self):
         found = situated({("x", "with_skill"): [True] * 3}, {"x": "check-cannot-run"}, plain="")

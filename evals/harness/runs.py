@@ -13,7 +13,8 @@ missing or voided runs, and a changed input gives a new key, never a changed run
   A skill the manifest records as `absent`, with cases but no folder yet, runs without the skill only, and a case
   of a situation a plain agent cannot fail (`skill_only`) with it only.
 - `key(record, skill, case_id, arm, host, number, drift, timeout, lead)`: the run's key, from the manifest `record`,
-  with the manifest's `pinned` flag and a pinned run's lead line.
+  with the manifest's `pinned` flag and a pinned run's lead line. Its number is 1 to the plan's `runs`, plus its
+  `extra_runs` (`extra`) for the extra runs of a split case.
 - `run(record, store, case, arm, host, number, adapter, drift, version, ...)`: the run with that key in
   `<store>/<round>/runs/<key>/`. A run that holds `bundle/` is kept. Otherwise both arms are built and proved, the
   arm is run in its jail through `host.run`, and its evidence (`evidence.collect`) is stored. A run is void, with
@@ -109,6 +110,12 @@ def arms(record, case):
     return (ARMS[1:] if internal(record, case.skill) else ARMS) + later
 
 
+def extra(record):
+    """The extra runs the plan of round `record` allows per split case and arm (`extras.wanted`): 0, 3 or 6, and 0
+    for a manifest written before plans named them. A run numbered above `runs` is one of them."""
+    return record["plan"].get("extra_runs", 0)
+
+
 def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, code=None, lead=None):
     """The key of one run, from the round's manifest `record` and the run's own settings: `drift`, the host's tools
     and drift record, `timeout`, its time budget in seconds (a run that timed out is scored), and `lead`, a pinned
@@ -119,7 +126,7 @@ def key(record, skill, case_id, arm, host_name, number, drift, timeout=TIMEOUT, 
         known = ARMS[1:]
     if arm not in known or skill not in record["cases"] or case_id not in record["cases"][skill]:
         raise RunError(f"{skill}/{case_id}, {arm}: not a run of round {record['round']}")
-    if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"]:
+    if host_name not in record["hosts"] or not 1 <= number <= record["plan"]["runs"] + extra(record):
         raise RunError(f"{host_name}, run {number}: not a run of round {record['round']}")
     inputs = {"skill": skill, "case_id": case_id, "case": record["cases"][skill][case_id], "skills": record["skills"],
               "arm": arm, "number": number, "drift": drift, "timeout": timeout,

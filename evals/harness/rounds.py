@@ -14,6 +14,8 @@ Plan file fields (`PLAN`), each with the one shape it may take; anything else is
   that does not report the model it used (Codex does not) must have one named here, and a host's default model
   changes over time, so every plan pins the model each host runs.
 - `runs`: runs per case, per arm and per host, 1 to 20.
+- `extra_runs` (optional): 0, 3 or 6, the extra runs a split case may get per arm when a measure is too close
+  (`extras.wanted`); 0, or none named, turns them off. The manifest keeps it with the plan.
 - `previous` (optional): `{skill: commit}`, for a skill of `skills`, the full commit of its previous version. Its
   task cases then run in a third arm, `previous_version`, with the skill as that commit holds it (`previous`).
 - `fault_case` (optional): `{"skill", "case"}`, a case of a skill the repository holds, on which the fault gate
@@ -108,11 +110,12 @@ PLAN = {
     "hosts": lambda v: (isinstance(v, list) and v and all(_host(h) for h in v)
                         and len({h["adapter"] for h in v}) == len(v)),
     "runs": lambda v: type(v) is int and v in RUNS,
+    "extra_runs": lambda v: type(v) is int and v in (0, 3, 6),
     "previous": lambda v: (isinstance(v, dict) and v and all(
         is_name(k) and isinstance(c, str) and COMMIT.fullmatch(c) for k, c in v.items())),
     "fault_case": lambda v: isinstance(v, dict) and set(v) == {"skill", "case"} and all(map(is_name, v.values())),
 }
-OPTIONAL = {"previous": {}, "fault_case": None}
+OPTIONAL = {"previous": {}, "fault_case": None, "extra_runs": 0}
 
 
 def read_plan(path):
