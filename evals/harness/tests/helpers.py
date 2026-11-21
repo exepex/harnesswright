@@ -38,6 +38,27 @@ class TempCase(unittest.TestCase):
         self.track(folder.parent)
         return folder
 
+    def release_skill(self, name="claims-writer"):
+        """A team skill as the release ships it: its folder beside run-time files and a manifest hashing both."""
+        import hashlib
+        folder = self.skill(name)
+        root = folder.parent
+        for rel, text in {"roles.md": "# Roles\n", "rules/core/work.md": "# Work\n"}.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(text)
+
+        def hashes(base, rels):
+            return {rel: hashlib.sha256((base / rel).read_bytes()).hexdigest() for rel in rels}
+
+        skills = {n: {"files": hashes(root / n, sorted(p.relative_to(root / n).as_posix()
+                                                         for p in (root / n).rglob("*") if p.is_file()))}
+                  for n in sorted(p.name for p in root.iterdir() if (p / "SKILL.md").is_file())}
+        (root / "manifest.json").write_text(json.dumps({
+            "rulebook-version": "0.8.0", "skills": skills, "run-time": ["manifest.json", "roles.md", "rules/"],
+            "run-time-files": hashes(root, ["roles.md", "rules/core/work.md"])}, indent=2) + "\n")
+        self.track(root)
+        return folder
+
     def track(self, folder):
         """Make git track every file under `folder`, as a skill's files are tracked in the repository."""
         env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}

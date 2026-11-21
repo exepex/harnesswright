@@ -39,9 +39,10 @@ import tokenize
 from pathlib import Path
 
 import checks
+import teamnotes
 import manifest
 import world
-from cases import ARMS, PREVIOUS, PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, sha256_bytes
+from cases import ARMS, PREVIOUS, PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, kinds, sha256_bytes
 from skills import folders, library, skill_files, tracked, tracked_file
 from textruns import RUN, all_runs, plain, runs, words
 
@@ -333,6 +334,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     if case.index:
         allowed[INDEX_ROW] = allowed.get(case.index["file"], [])
     leaks = [case.skill] + ([case.skill_rel] if case.skill_rel != f"skills/{case.skill}" else [])
+    team = teamnotes.harness_rules(repo) if kinds().get(case.skill) == "team" else None  # doc 12, Team worlds
     for place in places:
         if place.text is None:
             problems.append(f"{place.key}: not UTF-8 text without control characters; the lint cannot read it as "
@@ -347,6 +349,8 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
         if "arms" in rules:  # a grader sees the world's files, so an arm's name there would tell it the run's arm
             problems += [f"{place.key}: names the arm {name!r}" for name in (*ARMS, PREVIOUS)
                          if name in place.key or name in place.text]
+        if team and place.kind == "world":
+            problems += teamnotes.found(place.key, place.text, team)
         hits = sorted(skill & runs(place.text, {RUN}))
         if hits and "skill" in rules:
             problems.append(f"{place.key}: holds {len(hits)} run(s) of the skill's own text, such as {hits[0]!r}")

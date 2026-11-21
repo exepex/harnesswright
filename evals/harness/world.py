@@ -6,6 +6,11 @@ declared path, a copy where the host discovers skills, and one generated index r
 git tracks in its folder. When the world has a history, the installs and the index go into one setup commit with
 the same message, author and date in both arms, so `git status` is the same in both and the logs have the same shape.
 
+A team skill's arms take the skill, and the run-time files where the world's profile names a release folder, from
+the release, proved against its manifest's hashes (`teamrelease.py`). In a team skill's task case, where lift is
+measured, nothing in the without-skill arm comes from the release, so it installs no sibling. A trigger case
+measures the description, so it installs every other skill as a sibling in both arms, as in real use.
+
 What goes into each arm is worked out once, by `plan`, from the case, the adapter and the skill sources. The
 builder carries out the plan. The proof rebuilds what each arm must hold from the case alone: the manifest from the
 plan and the written world, and the git history by writing the arm again in a scratch folder. It never reads what
@@ -21,6 +26,7 @@ from pathlib import Path, PurePosixPath
 
 import internal
 import manifest
+import teamrelease
 from cases import REPO, CaseError, is_path, kinds, sha256_bytes
 from skills import folders, library, skill_files, structure
 
@@ -68,6 +74,9 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
         if set(case.siblings) != every:
             raise CaseError(f"{case.id}: a trigger case installs every other skill as a sibling: missing "
                             f"{sorted(every - set(case.siblings))}, unknown {sorted(set(case.siblings) - every)}")
+    team = kinds().get(case.skill) == "team"
+    if team and case.kind == "task" and case.siblings:  # lift: nothing from the release without the skill
+        raise CaseError(f"{case.id}: a team skill's task case installs no sibling (teamrelease.py)")
     missing = [name for name in case.siblings + ([] if skill_dir or not with_skill else [case.skill])
                if name not in known]
     if missing:
@@ -93,7 +102,28 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
             if not names([name, *targets]).search(row):  # the grader view finds the row only by a whole name
                 raise CaseError(f"{case.id}: the index row {row!r} must name {name} or its path as a whole name")
         installs.append(Install(name, source, targets, row, files))
+        if team and name == case.skill:
+            installs[-1:-1] = _from_release(case, installs[-1], world, taken, skill_dir and known.get(name))
     return installs
+
+
+def _from_release(case, install, world, taken, current):
+    """Prove a team skill's release (teamrelease.prove; `current`, the release skill under test, only for another
+    version), and plan its run-time files where the world's profile unpacks the release. Return that install, if
+    any."""
+    files = {rel: e.split(" ")[1] for rel, e in install.files.items() if e.startswith("file ")}
+    root, _, paths = teamrelease.prove(install.source, install.name, files, current)
+    folder = teamrelease.release_folder(case.world)
+    if folder is None:
+        return []
+    if case.skill_rel != f"{folder}/{install.name}":
+        raise CaseError(f"{case.id}: the skill goes in {case.skill_rel}, not in the release folder {folder}/")
+    for rel in paths:
+        path = f"{folder}/{rel}"
+        clash = [t for t in taken if _overlaps(t, path)] + _blocked(world, path)
+        if clash:
+            raise CaseError(f"{case.id}: {path} would overlap {clash[0]}")
+    return [Install(install.name, root, [folder], None, paths)]
 
 
 def _discovery(case, adapter, name):

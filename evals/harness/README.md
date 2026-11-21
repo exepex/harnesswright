@@ -20,6 +20,8 @@ allowed connections.
 | `skills.py` | Reads a skill folder and its frontmatter, and checks that a folder holds only allowed entries |
 | `world.py` | Plans and builds both arms of a case, and proves each is exactly what the case says |
 | `internal.py` | Builds an internal skill's world: the kit's allow list at its pinned commit, without the skill under test by one rule whose dropped and rewritten lines must equal the kit's approved list, its release rebuilt and checked, every Markdown link inside the world, with the case's own files on top |
+| `teamnotes.py` | Holds a team world's notes to the team's own rules: no harnesswright rule ID or rule text outside `.harness/` |
+| `teamrelease.py` | Proves a team skill's folder, and the run-time files its world's profile asks for, against the release manifest's hashes |
 | `lint.py` | Rejects a case whose world or prompt is unsound, from one list of what the run can see |
 | `textruns.py` | Text as the lint reads it: folded words and runs of consecutive words |
 | `contain.py` | Builds one run's environment, home and jail from one list of mounts |
