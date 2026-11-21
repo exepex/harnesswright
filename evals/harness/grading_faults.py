@@ -284,12 +284,14 @@ def view_(setup, fault, rng, place):
     resolver names them (`view.run_names`), written in a run folder that both records hold. Its control is the same
     record with the plant's actions on the overlay and its rules files left out, its lines that name the skill left
     out, its run folders as their neutral words and its command output empty. Caught when the clean view and page
-    name none of them, by the one rule of `tells` (an arm word may be only in a world file both arms of the case are
-    built holding byte for byte), and the planted view and page equal the control's: nothing of the plant shows, not
-    even an entry with its names taken out. The world file that takes the plant's lines is one whose text names no
-    arm word."""
+    name none of them, by the rule of `tells` (an arm word, or an overlay path inside a longer path, may stand only in
+    a world file both arms are built holding byte for byte), and the planted view and page equal the control's:
+    nothing of the plant shows, not even an entry with its names taken out. The world file that takes the plant's
+    lines is one whose text names no arm word and that the clean view shows."""
     case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
+    held, arms = tells.shared(tells.built(case, setup.adapter, setup.folder), record), (*cases.ARMS, cases.PREVIOUS)
+    shows = tells.seen(case, record, blob)[0]["files_after"]  # a world file a plant acts on is one the view shows
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
     names = [skill, *evidence.places(layer)]  # the skill's paths and the files a team install adds
@@ -305,7 +307,6 @@ def view_(setup, fault, rng, place):
     neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
     word = record["folders"].get(world, world)
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
-    held, arms = tells.shared(case, setup.adapter, setup.folder, record), (*cases.ARMS, cases.PREVIOUS)
 
     def stored(data):
         added[hashlib.sha256(data).hexdigest()] = data
@@ -319,7 +320,8 @@ def view_(setup, fault, rng, place):
         planted["final_message"] = lines + kept + ran + (record["final_message"] or "")
         control["final_message"] = kept + neutral + (record["final_message"] or "")
     elif place == "log":
-        world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file "))[0]
+        world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file ")
+                            and path in shows)[0]
         acts = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (
             {"kind": "read", "path": file}, {"kind": "write", "path": file, "sha256": None},
             {"kind": "command", "command": f"cat {file} {world_file}", "output": "", "exit_code": 0},
@@ -338,7 +340,8 @@ def view_(setup, fault, rng, place):
             e for f in folders for e in acted(record["folders"][f])]]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file ")
-                             and not any(arm in blob(e.split(" ")[1]).decode("utf-8", "replace") for arm in arms))
+                             and p in shows and not any(
+                                 arm in blob(e.split(" ")[1]).decode("utf-8", "replace") for arm in arms))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
         for one, data in ((planted, lines + kept + ran), (control, kept + neutral)):  # the agent wrote it
             digest = stored(data.encode() + blob(old))

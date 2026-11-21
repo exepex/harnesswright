@@ -231,6 +231,25 @@ class Missed(Fake):
                 self.assertFalse(outcome["caught"])
                 self.assertIn("the view a grader gets", outcome["reason"])
 
+    def test_an_overlay_path_in_a_clean_view_outside_what_both_arms_hold_is_a_miss(self):
+        setup, entry, pages = self.setup_of(), next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
+
+        def with_only(setup, rng):  # judge-a's probe: the record holds the release file where no built arm does
+            case, found = pages(setup, rng)
+            for _, record, _, _ in found:
+                record["overlay"]["release"] = ["only-with.md"]
+                record["files_after"]["kept/only-with.md"] = next(
+                    e for e in record["files_after"].values() if e.startswith("file "))
+            return case, found
+        blind = types.SimpleNamespace(**vars(evidence))
+        blind.places = lambda overlay: overlay["paths"]  # a view that reads the skill's paths only
+        with mock.patch.object(grading_faults, "_pages", with_only):
+            self.assertTrue(faults.run(entry, setup, seed=0, place="message")["caught"])  # the view hides it
+            with mock.patch.object(view, "evidence", blind):
+                outcome = faults.run(entry, setup, seed=0, place="message")
+        self.assertFalse(outcome["caught"])
+        self.assertIn("names ['only-with.md'] in the clean record", outcome["reason"])
+
     def test_a_view_whose_covers_misses_a_place_itself_still_hides_it_by_its_name(self):
         setup = self.setup_of()
         entry, pages = next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages

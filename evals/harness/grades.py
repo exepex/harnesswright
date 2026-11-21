@@ -148,6 +148,22 @@ def golden_records(folder):
     return sorted([*folder.glob("goldens/*/*/*.json"), *folder.glob("extra-*/goldens/*/*/*.json")])
 
 
+def untrusted(folder, attempt, outcome):
+    """{"<skill>/<case>": {question: why}}: every trust failure the grades of one attempt carry (`folder`,
+    `<store>/<round>`), the one list a label's doubts read. It holds each question whose goldens `outcome`, the grade
+    gate's, names as missed, and each question a graded run left untrusted, with the reason its record keeps: a
+    golden missed now, one missed when its kept grade was made ("when graded: ..."), or a kept grade of another
+    panel. A golden that passes now never clears a failure a kept grade carries."""
+    found = {name: {question: why for question, why in doubts.items() if why is not None}
+             for name, doubts in outcome["goldens"].items()}
+    for graded in outcome["runs"]:
+        if graded["untrusted"]:
+            record = json.loads((folder / "grades" / attempt / "runs" / f"{graded['key']}.json").read_text())
+            for question, why in sorted(record["untrusted"].items()):
+                found.setdefault(record["case"], {}).setdefault(question, why)
+    return found
+
+
 def _routes(routes):
     """The grader routes of a panel, as a reason names them."""
     return ", ".join(f"{route['host']} {route['model']}" for route in routes) if routes else "none named"

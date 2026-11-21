@@ -7,6 +7,7 @@ Standard library only.
 
 import json
 
+import cases
 import checks
 from cases import kinds
 from textruns import words
@@ -19,7 +20,9 @@ def citations(case, places):
     is cited, else None; and a problem for each quote not held there, and for each check whose name or arguments
     are not in the check library. A quote starts on its line, in the words the lint reads, and may run on over the
     lines after it. A task case of a skill with a kind (`cases.kinds`) and no contract expectation is a problem
-    too: none of its runs would be scored. A skill with no kind gets no label, so its cases need none."""
+    too: none of its runs would be scored. A skill with no kind gets no label, so its cases need none. An internal
+    task case also needs a contract expectation that one of harnesswright's own checks decides
+    (`verdicts.own_checked`), or the round lists it unchecked."""
     found, problems, library = [], [], None
     documents = {p.key: p.text.split("\n", 1)[1] for p in places
                  if p.kind in ("world", "base") and p.text is not None and not p.link}
@@ -48,6 +51,12 @@ def citations(case, places):
     if scored and not any(isinstance(e["source"], dict) for e in case.expectations):
         problems.append("a task case needs at least one contract expectation: with none, no run of it is scored "
                         "(verdicts.task_outcome), and its skill's label stays at most inconclusive")
+    import verdicts  # here, not at the top: verdicts reaches lint, which imports this module
+    own = cases.own_checks() if scored == "internal" else []
+    if scored == "internal" and not any(verdicts.own_checked(e, own) for e in case.expectations):
+        problems.append("an internal task case needs a contract expectation that one of harnesswright's own checks "
+                        "decides (evals/own-checks.json): with none, the round lists it unchecked and its skill's "
+                        "label stays at most inconclusive (verdicts.decide)")
     return found, problems
 
 

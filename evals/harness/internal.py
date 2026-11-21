@@ -235,7 +235,10 @@ def base(skill, out, repo=REPO, kit=None):
 
 def world_of(case, out, repo=REPO, kit=None):
     """The world `case` runs in, written into the empty folder `out`: the internal world of its skill with the
-    case's `world/` folder on top and its `jobs` rows added, rebuilt and checked, less its `remove` paths."""
+    case's `world/` folder on top and its `jobs` rows added, rebuilt and checked, less its `remove` paths. When the
+    sources the case leaves still build, the release is rebuilt from them, so it is what the build makes of the world
+    and passes the release check before any run; a `remove` path that build puts back is refused. When they do not
+    build, such as with `v2/VERSION` removed, the release stays as built before the remove."""
     _, paths, _, _ = read_kit(kit)
     base(case.skill, out, repo, kit)
     if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
@@ -252,8 +255,27 @@ def world_of(case, out, repo=REPO, kit=None):
             raise CaseError(f"{case.id}: remove {path}: not an allow-listed path of the built world")
         target = Path(out) / path
         shutil.rmtree(target) if target.is_dir() and not target.is_symlink() else target.unlink()
+    if case.internal_world["remove"]:
+        _rebuild(case, out)
     check_links(out)
     return Path(out)
+
+
+def _rebuild(case, out):
+    """Rebuild the release of the world at `out` from the sources it holds after the case's `remove`, in a copy, and
+    take it when that build and its checks pass. CaseError when it puts a removed path back."""
+    with tempfile.TemporaryDirectory(prefix="hw-rebuild-") as scratch:
+        trial = Path(scratch) / "world"
+        shutil.copytree(out, trial, symlinks=True)
+        try:
+            build_checks(trial)
+        except CaseError:
+            return  # the sources left do not build, so the release stays as built before the remove
+        back = [path for path in case.internal_world["remove"] if (trial / path).exists()]
+        if back:
+            raise CaseError(f"{case.id}: remove {', '.join(back)}: the build puts it back; remove its source too")
+        shutil.rmtree(Path(out) / RELEASE)
+        shutil.copytree(trial / RELEASE, Path(out) / RELEASE, symlinks=True)
 
 
 def add_jobs(folder, rows, name):

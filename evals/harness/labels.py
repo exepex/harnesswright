@@ -15,6 +15,10 @@ run not scored is named in the trigger label only.
 - A planned run is not scored when it is void, empty or not loaded (a pinned run with no proven load, doc 12), or
   its outcome is not decided. Each is named (`unsettled`), and so is each case and arm whose pinned runs never
   loaded. The pinned-load rate per arm comes with the other measures (`measures.measures`).
+- A label's doubts name every trust failure the round's grades carry (`grades.untrusted`): a question whose
+  goldens are missed now, and one a kept grade was untrusted under when it was made, so goldens that pass on a
+  resume never make a label trust answers that stay untrusted. Any such doubt keeps the label at most
+  `inconclusive`.
 - A host other than the reference host is held to the reference host's measures only when those are settled;
   otherwise its label names why.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
@@ -52,7 +56,7 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
     gates = with_extras(gates)
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
-    trust = gates["grade"]["outcome"]["goldens"]
+    trust = grades.untrusted(folder, attempt, gates["grade"]["outcome"])  # every trust failure the grades carry
     drift = {}  # each host's tools and drift record, as the probe gate pinned it
     for host in passed:
         try:
@@ -115,7 +119,7 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
     for skill in sorted(record["cases"]):
         own = {i: case for (s, i), case in cases.items() if s == skill}
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
-                      for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
+                      for question, why in doubts.items()}  # name: "<skill>/<case>"
         measured = {host: verdicts.summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
                                            skill in record.get("absent", []), record.get("situations", {}).get(skill),
                                            record.get("kinds", {}).get(skill), record.get("own_checks", []))
@@ -124,7 +128,7 @@ def labels(folder, attempt, record, cases, price_file, gates=None):
             for group in measured[host]["situations"].values():
                 for arm, tally in _tally(by_case.get((host, skill), {}), group["cases"].__contains__).items():
                     group[arm]["false_done"] = measures.share(tally["false_done"], tally["decided"], **tally)
-        doubted = {host: unsettled.get((host, skill), []) + [f"{name}: goldens missed ({why})"
+        doubted = {host: unsettled.get((host, skill), []) + [f"{name}: untrusted ({why})"
                                                              for name, why in sorted(unreliable.items())]
                    for host in passed}
         reference, reference_doubt = None, f"the reference host {grades.REFERENCE} was not run"
