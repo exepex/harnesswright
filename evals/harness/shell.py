@@ -15,11 +15,20 @@ the grader view (`view.py`) share, so the two never disagree on it.
   only when it has one shape (`CUTTABLE`), in which the splitter's reading of quotes is exact, and every program it
   removes leaves the shell as it found it (`STATELESS`), so no later program reads a folder, a variable or an
   output it set.
+- `plain(command)`: whether the command has the one shape whose programs can be read: on one line, programs of
+  plain words, simple quoted strings, an escaped parenthesis and redirects, joined by `&&`, `||`, `;` and `|`, and
+  no expansion but a variable's value (`$NAME`, `${NAME}`, `${NAME[0]}`, `$?`), which runs nothing. A substitution
+  (`$(`, a backtick, `<(`), a group, a heredoc or any other construct may run a program the words do not show.
+- `continues(text)`: whether the program `text` is sure to hand the shell on to what follows it: one of `CONTINUES`,
+  an allow list of programs that never end or replace the shell, or assignments alone. `exit`, `exec`, `set`, a
+  wrapper that runs another program, or a program by its path may not. A program proves it ran, and its exit code
+  that it is its own, only when every program before it in the command continues (`owns_exit_code`, `exit_code`).
 - `owns_exit_code(command, code)`: whether the command's exit code, when it is `code`, is its own program's. That
   holds for one program with its arguments, each a plain word, a simple quoted string of a plain word's characters
   and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined by `&&`, which ends with 0
-  only when each did. Any other shape, such as a pipe, `||`, `;` or `$(`, may end with another program's code. A
-  plain word may hold a variable such as `$S`, which changes no exit code.
+  only when each did, each before the last one that `continues`. Any other shape, such as a pipe, `||`, `;` or
+  `$(`, may end with another program's code. A plain word may hold a variable such as `$S`, which changes no exit
+  code.
 - `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
   as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
   A command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to
@@ -31,7 +40,7 @@ the grader view (`view.py`) share, so the two never disagree on it.
   `output`. Each unit that may print a line that starts with those words is an `echo` of exactly those words and
   one value, alone in its unit so it always runs, and the output has one such line for each, in order; any other
   printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line changes
-  nothing; in the run's own unit it leaves the code unknown.
+  nothing; in the run's own unit it leaves the code unknown. Either way every program before it must continue.
 - `parts(command)`: [(the operator before it, its text)] of each top-level program, as `programs` finds its starts.
 
 Standard library only.
@@ -71,10 +80,34 @@ PROGRAM = rf"[ \t]*{TOKEN}(?:[ \t]+{TOKEN})*[ \t]*"
 ALONE = re.compile(PROGRAM)
 CHAIN = re.compile(rf"{PROGRAM}(?:&&{PROGRAM})*")  # ends with 0 only when every program did
 
+# The one shape of a command whose programs can be read (`plain`): the words above, an escaped parenthesis, and as
+# the only expansions a variable's value, quoted or not, joined by the operators. Nothing in it runs a program.
+VALUE = r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*(?:\[[0-9]+\])?\}|\?|\{\?\})"
+PLAIN_WORD = rf"""(?:{PLAIN}|\\[()]|{VALUE}|'{PLAIN_QUOTED}*'|"(?:{PLAIN_QUOTED}|{VALUE})*")+"""
+PLAIN_TOKEN = rf"(?:\d*>&\d+|(?:&|\d*)>>?[ \t]*{PLAIN_WORD}|<[ \t]*{PLAIN_WORD}|{PLAIN_WORD})"
+PLAIN_PROGRAM = rf"[ \t]*{PLAIN_TOKEN}(?:[ \t]+{PLAIN_TOKEN})*[ \t]*"
+PLAIN_COMMAND = re.compile(rf"{PLAIN_PROGRAM}(?:(?:&&|\|\||[;|]){PLAIN_PROGRAM})*")
+# Programs that always hand the shell on to what follows them: never `exit`, `exec`, `set` or `source`, nor a
+# wrapper that runs another program (`env`, `timeout`, `xargs`), nor a program by its path, which may be anything.
+CONTINUES = frozenset((STATELESS - {"env", "timeout", "xargs"}) | {"cd", "pwd", "true", "false", "printf"})
+
+
+def plain(command):
+    """Whether `command` has the one shape whose programs can be read (the module's docstring)."""
+    return bool(PLAIN_COMMAND.fullmatch(command))
+
+
+def continues(text):
+    """Whether the program `text`, to the operator after it, hands the shell on (the module's docstring)."""
+    rest = text.strip(" \t") + " "
+    rest = rest[ASSIGNMENT.match(rest).end():].split(None, 1)
+    return not rest or rest[0] in CONTINUES
+
 
 def owns_exit_code(command, code):
     """Whether `command` ending with `code` means its own program ended with it (the module's docstring)."""
-    return bool((CHAIN if code == 0 else ALONE).fullmatch(command))
+    return bool((CHAIN if code == 0 else ALONE).fullmatch(command)) and all(
+        continues(text) for _, text in parts(command)[:-1])
 
 
 def parts(command):
@@ -92,6 +125,8 @@ def exit_code(command, program, code, output):
     units = []  # [program numbers] of each unit: a program after the start or a `;`, and what is joined to it
     for n, (op, _) in enumerate(found):
         units.append([n]) if op in ("", ";") else units[-1].append(n)
+    if not all(continues(found[n][1]) for n in range(program)):
+        return None  # an earlier program may have ended the shell, so this one may never have run
     at = next(n for n, unit in enumerate(units) if program in unit)
     if units[at][-1] != program or any(found[n][0] != "&&" for n in units[at][1:]):
         return None

@@ -1,0 +1,17 @@
+{
+  "args": {
+    "pattern": "\\bgo test\\b",
+    "ran": true,
+    "exit_code": 0
+  },
+  "outcome": "undecidable",
+  "log": [
+    {
+      "kind": "command",
+      "source": "observed",
+      "command": "exit 0 && go test ./...",
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

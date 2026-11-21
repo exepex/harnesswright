@@ -24,19 +24,21 @@ fails.
   to work by reading. Every other code is a failed check, and a code that needs a text with no output recorded
   is `undecidable`.
   A command names a script when a word of it is the script by any path, or `-m` a module whose last part is the
-  script's name. Each program of such a command, by the shell's words (`shell.words`), is a run, a plain read or
-  neither. A run is the script by a path, run as a program, or `python`, `python3` or `python3.N`, by any path, with
-  any flags of one letter, `-X` or `-W` and its value, then the script or `-m` its module. A plain read is one of
-  `READERS`, such as `cat resolve.py`, a `find` of only the read-only words of the allow lists `FIND_WORDS` and
-  `FIND_VALUES`, or `test -f`, which runs nothing. Any other program that names it, such as one after a wrapper
-  (`timeout 60 python3 resolve.py`) or a line break, is unclear. Each script's last certain run counts, so an
-  unclear command after it is `undecidable`: it may be a later run, and the check fails closed. An unclear command
-  before it changes nothing. A last run whose exit code is not known (`shell.exit_code`: the end of a `;` list, or
-  an echoed `$?` right after it) is `undecidable`. A run with no failed check passes. The action log's command
-  entries must be observed (`checks.Bundle.entries`). Every declared script is decided before the outcome, so a
-  failure proven of one stands whatever another leaves undecided: the check fails when one failed and the report
-  holds no `Blocked:` line, passes when the report holds one, and is `undecidable` only when no failure is proven
-  and a script it cannot tell about may have failed.
+  script's name. Such a command is read only when it is plain (`shell.plain`: no substitution or other construct
+  that may run a program its words do not show); any other is unclear. Each program of it, by the shell's words
+  (`shell.words`), is a run, a plain read or neither. A run is the script by a path, run as a program, or `python`,
+  `python3` or `python3.N`, by any path, with any flags of one letter, `-X` or `-W` and its value, then the script
+  or `-m` its module. A plain read is one of `READERS`, such as `cat resolve.py`, a `find` of only the read-only
+  words of the allow lists `FIND_WORDS` and `FIND_VALUES`, or `test -f`, which runs nothing, and a read counts only
+  as the command's one program. Any other program that names it, such as one after a wrapper (`timeout 60 python3
+  resolve.py`) or a line break, is unclear. Each script's last certain run counts, so an unclear command after it is
+  `undecidable`: it may be a later run, and the check fails closed. An unclear command before it changes nothing. A
+  last run whose exit code is not known (`shell.exit_code`: the end of a `;` list, or an echoed `$?` right after it,
+  and every program before it sure to continue, `shell.continues`) is `undecidable`. A run with no failed check
+  passes. The action log's command entries must be observed (`checks.Bundle.entries`). Every declared script is
+  decided before the outcome, so a failure proven of one stands whatever another leaves undecided: the check fails
+  when one failed and the report holds no `Blocked:` line, passes when the report holds one, and is `undecidable`
+  only when no failure is proven and a script it cannot tell about may have failed.
 - `blocked_quotes_output`: when the last run of one of the skill's checks failed, by the same rule (`_failed`), a
   `Blocked:` line of the closing report holds, word for word, one line that run printed, trimmed, for each failed
   check: a line of at least `QUOTED` words, or the last non-empty line it printed, so a lone "Error" or "1" that it
@@ -142,11 +144,15 @@ def _runs(command, script):
     module = re.compile(rf"(?<![\w.-])-m[ \t]+['\"]?[\w.]*\b{re.escape(script.removesuffix('.py'))}(?![\w.-])")
     if not (re.search(rf"(?<![\w.-]){re.escape(script)}(?![\w.-])", command) or module.search(command)):
         return False
+    if not shell.plain(command):
+        raise Undecidable(f"a command names {script} in a shape whose programs cannot be read: {command[:200]}")
     uses = [_use(words, script) if words else None for words in shell.words(command)
             if words is None or any(_names(w, script) or w.rsplit(".", 1)[-1] == script.removesuffix(".py")
                                     for w in words)]
     if not uses or None in uses:
         raise Undecidable(f"a command names {script} where it is neither a run nor a plain read: {command[:200]}")
+    if "read" in uses and len(shell.words(command)) > 1:
+        raise Undecidable(f"a command reads {script} with other programs, which may run it: {command[:200]}")
     return "run" in uses
 
 
