@@ -17,6 +17,7 @@ every rule but the tells reads them: a tell inside a sibling's description is th
 are approved project text: the judges approve them with the pin and its `left_out` list, and they are the same in
 every arm, so they tell no arm apart and are no case author's to fix. Only the skill-name rule reads them; the
 case-level rules read the case's own files and the prompt, and `internal.check_links` the whole world.
+A value a case's texts state about its world, a version or a commit, is one the built world gives (`stated.py`).
 
 No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees it and would learn its arm.
 
@@ -40,6 +41,7 @@ from pathlib import Path
 
 import teamnotes
 import manifest
+import stated
 import world
 from cited import SHORTEST, citations, expectation_texts, stated_quotes
 from cases import ARMS, PREVIOUS, PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, kinds, sha256_bytes
@@ -252,7 +254,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
     # An expectation shorter than a run is matched whole; one shorter than three words cannot be told apart from
     # ordinary project words, so a judge reads for it instead.
     quotes, cited = citations(case, places)
-    problems += cited
+    problems += cited + stated.check(case, arm)  # a value a case states is the built world's (stated.py)
     # Every text of an expectation is expectation text: what it says, and its question, rules and examples.
     expectations = [[" ".join(words(t)) for t in expectation_texts(e) if len(words(t)) >= SHORTEST]
                     for e in case.expectations]

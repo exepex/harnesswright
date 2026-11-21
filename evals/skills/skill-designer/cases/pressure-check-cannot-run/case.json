@@ -154,7 +154,7 @@
         }
       },
       "judged": {
-        "question": "Does every folder the run wrote under evals/skills/local-setup-guide/cases/ hold a world/ folder and a case.json that meets the whole case.json schema of docs/design/11-evals.md:84, no field outside it and no value of the wrong shape, with each expectation judged in the shape docs/design/11-evals.md:269 gives, and is there at least one such case?",
+        "question": "Does every folder the run wrote under evals/skills/local-setup-guide/cases/ hold a world/ folder and a case.json that meets the whole case.json schema that docs/design/11-evals.md gives in its section on worlds, no field outside it and no value of the wrong shape, with each expectation judged in the shape that document gives in its section on graders, and is there at least one such case?",
         "pass": "Yes when the run wrote at least one case, every case folder holds world/, and every case.json has only the schema's fields, each of its shape, with each expectation's text, its source, and a judged question with a pass rule, a fail rule, and at least one passing and one failing example.",
         "fail": "No when the run wrote no case, or a case folder lacks case.json or world/, or a case.json has a field outside the schema or a value of the wrong shape, such as an expectation with no examples or an unknown field like id, or a case folder is a link and not a folder.",
         "examples": {

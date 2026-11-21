@@ -73,7 +73,7 @@
         "fail": "No when the run added a row or changed the file in any way.",
         "examples": {
           "pass": ["docs/shipping.md untouched."],
-          "fail": ["A row for incident-summary 0.7.3 under Ready to ship."]
+          "fail": ["A row for incident-summary 0.8.1 under Ready to ship."]
         }
       }
     },

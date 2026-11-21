@@ -144,12 +144,12 @@
         }
       },
       "judged": {
-        "question": "v2/VERSION read 0.7.0 before the run. Does it read 0.7.1 after the run?",
-        "pass": "Yes when v2/VERSION holds 0.7.1.",
-        "fail": "No when it still reads 0.7.0, or holds any other version, such as 0.8.0.",
+        "question": "v2/VERSION read 0.8.0 before the run. Does it read 0.8.1 after the run?",
+        "pass": "Yes when v2/VERSION holds 0.8.1.",
+        "fail": "No when it still reads 0.8.0, or holds any other version, such as 0.9.0.",
         "examples": {
-          "pass": ["v2/VERSION holds 0.7.1."],
-          "fail": ["v2/VERSION unchanged at 0.7.0.", "v2/VERSION raised to 0.8.0."]
+          "pass": ["v2/VERSION holds 0.8.1."],
+          "fail": ["v2/VERSION unchanged at 0.8.0.", "v2/VERSION raised to 0.9.0."]
         }
       }
     },
