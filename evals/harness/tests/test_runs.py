@@ -335,7 +335,7 @@ class Runs(Round):
     def test_a_previous_version_that_is_the_candidate_or_has_no_skill_is_refused(self):
         self.plan()
         same = self.git("rev-parse", "HEAD")
-        with self.assertRaisesRegex(rounds.RoundError, "the same as the version under test"):
+        with self.assertRaisesRegex(rounds.RoundError, "the same as the version tested"):
             self.plan(previous={"haiku-writer": same})
         with self.assertRaisesRegex(rounds.RoundError, "failed"):
             self.plan(previous={"haiku-writer": "f" * 40})

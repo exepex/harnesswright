@@ -39,7 +39,9 @@ they are measured differently.
   rulebook version picks. A release from 0.8.0 on is proved by its hashes. A previous version built before 0.8.0
   is proved by its commit: its skill folder hashes to the sha256 the round recorded, and its run-time files are the
   files of that commit's release that the current run-time list covers. The round's manifest names each arm's
-  proof, and any other release stops the round as a harness fault.
+  proof and the hash of each run-time file it installs, the manifest aside, as it changes with any skill. Any
+  other release stops the round as a harness fault. A previous version whose folder and run-time files both equal
+  the skill under test's is refused, whatever its manifest or proof.
 - Where the profile names the release folder, each arm that installs a release gets the profile's version line from
   that release's manifest, as a team that installed it would have it. A case's profile states the folder and what
   else it tests, never a version that must track `v2/VERSION`; a case that tests a mismatch declares the version.
@@ -127,14 +129,17 @@ A comparison is valid only between arms measured on one setup.
 
 - **Setup fingerprint.** Each round records one fingerprint of everything that measures the skill: the kit, cases,
   worlds, the other skills its own cases install, the tools its cases declare as each host found them, adapters,
-  host versions, each host's model, the grader routes and the label rule. It leaves out the skill's own hash.
+  host versions, each host's model, the grader routes, the label rule and, for a team skill, the release's
+  run-time files it installs. It leaves out the skill's own hash.
 - **Results record the skill.** `rounds.py results` writes the skill's hash and the fingerprint into
   `evals/results/<skill>.json`. It is the one place that compares rounds. Two results compare only when their
   fingerprints match; otherwise every report says "not comparable: setup changed" and names what changed.
 - **Skill changed, setup changed.** The plan names the last verified version as `previous`, read from the results
   file's recorded hash, and the comparison happens inside the round.
-- **Skill unchanged, setup changed.** There is no previous-version arm, since it would equal the skill under test.
-  The round's verdict stands on its own, and no cross-round claim is made.
+- **Skill unchanged, setup changed.** No previous-version arm is needed, and one that would install the same
+  folder and run-time files as the skill under test is refused. When only the run-time files changed, the plan may
+  name the earlier version as `previous`; otherwise the round's verdict stands on its own, and no cross-round
+  claim is made.
 
 ## Verdicts
 

@@ -169,15 +169,38 @@ def prove(skill_dir, name, files, current=None):
 
 
 def proof(skill_dir, name, current=None):
-    """The proof `prove` gives the release skill `skill_dir`, from its tracked files: what a round records."""
+    """What a round records of the release skill `skill_dir`, from its tracked files: the proof `prove` gives it and
+    every run-time file an arm installs with it, by its sha256 (`run_time`), but for the manifest: it hashes the
+    skills themselves and states the version, so it changes with any skill, and it is proved by the other hashes."""
     import skills  # the one reader of a skill's tracked files
     files, _ = skills.skill_files(skill_dir, name)
-    return prove(skill_dir, name, {rel: hashlib.sha256(data).hexdigest() for rel, data in files.items()},
-                 current)[1]
+    root, how, paths = prove(skill_dir, name, {rel: hashlib.sha256(data).hexdigest() for rel, data in files.items()},
+                             current)
+    return {"proof": how, "run_time": {rel: hashlib.sha256((root / rel).read_bytes()).hexdigest() for rel in paths
+                                       if rel != SELF}}
+
+
+def installed(record, name, arm):
+    """What arm `arm` (`with_skill` or `previous_version`) of the round whose manifest is `record` installs for the
+    skill `name`: its folder's hash and, for a team skill, its run-time files by hash (`release_proof`, `proof`), or
+    None for a release proof recorded before run-time files were. The previous-version check compares it whole and
+    the setup takes the with-skill arm's run-time files from it; results and versions read the folder hash alone,
+    as earlier rounds recorded it. It holds no proof label, which names how a release was proved, not what it
+    installs."""
+    folder, kept = record["skills"] if arm == "with_skill" else record["previous"], record.get("release_proof", {})
+    kept = kept.get(name, {}).get(arm)
+    return {"sha256": folder.get(name, {}).get("sha256"), "run_time": kept.get("run_time") if isinstance(kept, dict)
+            else None}
+
+
+def unchanged(record):
+    """The skills whose previous version would install the same as the version under test (`installed`)."""
+    return sorted(name for name in record["previous"]
+                  if installed(record, name, "previous_version") == installed(record, name, "with_skill"))
 
 
 def proofs(repo, skill_dir, name, kept, read):
-    """{arm: proof} of a team skill's releases in a round: the release under test, and, with `kept` (the round's
+    """{arm: `proof`} of a team skill's releases in a round: the release under test, and, with `kept` (the round's
     record of the previous version), the previous one, read as `read` (`rounds.previous`) reads it, by its commit."""
     found = {"with_skill": proof(skill_dir, name)}
     if kept:

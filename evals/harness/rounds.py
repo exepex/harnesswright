@@ -50,8 +50,8 @@ fault gate's: a round whose skills are all internal names a team skill's `fault_
 list of harnesswright's own checks (`own_checks`, `evals/own-checks.json`, a kit part), which an internal label
 reads.
 
-The manifest records, for each team skill, the proof of its release in each arm (`release_proof`), proved before
-any case runs (`teamrelease.proofs`): `hashes`, or `commit` for a previous version built before 0.8.0.
+The manifest records, for each team skill, each arm's release proof and run-time files by hash (`release_proof`,
+`teamrelease.proofs`), before any case runs. A previous version that installs the same is refused (`installed`).
 
 A round's manifest is written once. Planning a round again gives the same manifest or is refused, so a round's
 inputs never change under its name. A changed input is a new round.
@@ -298,11 +298,11 @@ def plan(path, repo=REPO, adapters=ADAPTERS, version=host_version, at=commit, **
             if not any(case.kind == "task" for case in known_cases[name].values()):
                 raise RoundError(f"{path}: previous names {name}, which the plan runs no task case of")
             with previous(repo, name, earlier) as (_, kept):
-                if kept["sha256"] == found["skills"][name]["sha256"]:
-                    raise RoundError(f"{path}: {name} at {earlier} is the same as the version under test")
                 found["previous"][name] = kept
         found["release_proof"] = {n: teamrelease.proofs(repo, held[n], n, found["previous"].get(n), previous)
                                   for n in sorted(set(data["skills"]) - set(found["absent"])) if kinds.get(n) == "team"}
+        for name in teamrelease.unchanged(found):  # both arms would install the same: nothing to compare
+            raise RoundError(f"{path}: {name} at {found['previous'][name]['commit']} is the same as the version tested")
         import versions  # it reads the results, whose setups read the runner, which imports this module
         versions.ordered(path, repo, data["round"], data["skills"])
         found["verified"] = versions.verified(path, repo, found, known_cases)
