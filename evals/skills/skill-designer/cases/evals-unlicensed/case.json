@@ -62,7 +62,7 @@
       "judged": {
         "question": "Did the run write at least eight trigger cases that should load the skill and at least eight that should not?",
         "pass": "Yes when both counts are eight or more.",
-        "fail": "No when either kind has fewer than eight.",
+        "fail": "No when either kind has fewer than eight. No also when the run wrote no trigger case: a trigger query the run wrote in any file is a trigger case, and only what the files the run wrote hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Ten cases that should load the skill and nine that should not."],
           "fail": ["Twelve should-load cases and three that should not."]
@@ -100,7 +100,7 @@
       "judged": {
         "question": "Did the run write at least two task cases, each with a list of what a good run must show?",
         "pass": "Yes when two or more task cases each hold at least one such item.",
-        "fail": "No when there is one task case or none, or a task case has nothing a good run must show.",
+        "fail": "No when there is one task case or none, or a task case has nothing a good run must show. No also when the run wrote no task case: only what the files the run wrote hold counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Two task cases, each with items a reader can check."],
           "fail": ["One task case with an empty list."]
