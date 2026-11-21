@@ -14,6 +14,7 @@ from contextlib import redirect_stderr
 
 from test_resolve_layers import POINT, TODAY, Application, area, rule  # puts v2/build on sys.path
 
+import build  # noqa: E402
 import check_release  # noqa: E402
 import reach  # noqa: E402
 import repoprofile  # noqa: E402
@@ -39,7 +40,7 @@ class RulesTextTest(Application):
     def manifest(self, skills=None, **change):
         entry = {"job": "implement", "rest": True, "roles": ["implementer"], "areas": [], "copied-ids": self.copied}
         entry.update({k.replace("copied", "copied-ids"): v for k, v in change.items()})
-        data = {"rulebook-version": "0.1.0", "skills": skills or {"implement": entry}}
+        data = {"rulebook-version": "0.1.0", "run-time": list(build.RUN_TIME), "skills": skills or {"implement": entry}}
         self.write(RELEASE + "/manifest.json", json.dumps(data) + "\n")
 
     def jobs(self, row):

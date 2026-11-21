@@ -26,7 +26,8 @@ Rules:
 ## Versioning
 
 - Releases use semantic versions. A major version changes a contract, a rule ID or a process limit a repository
-  relies on. A minor version adds rules, skills or roles. A patch fixes wording or a defect.
+  relies on. A minor version adds rules, skills or roles. A patch fixes wording or a defect. Below 1.0, a change
+  that would be major, such as a change of rule ID, bumps the minor version.
 - Each repository pins a version in its profile. Upgrading is a deliberate change in that repository.
 - `CHANGELOG.md` lists, for each release, the rules added, changed and retired, by ID.
 

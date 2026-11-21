@@ -23,6 +23,9 @@ This skill works in stages, because the goldens and rounds that a skill's evals 
 Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
 and ends with a stage report.
 
+Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, the round's label
+file; for an improvement, the round report.
+
 Rules: {{rule:CORE-SKILL-01}}, {{rule:CORE-SKILL-24}}, {{rule:CORE-SKILL-25}}
 
 | Stage | Starts when | Does | Next step, and its owner |
@@ -48,11 +51,13 @@ This skill does not:
 
 | Input | Required | If missing |
 |---|---|---|
-| The request: the skill's name and its job, or the skill to change | Yes | Ask one question: "Which skill, and for which role?" |
-| The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Ask one question: "Which label file should I read?" Write nothing. |
-| The round report that lists the failed cases, for an improvement | For an improvement | Ask for it; a label file holds counts only. |
-| A source to borrow from: a folder or a repository, with its commit and licence | No | Search the published skill collections the request or project names. With no source, write new. |
-| The rules index the project names, such as `v2/rules/core/index.md`, for the rule IDs | Yes | Stop and report it: a skill cannot cite rules it cannot read. |
+| The request: the skill's job, what it produces, and the role whose work it is; or the skill to change | Yes | Stop. Where the project's rules allow one, put one question in the report that covers what is missing: "What should the skill produce, and for which role?" Never choose either yourself. |
+| The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
+| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
+| A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
+| The rules index the project names, for the rule IDs | Yes | Stop: a skill cannot cite rules it cannot read. |
+
+Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -60,11 +65,14 @@ and never run a borrowed script before a person has reviewed it.
 
 ## Steps
 
-Do the steps in order. Each ends with a check; do not start the next until it passes.
+Do the steps in order. Each ends with a check; do not start the next until it passes. After any stop, still do
+steps 6 and 7.
 
-### 1. Read the run's rules
+### 1. Check what the run needs, and read its rules
 
-1. If `rules.md` or `rules-text-skill-designer.<stack>.md` is missing from the run folder, run the standards
+1. Check the request and each item under Needs; check the label file and the round report only when
+   `evals/skills/<name>/cases/` exists. On a missing one, do as Inputs says, and write nothing else.
+2. If `rules.md` or `rules-text-skill-designer.<stack>.md` is missing from the run folder, run the standards
    reader's command from the project root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
    ```sh
@@ -75,7 +83,7 @@ Do the steps in order. Each ends with a check; do not start the next until it pa
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or
      `.harness/profile.yaml: is missing or cannot be read`): write the files by reading, as below.
    - Any other result: stop, and report the command's output.
-2. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
+3. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
    the date and the line `not verified: <the reason>`. Write one rules text for each language the profile names, or
    one named `core` when there is none, holding the rules you can read from the `rules/core/` and
    `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
@@ -85,20 +93,22 @@ Do the steps in order. Each ends with a check; do not start the next until it pa
    each with the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs
    nothing), the line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the
    quoted value of `READ_BACK_END`. Add the reason to Not run.
-3. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
+4. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
    rules of this skill; where a rules text replaces, waives or binds one of them, it wins.
 
-Check: the run folder holds `rules.md` and the rules texts, and you have read them.
+Check: nothing the run needs is missing; the run folder holds `rules.md` and the rules texts, and you read them.
 
 ### 2. Find the stage
 
 1. Look for `evals/skills/<name>/cases/`. With no case folder there, the stage is 1, even when the request asks for
    the skill itself: say so in the report.
 2. With cases, read the label file the request names. It must name this skill, for either stage; when it does not,
-   ask which file to read, and write nothing. Stage 3 needs the label `verified` on the reference host. Otherwise
-   the stage 2 test applies, and it is the only one: the label's no-skill arm has at least 3 scored runs of every
-   task case, and for an improvement the round report lists the failed cases. When the test fails, ask which file
-   to read, and write nothing.
+   treat it as missing (Inputs). Compare the rounds of a results file only by its `compared` list: only `same setup`
+   compares; read a round marked `not comparable: setup changed` or `unknown` on its own, never as a regression,
+   and with no `compared` list read every round alone.
+   Stage 3 needs the label `verified` on the reference host. Otherwise the stage 2 test applies, and it is the only
+   one: the label's no-skill arm has at least 3 scored runs of every task case, and for an improvement the round
+   report lists the failed cases. When the test fails, treat the label file as missing.
 3. The test reads only the label file and the round report. Goldens are kept by others and are not in the project:
    never search for them, and never stop because you see none. A project may hold only some of the cases, as
    samples; that is no reason to stop either.
@@ -109,7 +119,7 @@ Check: you know the stage and why, from files you read.
 
 1. Settle what the skill is for, what it does not do, its inputs and the role whose job it does. They decide the
    cases; the template that states them comes in stage 2.
-   Rules: {{rule:CORE-SKILL-04}}
+   Rules: {{rule:CORE-SKILL-28}}
 2. Choose the path, one of three, each with its source repository, commit, path and licence:
    - **adopt**: the source meets the rules as it is and its licence allows copying;
    - **adapt**: the licence allows copying, and the text needs changes;
@@ -157,7 +167,7 @@ that breaks a rule: name such parts under Next as proposals. Skip 2 to 4 below u
    - the description, in its own words, never a case prompt;
      Rules: {{rule:CORE-SKILL-03}}, {{rule:CORE-CATALOG-01}}
    - the sections: purpose and limits, inputs, steps, failure handling, output and examples;
-     Rules: {{rule:CORE-SKILL-04}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-04}}, {{rule:CORE-SKILL-08}}
+     Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-SKILL-10}}, {{rule:CORE-TEMPLATE-06}}, {{rule:CORE-SKILL-29}}
      Rules: {{rule:CORE-SKILL-05}}, {{rule:CORE-SKILL-09}}, {{rule:CORE-SKILL-07}}, {{rule:CORE-SKILL-18}}
      Rules: {{rule:CORE-SKILL-19}}
    - the rules the skill depends on, each as a rule tag, `{{rule:<ID>}}` with the rule's ID in place of `<ID>`, on
@@ -202,6 +212,8 @@ an improvement, every changed line traces to a failed case.
 
 1. Run `git diff <label commit> -- v2/skills/<name>/ release/<name>/`. A change beyond the version and content-hash
    lines that a version bump makes means the skill changed after the round: go back to stage 2 and ask for a round.
+   When `git` cannot run here, as with no repository, nothing shows the label still covers the skill: treat it as
+   stale, go back to stage 2 and ask for a round, naming the label's round and commit.
 2. Check that the metadata, the notice file and `THIRD_PARTY.md` agree on the source and its licence.
 3. Add or update the skill's row in the skills table of `AGENTS.md`: name, path to `release/<name>/SKILL.md`, and
    when to use it.
@@ -212,7 +224,9 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading:
+other heading. After a stop, Not run opens with the line `Blocked: <what is missing or failed>`, naming the file,
+folder, tool or input exactly; with no job named, or before step 2 found the stage, give the seven sections in
+your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
@@ -230,8 +244,8 @@ true count.
 
 ### 7. Report
 
-Give the path of the stage report and its Next section. Say that the skill is not done: the next step is someone
-else's, and only a round and a judge can show the skill works.
+After a stop, open with the same `Blocked:` line. Give the path of the stage report and its Next section. Say that
+the skill is not done: the next step is someone else's, and only a round and a judge can show the skill works.
 
 Check: your message matches the stage report.
 
@@ -239,6 +253,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
+| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7, with their `Blocked:` line. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |
