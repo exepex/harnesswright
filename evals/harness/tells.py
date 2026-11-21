@@ -53,9 +53,11 @@ def shared(arms, record):
 def shown(case, record, blob, names, held=None):
     """The names that the view of `record` (its record and every blob) or its page holds, each by the rule the view
     keeps for it. The skill's name and paths count wherever no ASCII letter or digit stands next to them, so inside
-    a longer name such as `rules-text-<skill>.core.md` too, as the view hides them. An arm's name counts anywhere
-    except in a file of `held` (`shared`) that `record` still holds unchanged. The tests are written here, not taken
-    from `view.spelled`, so a fault in that pattern cannot hide itself."""
+    a longer name such as `rules-text-<skill>.core.md` too, as the view hides them. One allow rule, the same for
+    arm words and paths: text that both arms hold tells nothing. An arm's name counts anywhere except in a file of
+    `held` (`shared`) that `record` still holds unchanged; a path of the overlay counts anywhere except as the end
+    of a longer path of such a file, such as `rules/core/work.md` in `v2/rules/core/work.md`. The tests are written
+    here, not taken from `view.spelled`, so a fault in that pattern cannot hide itself."""
     found, blobs, page = seen(case, record, blob)
     text = json.dumps(found, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
     text += page
@@ -66,23 +68,23 @@ def shown(case, record, blob, names, held=None):
     rest_blobs = {digest: data for digest, data in blobs.items() if digest in used}
     arm_text = json.dumps(rest, ensure_ascii=False) + "".join(
         data.decode("utf-8", "replace") for data in rest_blobs.values()) + grading.page(case.prompt, rest, rest_blobs)
-    return [name for name in names if re.search(f"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])", text)] \
+    return [name for name in names if any(not _inside(text, found_, kept) for found_ in re.finditer(
+        f"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])", text))] \
         + [arm for arm in (*cases.ARMS, cases.PREVIOUS) if arm in arm_text]
 
 
-def clean(case, pages, arms, named):
-    """([(page, held)], told): the pages (`grading_faults._pages`) whose clean view names nothing a plant would,
-    each with the files both built `arms` hold (`shared`), and what a clean view tells that it never may: the
-    skill's name, or an arm's outside those files. `named` gives the names of a record's overlay. A clean view that
-    names only a path of the overlay, as the world itself holds one (a release file such as `rules/core/work.md`
-    under `v2/`), is no page for a plant, which could prove nothing there, and no fault of the view."""
-    found = []
-    for page in pages:
-        held = shared(arms, page[1])
-        shown_ = shown(case, page[1], page[2], named(page[1]["overlay"]), held)
-        told = [name for name in shown_ if name in (page[1]["overlay"]["skill"], *cases.ARMS, cases.PREVIOUS)]
-        if told:
-            return [], told
-        if not shown_:
-            found.append((page, held))
-    return found, []
+def _inside(text, match, kept):
+    """Whether `match` of a name ends a longer path in `text` that is a file of `kept`: the path runs back from the
+    match over path characters, and its last parts are that file's whole path, one part or more longer than the
+    name. A match that ends no such path counts."""
+    end = match.end()
+    while end < len(text) and re.match(r"[\w./-]", text[end]):
+        end += 1
+    if text[match.end():end].strip("."):
+        return False  # the name runs on into a longer path or word, so it ends no path of a file here
+    start = match.start()
+    while start and re.match(r"[\w./-]", text[start - 1]):
+        start -= 1
+    parts, name = text[start:match.end()].split("/"), match.group(0)
+    return any("/".join(parts[n:]) in kept for n in range(len(parts)) if "/".join(parts[n:]) != name)
+

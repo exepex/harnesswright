@@ -5,6 +5,7 @@ import copy
 import hashlib
 import random
 import re
+import types
 import unittest
 from unittest import mock
 
@@ -56,10 +57,11 @@ class Tells(Fake):
         planted["files_after"][path] = entry = f"file {digest}{rest}"
         planted["diff"][path] = {"before": None, "after": entry}
         planted["final_message"] = f"Read rules-text-{skill}.core.md.\nDone.\n"
-        self.assertEqual(tells.shown(case, planted, read, names), [])
+        held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)  # a world may name the arms
+        self.assertEqual(tells.shown(case, planted, read, names, held), [])
         whole = lambda words: re.compile("(?<![\\w-])(?:" + "|".join(map(re.escape, words)) + ")(?![\\w-])", re.ASCII)
         with mock.patch.object(tells.view, "spelled", whole):  # the view as it was: whole names only
-            self.assertEqual(tells.shown(case, planted, read, names), [skill])
+            self.assertEqual(tells.shown(case, planted, read, names, held), [skill])
 
     def test_a_file_is_held_by_both_arms_only_when_each_built_arm_has_the_records_bytes(self):
         setup, case, record, blob, _ = self.page()
@@ -82,23 +84,31 @@ class Tells(Fake):
         changed["files_after"][path] = f"file {'0' * 64}{held[path][len('file ') + 64:]}"
         self.assertNotIn(path, tells.shared(tells.built(case, setup.adapter, setup.folder), changed))
 
-    def test_a_plant_goes_only_on_a_page_whose_clean_view_names_nothing_it_would(self):
-        setup, case, record, blob, names = self.page()
-        arms, named = tells.built(case, setup.adapter, setup.folder), lambda layer: [layer["skill"], *evidence.places(
-            layer)]
-        page = (None, record, blob, [])
-        self.assertEqual([p for p, _ in tells.clean(case, [page], arms, named)[0]], [page])
-        nested = sorted(p for p in tells.shared(arms, record) if "/" in p)[0]
-        beside = copy.deepcopy(record)  # the overlay adds a path the world also holds under a folder of its own
-        beside["overlay"]["release"] = [nested.split("/", 1)[1]]
-        self.assertEqual(tells.clean(case, [(None, beside, blob, [])], arms, named), ([], []))
-        leaked = copy.deepcopy(record)
-        leaked["final_message"] = f"I used {record['overlay']['skill']}.\n"
-        self.assertEqual(tells.clean(case, [(None, leaked, blob, [])], arms, named)[1], [])  # the view drops the line
-        with mock.patch.object(view, "text", lambda value, *args: value):  # a view that keeps the skill's name
-            self.assertEqual(tells.clean(case, [(None, leaked, blob, [])], arms, named)[1],
-                             [record["overlay"]["skill"]])
-
+    def test_an_overlay_path_counts_unless_it_ends_a_longer_path_of_a_file_both_arms_hold(self):
+        setup, case, record, blob, _ = self.page()
+        held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)
+        nested = sorted(p for p in held if "/" in p)[0]
+        tail = nested.split("/", 1)[1]  # a release file a team install would add, which the world holds deeper down
+        beside = copy.deepcopy(record)
+        beside["overlay"]["release"] = [tail]
+        blind = types.SimpleNamespace(**vars(evidence))
+        blind.places = lambda overlay: overlay["paths"]  # a view that reads the skill's paths only, and so shows it
+        with mock.patch.object(view, "evidence", blind):
+            self.assertEqual(tells.shown(case, beside, blob, [tail], held), [])  # the page names the world's own file
+            self.assertEqual(tells.shown(case, beside, blob, [tail], {p: e for p, e in held.items() if p != nested}),
+                             [tail])  # not proven held by both arms, so it counts
+        only = copy.deepcopy(beside)  # judge-a's probe: a release file, and a file of the record no built arm holds
+        only["overlay"]["release"] = ["only-with.md"]
+        only["files_after"]["kept/only-with.md"] = record["files_after"][nested]
+        self.assertEqual(tells.shown(case, only, blob, ["only-with.md"], held), [])  # the view hides it
+        with mock.patch.object(view, "evidence", blind):
+            self.assertEqual(tells.shown(case, only, blob, ["only-with.md"], held), ["only-with.md"])
+        kept = {nested}
+        for text, inside in ((f"Read {nested}.", True), (f"Read /world/{tail}", False), (f"Read {tail}", False),
+                             (f"Read other/{tail}", False), (f"Read {nested}/notes.md", False)):
+            with self.subTest(text=text):
+                found = re.search(f"(?<![A-Za-z0-9]){re.escape(tail)}(?![A-Za-z0-9])", text)
+                self.assertEqual(tells._inside(text, found, kept), inside)
 
 if __name__ == "__main__":
     unittest.main()
