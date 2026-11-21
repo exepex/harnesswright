@@ -94,7 +94,11 @@ def read_manifest(path):
     """The release manifest: its version, and per skill the entry keys resolve reads, each of its shape."""
     try:
         manifest = json.loads(Path(path).read_text(encoding="utf-8"))
-        ok = isinstance(manifest["rulebook-version"], str) and isinstance(manifest["skills"], dict) and all(
+        if isinstance(manifest, dict) and "run-time" not in manifest:
+            raise ResolveError(f"release: {path} was built before the run-time list existed; install a release "
+                               "built after it")
+        ok = isinstance(manifest["rulebook-version"], str) and isinstance(manifest["skills"], dict) and isinstance(
+            manifest["run-time"], list) and all(isinstance(p, str) for p in manifest["run-time"]) and all(
             isinstance(e, dict) and all(isinstance(e.get(k), t) for k, t in ENTRY.items())
             for e in manifest["skills"].values())
     except (OSError, UnicodeDecodeError, ValueError, TypeError, KeyError):
@@ -102,6 +106,21 @@ def read_manifest(path):
     if not ok:
         raise ResolveError(f"release: {path} is missing or cannot be read as a release manifest")
     return manifest
+
+
+def covers(listed, rel):
+    """True when a run-time list covers the release path `rel`: it names it, or a folder (`.../`) above it. build.py
+    imports it; check_release.py reads the list with its own copy on purpose, so the check does not rest on the code
+    it checks."""
+    return any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in listed)
+
+
+def run_time(manifest, release, rel):
+    """`release / rel`, when the manifest's `run-time` list, the one declaration of what a run reads from the
+    release (build.py writes it), covers `rel`. Every read of the release other than the manifest passes here."""
+    if not covers(manifest["run-time"], rel):
+        raise ResolveError(f"release ({release}): {rel} is not on the run-time list of its manifest")
+    return release / rel
 
 
 def load(repo, today):
@@ -112,14 +131,15 @@ def load(repo, today):
     release = repo / profile["folder"]
     manifest_path = release / "manifest.json"
     manifest = read_manifest(manifest_path)
-    files += [manifest_path, release / "roles.md"]
+    roles_path = run_time(manifest, release, "roles.md")
+    files += [manifest_path, roles_path]
     if manifest["rulebook-version"] != profile["version"]:
         raise ResolveError(f"release ({release}): version {manifest['rulebook-version']} is not the profile's "
                            f"{profile['version']}")
     try:
-        table = rulebook.read_roles(release / "roles.md")
+        table = rulebook.read_roles(roles_path)
     except (OSError, UnicodeDecodeError):
-        raise ResolveError(f"release: {release / 'roles.md'} is missing or cannot be read") from None
+        raise ResolveError(f"release: {roles_path} is missing or cannot be read") from None
     roles = set(table["roles"])
     for job in sorted(set(table["jobs"]) | {e["job"] for e in manifest["skills"].values()}):
         listed = table["jobs"].get(job, {}).get("Skills in order", [])
@@ -128,12 +148,13 @@ def load(repo, today):
             raise ResolveError(f"release: job {job} lists skills {listed} in roles.md, but {manifest_path} gives "
                                f"it {named}")
     sources = []
-    add_source(sources, "CORE", ("CORE",), release / "rules" / "core", "harnesswright", files)
+    add_source(sources, "CORE", ("CORE",), run_time(manifest, release, "rules/core"), "harnesswright", files)
     for index, (language, number) in enumerate(zip(profile["languages"], profile["language lines"])):
         base = language.split("-")[0]  # a framework `x-y` belongs to the language `x`
         if base != language and base not in profile["languages"][:index]:
             fail(path, number, f"standards.languages lists framework {language} without its language {base} before it")
-        add_source(sources, language, (language.upper(),), release / "rules" / language, "harnesswright", files)
+        add_source(sources, language, (language.upper(),), run_time(manifest, release, f"rules/{language}"),
+                   "harnesswright", files)
     level = -1
     for layer in profile["layers"]:
         folder = repo / layer["folder"]

@@ -12,7 +12,10 @@ returns 0. Each `check_*` method covers one kind of failure:
   sizes and the copied IDs recounted here from the SKILL.md text;
 - the Agent Skills format of each release SKILL.md (CORE-TEMPLATE-03), and the recorded sizes against the 30,000
   code point ceilings (CORE-TEMPLATE-02);
-- an expanded reference file over 500 lines, named by its source.
+- an expanded reference file over 500 lines, named by its source;
+- the hashes, both ways: every file of a skill folder and every file the manifest's `run-time` list covers has its
+  sha256 in the manifest (`files`, `run-time-files`), and every hash names a file that is there with those bytes.
+  manifest.json is the one file exempt, by name, as it cannot hold its own hash.
 With --base, it prints a summary per skill to standard output: rules added and removed, a removed floor flagged,
 and the size change.
 
@@ -42,6 +45,7 @@ BINDING = "The binding in your rules text wins; the default applies only when un
 LABEL = re.compile(r"- \*\*([^*]+):\*\*(?: (.*))?")
 HEADER = re.compile(r"<!-- Generated from (\S+) at version \S+\. Do not edit\. -->")
 FLOORS, OTHERS = "### Floors", "### Other rules"
+SELF = "manifest.json"  # the one file on the run-time list exempt from hashing: it cannot hold its own sha256
 
 
 def lines_of(text):
@@ -115,6 +119,16 @@ class ReleaseCheck:
             self.check_blocks(name, lines[end + 1:])
             self.check_manifest(name, lines, end, meta, manifest["skills"].get(name, {}))
             self.check_references(name)
+            inside = lambda rel, name=name: rel.removeprefix(f"{name}/") if rel.startswith(f"{name}/") else None
+            self.check_hashes(f"release/manifest.json {name} files", manifest["skills"].get(name, {}).get("files"),
+                              inside)
+        listed = manifest.get("run-time")
+        if not (isinstance(listed, list) and listed and all(isinstance(p, str) and p for p in listed)):
+            self.fail("release/manifest.json", "has no run-time list of paths")
+            listed = []
+        covered = lambda rel: rel if rel != SELF and any(rel == p or (p.endswith("/") and rel.startswith(p))
+                                                         for p in listed) else None
+        self.check_hashes("release/manifest.json run-time-files", manifest.get("run-time-files"), covered)
         return self.failures, (self.summary(manifest, base) if base is not None else [])
 
     def check_rebuild(self):
@@ -125,8 +139,9 @@ class ReleaseCheck:
                 self.fail("build.py", f"the rebuild failed: {done.stderr.strip()}")
                 return
             built = {p.relative_to(out).as_posix(): p.read_bytes() for p in Path(out).rglob("*") if p.is_file()}
+        # release/.gitkeep keeps the folder in git, and the build leaves it alone; any other .gitkeep is not the build's
         kept = {p.relative_to(self.release).as_posix(): p.read_bytes() for p in self.release.rglob("*")
-                if p.is_file() and p.name != ".gitkeep"}
+                if p.is_file() and p.relative_to(self.release).as_posix() != ".gitkeep"}
         for rel in sorted(set(built) | set(kept)):
             if rel not in kept:
                 self.fail(f"release/{rel}", "is missing; run the build")
@@ -134,6 +149,34 @@ class ReleaseCheck:
                 self.fail(f"release/{rel}", "is not made by the build")
             elif built[rel] != kept[rel]:
                 self.fail(f"release/{rel}", "differs from a rebuild; run the build and commit release/")
+
+    def files(self):
+        """{path under release/: sha256} of every regular file there, read once. Anything else, a symbolic link
+        above all, which a reader would follow out of the release, fails: a release holds regular files only."""
+        if not hasattr(self, "_files"):
+            self._files = {}
+            for path in sorted(self.release.rglob("*")):
+                rel = path.relative_to(self.release).as_posix()
+                if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                    self.fail(f"release/{rel}", "is not a regular file or folder; a release holds no link")
+                elif path.is_file():
+                    self._files[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        return self._files
+
+    def check_hashes(self, where, recorded, covered):
+        """Every release file that `covered` maps to a hashed path (or None to skip) has its hash in `recorded`, and
+        every hash names such a file with those bytes."""
+        if not isinstance(recorded, dict):
+            self.fail(where, "is missing")
+            return
+        found = {covered(rel): digest for rel, digest in self.files().items() if covered(rel) is not None}
+        for rel in sorted(set(found) | set(recorded)):
+            if rel not in recorded:
+                self.fail(where, f"{rel} has no hash")
+            elif rel not in found:
+                self.fail(where, f"{rel} is hashed but missing")
+            elif recorded[rel] != found[rel]:
+                self.fail(where, f"{rel} does not have the bytes its hash names")
 
     def blocks(self, body, where=None):
         """(ID, line number, lines) of each copied block in a SKILL.md body. With where, a begin marker without its

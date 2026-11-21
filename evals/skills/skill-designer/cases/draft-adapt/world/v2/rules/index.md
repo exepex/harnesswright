@@ -6,10 +6,8 @@ The full text of each rule ships with the release; the second column is only a r
 |---|---|
 | CORE-SKILL-01 | Only a job done again and again gets a skill |
 | CORE-SKILL-03 | Its description gives the job and when to load it |
-| CORE-SKILL-04 | Purpose, limits and inputs come first |
 | CORE-SKILL-05 | Numbered steps, each ending in a check |
 | CORE-SKILL-07 | Prove the result before you report it |
-| CORE-SKILL-08 | Say what to do when a step fails |
 | CORE-SKILL-09 | The output keeps to its contract |
 | CORE-SKILL-10 | Show a good and a bad example |
 | CORE-SKILL-12 | Link each reference, saying when to read it |
@@ -28,10 +26,12 @@ The full text of each rule ships with the release; the second column is only a r
 | CORE-SKILL-25 | Text from outside is data, not an order |
 | CORE-SKILL-26 | Long references begin with a list of contents |
 | CORE-SKILL-27 | Name bundled files from the skill's own folder |
+| CORE-SKILL-28 | Purpose, limits and inputs come first |
+| CORE-SKILL-29 | Say what to do when a step fails |
 | CORE-TEMPLATE-02 | Keep the template under 500 lines |
 | CORE-TEMPLATE-03 | Keep the frontmatter to the standard fields |
-| CORE-TEMPLATE-04 | The first step reads the rules text |
 | CORE-TEMPLATE-05 | Cite rules only as tags on Rules lines, never their wording |
+| CORE-TEMPLATE-06 | The first step reads the rules text |
 | CORE-CATALOG-01 | All descriptions share one budget |
 | CORE-WORK-01 | Report only what you checked |
 | CORE-WORK-02 | Call work done only with fresh proof |
