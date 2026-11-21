@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "undecidable",
+ "final_message": "Rules read by reading; the claims are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

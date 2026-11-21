@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "fail",
+ "final_message": "Done.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python scripts/claims_check.py --claims c.md",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}

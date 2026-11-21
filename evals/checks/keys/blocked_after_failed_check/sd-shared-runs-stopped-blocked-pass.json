@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "pass",
+ "final_message": "## Not run\n\nBlocked: the check failed.\n",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/shared_runs.py --source incoming/x --written evals/skills/x/",
+   "exit_code": 2,
+   "output": ""
+  }
+ ]
+}

@@ -13,12 +13,31 @@ fails.
 
 - `ended_blocked`: the closing report holds a `Blocked:` line that matches each pattern in `names`, regular
   expressions for what is missing or failed.
+- `blocked_after_failed_check`: when the last run of one of the skill's checks failed, the closing report holds a
+  `Blocked:` line. `skill-checks.json` is the one declaration of each skill's check scripts and, for each, the exit
+  codes that are not a failure, as the skill's text says: an allow list (HW-AG-09), `{script: {code: text}}`. A
+  code with an empty text is never a failure; a code with a text is not a failure only when the run's recorded
+  output holds that text, such as resolve.py's 1 when `.harness/profile.yaml: is missing or cannot be read` and the
+  skill works by reading, or 127 with `not found` when there is no Python, which the skills also take as a way
+  to work by reading. Every other code is a failed check, and a code that needs a text with no output recorded
+  is `undecidable`.
+  A run of a script is `python`, `python3` or `python3.N`, by any path, with any flags, then the script by any
+  path, where a program starts (`shell.programs`); a command that names the script with no interpreter before it,
+  such as `cat resolve.py`, runs nothing. Each script's last run counts. A last run whose exit code is not known to
+  be its own (`shell.owns_exit_code`), or one that runs the script only where no program starts, such as after a
+  wrapper (`timeout 60 python3 resolve.py`), is `undecidable`. A run with no failed check passes. The action log's
+  command entries must be observed (`checks.Bundle.entries`).
 """
 
+import json
 import re
+from pathlib import Path
 
 from cases import is_path
-from checks import Check, is_pattern
+from checks import Check, Undecidable, is_pattern
+from shell import owns_exit_code, programs
+
+DECLARED = Path(__file__).with_name("skill-checks.json")  # {skill: {script: {code that is no failure: text}}}
 
 LINE = re.compile(r"^Blocked:[ \t]*\S.*$", re.MULTILINE)  # the one shape of the line that says a run stopped
 
@@ -44,6 +63,44 @@ def ended_blocked(bundle, names, report=None):
     return "fail", f"no `Blocked:` line of {name} names each of {names}: {lines[0][:200]!r}"
 
 
+def _declared(path=DECLARED):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _run_of(script):
+    """The pattern of a program that runs `script` with Python: the interpreter, its flags, then the script."""
+    return re.compile(rf"(?:\S*/)?python(?:3(?:\.\d+)?)?(?:[ \t]+-\S+)*[ \t]+(?:\S*/)?{re.escape(script)}(?=[ \t]|$)")
+
+
+def blocked_after_failed_check(bundle, skill, report=None):
+    failed = []
+    commands = bundle.entries("command")
+    for script, allowed in sorted(_declared()[skill].items()):
+        ran = [e for e in commands if _run_of(script).search(e["command"])]  # `cat resolve.py` runs nothing
+        if not ran:
+            continue
+        last, code = ran[-1], ran[-1]["exit_code"]
+        if not any(_run_of(script).match(text) for text in programs(last["command"])):
+            raise Undecidable(f"the last command that may run {script} does not run it where a program starts: "
+                              f"{last['command'][:200]}", [last])
+        if code is None or not owns_exit_code(last["command"], code):
+            raise Undecidable(f"the last run of {script} has no exit code known to be its own: "
+                              f"{last['command'][:200]}", [last])
+        needed, output = allowed.get(str(code)), last.get("output")
+        output = output if isinstance(output, str) else ""  # none recorded
+        if needed and not output:
+            raise Undecidable(f"the last run of {script} ended with {code}, which is not a failure only with "
+                              f"{needed!r} in its output, and it has no output recorded", [last])
+        if needed is None or needed not in output:
+            failed.append(f"{script} (exit {code})")
+    if not failed:
+        return "pass", f"no last run of a check of {skill} failed"
+    text, name = _report(bundle, report)
+    if text is not None and LINE.search(text):
+        return "pass", f"the last run of {', '.join(failed)} failed, and {name} holds a `Blocked:` line"
+    return "fail", f"the last run of {', '.join(failed)} failed, and {name} holds no `Blocked:` line"
+
+
 def _patterns(value):
     return isinstance(value, list) and bool(value) and all(is_pattern(item) for item in value)
 
@@ -51,4 +108,8 @@ def _patterns(value):
 CHECKS = {
     "ended_blocked": Check(ended_blocked, {"names": _patterns, "report": is_path}, optional=("report",),
                            about="the closing report holds a `Blocked:` line that names what is missing"),
+    "blocked_after_failed_check": Check(blocked_after_failed_check,
+                                        {"skill": lambda v: isinstance(v, str) and v in _declared(),
+                                         "report": is_path}, optional=("report",),
+                                        about="after a failed check of the skill, the report holds a `Blocked:` line"),
 }

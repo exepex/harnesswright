@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "fail",
+ "final_message": "The cases are written.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 SKILL_DIR/scripts/resolve.py --repo . --run r1 --date 2026-11-20",
+   "exit_code": 3,
+   "output": ""
+  }
+ ]
+}

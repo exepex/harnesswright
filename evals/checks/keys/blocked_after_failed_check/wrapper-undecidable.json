@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "claims-writer"
+ },
+ "outcome": "undecidable",
+ "final_message": "Done.",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "timeout 60 python3 SKILL_DIR/scripts/claims_check.py",
+   "exit_code": 1,
+   "output": ""
+  }
+ ]
+}
