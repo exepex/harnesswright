@@ -199,10 +199,6 @@ class Gate(Pages):
             "with_skill": {"rate": None, "false_done": 0, "decided": 0, "undecided": 1}})  # neither is trusted
 
     def test_a_resume_whose_goldens_pass_still_names_the_doubt_its_kept_grades_carry(self):
-        def done_always(adapter, page, asked, model=None, timeout=None, **containment):  # misses the draft on q4
-            graded = done_or_pond(adapter, page, asked)
-            return grader.Graded({"answers": [dict(a, answer="yes") if a["id"] == "q4" else a
-                                              for a in graded.sheet["answers"]]}, [], [[]])
         poems = [("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3
 
         def label(store, *graders):  # each grader's attempt in turn; the last attempt's label entry
@@ -219,11 +215,49 @@ class Gate(Pages):
         with mock.patch.object(grades, "REFERENCE", "fakehost"), \
                 mock.patch.object(labels.verdicts, "missing", lambda found: []):
             self.assertEqual(label("clean", done_or_pond)["label"], "verified")  # trusted from the start
-            entry = label("resumed", done_always, done_or_pond)  # q4's golden missed, then passed on the resume
+            entry = label("resumed", self.done_always, done_or_pond)  # q4's golden missed, then passed on the resume
         self.assertEqual(entry["false_done"]["with_skill"]["undecided"], 3)  # its kept answers stay untrusted
         self.assertEqual(entry["label"], "inconclusive")
         self.assertTrue(any(gap.startswith("haiku-writer/c1 q4: untrusted (when graded: ") for gap in entry["gaps"]),
                         entry["gaps"])
+
+    def test_a_question_an_extra_pass_leaves_untrusted_is_named_from_the_pass_s_own_grades(self):
+        self.planned()
+        probe, run = self.stored([("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3)
+
+        def extra(r):  # one pass of one run, graded for real by a grader that misses the draft golden on q4
+            out, kept = tempfile.mkdtemp(dir=self.tmp), self.store / "r1" / "runs" / "k7" / "bundle"
+            record, blobs = goldens.bundle(goldens.Golden("run", wrote(POND)), r.cases[("haiku-writer", "c1")],
+                                           r.modules["fakehost"], out, DRIFT, "fakehost 1.0", "named-model",
+                                           self.repo / "skills")
+            made = {"host": "fakehost", "skill": "haiku-writer", "case": "c1", "arm": "with_skill", "number": 7,
+                    "key": "k7", "status": "made"}
+            r.runs.append({**made, "bundle": str(evidence.store(record, blobs, kept))})
+            checked = [gates.check_one(r, r.runs[-1])]
+            r.grade = self.done_always
+            graded = grades.grade(r, r.runs[-1:], r.folder / "grades" / r.attempt / "extra-1")
+            return {"passes": [{"runs": [made], "checks": checked, "grades": graded["runs"],
+                                "goldens": graded["goldens"]}], "skipped": {}}
+        steps = (("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
+                 ("extra runs", extra), ("label", labels.label_gate))
+        self.go(steps, grade=done_or_pond)
+        [path] = (self.store / "r1" / "labels").iterdir()
+        pass_folder = self.store / "r1" / "grades" / path.stem
+        self.assertEqual(json.loads((pass_folder / "runs" / "k7.json").read_text())["untrusted"],
+                         {"q4": "a golden was missed: draft got yes, not no"})  # beside the attempt's other runs
+        self.assertEqual({p.relative_to(pass_folder / "extra-1").parts[0]
+                          for p in (pass_folder / "extra-1").rglob("*.json")}, {"goldens"})  # the pass's goldens only
+        entry = json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
+        self.assertEqual(entry["runs"]["c1, with_skill"], 4)  # the extra run is scored: only q4 is untrusted
+        self.assertEqual(entry["false_done"]["with_skill"]["undecided"], 1)
+        self.assertIn("haiku-writer/c1 q4: untrusted (a golden was missed: draft got yes, not no)", entry["gaps"])
+
+    @staticmethod
+    def done_always(adapter, page, asked, model=None, timeout=None, **containment):
+        """A stand-in grader that answers yes to q4, the done question, so it misses the draft golden there."""
+        graded = done_or_pond(adapter, page, asked)
+        return grader.Graded({"answers": [dict(a, answer="yes") if a["id"] == "q4" else a
+                                          for a in graded.sheet["answers"]]}, [], [[]])
 
 
 if __name__ == "__main__":
