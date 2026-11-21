@@ -8,19 +8,22 @@ place that run can see. A place has a kind:
 - `declared`: the prompt, a commit message, or the index row template the case writes;
 - `installed`: a file of an installed sibling skill;
 - `rows`: the index rows of the installed siblings, as the run reads them: the case's row template filled with
-  each sibling's name, path and description.
+  each sibling's name, path and description;
+- `base`: a file of an internal world's pinned base, which the case did not add (internal.py).
 
 `RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
-every rule but the tells reads them: a tell inside a sibling's description is the project's own word.
+every rule but the tells reads them: a tell inside a sibling's description is the project's own word. `base` places
+are approved project text: the judges approve them with the pin and its `left_out` list, and they are the same in
+every arm, so they tell no arm apart and are no case author's to fix. Only the skill-name rule reads them; the
+case-level rules read the case's own files and the prompt, and `internal.check_links` the whole world.
 
-No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees the world's files, and
-an arm's name there would tell it which arm it grades.
+No place may name an arm (`cases.ARMS`, `cases.PREVIOUS`) in its path or text: a grader sees it and would learn its arm.
 
 Every text rule is one rule: protected text, minus project text, found in a place. Project text is computed once:
-verified copies, installed sibling files, the recorded upstream source and the standard licence texts in
-`evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never project text: the case
-author writes it for this case.
+verified copies, installed sibling files, an internal world's pinned base, the recorded upstream source and the
+standard licence texts in `evals/fixtures/licences/`. It stays in both arms, so it never counts. The prompt is never
+project text: the case author writes it for this case.
 
 What the lint reads is what an agent reads: every world file must be UTF-8 text with no control character other
 than tab, line feed and carriage return. A file in any other form, such as UTF-16, an archive or a binary, is
@@ -60,9 +63,9 @@ PROJECT_TEXT = (("fixtures",), ("skills", None, "upstream"),
                 ("skills", None, "cases", None, "world"))
 CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
-EVERY = ("names", "skill", "tells", "eval", "expectations")
-RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "skill"),
-         "rows": ("names", "skill", "eval", "expectations")}
+EVERY = ("names", "arms", "skill", "tells", "eval", "expectations")
+RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "arms", "skill"),
+         "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",)}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
 # licence. Only text found in them is excused, never a file by its name.
 LICENCES = ("evals", "fixtures", "licences")
@@ -98,6 +101,7 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
+    own = None if case.internal_world is None else manifest.manifest(case.folder / "world")  # the rest is the base
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
@@ -110,7 +114,8 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        places.append(Place(path, None if body is None else f"{path}\n{body}", "installed" if installed else "world"))
+        kind = "installed" if installed else "world" if own is None or path in own else "base"
+        places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]
     if rows:
@@ -233,7 +238,7 @@ def citations(case, places):
     lines after it."""
     found, problems, library = [], [], None
     documents = {p.key: p.text.split("\n", 1)[1] for p in places
-                 if p.kind == "world" and p.text is not None and not p.link}
+                 if p.kind in ("world", "base") and p.text is not None and not p.link}
     for number, expectation in enumerate(case.expectations, 1):
         if "check" in expectation:
             try:
@@ -281,10 +286,10 @@ def stated_quotes(text):
 
 def protected(case, places, copied, skill_dir, upstream=(), repo=REPO, sizes=frozenset()):
     """(project, skill): the runs, of RUN words and `sizes`, of the project text the run sees (its verified copies,
-    its installed siblings, the skill's upstream source and the licences), and the runs of the skill's own text that
-    are not project text. Only those are the skill's to protect: the lint refuses them, and the names fault plants
-    one of them."""
-    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind == "installed")]
+    its installed siblings, an internal world's base, the skill's upstream source and the licences), and the runs of
+    the skill's own text that are not project text. Only those are the skill's to protect: the lint refuses them,
+    and the names fault plants one of them."""
+    project = all_runs([p.text for p in places if p.text and (p.key in copied or p.kind in ("installed", "base"))]
                        + list(upstream) + texts(Path(repo).joinpath(*LICENCES)), {RUN} | set(sizes))
     if skill_dir is None:  # a skill with no folder yet (a baseline round) has no text of its own to protect
         return project, set()
@@ -339,7 +344,7 @@ def lint(case, arm, skill_dir, upstream=(), kit=(), repo=REPO, cases=()):
                  else "names the skill ({!r})")
         if "names" in rules:
             problems += [f"{place.key}: {named.format(leak)}" for leak in leaks if names(place, leak)]
-            # A grader sees the world's files, so an arm's name there would tell it the run's arm.
+        if "arms" in rules:  # a grader sees the world's files, so an arm's name there would tell it the run's arm
             problems += [f"{place.key}: names the arm {name!r}" for name in (*ARMS, PREVIOUS)
                          if name in place.key or name in place.text]
         hits = sorted(skill & runs(place.text, {RUN}))
