@@ -130,6 +130,26 @@ class Library(TempCase):
         self.assertEqual(verdict["outcome"], "undecidable")
         self.assertIn("ran past 600 seconds", verdict["reason"])
 
+    def test_every_case_that_counts_on_the_release_check_has_a_world_that_passes_it_before_the_run(self):
+        """A run that changes nothing must pass the release check, so a world that fails it before the run would
+        score the world, not the run: an internal case counts on it only when its built world passes it."""
+        import contain, manifest, world
+        from cases import REPO, Case
+        from test_adapters import CLAUDE
+        if contain.available():
+            self.skipTest(f"no jail to run the own checks in: {contain.available()}")
+        for folder in sorted((REPO / "evals" / "skills").glob("*/cases/*")):
+            case = Case(folder, folder.parent.parent.name)
+            if not any(e.get("check", {}).get("name") == "own_release_checks" for e in case.expectations):
+                continue
+            arm = world.build(case, CLAUDE, self.tmp / case.skill / case.id)
+            files = manifest.manifest(arm.path, skip=(".git",))
+            blobs = {e.split(" ")[1]: (arm.path / p).read_bytes() for p, e in files.items() if manifest.is_file(e)}
+            record = {"files_after": files, "diff": {}, "log": [], "final_message": ""}
+            with self.subTest(case=case.id):
+                verdict = checks.decide("own_release_checks", checks.Bundle(record, blobs.__getitem__), {})
+                self.assertEqual(verdict["outcome"], "pass", verdict["reason"])
+
     def test_a_library_module_outside_its_rule_is_refused(self):
         folder = self.tmp / "library"
         folder.mkdir()
