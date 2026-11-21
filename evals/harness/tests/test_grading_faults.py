@@ -220,8 +220,8 @@ class Missed(Fake):
     def test_a_view_that_leaves_a_release_file_of_the_overlay_unguarded_is_a_miss(self):
         setup, entry, pages = self.setup_of(), next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
 
-        def with_release(setup, rng):  # a team install's overlay: its skill's folder and the release files it adds
-            case, found = pages(setup, rng)
+        def with_release(setup, rng, pick=None):  # a team install's overlay: its skill's folder and its release files
+            case, found = pages(setup, rng, pick)
             for _, record, _, _ in found:
                 record["overlay"]["release"] = ["rules/core/work.md"]
             return case, found

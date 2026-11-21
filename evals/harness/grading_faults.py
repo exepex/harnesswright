@@ -71,12 +71,18 @@ def _flip(answer):
     return "no" if answer == "yes" else "yes"
 
 
-def _pages(setup, rng):
-    """(case, [(golden, record, blob, asked)]) for the goldens of the repository case the seed chooses."""
+def _found():
+    """(skill, case) of every repository case with goldens."""
     found = [(s.name, c.name) for s in sorted(goldens.ROOT.glob("*")) if s.is_dir() for c in sorted(s.iterdir())]
     if not found:
         raise Missed("the repository has no goldens to plant grading faults on")
-    skill, name = rng.choice(found)
+    return found
+
+
+def _pages(setup, rng, pick=None):
+    """(case, [(golden, record, blob, asked)]) for the goldens of the repository case `pick`, (skill, case), or else
+    the one the seed chooses."""
+    skill, name = pick or rng.choice(_found())
     [case] = [c for c in cases.load_cases(skill) if c.id == name]
     pages = []
     for golden in goldens.load(case):
@@ -282,15 +288,25 @@ def view_(setup, fault, rng, place):
     command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
     their writes and changes), a link to one, and a world file's text and its write. Its control is the same record with
     the plant's actions on the overlay left out, its lines that name the skill left out, its run folders as their
-    neutral words and its command output empty. Caught when the clean view and page name none of them, by the one
-    rule of `tells` (an arm word may be only in a world file both arms of the case are built holding byte for byte),
-    and the planted view and page equal the control's: nothing of the plant shows, not even an entry with its names
+    neutral words and its command output empty. The plant goes only on a page whose clean view names none of them,
+    drawn from those pages in the seed's order of cases (`tells.clean`); a clean view that names the skill, or an arm
+    outside the world files both arms are built holding byte for byte, is a miss. Caught when the planted view and
+    page name none of them and equal the control's: nothing of the plant shows, not even an entry with its names
     taken out. The world file that takes the plant's lines is one whose text names no arm word."""
-    case, pages = _pages(setup, rng)
-    _, record, blob, _ = rng.choice(pages)
+    arms, named = (*cases.ARMS, cases.PREVIOUS), lambda layer: [layer["skill"], *evidence.places(layer)]
+    for pick in rng.sample(_found(), len(_found())):  # the seed orders the cases; the first with a clean page serves
+        case, pages = _pages(setup, rng, pick)
+        clean, told = tells.clean(case, pages, tells.built(case, setup.adapter, setup.folder), named)
+        if told:
+            return f"the view a grader gets names {told} in the clean record"
+        if clean:
+            break
+    else:
+        return "the view a grader gets names what the plant would in the clean record of every golden"
+    (_, record, blob, _), held = rng.choice(clean)
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
-    names = [skill, *evidence.places(layer)]  # the skill's paths and the files a team install adds
+    names = named(layer)  # the skill's paths and the files a team install adds
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[\w-]", c)]  # every character not of a name
     lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
@@ -303,7 +319,6 @@ def view_(setup, fault, rng, place):
     neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
     word = record["folders"].get(world, world)
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
-    held, arms = tells.shared(case, setup.adapter, setup.folder, record), (*cases.ARMS, cases.PREVIOUS)
 
     def stored(data):
         added[hashlib.sha256(data).hexdigest()] = data
@@ -363,10 +378,9 @@ def view_(setup, fault, rng, place):
             planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
             planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
-    for one, of in ((record, blob), (planted, read)):  # the clean record, then the planted one, by the same rule
-        shown = tells.shown(case, one, of, names, held)
-        if shown:
-            return f"the view a grader gets names {shown}" + (" in the clean record" if one is record else "")
+    shown = tells.shown(case, planted, read, names, held)  # the clean record names none of them (the draw above)
+    if shown:
+        return f"the view a grader gets names {shown}"
     seen = tells.seen(case, control, read)
     if place != "arm" and kept.strip() not in seen[2]:
         return "the control's page lost the neutral line next to the plant, so the view hides what it must show"

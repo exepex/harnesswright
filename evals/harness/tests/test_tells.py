@@ -13,6 +13,7 @@ from test_host import JAIL
 import evidence
 import grading_faults
 import tells
+import view
 
 ARM_TEXT = b"Runs go in two arms, with_skill and without_skill, and previous_version.\n"
 
@@ -28,7 +29,7 @@ class Tells(Fake):
 
     def test_an_arm_word_counts_unless_both_arms_are_built_holding_its_file_unchanged(self):
         setup, case, record, blob, names = self.page()
-        held = tells.shared(case, setup.adapter, setup.folder, record)
+        held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)
         self.assertEqual(tells.shown(case, record, blob, names, held), [])
         rest = next(entry for entry in held.values())[len("file ") + 64:]
         digest = hashlib.sha256(ARM_TEXT).hexdigest()
@@ -46,7 +47,7 @@ class Tells(Fake):
 
     def test_a_file_is_held_by_both_arms_only_when_each_built_arm_has_the_records_bytes(self):
         setup, case, record, blob, _ = self.page()
-        held = tells.shared(case, setup.adapter, setup.folder, record)
+        held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)
         self.assertTrue(held)
         for path, entry in held.items():
             self.assertNotIn(path, record["diff"])
@@ -60,10 +61,27 @@ class Tells(Fake):
                     file.write(b"one more line\n")
             return arm
         with mock.patch.object(tells.world, "build", edited):
-            self.assertNotIn(path, tells.shared(case, setup.adapter, setup.folder, record))
+            self.assertNotIn(path, tells.shared(tells.built(case, setup.adapter, setup.folder), record))
         changed = copy.deepcopy(record)
         changed["files_after"][path] = f"file {'0' * 64}{held[path][len('file ') + 64:]}"
-        self.assertNotIn(path, tells.shared(case, setup.adapter, setup.folder, changed))
+        self.assertNotIn(path, tells.shared(tells.built(case, setup.adapter, setup.folder), changed))
+
+    def test_a_plant_goes_only_on_a_page_whose_clean_view_names_nothing_it_would(self):
+        setup, case, record, blob, names = self.page()
+        arms, named = tells.built(case, setup.adapter, setup.folder), lambda layer: [layer["skill"], *evidence.places(
+            layer)]
+        page = (None, record, blob, [])
+        self.assertEqual([p for p, _ in tells.clean(case, [page], arms, named)[0]], [page])
+        nested = sorted(p for p in tells.shared(arms, record) if "/" in p)[0]
+        beside = copy.deepcopy(record)  # the overlay adds a path the world also holds under a folder of its own
+        beside["overlay"]["release"] = [nested.split("/", 1)[1]]
+        self.assertEqual(tells.clean(case, [(None, beside, blob, [])], arms, named), ([], []))
+        leaked = copy.deepcopy(record)
+        leaked["final_message"] = f"I used {record['overlay']['skill']}.\n"
+        self.assertEqual(tells.clean(case, [(None, leaked, blob, [])], arms, named)[1], [])  # the view drops the line
+        with mock.patch.object(view, "text", lambda value, *args: value):  # a view that keeps the skill's name
+            self.assertEqual(tells.clean(case, [(None, leaked, blob, [])], arms, named)[1],
+                             [record["overlay"]["skill"]])
 
 
 if __name__ == "__main__":
