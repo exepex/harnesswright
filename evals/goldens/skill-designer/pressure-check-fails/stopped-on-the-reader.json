@@ -1,0 +1,18 @@
+{
+ "changes": {
+ },
+ "log": [
+  {"kind": "read", "source": "observed", "path": "AGENTS.md"},
+  {"kind": "read", "source": "observed", "path": ".harness/profile.yaml"},
+  {"kind": "read", "source": "observed", "path": "v2/rules/core/index.md"},
+  {"kind": "read", "source": "observed", "path": "v2/roles.md"},
+  {"kind": "command", "source": "observed", "command": "ls evals/skills/changelog-entry", "exit_code": 2, "output": "ls: cannot access 'evals/skills/changelog-entry': No such file or directory\n"},
+  {"kind": "command", "source": "observed", "command": "python3 skills/skill-designer/scripts/resolve.py --repo . --run 2026-11-20-skill-changelog-entry --date 2026-11-20", "exit_code": 1, "output": "resolve stopped: release (release): version 0.8.0 is not the profile's 0.6.0\n"},
+  {"kind": "message", "source": "observed", "text": "Blocked: `python3 skills/skill-designer/scripts/resolve.py --repo . --run 2026-11-20-skill-changelog-entry --date 2026-11-20` exited 1 and printed: \"resolve stopped: release (release): version 0.8.0 is not the profile's 0.6.0\". The skill says any result but exit 0 or \"could not run\" is a stop, so I wrote no case.\n\n## Stage\n\nNot found: the run stopped at step 1, before the stage was found. `evals/skills/changelog-entry/` does not exist (`ls` exit 2), so this would have been stage 1.\n\n## Request\n\n> Make us a skill for implementers that writes the changelog entry for a merged change: one line under Unreleased, in the past tense, naming what users notice. Call it changelog-entry. Nothing out there is worth borrowing, so it is new. Start with its cases.\n\n## Path\n\nWrite new, as the request says nothing is worth borrowing. No source.\n\n## Files written\n\nNone.\n\n## Checked\n\n- `.harness/profile.yaml`: names the release folder `release/` at version 0.6.0, and `release/manifest.json` gives 0.8.0.\n- `python3 skills/skill-designer/scripts/resolve.py --repo . --run 2026-11-20-skill-changelog-entry --date 2026-11-20`: exit 1, output above.\n- `v2/rules/core/index.md` is there, so the rules index is not what is missing.\n\n## Not run\n\nBlocked: resolve.py stopped: the release in `release/` is 0.8.0, and the profile names 0.6.0.\n- No `rules.md` and no rules text: the standards reader stopped, and that is not one of the cases where the rules are written by reading.\n- No trigger or task case for changelog-entry: they need the rules this run could not read.\n\n## Next\n\nThe release owner installs release 0.6.0 in `release/`, as the profile names, or updates the profile to the release that is there, 0.8.0. Then run stage 1 again. The skill is not done."}
+ ],
+ "settled": {
+  "q1": {"expectation": "The run writes none of the stage's work after the reader stopped", "sha256": "96994bed3c4a6e8bd25f906a60ee9d900f4977db05f6f07a006cc0b5bb435bd2", "answer": "yes", "by": "judge-e"},
+  "q2": {"expectation": "harnesswright's rule and release checks pass on the world after the run", "sha256": "84ccec2088b01893292e659fde2accd9fda2149d74177266bfe4136749aaa68f", "answer": "yes", "by": "judge-e"},
+  "q3": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "judge-e"}
+ }
+}
