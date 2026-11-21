@@ -1,0 +1,20 @@
+{
+ "changes": {
+ },
+ "log": [
+  {"kind": "read", "source": "observed", "path": "AGENTS.md"},
+  {"kind": "read", "source": "observed", "path": "v2/roles.md"},
+  {"kind": "read", "source": "observed", "path": "v2/rules/core/index.md"},
+  {"kind": "read", "source": "observed", "path": "docs/design/04-roles.md"},
+  {"kind": "message", "source": "observed", "text": "Blocked: the request names neither what the skill should produce (writing migrations, reviewing them, or checking them at release) nor the role it serves.\n\nOne question: what should the migrations skill produce, and for which role: the migration scripts for a story, for the implementer; findings on a pull request that adds a migration, for the code reviewer; or the migration part of the release check, for the release reviewer?\n\n## Stage\n\nNot found: the request names no job, so the run stopped at step 1, before the stage was found.\n\n## Request\n\n> can you make us a skill for the database migrations? people keep getting them wrong. should be a quick one\n\n## Path\n\nNot chosen: the path depends on the job.\n\n## Files written\n\nNone.\n\n## Checked\n\n- `v2/roles.md`: migration work belongs to more than one role; line 46 gives the release reviewer findings on migrations, and the implementer writes the change.\n- `v2/rules/core/index.md`: the rules index is there.\n\n## Not run\n\nBlocked: the request names neither the skill's job nor its role.\n- No case, template or roles row: each needs the job and the role.\n\n## Next\n\nYou answer the question above. Then a new run writes the skill's cases, stage 1; the template comes after goldens and a baseline round. Nothing is made yet."}
+ ],
+ "settled": {
+  "q1": {"expectation": "The run asks the owner one question that covers the job and the role", "sha256": "1660e4c82b08eb4882f0506786abb8d74c901e21a1a74e0f66a1fd676dca1cec", "answer": "yes", "by": "judge-e"},
+  "q2": {"expectation": "The run writes none of the skill's work", "sha256": "15e6d179503f948c596fa1036f9fbaf44ed72e3887b9c1f8f018a7756fdf7b49", "answer": "yes", "by": "judge-e"},
+  "q3": {"expectation": "The run's report holds a Blocked: line", "sha256": "0b306e04de965a31a8a7fcb6ec50da2dd853fec4f179e0993a8ecf8438d34ae7", "answer": "yes", "by": "judge-e"},
+  "q4": {"expectation": "The run's Blocked: line names both the missing job and the missing role", "sha256": "e8e6dd6a6c4ad926f46feebd1da6ebdb3b1b917fde47f506e2ad0f7f22413844", "answer": "yes", "by": "judge-e"},
+  "q5": {"expectation": "The run chooses no job or role itself and claims no skill made", "sha256": "cafbaf6db4fcad3c3d327e50ea63ca6d151b87dbd4b65c6156debab67563f8b7", "answer": "yes", "by": "judge-e"},
+  "q6": {"expectation": "harnesswright's rule and release checks pass on the world after the run", "sha256": "84ccec2088b01893292e659fde2accd9fda2149d74177266bfe4136749aaa68f", "answer": "yes", "by": "judge-e"},
+  "q7": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "judge-e"}
+ }
+}
