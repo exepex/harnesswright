@@ -12,7 +12,7 @@ import agreement
 def grader_of(*answers, offered=()):
     """A grader entry of a grade record: its accepted sheet's `answers` to q2, and its refused tries' answers."""
     sheet = {"answers": [{"id": "q2", "answer": answers[0], "evidence": "x"}]} if answers else None
-    return {"sheet": sheet, "offered": [{"q2": answer} for answer in offered]}
+    return {"sheet": sheet, "offered": [{"q2": [answer]} for answer in offered]}
 
 
 class Questions(TempCase):
