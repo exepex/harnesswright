@@ -102,7 +102,7 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    own = None if case.internal_world is None else manifest.manifest(case.folder / "world")  # the rest is the base
+    own = None if case.internal_world is None else case.world_files  # the case's own files; the rest is the base
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:

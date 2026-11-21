@@ -232,6 +232,18 @@ class Reader(TempCase):
             problems, _ = self.lint(case)
         self.assertTrue(any(p.startswith(f"{case.id}: notes.md: names the skill") for p in problems), problems)
 
+    def test_an_internal_case_may_add_no_file(self):
+        case = self.case({}, {"internal_world": {"remove": ["notes.md"]}}, skill=SKILL)
+        shutil.rmtree(case.folder / "world")
+        case = type(case)(case.folder, SKILL)
+        out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
+        self.assertFalse((out / "notes.md").exists())
+        self.assertTrue((out / "AGENTS.md").is_file())
+        plain = self.case({}, skill=SKILL)
+        shutil.rmtree(plain.folder / "world")
+        with self.assertRaisesRegex(CaseError, "no world/ folder"):
+            type(plain)(plain.folder, SKILL)
+
     @unittest.skipIf(json.loads(internal.KIT_FILE.read_text())["commit"] is None,
                      "the kit pins no commit yet; the judges approve `left_out` with the pin")
     def test_a_clean_case_on_the_real_pin_has_no_problems(self):

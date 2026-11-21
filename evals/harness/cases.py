@@ -35,7 +35,7 @@ case.json fields:
   `SITUATIONS`. A case of `check-cannot-run` runs with the skill only (`SKILL_ONLY`); every other runs in both arms.
 - `internal_world`: in a case of an internal skill only, `{"remove": [paths]}`: the world is the skill's internal
   world (`internal.py`, doc 12, Internal worlds) less the `remove` paths, each inside the kit's allow list, with
-  `world/` copied on top. Without it, `world/` is the whole world, as before.
+  `world/` copied on top, when the case has one. Without it, `world/` is the whole world, as before.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -264,21 +264,23 @@ class Case:
         path = self.folder / "case.json"
         if not path.is_file():
             raise CaseError(f"{self.id}: no case.json")
-        if not self.world.is_dir() or self.world.is_symlink():
-            raise CaseError(f"{self.id}: no world/ folder")
         try:
             data = json.loads(path.read_bytes().decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise CaseError(f"{self.id}: case.json is not UTF-8 JSON: {error}") from None
         self.data = check(data, self.id, skill)
+        bare = self.data.get("internal_world") is not None and not (self.world.exists() or self.world.is_symlink())
+        if not bare and (not self.world.is_dir() or self.world.is_symlink()):
+            raise CaseError(f"{self.id}: no world/ folder")
         hashed = {}
         if self.data["kind"] == "task":
             self.data["expectations"] = [*self.data.get("expectations", []), done()]
             hashed = {"done.json": "file " + sha256_file(DONE)}
         try:
-            world = {f"world/{k}": v for k, v in manifest.manifest(self.world).items()}
+            self.world_files = {} if bare else manifest.manifest(self.world)  # {path: entry} of the case's world/
         except manifest.Unreadable as error:
             raise CaseError(f"{self.id}: {error}") from None
+        world = {f"world/{k}": v for k, v in self.world_files.items()}
         self.sha256 = manifest.digest({"case.json": "file " + sha256_file(path), **world, **hashed})
 
     def __getattr__(self, name):

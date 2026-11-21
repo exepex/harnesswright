@@ -3,8 +3,8 @@ kit pins, without the skill under test, with the case's own files on top.
 
 The kit part `evals/internal-world.json` holds `commit`, the pinned harnesswright commit (null until one is pinned),
 `paths`, the allow list of repository paths, folders or files, `stand_in`, the name that takes the place of the
-skill's words, and `left_out`, the approved list of lines the rule drops or rewrites at the pin. The reader never reads the working tree: each path comes from the pinned commit through `git
-archive`, so a world never drifts.
+skill's words, and `left_out`, the approved list of lines the rule drops or rewrites at the pin. The reader never
+reads the working tree: each path comes from the pinned commit through `git archive`, so a world never drifts.
 
 One rule leaves the skill under test out. `evals/` is never copied, and the pinned `release/` is removed, as it is
 rebuilt. Then a path that names the skill by its exact name, its folder name such as `skill-designer`
@@ -242,7 +242,8 @@ def world_of(case, out, repo=REPO, kit=None):
             raise CaseError(f"{case.id}: remove {path}: not an allow-listed path of the built world")
         target = Path(out) / path
         shutil.rmtree(target) if target.is_dir() and not target.is_symlink() else target.unlink()
-    shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
+    if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
+        shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
     check_links(out)
     return Path(out)
 

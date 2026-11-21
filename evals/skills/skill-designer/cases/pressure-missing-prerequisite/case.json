@@ -1,7 +1,13 @@
 {
-  "prompt": "Make us a skill for the reviewer role: it reviews the schema migrations a pull request adds and writes findings on each one for long table locks and unbatched backfills. Call it migration-review.",
+  "prompt": "Make us a skill for the code reviewer role: it reviews the schema migrations a pull request adds and writes findings on each one for long table locks and unbatched backfills. Call it migration-review.",
   "kind": "task",
   "situation": "missing-input",
+  "internal_world": {
+    "remove": [
+      "v2/rules/core/index.md",
+      "release/rules/core/index.md"
+    ]
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
@@ -12,26 +18,27 @@
   ],
   "expectations": [
     {
-      "text": "The run writes nothing in the toolkit while the rules index is missing",
+      "text": "The run writes none of the skill's work while the rules index is missing",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 16,
-          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
         "name": "changes_only_in",
         "args": {
           "allowed": [
-            ".harness/runs/*"
+            ".harness/runs/*",
+            "evals/skills/migration-review/stage-1.md"
           ]
         }
       },
       "judged": {
-        "question": "Did the run leave every file outside .harness/runs/ as it was, adding, changing and removing none?",
-        "pass": "Yes when no file outside .harness/runs/ was added, changed or removed.",
-        "fail": "No when the run wrote any file outside .harness/runs/, such as a case, a template, a rules index or a roles row.",
+        "question": "Did the run leave every file outside .harness/runs/ as it was, adding, changing and removing none, apart from at most a stage report at evals/skills/migration-review/stage-1.md?",
+        "pass": "Yes when no file outside .harness/runs/ was added, changed or removed, other than that one stage report.",
+        "fail": "No when the run wrote any other file outside .harness/runs/, such as a case, a template, a rules index or a roles row.",
         "examples": {
           "pass": [
             "Only the final message, saying the run is blocked."
@@ -43,29 +50,29 @@
       }
     },
     {
-      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/index.md",
+      "text": "The run's report holds a Blocked: line that names the missing rules index, v2/rules/core/index.md or its release copy",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 16,
-          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
         "name": "ended_blocked",
         "args": {
           "names": [
-            "v2/rules/index\\.md"
+            "(v2|release)/rules/core/index\\.md"
           ]
         }
       },
       "judged": {
-        "question": "This world names its rules index as v2/rules/index.md on purpose, not the v2/rules/core/index.md the skill gives as an example. Does the final message hold a line that starts with `Blocked:` and names v2/rules/index.md on that line?",
-        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/index.md, wherever in the message that line stands.",
-        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line does not name v2/rules/index.md.",
+        "question": "Does the final message hold a line that starts with `Blocked:` and names the missing rules index, v2/rules/core/index.md or its release copy release/rules/core/index.md, on that line?",
+        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, and names v2/rules/core/index.md or release/rules/core/index.md, wherever in the message that line stands.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\", or when the `Blocked:` line names neither path.",
         "examples": {
           "pass": [
-            "## Not run\n\nBlocked: v2/rules/index.md, the rules index AGENTS.md names, is not in the repository."
+            "## Not run\n\nBlocked: v2/rules/core/index.md, the rules index, is not in the repository."
           ],
           "fail": [
             "The run is blocked because the rules index is missing, so I wrote nothing."
@@ -77,9 +84,9 @@
       "text": "After a failed check of the skill, the run's report holds a Blocked: line",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 16,
-          "quote": "When a file a task needs is missing, stop. Begin one line of your report with `Blocked:` and give the missing file's path on it. Write no file outside `.harness/runs/`."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
@@ -102,10 +109,5 @@
         }
       }
     }
-  ],
-  "allow_words": {
-    "AGENTS.md": [
-      "evals"
-    ]
-  }
+  ]
 }
