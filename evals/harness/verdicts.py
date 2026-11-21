@@ -298,9 +298,9 @@ def _gap(name, verdict, measures, false_done, thresholds):
 
 def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS, false_done=None):
     """{"label", "gaps", "verdicts"} of one skill on one host from its `measures` (`summary`) and `unsettled`, the
-    named reasons its result is in doubt (runs not scored, goldens missed). For a host other than the reference host,
-    `reference` is the reference host's measures when its result is settled, and `reference_doubt` says why it is
-    not. `false_done` is each case and arm's false-done tally, for the comparison with a previous version.
+    named reasons its result is in doubt (runs not scored, grades not trusted). For a host other than the reference
+    host, `reference` is the reference host's measures when its result is settled, and `reference_doubt` says why it
+    is not. `false_done` is each case and arm's false-done tally, for the comparison with a previous version.
     `verdicts` names each measure's and floor's verdict, with its best and worst values (`judged`, `floors`)."""
     found = {**judged(measures, reference, false_done, thresholds), **floors(measures)}
     gaps = {verdict: [_gap(name, v, measures, false_done, thresholds) for name, v in found.items()

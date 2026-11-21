@@ -194,9 +194,36 @@ class Gate(Pages):
         gaps = found["skills"]["haiku-writer"]["fakehost"]["gaps"]
         self.assertIn("c1, with_skill, run 1: not scored (expectation 2 has no trusted answer)", gaps)
         self.assertIn("c1, with_skill: 0 scored run(s), 3 needed", gaps)
-        self.assertTrue(any(gap.startswith("haiku-writer/c1 q2: goldens missed") for gap in gaps))
+        self.assertTrue(any(gap.startswith("haiku-writer/c1 q2: untrusted") for gap in gaps))
         self.assertEqual(found["skills"]["haiku-writer"]["fakehost"]["false_done"], {
             "with_skill": {"rate": None, "false_done": 0, "decided": 0, "undecided": 1}})  # neither is trusted
+
+    def test_a_resume_whose_goldens_pass_still_names_the_doubt_its_kept_grades_carry(self):
+        def done_always(adapter, page, asked, model=None, timeout=None, **containment):  # misses the draft on q4
+            graded = done_or_pond(adapter, page, asked)
+            return grader.Graded({"answers": [dict(a, answer="yes") if a["id"] == "q4" else a
+                                              for a in graded.sheet["answers"]]}, [], [[]])
+        poems = [("with_skill", POND)] * 3 + [("without_skill", HELLO)] * 3
+
+        def label(store, *graders):  # each grader's attempt in turn; the last attempt's label entry
+            self.store = self.tmp / store
+            self.planned()
+            probe, run = self.stored(poems)
+            for grade in graders:
+                before = set((self.store / "r1" / "labels").glob("*.json"))
+                self.go((("probe", probe), ("run", run), ("check", gates.check_gate), ("grade", grades.grade_gate),
+                         ("label", labels.label_gate)), grade=grade)
+            [path] = set((self.store / "r1" / "labels").glob("*.json")) - before
+            return json.loads(path.read_text())["skills"]["haiku-writer"]["fakehost"]
+
+        with mock.patch.object(grades, "REFERENCE", "fakehost"), \
+                mock.patch.object(labels.verdicts, "missing", lambda found: []):
+            self.assertEqual(label("clean", done_or_pond)["label"], "verified")  # trusted from the start
+            entry = label("resumed", done_always, done_or_pond)  # q4's golden missed, then passed on the resume
+        self.assertEqual(entry["false_done"]["with_skill"]["undecided"], 3)  # its kept answers stay untrusted
+        self.assertEqual(entry["label"], "inconclusive")
+        self.assertTrue(any(gap.startswith("haiku-writer/c1 q4: untrusted (when graded: ") for gap in entry["gaps"]),
+                        entry["gaps"])
 
 
 if __name__ == "__main__":
