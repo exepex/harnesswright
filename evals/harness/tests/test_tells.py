@@ -5,6 +5,7 @@ import copy
 import hashlib
 import random
 import unittest
+from unittest import mock
 
 from test_faults import Fake
 from test_host import JAIL
@@ -50,10 +51,16 @@ class Tells(Fake):
         for path, entry in held.items():
             self.assertNotIn(path, record["diff"])
             self.assertEqual(record["files_after"][path], entry)
-        index = record["overlay"]["index"]
-        if index in record["files_after"] and index not in record["diff"]:
-            self.assertNotIn(index, held)  # the install edits it, so the arms differ there
-        path = sorted(held)[0]
+        path, build = sorted(held)[0], tells.world.build
+
+        def edited(case, adapter, out, *args, with_skill=False, **kwargs):  # the with-skill arm holds it changed
+            arm = build(case, adapter, out, *args, with_skill=with_skill, **kwargs)
+            if with_skill:
+                with open(arm.path / path, "ab") as file:
+                    file.write(b"one more line\n")
+            return arm
+        with mock.patch.object(tells.world, "build", edited):
+            self.assertNotIn(path, tells.shared(case, setup.adapter, setup.folder, record))
         changed = copy.deepcopy(record)
         changed["files_after"][path] = f"file {'0' * 64}{held[path][len('file ') + 64:]}"
         self.assertNotIn(path, tells.shared(case, setup.adapter, setup.folder, changed))

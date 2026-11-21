@@ -38,6 +38,7 @@ allowed connections.
 | `look.py` | Runs a harness program inside a run's jail, to see what the run can see, whatever its host did |
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
 | `grading_faults.py` | The faults of grading: a sheet, the goldens, a split panel and the view, planted on the repository's goldens by the rule of `faults.py` |
+| `tells.py` | What a grader view tells of its run's arm: the names a view or its page holds, an arm word allowed only in a world file both arms are built holding byte for byte |
 | `grader_faults.py` | The faults of a grader's own run: a grader that writes to its folder or reads outside it, run through `grader.grade` in the jail |
 | `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |

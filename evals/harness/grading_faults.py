@@ -30,7 +30,9 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   or files and changes (each overlay path as a run holds it, with its folders, the
   folders above it, its files and their writes; a link to one; lines in a world file's text, and its write). Neither the
   view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
-  name none. And the planted view and page must equal those of a control, the same record without the plant's actions on
+  name none, reading an arm word everywhere except in a world file both arms hold byte for byte (`tells`). The world
+  file that holds the plant's lines names no arm word. And the planted view and page must equal those of a control,
+  the same record without the plant's actions on
   the overlay and its lines that name the skill: a tell with its names taken out, such as an empty skill-load entry,
   still shows.
 
@@ -39,7 +41,6 @@ Standard library only.
 
 import copy
 import hashlib
-import json
 import re
 import shutil
 import string
@@ -53,6 +54,7 @@ import grader
 import grading
 import host
 import scrub
+import tells
 import view
 from faults import Missed
 
@@ -280,8 +282,10 @@ def view_(setup, fault, rng, place):
     command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
     their writes and changes), a link to one, and a world file's text and its write. Its control is the same record with
     the plant's actions on the overlay left out, its lines that name the skill left out, its run folders as their
-    neutral words and its command output empty. Caught when the clean view and page name none of them, and the planted
-    view and page equal the control's: nothing of the plant shows, not even an entry with its names taken out."""
+    neutral words and its command output empty. Caught when the clean view and page name none of them, by the one
+    rule of `tells` (an arm word may be only in a world file both arms of the case are built holding byte for byte),
+    and the planted view and page equal the control's: nothing of the plant shows, not even an entry with its names
+    taken out. The world file that takes the plant's lines is one whose text names no arm word."""
     case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     layer = record["overlay"]
@@ -299,6 +303,7 @@ def view_(setup, fault, rng, place):
     neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
     word = record["folders"].get(world, world)
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
+    held, arms = tells.shared(case, setup.adapter, setup.folder, record), (*cases.ARMS, cases.PREVIOUS)
 
     def stored(data):
         added[hashlib.sha256(data).hexdigest()] = data
@@ -330,7 +335,8 @@ def view_(setup, fault, rng, place):
         control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)] + [
             e for f in folders for e in acted(record["folders"][f])]]
     else:
-        target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file "))
+        target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file ")
+                             and not any(arm in blob(e.split(" ")[1]).decode("utf-8", "replace") for arm in arms))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
         for one, data in ((planted, lines + kept + ran), (control, kept + neutral)):  # the agent wrote it
             digest = stored(data.encode() + blob(old))
@@ -357,34 +363,16 @@ def view_(setup, fault, rng, place):
             planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
             planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
-    if _shown(case, record, blob, names):
-        return "the clean view already names the arm or the skill, so the plant proves nothing"
-    shown = _shown(case, planted, read, names)
-    if shown:
-        return f"the view a grader gets names {shown}"
-    seen = _seen(case, control, read)
+    for one, of in ((record, blob), (planted, read)):  # the clean record, then the planted one, by the same rule
+        shown = tells.shown(case, one, of, names, held)
+        if shown:
+            return f"the view a grader gets names {shown}" + (" in the clean record" if one is record else "")
+    seen = tells.seen(case, control, read)
     if place != "arm" and kept.strip() not in seen[2]:
         return "the control's page lost the neutral line next to the plant, so the view hides what it must show"
-    if _seen(case, planted, read) != seen:
+    if tells.seen(case, planted, read) != seen:
         return "the view a grader gets differs from its control's: the plant shows"
     return None
-
-
-def _seen(case, record, blob):
-    seen, blobs = view.view(record, blob)
-    return seen, blobs, grading.page(case.prompt, seen, blobs)
-
-
-def _shown(case, record, blob, names):
-    """The names that the view of `record` (its record and every blob) or its page holds, each by the rule the view
-    keeps for it. The skill's name and paths count as whole names: not inside a longer name such as
-    `rules-text-<skill>.core.md`, a file the run itself made. An arm's name counts anywhere. The tests are written
-    here, not taken from `world.names`, so a fault in that pattern cannot hide itself."""
-    seen, blobs, page = _seen(case, record, blob)
-    text = json.dumps(seen, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
-    text += page
-    return [name for name in names if re.search(f"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])", text)] \
-        + [arm for arm in (*cases.ARMS, cases.PREVIOUS) if arm in text]
 
 
 PLANTS = {
