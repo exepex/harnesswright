@@ -29,6 +29,13 @@ the build never puts back what the case takes away. The world's instructions are
 in through the allow list like any other path. Every file it needs must be in it, so a world in which a Markdown
 link or a `@` import leads to a path the world lacks is refused, before and after the case's files are added.
 
+One rule decides what a case writes. The pinned build owns its code, the folder of the `BUILD` scripts and all they
+run, and the `release/` it makes (`BUILT_BY_PIN`); the case may write every other path. So the case's `world/` may
+hold no path at, inside or above one of them but a folder, and the build that runs is always the pinned one. What
+the case writes is its own (`own_files`), never the approved base: each file of its `world/` whole, and in every
+other path it changes, through its jobs rows or the release rebuilt from them, each line the base world held
+nowhere. The world lint reads them so (`lint.visible`).
+
 Standard library only.
 """
 
@@ -51,6 +58,7 @@ KIT_FILE = REPO / "evals" / "internal-world.json"
 LEFT_OUT = "evals"  # the measuring kit and every case: never part of a world
 BUILD = ("v2/build/build.py", "v2/build/check_rules.py", "v2/build/check_release.py")
 RELEASE = "release"
+BUILT_BY_PIN = (*sorted({str(PurePosixPath(p).parent) for p in BUILD}), RELEASE)  # never the case's to write
 COMMIT = re.compile(r"[0-9a-f]{40}")
 
 
@@ -238,9 +246,17 @@ def world_of(case, out, repo=REPO, kit=None):
     case's `world/` folder on top and its `jobs` rows added, rebuilt and checked, less its `remove` paths. When the
     sources the case leaves still build, the release is rebuilt from them, so it is what the build makes of the world
     and passes the release check before any run; a `remove` path that build puts back is refused. When they do not
-    build, such as with `v2/VERSION` removed, the release stays as built before the remove."""
+    build, such as with `v2/VERSION` removed, the release stays as built before the remove. It sets the case's
+    `own_files` ({path: None for a whole file of its `world/`, or the new lines of a path it changed otherwise})."""
     _, paths, _, _ = read_kit(kit)
     base(case.skill, out, repo, kit)
+    before = manifest.manifest(out)
+    held = {line for p, e in before.items() if manifest.kind(e) == "file" for line in _text(out, p).splitlines()}
+    for path, entry in sorted(case.world_files.items()):  # the one rule: the pinned build's paths are never the case's
+        owned = [p for p in BUILT_BY_PIN if path == p or p.startswith(f"{path}/") and manifest.kind(entry) != "dir"
+                 or path.startswith(f"{p}/")]
+        if owned:
+            raise CaseError(f"{case.id}: world/{path}: the pinned build owns {owned[0]}, so a case never writes it")
     if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
         shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
     add_jobs(out, case.internal_world.get("jobs", []), case.id)
@@ -258,7 +274,17 @@ def world_of(case, out, repo=REPO, kit=None):
     if case.internal_world["remove"]:
         _rebuild(case, out)
     check_links(out)
+    case.own_files = dict.fromkeys(case.world_files)
+    for path, entry in sorted(manifest.manifest(out).items()):
+        new = [] if path in case.world_files or before.get(path) == entry or manifest.kind(entry) != "file" else [
+            line for line in _text(out, path).splitlines() if line not in held]
+        if new:  # its jobs rows, or what the build made of its files
+            case.own_files[path] = "\n".join(new)
     return Path(out)
+
+
+def _text(folder, path):
+    return (Path(folder) / path).read_bytes().decode("utf-8", "replace")
 
 
 def _rebuild(case, out):
@@ -296,7 +322,7 @@ def add_jobs(folder, rows, name):
 
 ROLES = "v2/roles.md"
 JOBS_HEADER = "| Job | Roles | Skills in order | `rest` skill |"
-_BUILT = {}  # case folder -> its built world, kept for the life of the process, so each arm reads the same one
+_BUILT = {}  # case folder -> (its built world, its own files), kept for the life of the process: one per case
 
 
 def resolve(case):
@@ -308,9 +334,9 @@ def resolve(case):
         folder = tempfile.mkdtemp(prefix="hw-internal-")
         atexit.register(shutil.rmtree, folder, True)
         try:
-            _BUILT[key] = world_of(case, Path(folder) / "world", REPO, KIT_FILE)
+            _BUILT[key] = world_of(case, Path(folder) / "world", REPO, KIT_FILE), case.own_files
         except BaseException:
             shutil.rmtree(folder, ignore_errors=True)
             raise
-    case.world = _BUILT[key]
+    case.world, case.own_files = _BUILT[key]
     return case

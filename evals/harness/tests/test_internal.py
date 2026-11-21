@@ -290,6 +290,18 @@ class Reader(TempCase):
         with self.assertRaisesRegex(CaseError, refused):
             internal.world_of(alone, self.tmp / "alone", self.repo, self.kit())
 
+    def test_a_case_never_writes_what_the_pinned_build_owns_and_its_job_rows_are_its_own_text(self):
+        for rel in ("v2/build/build.py", "release/manifest.json"):  # the build that runs, and what it makes
+            with self.subTest(rel), self.assertRaisesRegex(CaseError, "the pinned build owns"):
+                case = self.case({rel: "import sys\nsys.exit(0)\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+                internal.world_of(case, self.tmp / f"out-{rel[:2]}", self.repo, self.kit())
+        row = "| grader | implementer | note-taker | note-taker |"
+        case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
+                         {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
+        problems, built = self.lint(case)
+        self.assertIn(f"{case.id}: {lint.JOB_ROWS}: test-tell word 'grader'", problems)
+        self.assertIn(row, case.own_files["release/roles.md"].split("\n"))  # the build's copy is the case's too
+
     def test_a_remove_comes_after_the_rebuild(self):
         case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build
         out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
