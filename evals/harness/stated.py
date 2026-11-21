@@ -7,7 +7,10 @@ One rule, read from the built without-skill arm. A case text is its prompt and e
 - a version (`x.y.z`), in a world that holds `v2/VERSION`, is that version or one raise of it (its last, middle or
   first number), the only versions a run of harnesswright's own world can start from or reach;
 - a commit hash (7 to 40 hex digits, with a digit and a letter) is a commit of the built history, or a value a
-  file of the built world spells, such as a label's commit in a world with no history.
+  file of the built world spells that does not claim to be this world's commit. A label (`evals/results/`) names
+  the commit its round ran on, a claim about this world, so in a world with history its spelling allows nothing:
+  a label and a question that both name an old commit fail together. In a world with no history the label is all
+  the world has, and it counts. Any other file's spelling, such as an upstream source's commit, always counts;
 - a line of a world file is never named by its number (`path:N`): a number cannot be checked against what the
   line says, and it moves when the world does. A case names the section, or cites the line as a contract source,
   whose quote the lint finds where it is cited (`cited.citations`).
@@ -18,7 +21,6 @@ Each allowed value is taken from the built world, never written here. Standard l
 import re
 
 import world
-from cases import CaseError
 from cited import expectation_texts
 
 VERSION = re.compile(r"(?<![\w.])\d+\.\d+\.\d+(?!\w|\.\d)")
@@ -53,12 +55,11 @@ def check(case, arm):
                  "source" for path, n in lines if ".." not in path.split("/") and (root / path).is_file()]
     stated = sorted({h for t in texts for h in HASH.findall(t)})
     if stated:
-        try:
-            commits = world._git(root, "log", "--all", "--format=%H").split() if (root / ".git").is_dir() else []
-        except CaseError:
-            commits = []
-        spelled = "".join(_text(path) for path in sorted(root.rglob("*"))
-                          if path.is_file() and ".git" not in path.relative_to(root).parts)
+        history = (root / ".git").is_dir()  # git failing raises CaseError: the case cannot run, so lint lists it
+        commits = world._git(root, "log", "--all", "--format=%H").split() if history else []
+        claims = lambda parts: history and parts[:2] == ("evals", "results")  # noqa: E731
+        spelled = "".join(_text(path) for path in sorted(root.rglob("*")) if path.is_file()
+                          and ".git" not in path.relative_to(root).parts and not claims(path.relative_to(root).parts))
         problems += [f"states commit {h!r}, which is no commit of the built history and no value a world file spells"
                      for h in stated if not any(c.startswith(h) for c in commits) and h not in spelled]
     return problems

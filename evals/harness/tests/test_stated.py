@@ -16,8 +16,8 @@ def case(question, prompt="Write the skill."):
 
 
 class Stated(TempCase):
-    def arm(self, files, history=False):
-        root = self.tmp / "world"
+    def arm(self, files, history=False, name="world"):
+        root = self.tmp / name
         for path, text in files.items():
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_text(text)
@@ -48,6 +48,17 @@ class Stated(TempCase):
         [problem] = stated.check(case("Is the label at 9443ad2ddb32?"), arm)
         self.assertIn("'9443ad2ddb32'", problem)
         self.assertEqual(stated.check(case("Are 1234567 rows and the word facade kept?"), arm), [])  # no hash
+
+    def test_in_a_world_with_history_a_label_and_a_question_naming_an_old_commit_fail_together(self):
+        old = "9443ad2ddb32aa43cff14192c7fdf6e67ad9dd67"
+        files = {"README.md": "A tool.\n", "evals/results/notice.json": f'{{"commit": "{old}"}}\n',
+                 "incoming/ORIGIN.md": "Source: example-org/kit at 1a2b3c4.\n"}
+        arm = self.arm(files, history=True)
+        [problem] = stated.check(case(f"Is the label at {old[:12]}, the commit its round ran on?"), arm)
+        self.assertIn(f"{old[:12]!r}", problem)
+        self.assertEqual(stated.check(case("Does the metadata name example-org/kit at 1a2b3c4?"), arm), [])
+        bare = self.arm(files, name="bare")  # with no history the label is all the world has
+        self.assertEqual(stated.check(case(f"Is the label at {old[:12]}?"), bare), [])
 
     def test_a_world_line_is_never_named_by_its_number(self):
         arm = self.arm({"docs/design/11-evals.md": "# Evals\n" * 300})
