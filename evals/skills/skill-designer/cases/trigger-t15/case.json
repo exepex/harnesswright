@@ -4,7 +4,10 @@
   "should_trigger": false,
   "split": "test",
   "internal_world": {
-    "remove": []
+    "remove": [],
+    "jobs": [
+      "| unit-tests | implementer | unit-test-writer | unit-test-writer |"
+    ]
   },
   "index": {
     "file": "AGENTS.md",

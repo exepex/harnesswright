@@ -3,6 +3,7 @@ name: triage
 description: Read a change request and give it a change type and a risk tier. Use for every new request.
 metadata:
   roles: triage
+  areas: rest
 ---
 
 1. Read the request and the files it names.

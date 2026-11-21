@@ -33,9 +33,10 @@ case.json fields:
   measuring kit or harnesswright's own design and formats, which a project using a skill does not have.
 - `situation`: in a task case only, the pressure it puts on the agent (doc 11, Pressure situations), one of
   `SITUATIONS`. A case of `check-cannot-run` runs with the skill only (`SKILL_ONLY`); every other runs in both arms.
-- `internal_world`: in a case of an internal skill only, `{"remove": [paths]}`: the world is the skill's internal
-  world (`internal.py`, doc 12, Internal worlds) less the `remove` paths, each inside the kit's allow list, with
-  `world/` copied on top, when the case has one. Without it, `world/` is the whole world, as before.
+- `internal_world`: in a case of an internal skill only, `{"remove": [paths], "jobs": [rows]}`, `jobs` optional:
+  the world is the skill's internal world (`internal.py`, doc 12, Internal worlds) with `world/` copied on top,
+  when the case has one, the `jobs` rows added to the Jobs table of `v2/roles.md`, its release rebuilt and checked,
+  less the `remove` paths, each inside the kit's allow list. Without it, `world/` is the whole world, as before.
 - `allow_words`: test-tell words a place may hold, keyed by a world path, `<prompt>` or `<commit N>` (N counts
   the commits from 1): `{"docs/testing.md": ["fixture"], "<prompt>": ["eval"]}`.
 
@@ -150,6 +151,11 @@ def record(**fields):
                           and all(shape(value[key]) for key, shape in fields.items()))
 
 
+def is_job_row(value):
+    """One row of a Markdown table, on one line, as the Jobs table of `v2/roles.md` holds them."""
+    return isinstance(value, str) and "\n" not in value and value.startswith("| ") and value.endswith(" |")
+
+
 def is_line(value):
     return isinstance(value, int) and not isinstance(value, bool) and value >= 1
 
@@ -201,7 +207,9 @@ SCHEMA = {
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
     "situation": (lambda v: v in SITUATIONS, f"one of {SITUATIONS}"),
-    "internal_world": (record(remove=list_of(is_path)), "{remove: [paths]}: paths of the internal world"),
+    "internal_world": (lambda v: isinstance(v, dict) and "remove" in v and set(v) <= {"remove", "jobs"}
+                       and list_of(is_path)(v["remove"]) and list_of(is_job_row)(v.get("jobs", [])),
+                       "{remove: [paths], jobs: [rows]}: paths of the internal world, rows of its Jobs table"),
 }
 REQUIRED = {"task": ("prompt", "kind"), "trigger": ("prompt", "kind", "should_trigger", "split", "index")}
 TRIGGER_ONLY = ("should_trigger", "split")
