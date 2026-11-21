@@ -170,22 +170,27 @@ def prove(skill_dir, name, files, current=None):
 
 def proof(skill_dir, name, current=None):
     """What a round records of the release skill `skill_dir`, from its tracked files: the proof `prove` gives it and
-    every run-time file an arm installs with it, by its sha256 (`run_time`), the manifest included. With the
-    skill's folder hash, that is everything the arm installs for the skill."""
+    every run-time file an arm installs with it, by its sha256 (`run_time`), but for the manifest: it hashes the
+    skills themselves and states the version, so it changes with any skill, and it is proved by the other hashes."""
     import skills  # the one reader of a skill's tracked files
     files, _ = skills.skill_files(skill_dir, name)
     root, how, paths = prove(skill_dir, name, {rel: hashlib.sha256(data).hexdigest() for rel, data in files.items()},
                              current)
-    return {"proof": how, "run_time": {rel: hashlib.sha256((root / rel).read_bytes()).hexdigest() for rel in paths}}
+    return {"proof": how, "run_time": {rel: hashlib.sha256((root / rel).read_bytes()).hexdigest() for rel in paths
+                                       if rel != SELF}}
 
 
 def installed(record, name, arm):
-    """Everything arm `arm` (`with_skill` or `previous_version`) of the round whose manifest is `record` installs for
-    the skill `name`: its folder's hash and, for a team skill, its release's `proof` and run-time files
-    (`release_proof`). The one reader of a skill's identity in a round; the setup holds the with-skill arm's."""
-    folder = record["skills"] if arm == "with_skill" else record["previous"]
-    return {"sha256": folder.get(name, {}).get("sha256"),
-            "release": record.get("release_proof", {}).get(name, {}).get(arm)}
+    """What arm `arm` (`with_skill` or `previous_version`) of the round whose manifest is `record` installs for the
+    skill `name`: its folder's hash and, for a team skill, its run-time files by hash (`release_proof`, `proof`), or
+    None for a release proof recorded before run-time files were. The previous-version check compares it whole and
+    the setup takes the with-skill arm's run-time files from it; results and versions read the folder hash alone,
+    as earlier rounds recorded it. It holds no proof label, which names how a release was proved, not what it
+    installs."""
+    folder, kept = record["skills"] if arm == "with_skill" else record["previous"], record.get("release_proof", {})
+    kept = kept.get(name, {}).get(arm)
+    return {"sha256": folder.get(name, {}).get("sha256"), "run_time": kept.get("run_time") if isinstance(kept, dict)
+            else None}
 
 
 def unchanged(record):

@@ -19,9 +19,9 @@ named so a change can be named (`changed`):
   no `extra runs` part, so its fingerprint is the one it had before the cap existed;
 - `runner`: the code that makes a run (`runs.runner`), and `label rule`: the code that turns a run's bundle into
   its label: the files of the kit's `label rule` part (`evals/kit.json`, `kit.parts`), the one list of them;
-- `release`: for a team skill, the with-skill arm's release proof and the run-time files it installs, by hash, as
-  the manifest records them (`teamrelease.installed`, the one reader of them), but for the release manifest, which
-  holds the skill's own hashes. A skill with no release proof has no `release` part, as before.
+- `release`: for a team skill, the run-time files its with-skill arm installs, by hash, as the manifest records
+  them (`teamrelease.installed`, the one reader of them). A skill with none recorded has no `release` part, as
+  before.
 
 It leaves out the skill's own hash and its previous version's: a result records those apart (`results.py`), so a
 changed skill on one setup is still comparable.
@@ -48,9 +48,7 @@ def setup(record, skill, cases, drift, folder=HARNESS):
     each of its files is read at its path in that repository, such as the resolver's names the view reads."""
     siblings = sorted({name for case in cases.values() for name in case.siblings or ()} - {skill})
     tools = sorted({tool for case in cases.values() for tool in case.tools or ()})
-    release = teamrelease.installed(record, skill, "with_skill")["release"]
-    release = release and {**release, "run_time": {rel: sha for rel, sha in release["run_time"].items()
-                                                   if rel != teamrelease.SELF}}  # it hashes the skill itself
+    release = teamrelease.installed(record, skill, "with_skill")["run_time"]
     parts = {"kit": record["kit"], "cases": record["cases"][skill],
              "situations": record.get("situations", {}).get(skill),
              "siblings": {name: record["skills"][name] for name in siblings},
@@ -60,7 +58,7 @@ def setup(record, skill, cases, drift, folder=HARNESS):
                        for name, host in record["hosts"].items()},
              "graders": sorted(drift), "runs": record["plan"]["runs"], "pinned": record.get("pinned") is True,
              **({"extra runs": runs.extra(record)} if runs.extra(record) else {}),  # none: as before the cap was
-             **({"release": release} if release else {}),  # none: as before run-time files were recorded
+             **({"release": release} if release is not None else {}),  # none: as before they were recorded
              "runner": runs.runner(folder),
              "label rule": manifest.digest({path: manifest.entry(Path(folder).parents[1] / path)
                                             for path in kit.parts(Path(folder).parents[1])["label rule"]})}
