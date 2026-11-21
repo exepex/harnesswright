@@ -4,6 +4,7 @@ the run left as built; anywhere else it counts, and the skill's names count ever
 import copy
 import hashlib
 import random
+import re
 import unittest
 from unittest import mock
 
@@ -44,6 +45,21 @@ class Tells(Fake):
         planted = copy.deepcopy(record)
         planted["final_message"] = "Done in with_skill.\n"  # outside every file
         self.assertEqual(tells.shown(case, planted, blob, names, held), ["with_skill"])
+
+    def test_the_skill_s_name_inside_a_longer_name_counts_and_the_view_never_shows_it(self):
+        setup, case, record, blob, names = self.page()
+        skill, digest = record["overlay"]["skill"], hashlib.sha256(b"rules\n").hexdigest()
+        rest = next(e for e in record["files_after"].values() if e.startswith("file "))[len("file ") + 64:]
+        read = lambda found: b"rules\n" if found == digest else blob(found)
+        planted = copy.deepcopy(record)  # a file only the with-skill arm writes, and the run's word for it
+        path = f".harness/runs/r1/rules-text-{skill}.core.md"
+        planted["files_after"][path] = entry = f"file {digest}{rest}"
+        planted["diff"][path] = {"before": None, "after": entry}
+        planted["final_message"] = f"Read rules-text-{skill}.core.md.\nDone.\n"
+        self.assertEqual(tells.shown(case, planted, read, names), [])
+        whole = lambda words: re.compile("(?<![\\w-])(?:" + "|".join(map(re.escape, words)) + ")(?![\\w-])", re.ASCII)
+        with mock.patch.object(tells.view, "spelled", whole):  # the view as it was: whole names only
+            self.assertEqual(tells.shown(case, planted, read, names), [skill])
 
     def test_a_file_is_held_by_both_arms_only_when_each_built_arm_has_the_records_bytes(self):
         setup, case, record, blob, _ = self.page()

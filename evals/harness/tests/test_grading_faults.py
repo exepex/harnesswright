@@ -17,7 +17,6 @@ import grader
 import grading
 import grading_faults
 import view
-import world
 
 
 def alone(page, asked, graders, tiebreak):
@@ -26,7 +25,7 @@ def alone(page, asked, graders, tiebreak):
     return grader.Panel(dict(first.answers or {}), [], 0, len(asked), [first])
 
 
-CHECK, GATE, PANEL, NAMES, TEXT = grading.check, goldens.gate, grader.panel, world.names, view.text
+CHECK, GATE, PANEL, NAMES, TEXT = grading.check, goldens.gate, grader.panel, view.spelled, view.text
 FIXED = view.host.FIXED
 COVERS, DIFF, ON_OVERLAY = evidence.covers, evidence.diff, view.on_overlay
 
@@ -58,12 +57,12 @@ def caseless(sheet, ids, page):
 
 def after_slash(words):
     """A names pattern that misses a name right after a slash, as in an absolute path."""
-    return re.compile(NAMES(words).pattern.replace("(?<![\\w-])", "(?<![\\w/-])"), re.ASCII)
+    return re.compile(NAMES(words).pattern.replace("(?<![A-Za-z0-9])", "(?<![A-Za-z0-9/])"), re.ASCII)
 
 
 def quote_is_name(words):
     """A names pattern that counts quotes as part of a name."""
-    return re.compile(NAMES(words).pattern.replace("[\\w-]", "[\\w\"'-]"), re.ASCII)
+    return re.compile(NAMES(words).pattern.replace("[A-Za-z0-9]", "[A-Za-z0-9\"']"), re.ASCII)
 
 
 def blind_to_last(case, found, graded):
@@ -151,7 +150,7 @@ class Missed(Fake):
                 ("sheet", "misquoted", mock.patch.object(grading, "check", unquoted), "did not refuse"),
                 ("sheet", "not yes or no", mock.patch.object(grading, "check", folded), "did not refuse"),
                 ("sheet", "misquoted", mock.patch.object(grading, "check", caseless), "did not refuse"),
-                ("view", "message", mock.patch.object(view.world, "names", lambda n: re.compile(
+                ("view", "message", mock.patch.object(view, "spelled", lambda n: re.compile(
                     f"^(?:{NAMES(n).pattern})")), "names"),
                 *(("view", place, mock.patch.object(view, "text", lambda value, *args: value[:0]), "neutral line")
                   for place in ("message", "log", "file")),
@@ -159,9 +158,9 @@ class Missed(Fake):
                     value, words, {})), "the view a grader gets") for place in ("message", "log", "file")),
                 ("view", "log", mock.patch.object(view, "COMMAND_FIELDS", view.COMMAND_FIELDS + (
                     "output", "exit_code")), "the view a grader gets"),
-                *(("view", place, mock.patch.object(view.world, "names", after_slash), "the view a grader gets")
+                *(("view", place, mock.patch.object(view, "spelled", after_slash), "the view a grader gets")
                   for place in ("message", "log", "file")),
-                *(("view", place, mock.patch.object(view.world, "names", quote_is_name), "the view a grader gets")
+                *(("view", place, mock.patch.object(view, "spelled", quote_is_name), "the view a grader gets")
                   for place in ("message", "log", "file")),
                 *(("view", place, mock.patch.object(view, "text", lambda value, words, folders: TEXT(value, words, {
                     f"{folder}/": f"{word}/" for folder, word in folders.items()})), "the view a grader gets")
@@ -177,15 +176,11 @@ class Missed(Fake):
                 ("tie", "one split", mock.patch.object(grader, "panel", first_on_first), "not the split"),
                 ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
                     places[:1], *a)), "the view a grader gets"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(
-                    places[1:], *a)), "the view a grader gets"),
                 ("view", "file", mock.patch.object(view.evidence, "diff", lambda old, new, places, own: DIFF(
                     old, new, [], own)), "the view a grader gets"),
                 ("view", "log", mock.patch.object(view, "on_overlay", lambda item, words: ON_OVERLAY(
                     {**item, "kind": "read"}, words)), "the view a grader gets"),
                 ("view", "log", mock.patch.object(view, "ACTION_FIELDS", ("path", "command")),
-                 "the view a grader gets"),
-                ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("place")),
                  "the view a grader gets"),
                 ("view", "file", mock.patch.object(view.evidence, "covers", covers_without("above")),
                  "the view a grader gets"),
@@ -205,7 +200,7 @@ class Missed(Fake):
                 ("tie", "one ungraded", mock.patch.object(grader, "panel", first_wins), "decided alone"),
                 ("golden", "one-sided", mock.patch.object(goldens, "gate", one_way), "the plant made wrong"),
                 ("view", "arm", mock.patch.object(view, "FIELDS", view.FIELDS + ("arm",)), "names"),
-                ("view", "message", mock.patch.object(view.world, "names", lambda n: NAMES(n[1:])), "names"),
+                ("view", "message", mock.patch.object(view, "spelled", lambda n: NAMES(n[1:])), "names"),
                 ("view", "log", mock.patch.multiple(view, on_overlay=lambda *a: False, text=lambda v, *a: v),
                  "names"),
                 ("view", "log", mock.patch.object(view, "text", lambda value, *args: value), "names"),
@@ -227,12 +222,28 @@ class Missed(Fake):
             return case, found
         blind = types.SimpleNamespace(**vars(evidence))
         blind.places = lambda overlay: overlay["paths"]  # a view that reads the skill's paths only
-        with mock.patch.object(grading_faults, "_pages", with_release):
-            self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])
-            with mock.patch.object(view, "evidence", blind):
-                outcome = faults.run(entry, setup, seed=0, place="file")
-        self.assertFalse(outcome["caught"])
-        self.assertIn("the view a grader gets", outcome["reason"])
+        for patch in (mock.patch.object(view, "evidence", blind),  # or one that leaves the first place's folders
+                      mock.patch.object(view.evidence, "covers", lambda places, *a: COVERS(places[1:], *a))):
+            with self.subTest(patch=patch), mock.patch.object(grading_faults, "_pages", with_release):
+                self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])
+                with patch:
+                    outcome = faults.run(entry, setup, seed=0, place="file")
+                self.assertFalse(outcome["caught"])
+                self.assertIn("the view a grader gets", outcome["reason"])
+
+    def test_a_view_whose_covers_misses_a_place_itself_still_hides_it_by_its_name(self):
+        setup = self.setup_of()
+        entry, pages = next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
+
+        def with_release(setup, rng):  # a release file's path names no skill, but it is one of the overlay's paths
+            case, found = pages(setup, rng)
+            for _, record, _, _ in found:
+                record["overlay"]["release"] = ["rules/core/work.md"]
+            return case, found
+        for setting in (pages, with_release):  # every place is a word `view.spelled` finds in a path
+            with self.subTest(setting=setting.__name__), mock.patch.object(grading_faults, "_pages", setting), \
+                    mock.patch.object(view.evidence, "covers", covers_without("place")):
+                self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])
 
     def test_the_seed_chooses_the_golden_and_the_place(self):
         setup = self.setup_of()

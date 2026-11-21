@@ -3,8 +3,12 @@
 The view is built from the bundle by allow lists and four rules, never by copying the bundle and deleting what is
 known to be risky. Each rule is applied the same way in both arms, so the same run in either arm gives the same view.
 
+- **The skill's name, in any spelling.** The view never shows the skill's name or one of its paths, whole or inside a
+  longer name such as `rules-text-<skill>.core.md`: one pattern finds them (`spelled`), and every rule below that
+  names the skill uses it, the checks' question of what the view shows too (`overlay_names`, `checks.decide`).
 - **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
-  copies of the skill, and the folders above them while they only hold them) and outside the host's own files.
+  copies of the skill, and the folders above them while they only hold them), outside the host's own files, and
+  that do not name the skill (`spelled`).
 - **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path, command or
   refused action names the skill, one of its paths, or a folder above them that only the overlay made
   (`on_overlay`, `overlay_names`). The view hides what is on the overlay, not what sits beside it: a command is
@@ -39,7 +43,6 @@ import host
 import manifest
 import scrub
 import shell
-import world
 
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
 ACTION_FIELDS = ("path", "command", "action")  # the fields that say what an action acts on
@@ -49,7 +52,7 @@ COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
-    words = world.names([overlay["skill"], *evidence.places(overlay)])
+    words = spelled([overlay["skill"], *evidence.places(overlay)])
     acts = overlay_names(overlay, record["files_after"], record["diff"])  # what puts an action on the overlay
     places, own = evidence.places(overlay), record["own_files"]
     edited = overlay.get("edited") or {overlay["index"]: overlay.get("index_without")}  # stored before profiles
@@ -78,8 +81,9 @@ def view(record, blob):
     old = {path: entry for path, entry in old.items() if entry is not None}
     new = {path: entries[path] for path, change in record["diff"].items() if change["after"]}
     files = {path: entry for path, entry in entries.items()
-             if path not in own and not evidence.covers(places, path, entry, entry)}
-    changes = evidence.diff(old, new, places, own)
+             if path not in own and not evidence.covers(places, path, entry, entry) and not words.search(path)}
+    changes = {path: change for path, change in evidence.diff(old, new, places, own).items()
+               if not words.search(path)}
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
@@ -118,7 +122,7 @@ def view(record, blob):
 
 
 def overlay_names(overlay, files_after, diff):
-    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`world.names`), and,
+    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`spelled`), and,
     as a path, each folder above one of its paths that the overlay alone made: before the run it held nothing but
     the overlay (`evidence.covers`), or was not there. A folder of that name the world holds itself does not count,
     and both arms find the same folders, so the same run in either arm gives the same view."""
@@ -128,7 +132,7 @@ def overlay_names(overlay, files_after, diff):
     above = {str(folder) for place in places for folder in PurePosixPath(place).parents if str(folder) != "."}
     only = sorted(folder for folder in above
                   if all(evidence.covers(places, path) for path in before if path.startswith(folder + "/")))
-    pattern = world.names([overlay["skill"], *places]).pattern
+    pattern = spelled([overlay["skill"], *places]).pattern
     # a folder is named as a path from the world: at a word's start or after ./, whole or with a path below it
     start, end = r"""(?<![^\s'"`;&|<>()=])(?:\./)?""", r"""(?=/|$|[\s'"`;&|<>()*])"""
     folders = "".join(f"|{start}{re.escape(folder)}{end}" for folder in only)
@@ -149,14 +153,24 @@ def shown(item, words):
     return {**item, "command": command, "exit_code": None}  # the code was the whole command's, not its shown part's
 
 
+def spelled(words):
+    """The one pattern that finds each of `words` (the skill's name and paths) as the view hides it: in any spelling,
+    whole or inside a longer name, so `rules-text-<skill>.core.md` or `<skill>_notes` names the skill. A name is
+    found where no ASCII letter or digit stands next to it, so a skill named `test` is still not found in `pytest`;
+    a `-`, `_` or `.` beside it is a separator, not part of it. Longer words are tried first."""
+    found = sorted(set(words), key=lambda word: (-len(word), word))
+    return re.compile("(?<![A-Za-z0-9])(?:" + "|".join(re.escape(word) for word in found) + ")(?![A-Za-z0-9])",
+                      re.ASCII)
+
+
 def on_overlay(item, words):
     """Whether a log entry's action is on the overlay: a skill load, or a path, command or refused
-    action that names it (`world.names`)."""
+    action that names it (`spelled`)."""
     return item["kind"] == "skill" or any(words.search(item.get(name, "")) for name in ACTION_FIELDS)
 
 
 def text(value, words, folders):
-    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `world.names`), and
+    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `spelled`), and
     with each of the run's `folders` (`scrub.folders`) as its neutral word."""
     raw = isinstance(value, bytes)
     encode = (lambda word: word.encode()) if raw else (lambda word: word)

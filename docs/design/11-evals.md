@@ -240,7 +240,8 @@ skill, the generated index row, the host discovery copy and everything else the 
 files after as well as from the diff. It shows each command as the command the agent ran, without its output or
 exit code, since the two arms are different worlds and what a world prints back tells the arm; outcomes such as
 "the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
-removed from the view's text. A command is cut where the command checks find its programs, so it loses only the
+removed from the view's text, and every file whose path names one is left out, in any spelling: whole, or inside a
+longer name such as `rules-text-<skill>.core.md`, a file only the with-skill arm writes. A command is cut where the command checks find its programs, so it loses only the
 pipelines on the overlay (naming the skill, its paths or a folder only the overlay made) and what depends on them,
 by `$?`, `&&` or `||`; it is dropped whole only when nothing else is left or no clean cut can be made.
 What the agent itself wrote or said about what it saw is its own output and stays visible. The full bundle is kept
