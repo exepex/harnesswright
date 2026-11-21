@@ -4,245 +4,48 @@ One rule: a label is computed by one function (`labels`) from what the round sto
 each kept or made run its bundle, its check verdicts and its trusted grades. A rerun on the same store gives the
 same label. And a label rests only on settled results: every planned run that is not scored, whatever the reason,
 is named, and so is a reference result that is not settled, and either keeps the label at most `inconclusive`.
+This module is the one entry point callers use (`labels`, `label_gate`). It scores each stored run and writes the
+label file; a task run's outcome, the measures and the task label are `verdicts.py`'s, and a trigger run's outcome
+and the trigger label, its own line (`trigger`) that the task label never reads, are `triggers.py`'s. A trigger
+run not scored is named in the trigger label only.
 
-- A task run passes when every contract expectation of its case passed, fails when one failed, and is not scored
-  when one has no trusted answer and none failed (`task_outcome`). A check's verdict decides first; a grader's
-  trusted answer decides what no check did, `yes` passing. Only contract expectations count: format ones are the
-  skill's own format, which the without-skill arm cannot know, and the done question (`cases.done`) asks what the
-  run says, not what it did.
 - A task run is a false done when the graders' trusted answer to the done question is `yes` and the run fails.
   Each label gives, per arm, `false_done`: the false dones of the runs where both are decided, and how many are
   not decided.
-- A trigger run passes when the skill loaded exactly when the case says it should (`trigger_outcome`). A load the
-  host reported (`observed`) and one the adapter inferred from a read of the skill's `SKILL.md` both count, as the
-  discovery probe counts them: some hosts, Codex among them, report no skill load of their own. The label names
-  how many trigger runs rested on an inferred load only (`inferred_loads`). Only the with-skill arm of a trigger
-  case is scored, as only it installs the skill. A trigger case passes when the skill loaded in at least half its
-  scored runs if it should trigger, and in fewer than half if it should not. Trigger accuracy is that of the `test`
-  split, the `train` split being for tuning a description.
 - A planned run is not scored when it is void, empty or not loaded (a pinned run with no proven load, doc 12), or
   its outcome is not decided. Each is named (`unsettled`), and so is each case and arm whose pinned runs never
   loaded. The pinned-load rate per arm comes with the other measures (`measures.measures`).
-- A skill the plan gives a previous version (`runs.PREVIOUS`) must be at least as good as it on the same task
-  cases: its pass rate not below the previous version's, and its false-done rate not above it (plan decision 2,
-  eval-rounds-plan.md). The previous arm's runs count like any other arm's: too few, or a false-done rate with no
-  decided run in either arm, keep the label at most `inconclusive`.
-- Pressure situations (doc 11): a case of a situation a plain agent cannot fail (`cases.SKILL_ONLY`) runs with the
-  skill only and counts in no pass rate, lift or false-done rate. Each label gives every situation's pass and
-  false-done counts per arm, and the cases with no situation apart (`situations`). Every with-skill run of a
-  situation case must pass, and the skill's cases must cover each situation `evals/situations.json` lists for it.
-- Each skill on each host gets one label (`decide`), with the thresholds of 10 · Skills (`THRESHOLDS`):
-  - `incomplete` when the host was not run, the skill has no folder yet (a baseline round, whose label file still
-    gives the without-skill arm's pass rate and scored runs per case), or no task case the pass rate counts or no
-    test trigger case, or no case of a situation the skill's list names (or no list), with every doubt below
-    named too;
-  - `inconclusive` when a case has fewer scored runs than `min_runs` in an arm it is scored in, a planned run is not
-    scored, an expectation's goldens were missed (each named), the reference host's result is not settled (it was
-    not run, or it is itself in doubt), or the skill shows no lift over the baseline;
-  - `unsupported` when the task pass rate, the gap to the reference host, the trigger accuracy or the with-skill
-    arm's format conformance misses its threshold, a with-skill run of a situation case failed, or the skill is
-    worse than its previous version, with each gap named. Format conformance is a floor on top of the lift, never
-    in its place (`format_gaps`);
-  - `verified` otherwise.
+- A host other than the reference host is held to the reference host's measures only when those are settled;
+  otherwise its label names why.
 - The label file of an attempt is written to `<store>/<round>/labels/<attempt>.json`, through the round's scrub. It
-  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared.
+  records each skill's setup (`setups.setup`), the one fingerprint two results must share to be compared, and
+  whether the round lists each skill as shipped (`shipped`), which `results.py` copies.
 
 Standard library only.
 """
 
 import json
-from pathlib import Path
 
 import evidence
 import grades
 import measures
 import prices
 import setups
+import triggers
+import verdicts
 from cases import SKILL_ONLY
-from runs import PREVIOUS
 
-THRESHOLDS = {"task_pass_rate": 0.9, "max_gap": 0.10, "trigger_accuracy": 0.9, "min_runs": 3, "min_lift": 0.0,
-              "format_conformance": 0.9}
-EPSILON = 1e-9
-
-
-def task_outcome(case, verdicts, answers):
-    """(True, False or None, why) of one task run of `case`: `verdicts` are its check verdicts (one per expectation,
-    None where it has no check), `answers` its trusted grader answers by question id (`q1` is the first)."""
-    counted = [number for number, e in enumerate(case.expectations, start=1) if isinstance(e["source"], dict)]
-    if not counted:
-        return None, "the case has no contract expectation"
-    found = {}
-    for number in counted:
-        verdict = verdicts[number - 1]
-        if verdict is not None and verdict["outcome"] in ("pass", "fail"):
-            found[number] = verdict["outcome"] == "pass"
-        elif f"q{number}" in answers:
-            found[number] = answers[f"q{number}"] == "yes"
-        else:
-            found[number] = None
-    failed = [n for n, passed in found.items() if passed is False]
-    if failed:
-        return False, f"expectation {failed[0]} failed"
-    open_ = [n for n, passed in found.items() if passed is None]
-    return (None, f"expectation {open_[0]} has no trusted answer") if open_ else (True, "")
-
-
-def trigger_outcome(case, log):
-    """(passed, inferred) of one with-skill trigger run of `case`: whether the skill loaded exactly when it should,
-    and whether only an inferred load says it loaded."""
-    sources = {entry.get("source") for entry in log if entry.get("kind") == "skill" and entry.get("name") == case.skill}
-    return bool(sources) == bool(case.should_trigger), bool(sources) and "observed" not in sources
-
-
-def rate(passed):
-    """The share of True in `passed`, rounded; None when it is empty."""
-    return round(sum(passed) / len(passed), 4) if passed else None
-
-
-def summary(cases, scored, previous=False, absent=False, situations=None):
-    """The measures of one skill on one host: `cases` are its cases by id, `scored` the outcomes of its scored runs
-    by (case id, arm), True or False. With `previous`, the round ran its task cases in the previous version's arm
-    too. With `absent`, the skill has no folder yet and the round ran its task cases without it only. `situations`
-    is the manifest's record of the skill's situations (`rounds.plan`): a case a plain agent cannot fail
-    (`SKILL_ONLY`) counts in no pass rate or lift, and each situation is reported apart."""
-    situated = (situations or {}).get("cases", {})
-    tasks = [i for i, case in cases.items() if case.kind == "task"]
-    pooled = [i for i in tasks if situated.get(i) not in SKILL_ONLY]
-    triggers = [i for i, case in cases.items() if case.kind == "trigger" and case.split == "test"]
-    with_skill = [o for i in pooled for o in scored.get((i, "with_skill"), [])]
-    without = [o for i in pooled for o in scored.get((i, "without_skill"), [])]
-    passing = []
-    for i in triggers:
-        right = scored.get((i, "with_skill"), [])  # each run: did it do what the case says
-        if right:  # the skill loaded in at least half the runs of a should-trigger case, in fewer of a should-not
-            passing.append(2 * sum(right) >= len(right) if cases[i].should_trigger else 2 * sum(right) > len(right))
-    task_arms = ("without_skill",) if absent else ("with_skill", "without_skill") + ((PREVIOUS,) if previous else ())
-    arms_of = {i: ("with_skill",) if situated.get(i) in SKILL_ONLY else task_arms for i in tasks}
-    runs = {f"{i}, {arm}": len(scored.get((i, arm), [])) for i in tasks for arm in arms_of[i]}
-    runs.update({f"{i}, with_skill": len(scored.get((i, "with_skill"), [])) for i in triggers})
-    task_rate, baseline = rate(with_skill), rate(without)
-    earlier = {"previous_pass_rate": rate([o for i in pooled for o in scored.get((i, PREVIOUS), [])])} \
-        if previous else {}
-    earlier.update({"absent": True} if absent else {})
-    groups = {}  # each situation's cases, and the cases with none apart, so earlier rounds stay comparable
-    for i in tasks:
-        groups.setdefault(situated.get(i) or "none", []).append(i)
-    report = {}
-    for name, ids in sorted(groups.items()):
-        report[name] = {"cases": ids}
-        for arm in arms_of[ids[0]]:  # a situation's cases share their arms
-            outcomes = [o for i in ids for o in scored.get((i, arm), [])]
-            report[name][arm] = {"passed": sum(outcomes), "runs": len(outcomes)}
-    listed = (situations or {}).get("listed")
-    return {"task_pass_rate": task_rate, "baseline_pass_rate": baseline, **earlier,
-            "lift": None if None in (task_rate, baseline) else round(task_rate - baseline, 4),
-            "trigger_accuracy": rate(passing), "task_cases": len(pooled), "trigger_cases": len(triggers),
-            "runs": runs, "situations_listed": listed,
-            "uncovered": sorted(set(listed or ()) - set(situated.values())),
-            "situations": report}
-
-
-def missing(measures):
-    """What is missing for any label: the skill itself (a baseline round of a skill with no folder yet), a task case,
-    a test trigger case, or a case of each situation `evals/situations.json` lists for the skill (doc 11)."""
-    listed = measures.get("situations_listed")
-    return ["the skill: no folder yet, a baseline round"] * bool(measures.get("absent")) + [
-        f"{kind}: none" for kind, count in (("task cases", measures["task_cases"]),
-                                            ("test trigger cases", measures["trigger_cases"])) if not count] + (
-        ["situations: the skill is not in evals/situations.json"] if listed is None else
-        [f"situation {name}: no case" for name in measures.get("uncovered", [])])
-
-
-def doubts(measures, unsettled, false_done, thresholds=THRESHOLDS):
-    """Why a result is not settled, the one list both a label and the reference host's settlement rest on: each
-    case and arm with too few scored runs, each `unsettled` reason, and each doubt against the previous version
-    (`versus`, from the `false_done` tally of each arm)."""
-    least = thresholds["min_runs"]
-    return [f"{slot}: {count} scored run(s), {least} needed" for slot, count in sorted(measures["runs"].items())
-            if count < least] + list(unsettled) + versus(measures, false_done)[1]
-
-
-def versus(measures, false_done):
-    """(gaps, doubts) of one skill against its previous version, when `measures` (`summary`) has one:
-    `false_done` holds the false-done tally of each arm (`labels`)."""
-    if "previous_pass_rate" not in measures:
-        return [], []
-    gaps, doubted, now, before = [], [], measures["task_pass_rate"], measures["previous_pass_rate"]
-    if None not in (now, before) and now < before - EPSILON:
-        gaps.append(f"task pass rate {now:.0%} below the previous version's {before:.0%}")
-    tallies = [false_done.get(arm, {"false_done": 0, "decided": 0}) for arm in ("with_skill", PREVIOUS)]
-    if any(not t["decided"] for t in tallies):
-        doubted.append("false-done rate: no decided run in the with-skill or the previous version's arm")
-    elif tallies[0]["false_done"] / tallies[0]["decided"] > tallies[1]["false_done"] / tallies[1]["decided"] + EPSILON:
-        gaps.append(f"false-done rate {tallies[0]['false_done']} of {tallies[0]['decided']} above the previous "
-                    f"version's {tallies[1]['false_done']} of {tallies[1]['decided']}")
-    return gaps, doubted
-
-
-def format_gaps(measures, thresholds=THRESHOLDS):
-    """(gaps, doubts) of the with-skill arm's format conformance in `measures` (the label's measures, with
-    `format_conformance` of `measures.measures`). A format expectation no check or trusted answer decided counts as
-    not passed. No format answer at all, or no format count, is a doubt: the floor was not measured."""
-    tally = (measures.get("format_conformance") or {}).get("with_skill")
-    asked = tally["decided"] + tally["undecided"] if tally else 0
-    if not asked:
-        return [], ["format conformance: no format expectation was asked in the with-skill arm"]
-    if tally["passed"] / asked < thresholds["format_conformance"] - EPSILON:
-        return [f"format conformance {tally['passed'] / asked:.0%} below {thresholds['format_conformance']:.0%} "
-                f"({tally['passed']} of {asked}, {tally['undecided']} undecided)"], []
-    return [], []
-
-
-def floor_gaps(measures):
-    """The floor of each pressure situation: every with-skill run of its cases passes."""
-    return [f"situation {name}: {tally['runs'] - tally['passed']} of {tally['runs']} with-skill runs failed"
-            for name, group in sorted(measures.get("situations", {}).items())
-            if name != "none" and (tally := group.get("with_skill")) and tally["passed"] < tally["runs"]]
-
-
-def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds=THRESHOLDS, false_done=None):
-    """{"label", "gaps"} of one skill on one host from its `measures` (`summary`) and `unsettled`, the named reasons
-    its result is in doubt (runs not scored, goldens missed). For a host other than the reference host, `reference`
-    is the reference host's measures when its result is settled, and `reference_doubt` says why it is not.
-    `false_done` is the false-done tally of each arm, for the comparison with a previous version (`versus`).
-    `measures` holds the with-skill arm's format conformance too, for its floor (`format_gaps`)."""
-    earlier = versus(measures, false_done or {})[0]
-    formatted, unmeasured = format_gaps(measures, thresholds)
-    doubted = doubts(measures, unsettled, false_done or {}, thresholds) + ([reference_doubt] if reference_doubt else [])
-    doubted += unmeasured
-    floor = floor_gaps(measures)
-    if missing(measures):  # a failed floor is named even here, so a trial round still shows it
-        return {"label": "incomplete", "gaps": missing(measures) + doubted + floor}
-    gaps, task_rate, trigger = [], measures["task_pass_rate"], measures["trigger_accuracy"]
-    if task_rate is not None and task_rate < thresholds["task_pass_rate"] - EPSILON:
-        gaps.append(f"task pass rate {task_rate:.0%} below {thresholds['task_pass_rate']:.0%}")
-    if reference is not None and task_rate is not None \
-            and reference["task_pass_rate"] - task_rate > thresholds["max_gap"] + EPSILON:
-        gaps.append(f"task pass rate {reference['task_pass_rate'] - task_rate:.0%} below the reference host")
-    if trigger is not None and trigger < thresholds["trigger_accuracy"] - EPSILON:
-        gaps.append(f"trigger accuracy {trigger:.0%} below {thresholds['trigger_accuracy']:.0%}")
-    gaps += earlier + formatted
-    gaps += floor
-    if doubted:
-        return {"label": "inconclusive", "gaps": doubted + gaps}
-    if gaps:
-        return {"label": "unsupported", "gaps": gaps}
-    if measures["lift"] <= thresholds["min_lift"] + EPSILON:
-        return {"label": "inconclusive", "gaps": [
-            f"no lift over the baseline ({task_rate:.0%} with the skill, {measures['baseline_pass_rate']:.0%} "
-            "without)"]}
-    return {"label": "verified", "gaps": []}
-
-
-def labels(folder, attempt, record, cases, price_file):
+def labels(folder, attempt, record, cases, price_file, gates=None):
     """The label file of attempt `attempt` of the round in `folder` (`<store>/<round>`), whose manifest is
     `record`, with the round's `cases` by (skill, case id) and the checked `price_file`: every number in it read
-    from the store, with the other measures of `measures`."""
-    gates = {gate["gate"]: gate for gate in json.loads((folder / "attempts" / f"{attempt}.json").read_text())["gates"]}
-    for needed in ("probe", "run", "grade"):
+    from the store, with the other measures of `measures`. `gates`, the attempt's gates by name, are read from its
+    record when not given; the extra runs gate, while it runs, gives its own (`extras.extra_gate`)."""
+    if gates is None:
+        gates = {g["gate"]: g for g in json.loads((folder / "attempts" / f"{attempt}.json").read_text())["gates"]}
+    for needed in ("probe", "run", "grade") + ("extra runs",) * ("extra runs" in gates):
         if not gates.get(needed, {}).get("passed"):
             raise LabelError(f"attempt {attempt}: its {needed} gate did not pass")
+    gates = with_extras(gates)
     passed = gates["probe"]["outcome"]["passed"]
     not_run = gates["probe"]["outcome"]["not run"]
     trust = gates["grade"]["outcome"]["goldens"]
@@ -261,20 +64,25 @@ def labels(folder, attempt, record, cases, price_file):
         if made.get("pinned"):  # the statuses of each case and arm's pinned runs
             pins.setdefault((made["host"], made["skill"]), {}).setdefault(f"{made['case']}, {made['arm']}",
                                                                          set()).add(made["status"])
-        if made["status"] not in ("kept", "made"):
-            unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: not scored ({made['status']})")
+        if made["status"] not in ("kept", "made"):  # a trigger run's goes to the trigger label only
+            unsettled.setdefault((made["host"], made["skill"]) + ("trigger",) * (case.kind == "trigger"), []).append(
+                f"{name}: not scored ({made['status']})")
             continue
         run_folder = folder / "runs" / made["key"]
         if case.kind == "trigger":
             record_, _ = evidence.load(run_folder / "bundle")
-            passed_, only_inferred = trigger_outcome(case, record_["log"])
+            passed_, only_inferred = triggers.trigger_outcome(case, record_["log"])
             slot = (made["host"], made["skill"])
             inferred[slot] = inferred.get(slot, 0) + bool(only_inferred)
         else:
-            verdicts = json.loads((run_folder / "checks.json").read_text())["verdicts"]
+            checked = json.loads((run_folder / "checks.json").read_text())["verdicts"]
             graded = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
             answers = json.loads(graded.read_text())["answers"] if graded.is_file() else {}
-            passed_, why = task_outcome(case, verdicts, answers)
+            passed_, why = verdicts.task_outcome(case, checked, answers)
+            doubt = record.get("kinds", {}).get(made["skill"]) == "internal" and verdicts.own_doubt(
+                case, checked, record.get("own_checks", []))
+            if doubt:  # an internal run its own check did not decide is in doubt, whatever the graders said
+                unsettled.setdefault((made["host"], made["skill"]), []).append(f"{name}: {doubt}")
             said = [answers.get(f"q{n}") for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"]
             tally = by_case.setdefault((made["host"], made["skill"]), {}).setdefault(
                 (made["case"], made["arm"]), {"false_done": 0, "decided": 0, "undecided": 0})
@@ -291,10 +99,12 @@ def labels(folder, attempt, record, cases, price_file):
     for slot, statuses in pins.items():
         unsettled.setdefault(slot, []).extend(f"{where}: no loaded run" for where, seen in sorted(statuses.items())
                                               if "not loaded" in seen and not seen & {"kept", "made"})
-    false_done = {slot: _tally(per_case, lambda i, s=slot[1]: not _skill_only(record, s, i))
-                  for slot, per_case in by_case.items()}  # per arm, the cases a plain agent can fail
-    found = {"round": record["round"], "attempt": attempt, "commit": record["commit"], "thresholds": THRESHOLDS,
-             "reference": grades.REFERENCE, "prices": price_file["date"], "skills": {},
+    can_fail = {slot: {(i, arm): tally for (i, arm), tally in per_case.items() if not _skill_only(record, slot[1], i)}
+                for slot, per_case in by_case.items()}  # each case and arm's tally, of the cases a plain agent can fail
+    false_done = {slot: _tally(per_case, lambda i: True) for slot, per_case in can_fail.items()}  # per arm
+    found = {"round": record["round"], "attempt": attempt, "commit": record["commit"],
+             "thresholds": verdicts.THRESHOLDS, "reference": grades.REFERENCE, "prices": price_file["date"],
+             "skills": {},
              "setups": {skill: setups.setup(record, skill, {i: c for (s, i), c in cases.items() if s == skill},
                                             drift) for skill in sorted(record["cases"])}}
     rest = measures.measures(folder, attempt, gates, cases, price_file)
@@ -302,8 +112,9 @@ def labels(folder, attempt, record, cases, price_file):
         own = {i: case for (s, i), case in cases.items() if s == skill}
         unreliable = {f"{name} {question}": why for name, doubts in trust.items() if name.split("/")[0] == skill
                       for question, why in doubts.items() if why is not None}  # name: "<skill>/<case>"
-        measured = {host: summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
-                                  skill in record.get("absent", []), record.get("situations", {}).get(skill))
+        measured = {host: verdicts.summary(own, scored.get((host, skill), {}), skill in record.get("previous", {}),
+                                           skill in record.get("absent", []), record.get("situations", {}).get(skill),
+                                           record.get("kinds", {}).get(skill), record.get("own_checks", []))
                     for host in passed}
         for host in passed:  # each situation's false dones, per arm
             for group in measured[host]["situations"].values():
@@ -315,8 +126,9 @@ def labels(folder, attempt, record, cases, price_file):
         reference, reference_doubt = None, f"the reference host {grades.REFERENCE} was not run"
         if grades.REFERENCE in measured:
             reference_doubt = None
-            if missing(measured[grades.REFERENCE]) or doubts(measured[grades.REFERENCE], doubted[grades.REFERENCE],
-                                                             false_done.get((grades.REFERENCE, skill), {})):
+            if verdicts.missing(measured[grades.REFERENCE]) or verdicts.doubts(
+                    measured[grades.REFERENCE], doubted[grades.REFERENCE],
+                    can_fail.get((grades.REFERENCE, skill), {})):
                 reference_doubt = f"the reference host {grades.REFERENCE}'s result is not settled"
             else:
                 reference = measured[grades.REFERENCE]
@@ -329,15 +141,55 @@ def labels(folder, attempt, record, cases, price_file):
             else:
                 other = host != grades.REFERENCE
                 entry.update(measured[host], **rest.get((host, skill), {}),
-                             inferred_loads=inferred.get((host, skill), 0),
+                             trigger=triggers.label(own, scored.get((host, skill), {}),
+                                                    unsettled.get((host, skill, "trigger"), []),
+                                                    inferred.get((host, skill), 0), verdicts.THRESHOLDS),
                              false_done={arm: measures.share(tally["false_done"], tally["decided"], **tally)
                                          for arm, tally in sorted(false_done.get((host, skill), {}).items())},
-                             **decide({**measured[host], **rest.get((host, skill), {})}, doubted[host],
-                                      reference if other else None,
-                                      reference_doubt if other else None,
-                                      false_done=false_done.get((host, skill), {})))
+                             **verdicts.decide({**measured[host], **rest.get((host, skill), {})}, doubted[host],
+                                               reference if other else None,
+                                               reference_doubt if other else None,
+                                               false_done=can_fail.get((host, skill), {})))
+            entry["extra_runs"] = {f"{made['case']}, {made['arm']}": n for made, n in _added(gates, host, skill)}
             found["skills"][skill][host] = entry
+    found["shipped"] = {skill: shipped(hosts, grades.REFERENCE) for skill, hosts in found["skills"].items()}
     return found
+
+
+def shipped(hosts, reference):
+    """Whether the round lists the skill as shipped (doc 12, Proven use): on the reference host, its task label is
+    `verified` and its trigger label (`triggers.label`) is met. Either alone is not enough."""
+    entry = hosts.get(reference, {})
+    return entry.get("label") == "verified" and (entry.get("trigger") or {}).get("met") is True
+
+
+def with_extras(gates):
+    """`gates` with the runs of every pass of the extra runs gate added to the run gate's, and the grades and the
+    goldens each pass found untrusted to the grade gate's: the one list of runs and grades that every count, doubt
+    and regrade (`regrade.pages`) reads."""
+    passes = gates.get("extra runs", {}).get("outcome", {}).get("passes", [])
+    if not passes:
+        return gates
+    trust = {name: dict(questions) for name, questions in gates["grade"]["outcome"]["goldens"].items()}
+    for found in passes:
+        for name, questions in found["goldens"].items():
+            for question, why in questions.items():
+                trust.setdefault(name, {})[question] = trust.get(name, {}).get(question) or why
+    made = gates["run"]["outcome"] + [m for found in passes for m in found["runs"]]
+    return {**gates, "run": {**gates["run"], "outcome": made},
+            "grade": {**gates["grade"], "outcome": {**gates["grade"]["outcome"], "goldens": trust, "runs": gates[
+                "grade"]["outcome"]["runs"] + [graded for found in passes for graded in found["grades"]]}}}
+
+
+def _added(gates, host, skill):
+    """[(a run, the extra runs of its case and arm)] for each case and arm of `skill` on `host` the extra runs gate
+    extended, one run standing for each."""
+    added = {}
+    for found in gates.get("extra runs", {}).get("outcome", {}).get("passes", []):
+        for made in found["runs"]:
+            if (made["host"], made["skill"]) == (host, skill):
+                added.setdefault((made["case"], made["arm"]), [made, 0])[1] += 1
+    return [tuple(pair) for _, pair in sorted(added.items())]
 
 
 def _skill_only(record, skill, case_id):

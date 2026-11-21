@@ -34,7 +34,7 @@ LIST = "evals/kit.json"
 CODE = "evals/harness"  # every part runs on the harness's code, however it loads it, so all of it is the kit's
 # The parts doc 11 names. A part that does not exist yet is added to the list when it does.
 PARTS = ("checks", "answer keys", "lint rules", "power table", "probes", "goldens", "grader prompt",
-         "fault catalogue", "situations")
+         "fault catalogue", "situations", "kinds", "label rule")
 RECORD = "kit-approval.json"
 
 
@@ -42,8 +42,8 @@ class KitError(RuntimeError):
     """A kit that cannot be read, or one the judges have not approved, with the reason. The round stops."""
 
 
-def files(repo=REPO):
-    """{repository path: manifest entry} of every file in the kit: the list, the harness's code and each part."""
+def parts(repo=REPO):
+    """{part: [repository paths]} as `evals/kit.json` lists them, each a part of PARTS."""
     repo = Path(repo)
     try:
         parts = json.loads((repo / LIST).read_text())["parts"]
@@ -54,9 +54,15 @@ def files(repo=REPO):
     wrong = sorted(set(parts) - set(PARTS))
     if wrong or not parts or not all(parts.values()):
         raise KitError(f"{LIST}: the parts {wrong or 'listed'} are not parts of the kit {list(PARTS)}")
+    return parts
+
+
+def files(repo=REPO):
+    """{repository path: manifest entry} of every file in the kit: the list, the harness's code and each part."""
+    repo, listed = Path(repo), parts(repo)
     try:
         tracked = set(skills.tracked(repo))
-        listed = [LIST, CODE] + [path for paths in parts.values() for path in paths]
+        listed = [LIST, CODE] + [path for paths in listed.values() for path in paths]
         found = {}
         for path in listed:
             if not isinstance(path, str) or os.path.normpath(path) != path or path.startswith(("/", "..")):

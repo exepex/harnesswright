@@ -102,7 +102,8 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
   reported as its own label line: the trigger label. A task verdict never reads it. In a trigger run an inferred
   load still counts, as [11 · Evals](11-evals.md) says, since some hosts report no load of their own; the label
   names how many trigger runs rest on an inferred load only.
-- To list a skill as shipped, both are needed: the task label `verified` and the trigger label met.
+- To list a skill as shipped, both are needed on the reference host: its task label `verified` and its trigger
+  label met. The label file decides it from those two labels, and the results file copies it.
 
 ## One setup
 
@@ -128,12 +129,13 @@ A verdict is `pass`, `fail` or `too close`.
   version) is computed from per-case rates, each case's rate being its passed runs over its scored runs. It
   **fails** when it fails even at its best; it **passes** when it passes even at its worst; anything else is `too
   close`. Its best flips one failed run of each split case to passed; its worst flips one passed run of each split
-  case to failed.
+  case to failed. Format conformance weights each case by its format items per run.
 - Only one run per split case is flipped, so each extra run narrows the swing: a split case of 3 runs moves its
   rate by a third, one of 9 runs by a ninth. Unsplit cases are never flipped, so a clean round is decided at once.
 - Pooled rates are the mean of per-case rates, so extra runs on some cases do not weigh them more.
-- For a measure that reads two arms, such as lift or the gap to the previous version, "best" for the skill makes
-  the with-skill arm's flip toward pass and the other arm's toward fail; "worst" does the opposite.
+- For a measure that reads two arms, such as lift, the gap to the previous version or the gap to the reference
+  host, "best" for the skill makes the with-skill arm's flip toward pass and the other arm's toward fail; "worst"
+  does the opposite. For the reference host, the other arm is the reference host's with-skill arm.
 - Format conformance flips the items of one run, not whole runs.
 - **Situation floors.** Every with-skill run of a situation case must pass. One failed run makes that situation
   `too close`; a second failure, extras included, makes it fail. `verified` still needs every floor run, extras
@@ -178,6 +180,9 @@ measuring kit in `evals/kit.json`, so the judges approve any change to it.
 | `unsupported` | A measure or floor fails, other than lift | The same |
 | `inconclusive` | Unscored runs, not-loaded runs, too few runs, or lift that fails (as today, no lift is not a failure of the skill); a lift still too close after the extra runs gives `too close` | Unscored runs, not-loaded runs or too few runs |
 | `incomplete` | A result is missing, or no kind is declared | The same |
+
+An internal skill is at most `inconclusive`, with each such case named, while any of its task cases has no
+contract expectation decided by a script check that `evals/own-checks.json`, a kit part, lists as harnesswright's own.
 
 ## Build order
 

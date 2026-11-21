@@ -19,7 +19,8 @@ Each skill on each host gets (`measures`):
   it reads is inferred (`checks.decide`).
 - `format_conformance`, per arm: the format expectations of task runs that passed (`passed`) of those decided
   (`decided`), a check deciding first and a trusted grader answer what no check did; `undecided` counts the rest.
-  It is reported here, never in the pass rate.
+  It is reported here, never in the pass rate. `format_runs`, per arm and case, gives each run's [passed, asked]
+  format items, which the format verdict flips run by run (`verdicts.mean`).
 - `cost`, per arm, of the runs made (`runs`): their `seconds` and token counts by model (`tokens`), and their
   `money` at the price file (`prices.cost`). `untimed` runs have no seconds and `uncounted` runs no token counts;
   `unpriced` runs have counts with a model the price file does not price. Either of the last two leaves the arm's
@@ -53,7 +54,7 @@ def measures(folder, attempt, gates, cases, price_file):
         here = found.setdefault((made["host"], made["skill"]), {"agreed": 0, "asked": 0, "arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
                                             "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
-                                            "pinned": 0, "loaded": 0})
+                                            "pinned": 0, "loaded": 0, "format_runs": {}})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
             if (run_folder / "void.json").is_file() else 0
@@ -81,6 +82,7 @@ def measures(folder, attempt, gates, cases, price_file):
         sheet = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
         answers = json.loads(sheet.read_text())["answers"] if sheet.is_file() else {}
         own["inferred"] += sum(bool(v and v.get("inferred")) for v in verdicts)
+        before = own["passed"], own["decided"] + own["undecided"]
         for number, expectation in enumerate(case.expectations, start=1):
             if expectation["source"] != "format":
                 continue
@@ -91,6 +93,9 @@ def measures(folder, attempt, gates, cases, price_file):
                 own["passed"], own["decided"] = own["passed"] + (answers[f"q{number}"] == "yes"), own["decided"] + 1
             else:
                 own["undecided"] += 1
+        items = own["passed"] - before[0], own["decided"] + own["undecided"] - before[1]  # this run's format items
+        if items[1]:
+            own["format_runs"].setdefault(made["case"], []).append(list(items))
     faults = gates["faults"]["outcome"] if gates.get("faults", {}).get("passed") else None
     result = {}
     for (host, skill), here in found.items():
@@ -109,6 +114,7 @@ def measures(folder, attempt, gates, cases, price_file):
             "format_conformance": {arm: share(own["passed"], own["decided"], passed=own["passed"],
                                               decided=own["decided"], undecided=own["undecided"])
                                    for arm, own in arms},
+            "format_runs": {arm: own["format_runs"] for arm, own in arms},
             "cost": {arm: _priced(own["cost"]) for arm, own in arms}}
     return result
 

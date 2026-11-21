@@ -5,11 +5,11 @@ One rule: a results entry is a copy, never a new judgement. For each skill the r
 label file entry for every host whole (`labels.py`), with the file's reference host, price date and thresholds, and
 what names the round exactly: its name, attempt, commit, the sha256 of its manifest, the measuring kit its manifest
 hashed, the hosts its probe gate passed (`ran`), the skill's hash and its previous version's (`skill_sha256`,
-`previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), and the file name and sha256 of the
-round's store archive. The
-archive must hold the round's store folder exactly, so anyone with it recomputes each label with `labels.py` at
-the round's commit. A round is read only when its last attempt passed every gate and the kit check of that attempt
-named the manifest's own kit.
+`previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), whether the round lists the skill as
+shipped (`shipped`, as the label file decides it, `labels.shipped`, or null when it does not; never decided here),
+and the file name and sha256 of the round's store archive. The archive must hold the round's
+store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
+read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
 - `entries(folder, archive)`: {skill: entry} for the finished round stored in `folder`, archived in `archive`.
 - `merge(current, skill, entry)`: the results file `current` (or None) with `entry` in it. An entry for the same
@@ -122,12 +122,14 @@ def entries(folder, archive):
               **{key: labels[key] for key in ("reference", "prices", "thresholds")}}
     own = {skill: {"skill_sha256": record.get("skills", {}).get(skill, {}).get("sha256"),
                    "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
-                   "setup": labels.get("setups", {}).get(skill)} for skill in labels["skills"]}
+                   "setup": labels.get("setups", {}).get(skill),
+                   "shipped": labels.get("shipped", {}).get(skill)} for skill in labels["skills"]}
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
 
 
-def _order(entry):
-    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10)."""
+def order(entry):
+    """Rounds in the order they were run: by name, its trailing number read as a number (x-8 before x-10). A plan
+    keeps name order run order (`versions.ordered`)."""
     stem, _, number = entry["round"].rpartition("-")
     return (stem, int(number)) if number.isdigit() else (entry["round"], -1)
 
@@ -138,7 +140,7 @@ def merge(current, skill, entry):
     if current and current.get("skill", current.get("skill_name")) != skill:
         raise ResultsError(f"the results file is not {skill}'s")
     rounds = [r for r in current.get("rounds", []) if r["round"] != entry["round"]] + [entry]
-    rounds.sort(key=_order)
+    rounds.sort(key=order)
     old = current.get("phase_2_runner", current.get("hosts", []))  # the phase 2 runner's own format
     measured = {host for r in rounds for host in r["ran"]}  # a host the round planned but did not run keeps it
     data = {"skill": skill, "rounds": rounds, "compared": compared(rounds)}
@@ -186,7 +188,7 @@ def write(path, data):
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
-                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup"):
+                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped"):
             if key not in entry:  # `not_run` only before situations were labelled; the last three only after setups
                 continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")

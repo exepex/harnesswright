@@ -11,15 +11,16 @@ from types import SimpleNamespace
 from unittest import mock
 
 from test_gates import Gated
-from test_labels import case, formatted
+from test_labels import case
 from test_runs import DRIFT, VERSION
+from test_verdicts import decided, formatted
 
 import cases
 import faults
 import gates
-import labels
 import rounds
 import runs
+import verdicts
 from cases import ARMS
 
 BOTH = {"haiku-writer": ["c1", "s1"]}
@@ -128,7 +129,7 @@ def situated(scored, situation_of, listed_=None, plain="t"):
     scored = {("g", "with_skill"): [True] * 3, **{(i, "with_skill"): [True] * 3 for i in plain},
               **{(i, "without_skill"): [False] * 3 for i in plain}, **scored}
     record = {"listed": sorted(set(situation_of.values())) if listed_ is None else listed_, "cases": situation_of}
-    return {**labels.summary(own, scored, situations=record), **formatted()}
+    return {**verdicts.summary(own, scored, situations=record, kind="team"), **formatted()}
 
 
 class Label(unittest.TestCase):
@@ -143,35 +144,41 @@ class Label(unittest.TestCase):
             "self-judge": {"cases": ["s"], "with_skill": {"passed": 3, "runs": 3},
                            "without_skill": {"passed": 0, "runs": 3}}})
         self.assertNotIn("x, without_skill", found["runs"])
-        self.assertEqual(labels.decide(found, []), {"label": "verified", "gaps": []})
+        self.assertEqual(decided(found, []), {"label": "verified", "gaps": []})
         alone = situated({("x", "with_skill"): [False] * 3}, {"x": "check-cannot-run"})
         self.assertEqual(alone["task_pass_rate"], 1.0)  # its failures stay out of the pooled rate, not the floor
-        self.assertEqual(labels.decide(alone, [])["gaps"],
+        self.assertEqual(decided(alone, [])["gaps"],
                          ["situation check-cannot-run: 3 of 3 with-skill runs failed"])
 
-    def test_one_failed_with_skill_run_of_a_situation_is_unsupported_though_the_pool_passes(self):
-        found = situated({("s", "with_skill"): [True, True, False], ("s", "without_skill"): [False] * 3},
-                         {"s": "self-judge"}, plain="abcdefhi")  # 26 of 27 with-skill runs pass
-        self.assertGreater(found["task_pass_rate"], labels.THRESHOLDS["task_pass_rate"])
-        self.assertEqual(labels.decide(found, []), {"label": "unsupported", "gaps": [
-            "situation self-judge: 1 of 3 with-skill runs failed"]})
+    def test_a_situation_with_one_failed_run_is_too_close_and_with_two_fails_though_the_pool_passes(self):
+        found = situated({("s", "with_skill"): [True, True, True, False], ("s", "without_skill"): [False] * 3},
+                         {"s": "self-judge"}, plain="abcdefhi")  # 35 of 36 with-skill runs pass
+        self.assertGreater(found["task_pass_rate"], verdicts.THRESHOLDS["task_pass_rate"])
+        self.assertEqual(decided(found, []), {"label": "too close", "gaps": [
+            "situation self-judge: 1 of 4 with-skill runs failed (too close)"]})
+        found = situated({("s", "with_skill"): [True, True, False, False], ("s", "without_skill"): [False] * 3},
+                         {"s": "self-judge"}, plain="abcdefhi")
+        self.assertEqual(decided(found, []), {"label": "unsupported", "gaps": [
+            "situation self-judge: 2 of 4 with-skill runs failed"]})
+        self.assertEqual(verdicts.floors(found), {"situation self-judge": {
+            "verdict": "fail", "failed": 2, "runs": 4, "split": {"with_skill": ["s"]}}})
 
     def test_a_skill_whose_only_task_cases_run_with_the_skill_only_has_no_task_case_for_its_rates(self):
         found = situated({("x", "with_skill"): [True] * 3}, {"x": "check-cannot-run"}, plain="")
         self.assertEqual((found["task_cases"], found["lift"]), (0, None))
-        self.assertEqual(labels.decide(found, []), {"label": "incomplete", "gaps": ["task cases: none"]})
+        self.assertEqual(decided(found, []), {"label": "incomplete", "gaps": ["task cases: none"]})
 
     def test_a_listed_situation_with_no_case_or_a_skill_not_listed_is_incomplete_and_named(self):
         found = situated({}, {}, ["self-judge", "stale-evidence"])
-        self.assertEqual(labels.decide(found, [])["label"], "incomplete")
-        self.assertEqual(labels.decide(found, [])["gaps"], ["situation self-judge: no case",
+        self.assertEqual(decided(found, [])["label"], "incomplete")
+        self.assertEqual(decided(found, [])["gaps"], ["situation self-judge: no case",
                                                             "situation stale-evidence: no case"])
         failed = situated({("s", "with_skill"): [True, False, False], ("s", "without_skill"): [False] * 3},
                           {"s": "self-judge"}, ["self-judge", "stale-evidence"])
-        self.assertEqual(labels.decide(failed, []), {"label": "incomplete", "gaps": [
+        self.assertEqual(decided(failed, []), {"label": "incomplete", "gaps": [
             "situation stale-evidence: no case", "situation self-judge: 2 of 3 with-skill runs failed"]})
         unlisted = {**situated({}, {}), "situations_listed": None}
-        self.assertEqual(labels.decide(unlisted, []), {"label": "incomplete", "gaps": [
+        self.assertEqual(decided(unlisted, []), {"label": "incomplete", "gaps": [
             "situations: the skill is not in evals/situations.json"]})
 
 

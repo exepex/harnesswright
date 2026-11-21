@@ -14,9 +14,11 @@ named so a change can be named (`changed`):
   which grade the round's pages (`grades.panel`); `tools`: for each of those hosts, the tools and drift probe's
   record (`probes.drift`, `<round>/drift/<host>.json`) of each tool this skill's own cases declare, as a check runs
   them. The files a host writes for itself (`own files`) are left out: they may differ by name only;
-- `runs` per case, arm and host, and `pinned`, whether task runs pin the skill's load;
+- `runs` per case, arm and host, `extra runs`, the cap on a split case's extra runs (`runs.extra`), which changes
+  what a verdict may conclude, and `pinned`, whether task runs pin the skill's load. A round with no extra runs has
+  no `extra runs` part, so its fingerprint is the one it had before the cap existed;
 - `runner`: the code that makes a run (`runs.runner`), and `label rule`: the code that turns a run's bundle into
-  its label (`LABEL_RULE`).
+  its label: the files of the kit's `label rule` part (`evals/kit.json`, `kit.parts`), the one list of them.
 
 It leaves out the skill's own hash and its previous version's: a result records those apart (`results.py`), so a
 changed skill on one setup is still comparable.
@@ -28,18 +30,17 @@ import hashlib
 import json
 from pathlib import Path
 
+import kit
 import manifest
 import runs
 
 HARNESS = Path(__file__).resolve().parent
-LABEL_RULE = ("checks.py", "goldens.py", "grader.py", "grades.py", "grading.py", "labels.py", "measures.py",
-              "setups.py", "view.py")
 
 
 def setup(record, skill, cases, drift, folder=HARNESS):
     """{"parts", "fingerprint"} of the setup that measured `skill` in the round whose manifest is `record`: `cases`
     are the skill's own cases by id, `drift` the tools and drift record of each host that passed its probes (the
-    hosts that grade), and `folder` holds the harness code."""
+    hosts that grade), and `folder` holds the harness code, in the repository whose kit list names the label rule."""
     siblings = sorted({name for case in cases.values() for name in case.siblings or ()} - {skill})
     tools = sorted({tool for case in cases.values() for tool in case.tools or ()})
     parts = {"kit": record["kit"], "cases": record["cases"][skill],
@@ -50,8 +51,10 @@ def setup(record, skill, cases, drift, folder=HARNESS):
              "hosts": {name: {"version": host["version"], "model": host["model"]}
                        for name, host in record["hosts"].items()},
              "graders": sorted(drift), "runs": record["plan"]["runs"], "pinned": record.get("pinned") is True,
+             **({"extra runs": runs.extra(record)} if runs.extra(record) else {}),  # none: as before the cap was
              "runner": runs.runner(folder),
-             "label rule": manifest.digest({name: manifest.entry(Path(folder) / name) for name in LABEL_RULE})}
+             "label rule": manifest.digest({Path(path).name: manifest.entry(Path(folder) / Path(path).name)
+                                            for path in kit.parts(Path(folder).parents[1])["label rule"]})}
     return {"parts": parts, "fingerprint": hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()}
 
 
