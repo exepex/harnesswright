@@ -40,7 +40,8 @@ HARNESS = Path(__file__).resolve().parent
 def setup(record, skill, cases, drift, folder=HARNESS):
     """{"parts", "fingerprint"} of the setup that measured `skill` in the round whose manifest is `record`: `cases`
     are the skill's own cases by id, `drift` the tools and drift record of each host that passed its probes (the
-    hosts that grade), and `folder` holds the harness code, in the repository whose kit list names the label rule."""
+    hosts that grade), and `folder` holds the harness code, in the repository whose kit list names the label rule:
+    each of its files is read at its path in that repository, such as the resolver's names the view reads."""
     siblings = sorted({name for case in cases.values() for name in case.siblings or ()} - {skill})
     tools = sorted({tool for case in cases.values() for tool in case.tools or ()})
     parts = {"kit": record["kit"], "cases": record["cases"][skill],
@@ -53,7 +54,7 @@ def setup(record, skill, cases, drift, folder=HARNESS):
              "graders": sorted(drift), "runs": record["plan"]["runs"], "pinned": record.get("pinned") is True,
              **({"extra runs": runs.extra(record)} if runs.extra(record) else {}),  # none: as before the cap was
              "runner": runs.runner(folder),
-             "label rule": manifest.digest({Path(path).name: manifest.entry(Path(folder) / Path(path).name)
+             "label rule": manifest.digest({path: manifest.entry(Path(folder).parents[1] / path)
                                             for path in kit.parts(Path(folder).parents[1])["label rule"]})}
     return {"parts": parts, "fingerprint": hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()}
 

@@ -91,6 +91,8 @@ class Fingerprints(Round):
         folder = self.tmp / "evals" / "harness"  # with the kit list beside it, which names the label rule
         shutil.copytree(setups.HARNESS, folder, ignore=shutil.ignore_patterns("__pycache__", "tests"))
         shutil.copy(REPO / "evals" / "kit.json", folder.parent / "kit.json")
+        (self.tmp / "v2" / "build").mkdir(parents=True)  # the resolver's names, which the view reads
+        shutil.copy(REPO / "v2" / "build" / "runfiles.py", self.tmp / "v2" / "build" / "runfiles.py")
         first = self.setup(record, None, DRIFT, folder)
         self.assertEqual(first, self.setup(record))  # the same code, the same setup
         with open(folder / "labels.py", "a") as handle:
