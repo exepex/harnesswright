@@ -88,12 +88,14 @@ goes on to the graders. The grade gate grades every run's and golden's page in o
 run's answer counts only where the goldens got their settled answers. Each graded page leaves one record in the
 attempt's own folder (`<store>/<round>/grades/<attempt>/`). A run's grade is made once and kept across attempts
 (`<store>/<round>/kept-grades/<key>.json`) with the golden result its graders were trusted under; a later attempt
-grades its goldens again and counts a kept answer only when its question is trusted both now and then. When a
+grades its goldens again and counts a kept answer only when its question is trusted both now and then, and only
+when its panel has the kept grade's routes, each grader's host and model; a kept grade is never made again. When a
 measure or floor is `too close`, the extra runs gate (`extras.py`) adds 3 runs to each split case it reads, in each
 arm it reads, through the run, check and grade steps, at most as many per case and arm as the plan's `extra_runs`
 (0, 3 or 6), and decides again; the fault gate's runs are never extended, and a label already bound to be
 `incomplete` or `inconclusive` by another reason gets none, the gate's outcome saying why (`skipped`). A regrade
-reads the same runs as the label (`labels.with_extras`). The label file names the extra runs of
+reads the same runs as the label (`labels.with_extras`), and golden accuracy the same goldens, every pass's
+(`grades.golden_records`). The label file names the extra runs of
 each case and arm (`extra_runs`). A check that breaks, a grader that breaks its jail or a
 golden that cannot be built stops the round. Each gate's outcome, that of the gate that stopped the round too, is
 written, as it ends, to the attempt record `<store>/<round>/attempts/<time>-<random>.json`, with the seed.
@@ -203,8 +205,9 @@ python3 evals/harness/regrade.py ROUND --store DIR --route goose=MODEL@UPSTREAM 
     [--seed N] [--pages all|run|golden] [--graders 1|2]
 ```
 
-It refuses a kit that is not the approved one, a changed case or adapter, and a page that does not hash as the
-round's grade record says. Each route passes every probe and the grader faults before any route grades. Then each
+It refuses a kit that is not the approved one, a changed case or adapter, a page that does not hash as the round's
+grade record says, and a source attempt with a gate before the label gate, extra runs included, that did not pass.
+Each route passes every probe and the grader faults before any route grades. Then each
 route grades every page with two fresh graders, and the pass is written to `<store>/<round>/regrade/<pass>/`,
 apart from the round's grades and labels. `--pages` and `--graders` grade fewer pages, or with one grader, to
 stay in budget; `regrade.json` records the choice, and its `finished` time stays empty when the pass stopped.

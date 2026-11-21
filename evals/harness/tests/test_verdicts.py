@@ -214,7 +214,15 @@ class Verdicts(unittest.TestCase):
         reference = measured(task=(1, 1, 1, 1, 0))  # 4 of 5 on the reference host, 9 of 10 here
         gap = verdicts.judged(measured(task=(1,) * 9 + (0,)), reference)["gap to the reference host"]
         self.assertEqual(gap, {"verdict": "too close", "value": -0.1, "best": -0.4, "worst": 0.2,
-                               "split": {"with_skill": ["t"]}})  # extra runs go to this host's split case
+                               "split": {"reference host: with_skill": ["t"], "with_skill": ["t"]}})
+
+    def test_a_gap_too_close_on_the_reference_host_s_split_cases_names_them_under_their_own_key(self):
+        two = {"a": case(), "b": case()}
+        mine = summary(two, {("a", "with_skill"): [True] * 3, ("b", "with_skill"): [False] * 3})
+        theirs = summary(two, {("a", "with_skill"): [True] * 3, ("b", "with_skill"): [True, False, False]})
+        gap = verdicts.judged(mine, theirs)["gap to the reference host"]
+        self.assertEqual(gap, {"verdict": "too close", "value": 0.1667, "best": 0.0, "worst": 0.3333,
+                               "split": {"reference host: with_skill": ["b"], "with_skill": []}})
 
     def test_format_conformance_flips_the_items_of_one_run(self):
         found = {**measured(), "format_runs": {"with_skill": {"t": [[3, 4], [4, 4]]}}}
