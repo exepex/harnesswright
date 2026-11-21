@@ -1,0 +1,16 @@
+{
+ "args": {
+  "skill": "skill-designer"
+ },
+ "outcome": "pass",
+ "final_message": "Blocked: resolve.py stopped; the run cannot go on.\n",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "timeout 60 python3 SKILL_DIR/scripts/resolve.py --repo . --run r1",
+   "exit_code": 3,
+   "output": ""
+  }
+ ]
+}

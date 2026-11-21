@@ -89,7 +89,11 @@ PLAIN_PROGRAM = rf"[ \t]*{PLAIN_TOKEN}(?:[ \t]+{PLAIN_TOKEN})*[ \t]*"
 PLAIN_COMMAND = re.compile(rf"{PLAIN_PROGRAM}(?:(?:&&|\|\||[;|]){PLAIN_PROGRAM})*")
 # Programs that always hand the shell on to what follows them: never `exit`, `exec`, `set` or `source`, nor a
 # wrapper that runs another program (`env`, `timeout`, `xargs`), nor a program by its path, which may be anything.
-CONTINUES = frozenset((STATELESS - {"env", "timeout", "xargs"}) | {"cd", "pwd", "true", "false", "printf"})
+CONTINUES = frozenset((
+    "awk", "basename", "cat", "cd", "cmp", "cp", "cut", "diff", "dirname", "du", "echo", "false", "file", "find", "go",
+    "grep", "head", "ls", "md5sum", "mkdir", "mv", "nl", "node", "printf", "pwd", "python", "python3", "readlink",
+    "realpath", "rm", "sed", "sha256sum", "sort", "stat", "tail", "test", "touch", "tr", "tree", "true", "uniq",
+    "wc"))
 
 
 def plain(command):
