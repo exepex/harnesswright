@@ -39,8 +39,8 @@ def questions(folder, attempt, graded_runs):
         given = {}  # each question's answers on this page, as (grader, answer), from every try of every grader
         for number, grader in enumerate(record.get("graders", [])):
             for answers in [*(grader.get("offered") or []), _accepted(grader.get("sheet"))]:
-                for id_, answer in (answers or {}).items():
-                    given.setdefault(id_, []).append((number, answer))
+                for id_, said in (answers or {}).items():
+                    given.setdefault(id_, []).extend((number, answer) for answer in said)
         for id_ in record["asked"]:
             here = found.setdefault(f"{case or record['case']} {id_}", {"agreed": 0, "pages": 0, "flipped": []})
             if len({number for number, _ in given.get(id_, [])}) >= 2:
@@ -59,4 +59,4 @@ def questions(folder, attempt, graded_runs):
 
 
 def _accepted(sheet):
-    return {answer["id"]: answer["answer"] for answer in sheet["answers"]} if sheet else None
+    return {answer["id"]: [answer["answer"]] for answer in sheet["answers"]} if sheet else None
