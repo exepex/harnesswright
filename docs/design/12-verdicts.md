@@ -59,7 +59,9 @@ they are measured differently.
   release check agree with what the world holds. World lint checks that the untouched world passes the build
   checks.
 - A case adds or removes files on top of that world. Its files are copied in and its Jobs rows added to
-  `v2/roles.md`; the world is then rebuilt and checked by the same build before the run, so a skill the case
+  `v2/roles.md`. It never writes the build's own code or the `release/` it makes: a case path at, inside or above
+  them is refused, and both must still be the base's, byte for byte, before the build runs, so the build is always
+  the pinned one. The world is then rebuilt and checked by the same build before the run, so a skill the case
   brings that is in no job is refused. The case's `remove` paths go after the build, so it never puts them back.
   When the sources left still build, the release is rebuilt from them, so the world passes the release check
   before the run; a removed path that this build puts back is refused.

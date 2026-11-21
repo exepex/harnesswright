@@ -132,7 +132,9 @@ The lint runs before any run. A case that fails it cannot run. It rejects:
 
 In an internal world ([12 · Verdicts](12-verdicts.md#internal-worlds)), the pinned base is project text: the judges
 approve it with the pin, and it is the same in every arm. So the lint reads it only for the skill's name; the
-case's own files and the prompt meet every rule. Every link in the whole world must lead to a file it holds.
+case's own files, its Jobs rows and the prompt meet every rule. Only a base file the case left byte for byte
+unchanged is project text: a base file its rows or the rebuilt release changed is the case's, read for the skill's
+name and never excusing anything. Every link in the whole world must lead to a file it holds.
 
 ## Containment: what a run can see
 

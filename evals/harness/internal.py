@@ -31,7 +31,8 @@ link or a `@` import leads to a path the world lacks is refused, before and afte
 
 One rule decides what a case writes. The pinned build owns its code, the folder of the `BUILD` scripts and all they
 run, and the `release/` it makes (`BUILT_BY_PIN`); the case may write every other path. So the case's `world/` may
-hold no path at, inside or above one of them but a folder, and the build that runs is always the pinned one. What
+hold no path at, inside or above one of them but a folder, and before the build runs every entry under them must
+still be the base's, byte for byte, so the build that runs is always the pinned one. What
 the case writes is its own (`own_files`), never the approved base: each path of its `world/`, and every other path
 whose entry differs from the base's, changed through its jobs rows or the release rebuilt from them. So only a base
 file the case left byte for byte unchanged is approved base text (`lint.visible`).
@@ -259,6 +260,11 @@ def world_of(case, out, repo=REPO, kit=None):
     if (case.folder / "world").is_dir():  # a case may add no file (`cases.Case`)
         shutil.copytree(case.folder / "world", out, symlinks=True, dirs_exist_ok=True)
     add_jobs(out, case.internal_world.get("jobs", []), case.id)
+    after = manifest.manifest(out)  # the proof, by bytes, whatever name reached them, such as on a case-blind disk
+    moved = sorted(p for p in set(before) | set(after) if before.get(p) != after.get(p)
+                   and any(p == r or p.startswith(f"{r}/") for r in BUILT_BY_PIN))
+    if moved:
+        raise CaseError(f"{case.id}: {moved[0]}: the case's files changed what the pinned build owns")
     try:
         build_checks(out)
     except CaseError as error:

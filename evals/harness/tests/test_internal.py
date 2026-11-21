@@ -291,10 +291,16 @@ class Reader(TempCase):
             internal.world_of(alone, self.tmp / "alone", self.repo, self.kit())
 
     def test_a_case_never_writes_what_the_pinned_build_owns_and_its_job_rows_are_its_own_text(self):
-        for rel in ("v2/build/build.py", "release/manifest.json"):  # the build that runs, and what it makes
-            with self.subTest(rel), self.assertRaisesRegex(CaseError, "the pinned build owns"):
+        for n, (rel, at) in enumerate((("v2/build/build.py", "v2/build"), ("release/manifest.json", "release"),
+                                       ("release", "release"), ("v2", "v2"))):  # its folder found at, then above
+            with self.subTest(rel), self.assertRaisesRegex(CaseError, f"world/{at}: the pinned build owns"):
                 case = self.case({rel: "import sys\nsys.exit(0)\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
-                internal.world_of(case, self.tmp / f"out-{rel[:2]}", self.repo, self.kit())
+                internal.world_of(case, self.tmp / f"out-{n}", self.repo, self.kit())
+        plant = lambda folder, rows, name: (Path(folder) / "v2" / "build" / "build.py").write_text("raise SystemExit\n")
+        case = self.case({"incoming/a.md": "A.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+        with mock.patch.object(internal, "add_jobs", plant), self.assertRaisesRegex(  # a name the name test misses
+                CaseError, "v2/build/build.py: the case's files changed what the pinned build owns"):
+            internal.world_of(case, self.tmp / "out-planted", self.repo, self.kit())
         row = "| grader | implementer | note-taker | note-taker |"
         case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
                          {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
@@ -304,7 +310,7 @@ class Reader(TempCase):
 
     def test_a_base_path_the_case_changed_is_never_project_text_whatever_its_line_breaks(self):
         row = "| notes | implementer | note-taker | note-taker |"
-        for mark in ("\u2028", "\u2029"):  # line breaks to str.splitlines, a space to the lint's words
+        for mark in (" ", "\u2028", "\u2029"):  # the last two break lines for str.splitlines, not for the lint
             with self.subTest(mark=repr(mark)):
                 files = {"incoming/notes.md": "Ship the release on Friday.\n",
                          "v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER,
