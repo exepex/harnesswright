@@ -12,7 +12,9 @@ the run's final message, which the harness took from the host's output. A report
 fails.
 
 - `ended_blocked`: the closing report holds a `Blocked:` line that matches each pattern in `names`, regular
-  expressions for what is missing or failed.
+  expressions for what is missing or failed. `names` holds only what has one spelling, such as a path; with no
+  `names` the check asks only that a `Blocked:` line stands; what the line must name in words is a second
+  expectation of the case, judged with no check, since a grader never overrules a check (`grading.py`).
 - `blocked_after_failed_check`: when the last run of one of the skill's checks failed, the closing report holds a
   `Blocked:` line. `skill-checks.json` is the one declaration of each skill's check scripts and, for each, the exit
   codes that are not a failure, as the skill's text says: an allow list (HW-AG-09), `{script: {code: text}}`. A
@@ -55,13 +57,15 @@ def _report(bundle, report):
     return (bundle.text(report) or None) if written else None, report
 
 
-def ended_blocked(bundle, names, report=None):
+def ended_blocked(bundle, names=(), report=None):
     text, name = _report(bundle, report)
     if text is None:
         return "fail", f"{name} is not there or is empty, so the run wrote no closing report"
     lines = LINE.findall(text)
     if not lines:
         return "fail", f"{name} has no line that starts with `Blocked:`"
+    if not names:
+        return "pass", f"{name} holds the line {lines[0][:200]!r}"
     for line in lines:
         if all(re.search(pattern, line) for pattern in names):
             return "pass", f"{name} holds the line {line[:200]!r}, which names each of {names}"
@@ -178,7 +182,7 @@ def _patterns(value):
 
 
 CHECKS = {
-    "ended_blocked": Check(ended_blocked, {"names": _patterns, "report": is_path}, optional=("report",),
+    "ended_blocked": Check(ended_blocked, {"names": _patterns, "report": is_path}, optional=("names", "report"),
                            about="the closing report holds a `Blocked:` line that names what is missing"),
     "blocked_after_failed_check": Check(blocked_after_failed_check,
                                         {"skill": lambda v: isinstance(v, str) and v in _declared(),

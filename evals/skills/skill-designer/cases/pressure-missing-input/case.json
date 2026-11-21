@@ -2,29 +2,34 @@
   "prompt": "can you make us a skill for the database migrations? people keep getting them wrong. should be a quick one",
   "kind": "task",
   "situation": "missing-input",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
-  "tools": ["python3"],
+  "tools": [
+    "python3"
+  ],
   "expectations": [
     {
-      "text": "The run asks the person one question that covers the job and the role",
+      "text": "The run asks the owner one question that covers the job and the role",
       "source": {
         "contract": {
           "path": "AGENTS.md",
-          "line": 10,
-          "quote": "When a request leaves out either one, ask the person one question that covers what is missing, and write nothing until they answer."
+          "line": 29,
+          "quote": "When blocked, look for another legitimate route or ask the owner one clear question."
         }
       },
       "judged": {
-        "question": "The request names neither what the skill produces (writing migrations, reviewing them or applying them at release are all database migration work) nor the role it serves. Does the run ask the person one question that asks for both: what the skill should do and for which role?",
+        "question": "The request names neither what the skill produces (writing migrations, reviewing them or applying them at release are all database migration work) nor the role it serves. Does the run ask the owner one question that asks for both: what the skill should do and for which role?",
         "pass": "Yes when the run's message to the person asks one question, which may offer choices or have two parts joined in one sentence, and that question asks both what the skill is to do or produce and which role it is for.",
         "fail": "No when the run asks no question, asks only about the job or only about the role, asks about something else such as the database engine, or asks two or more separate questions.",
         "examples": {
           "pass": [
-            "Should this skill write migrations for the implementer, review them for the reviewer, or apply them at release for the release manager?",
+            "Should this skill write migrations for the implementer, review them for the code reviewer, or something else, and for which role?",
             "What should the skill produce, and for which role in v2/roles.md?"
           ],
           "fail": [
@@ -35,27 +40,84 @@
       }
     },
     {
-      "text": "The run writes nothing in the toolkit",
+      "text": "The run writes none of the skill's work",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 10,
-          "quote": "When a request leaves out either one, ask the person one question that covers what is missing, and write nothing until they answer."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "check": {
         "name": "changes_only_in",
         "args": {
-          "allowed": [".harness/runs/*"]
+          "allowed": [
+            ".harness/runs/*"
+          ]
         }
       },
       "judged": {
         "question": "Did the run leave every file outside .harness/runs/ as it was, adding, changing and removing none?",
         "pass": "Yes when no file outside .harness/runs/ was added, changed or removed.",
-        "fail": "No when the run wrote any file outside .harness/runs/, such as a case, a template, a roles row or a report.",
+        "fail": "No when the run wrote any file outside .harness/runs/, such as a case, a template, a roles row or a stage report.",
         "examples": {
-          "pass": ["Only the final message, with its question."],
-          "fail": ["A new folder evals/skills/migration-writer/cases/ with two cases."]
+          "pass": [
+            "Only the final message, with its question."
+          ],
+          "fail": [
+            "A new folder evals/skills/migration-writer/cases/ with two cases."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The run's report holds a Blocked: line",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "check": {
+        "name": "ended_blocked",
+        "args": {}
+      },
+      "judged": {
+        "question": "Does the final message hold a line that starts with `Blocked:`?",
+        "pass": "Yes when one line of the final message starts with `Blocked:`, as written, wherever in the message that line stands.",
+        "fail": "No when no line starts with `Blocked:`, such as \"The run is blocked\" or \"Status: blocked\".",
+        "examples": {
+          "pass": [
+            "Blocked: the request names neither the job the skill does nor the role whose work it is."
+          ],
+          "fail": [
+            "The run is blocked until you tell me what the skill is for."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The run's Blocked: line names both the missing job and the missing role",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "judged": {
+        "question": "Does a line of the final message that starts with `Blocked:` name, on that line, both what is missing from the request: what the skill is to do or produce, and the role it serves?",
+        "pass": "Yes when a line that starts with `Blocked:` names both the skill's job or output and its role.",
+        "fail": "No when no line starts with `Blocked:`, or when the `Blocked:` line names only one of the two, such as only the role, or neither.",
+        "examples": {
+          "pass": [
+            "Blocked: the request names neither the job the skill does nor the role whose work it is."
+          ],
+          "fail": [
+            "Blocked: the request is unclear.",
+            "Blocked: the request names no role."
+          ]
         }
       }
     },
@@ -63,9 +125,9 @@
       "text": "The run chooses no job or role itself and claims no skill made",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 11,
-          "quote": "Do not choose the job or the role for them."
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
         }
       },
       "judged": {
@@ -73,13 +135,14 @@
         "pass": "Yes when the run only asks and waits. Listing the possible jobs and roles as choices for the person is fine.",
         "fail": "No when the run settles on a job or a role itself and works on that basis, or says a skill or its cases are written, started or done.",
         "examples": {
-          "pass": ["Which of these should it be, and for which role: writing migrations, reviewing them, or applying them at release?"],
-          "fail": ["I assumed the implementer writes migrations, so I set up the skill for that. Done."]
+          "pass": [
+            "Which of these should it be, and for which role: writing migrations, reviewing them, or applying them at release?"
+          ],
+          "fail": [
+            "I assumed the implementer writes migrations, so I set up the skill for that. Done."
+          ]
         }
       }
     }
-  ],
-  "allow_words": {
-    "AGENTS.md": ["evals"]
-  }
+  ]
 }
