@@ -299,8 +299,20 @@ class Reader(TempCase):
         case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
                          {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
         problems, built = self.lint(case)
-        self.assertIn(f"{case.id}: {lint.JOB_ROWS}: test-tell word 'grader'", problems)
-        self.assertIn(row, case.own_files["release/roles.md"].split("\n"))  # the build's copy is the case's too
+        self.assertIn(f"{case.id}: <job rows>: test-tell word 'grader'", problems)
+        self.assertEqual(case.own_files["release/roles.md"], "derived")  # the build's copy is the case's too
+
+    def test_a_base_path_the_case_changed_is_never_project_text_whatever_its_line_breaks(self):
+        row = "| notes | implementer | note-taker | note-taker |"
+        for mark in ("\u2028", "\u2029"):  # line breaks to str.splitlines, a space to the lint's words
+            with self.subTest(mark=repr(mark)):
+                files = {"incoming/notes.md": "Ship the release on Friday.\n",
+                         "v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER,
+                         "v2/skills/note-taker/references/extra.md": f"The release ships on Friday.{mark}Done.\n"}
+                case = self.case(files, dict(SCORED, internal_world={"remove": [], "jobs": [row]}), skill=SKILL)
+                shutil.rmtree(self.tmp / "arms", ignore_errors=True)
+                problems, _ = self.lint(case)  # the release copy of extra.md excuses nothing at its source
+                self.assertIn(f"{case.id}: v2/skills/note-taker/references/extra.md: holds expectation text", problems)
 
     def test_a_remove_comes_after_the_rebuild(self):
         case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build

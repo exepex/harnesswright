@@ -5,7 +5,6 @@ expectation, so that its runs are scored. Split out of lint.py by purpose; `lint
 Standard library only.
 """
 
-import itertools
 import json
 
 import cases
@@ -25,11 +24,8 @@ def citations(case, places):
     task case also needs a contract expectation that one of harnesswright's own checks decides
     (`verdicts.own_checked`), or the round lists it unchecked."""
     found, problems, library = [], [], None
-    documents = {}  # a base path the case brought lines into is two places, each blank where the other holds text
-    for p in places:
-        if p.kind in ("world", "base", "derived") and p.text is not None and not p.link:
-            rows, held = p.text.split("\n", 1)[1].split("\n"), documents.get(p.key, "").split("\n")
-            documents[p.key] = "\n".join(a or b for a, b in itertools.zip_longest(held, rows, fillvalue=""))
+    documents = {p.key: p.text.split("\n", 1)[1] for p in places
+                 if p.kind in ("world", "base", "derived") and p.text is not None and not p.link}
     for number, expectation in enumerate(case.expectations, 1):
         if "check" in expectation:
             try:

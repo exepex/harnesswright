@@ -10,9 +10,10 @@ place that run can see. A place has a kind:
 - `rows`: the index rows of the installed siblings, as the run reads them: the case's row template filled with
   each sibling's name, path and description;
 - `base`: a file of an internal world's pinned base, which the case did not add or change (internal.py);
-- `derived`: the lines the pinned build made from the case's files and job rows in a base path, such as its rebuilt
-  release: the case's, never approved project text, so they excuse nothing, and the skill-name rule reads them, as
-  every rule reads the case's files and job rows (`declared`) they come from.
+- `derived`: a base path the case changed, through its job rows or the release the pinned build rebuilt from its
+  files: the case's, never approved project text, so it excuses nothing. Only base files the case left byte for byte
+  unchanged are project text. The skill-name rule reads it, as every rule reads the case's files and job rows
+  (`declared`) it comes from.
 
 `RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
@@ -122,12 +123,7 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        kind = "installed" if installed else "world" if own is None or own.get(path, "") is None else "base"
-        if kind == "base" and own.get(path) and body is not None:  # a base path the case brought lines into: those
-            mine, rows = set(own[path].split("\n")), body.split("\n")  # lines are its own, the rest stays the base's
-            places.append(Place(path, path + "\n" + "\n".join(r if r.rstrip("\r") in mine else "" for r in rows),
-                                "derived"))
-            body = "\n".join("" if r.rstrip("\r") in mine else r for r in rows)  # each keeps its line numbers
+        kind = "installed" if installed else "world" if own is None else own.get(path, "base")
         places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]

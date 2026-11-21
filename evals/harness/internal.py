@@ -32,9 +32,9 @@ link or a `@` import leads to a path the world lacks is refused, before and afte
 One rule decides what a case writes. The pinned build owns its code, the folder of the `BUILD` scripts and all they
 run, and the `release/` it makes (`BUILT_BY_PIN`); the case may write every other path. So the case's `world/` may
 hold no path at, inside or above one of them but a folder, and the build that runs is always the pinned one. What
-the case writes is its own (`own_files`), never the approved base: each file of its `world/` whole, and in every
-other path it changes, through its jobs rows or the release rebuilt from them, each line the base world held
-nowhere. The world lint reads them so (`lint.visible`).
+the case writes is its own (`own_files`), never the approved base: each path of its `world/`, and every other path
+whose entry differs from the base's, changed through its jobs rows or the release rebuilt from them. So only a base
+file the case left byte for byte unchanged is approved base text (`lint.visible`).
 
 Standard library only.
 """
@@ -247,11 +247,10 @@ def world_of(case, out, repo=REPO, kit=None):
     sources the case leaves still build, the release is rebuilt from them, so it is what the build makes of the world
     and passes the release check before any run; a `remove` path that build puts back is refused. When they do not
     build, such as with `v2/VERSION` removed, the release stays as built before the remove. It sets the case's
-    `own_files` ({path: None for a whole file of its `world/`, or the new lines of a path it changed otherwise})."""
+    `own_files` ({path: "world" for a path of its `world/`, or "derived" for any other path it changed})."""
     _, paths, _, _ = read_kit(kit)
     base(case.skill, out, repo, kit)
     before = manifest.manifest(out)
-    held = {line for p, e in before.items() if manifest.kind(e) == "file" for line in _text(out, p).splitlines()}
     for path, entry in sorted(case.world_files.items()):  # the one rule: the pinned build's paths are never the case's
         owned = [p for p in BUILT_BY_PIN if path == p or p.startswith(f"{path}/") and manifest.kind(entry) != "dir"
                  or path.startswith(f"{p}/")]
@@ -274,17 +273,10 @@ def world_of(case, out, repo=REPO, kit=None):
     if case.internal_world["remove"]:
         _rebuild(case, out)
     check_links(out)
-    case.own_files = dict.fromkeys(case.world_files)
-    for path, entry in sorted(manifest.manifest(out).items()):
-        new = [] if path in case.world_files or before.get(path) == entry or manifest.kind(entry) != "file" else [
-            line for line in _text(out, path).splitlines() if line not in held]
-        if new:  # its jobs rows, or what the build made of its files
-            case.own_files[path] = "\n".join(new)
+    case.own_files = {path: "world" if path in case.world_files else "derived"  # the base is what it left alone
+                      for path, entry in manifest.manifest(out).items()
+                      if path in case.world_files or before.get(path) != entry}
     return Path(out)
-
-
-def _text(folder, path):
-    return (Path(folder) / path).read_bytes().decode("utf-8", "replace")
 
 
 def _rebuild(case, out):
