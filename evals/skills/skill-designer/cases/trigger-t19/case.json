@@ -3,6 +3,9 @@
   "kind": "trigger",
   "should_trigger": false,
   "split": "test",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",

@@ -1,8 +1,11 @@
 {
-  "prompt": "draft v2/roles/story-judge.md: purpose, reads, produces, model class and access, like the other role files",
+  "prompt": "add a docs writer row to the Roles table of v2/roles.md: its group, purpose, what it produces, what it never does, its model class and whether it is independent, like the other rows",
   "kind": "trigger",
   "should_trigger": false,
   "split": "test",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",

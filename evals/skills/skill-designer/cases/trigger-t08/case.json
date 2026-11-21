@@ -1,8 +1,11 @@
 {
-  "prompt": "is the TDD skill in incoming/tdd/ good enough to adopt as it is, or should we adapt it? score it against docs/skill-checklist.md and then take whichever path is right",
+  "prompt": "is the TDD skill in incoming/tdd/ good enough to adopt as it is, or should we adapt it? score it against the quality checklist in docs/design/10-skills.md and then take whichever path is right",
   "kind": "trigger",
   "should_trigger": true,
   "split": "train",
+  "internal_world": {
+    "remove": []
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
