@@ -5,7 +5,8 @@ One rule. Text that both arms hold byte for byte, in a world file the run left a
 apart, so the arm words (`cases.ARMS`, `cases.PREVIOUS`) are read everywhere except in those files. An internal
 world keeps docs 11 and 12 (doc 12, Internal worlds), which name the arms; a grader reads the same text in every
 arm. That a file is held by both arms is proven, never assumed: both arms of the case are built and a file is
-allowed only when its entry is the record's in each (`shared`). The skill's name and paths count everywhere.
+allowed only when its entry is the record's in each (`shared`). The skill's name and paths count everywhere, in any
+spelling: whole, or inside a longer name such as `rules-text-<skill>.core.md`, a file only the with-skill arm writes.
 
 Standard library only.
 """
@@ -45,10 +46,10 @@ def shared(case, adapter, folder, record):
 
 def shown(case, record, blob, names, held=None):
     """The names that the view of `record` (its record and every blob) or its page holds, each by the rule the view
-    keeps for it. The skill's name and paths count as whole names: not inside a longer name such as
-    `rules-text-<skill>.core.md`, a file the run itself made. An arm's name counts anywhere except in a file of
-    `held` (`shared`) that `record` still holds unchanged. The tests are written here, not taken from `world.names`,
-    so a fault in that pattern cannot hide itself."""
+    keeps for it. The skill's name and paths count wherever no ASCII letter or digit stands next to them, so inside
+    a longer name such as `rules-text-<skill>.core.md` too, as the view hides them. An arm's name counts anywhere
+    except in a file of `held` (`shared`) that `record` still holds unchanged. The tests are written here, not taken
+    from `view.spelled`, so a fault in that pattern cannot hide itself."""
     found, blobs, page = seen(case, record, blob)
     text = json.dumps(found, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
     text += page
@@ -59,5 +60,5 @@ def shown(case, record, blob, names, held=None):
     rest_blobs = {digest: data for digest, data in blobs.items() if digest in used}
     arm_text = json.dumps(rest, ensure_ascii=False) + "".join(
         data.decode("utf-8", "replace") for data in rest_blobs.values()) + grading.page(case.prompt, rest, rest_blobs)
-    return [name for name in names if re.search(f"(?<![A-Za-z0-9_-]){re.escape(name)}(?![A-Za-z0-9_-])", text)] \
+    return [name for name in names if re.search(f"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])", text)] \
         + [arm for arm in (*cases.ARMS, cases.PREVIOUS) if arm in arm_text]

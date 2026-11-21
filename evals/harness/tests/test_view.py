@@ -159,12 +159,20 @@ class Views(TempCase):
                 "folders": {}, "own_files": [], "files_after": files_after or {}, "diff": {}, "final_message": None,
                 "case": None, "mode": "task", "log": log}
 
+    def test_a_file_only_the_with_skill_arm_writes_under_a_longer_name_of_the_skill_tells_no_arm(self):
+        rules = "rules-text-haiku-writer.core.md"  # as the standards reader names its file, with the skill only
+        shown, _ = self.views(LISTED, skill_only=SKILL_ONLY + [
+            {"do": "write", "path": rules, "text": "rules\n"}, {"do": "command", "command": f"wc -l {rules}"},
+            {"do": "write", "path": "haiku-writer_draft.md", "text": "draft\n"}])
+        self.assertEqual([item["command"] for item in shown["log"] if item["kind"] == "command"][-1:], [
+            LISTED[2]["command"]])  # views() also proves both arms' views equal and that neither names the skill
+
     def test_a_change_only_to_the_overlay_is_no_change(self):
         shown, _ = self.views(RESTORED)
         self.assertEqual(shown["diff"], {"skills": {"before": None, "after": shown["files_after"]["skills"]}})
 
     def test_an_action_is_the_overlay_s_when_it_loads_or_names_the_skill(self):
-        words = world.names(["haiku-writer", "skills/haiku-writer"])
+        words = view.spelled(["haiku-writer", "skills/haiku-writer"])
         for item, mine in (({"kind": "skill", "source": "observed", "name": "x"}, True),
                            ({"kind": "read", "source": "inferred", "path": "skills/haiku-writer/SKILL.md"}, True),
                            ({"kind": "command", "source": "observed", "command": "ls skills/haiku-writer"}, True),
@@ -176,11 +184,12 @@ class Views(TempCase):
         self.assertEqual(view.text("a\n| haiku-writer |\r\nb /x/w/c", words, {"/x/w": "/run/project"}),
                          "a\nb /run/project/c")
         self.assertEqual(view.text(b"a\n|haiku-writer|\n", words, {}), b"a\n")
-        test = world.names(["test", "skills/test"])  # a skill's name is found only as a whole name
+        test = view.spelled(["test", "skills/test"])  # never inside a word, in any other spelling it is found
         self.assertFalse(view.on_overlay({"kind": "command", "source": "observed", "command": "pytest -q"}, test))
         cat = {"kind": "command", "source": "observed", "command": "cat skills/test/a"}
         self.assertTrue(view.on_overlay(cat, test))
-        self.assertEqual(view.text("def test_save():\nuse test.\n", test, {}), "def test_save():\n")
+        self.assertEqual(view.text("pytest ok\ndef test_save():\nuse test.\nrules-text-test.core.md\n", test, {}),
+                         "pytest ok\n")
         self.assertEqual(view._relative("/x/w/notes.txt", "/x/w"), "notes.txt")  # a host may report it absolute
         self.assertEqual(view.text("我使用test技能\n", test, {}), "")  # the same for text as for bytes
 
