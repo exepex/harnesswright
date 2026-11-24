@@ -7,7 +7,9 @@ what names the round exactly: its name, attempt, commit, the sha256 of its manif
 hashed, the hosts its probe gate passed (`ran`), the skill's hash and its previous version's (`skill_sha256`,
 `previous_sha256`), the setup the label file recorded (`setup`, `setups.py`), whether the round lists the skill as
 shipped (`shipped`, as the label file decides it, `labels.shipped`, or null when it does not; never decided here),
-and the file name and sha256 of the round's store archive. The archive must hold the round's
+the skill's share of the round's grader agreement (`agreement`, `agreement.questions`: its bar, its own questions
+and those named for rewriting; the round's `overall` spans every skill, so it stays in the label file, as splitting
+it would be a new count), and the file name and sha256 of the round's store archive. The archive must hold the round's
 store folder exactly, so anyone with it recomputes each label with `labels.py` at the round's commit. A round is
 read only when its last attempt passed every gate and the kit check of that attempt named the manifest's own kit.
 
@@ -31,6 +33,7 @@ import json
 import tarfile
 from pathlib import Path
 
+import endings
 import setups
 
 
@@ -55,7 +58,7 @@ def _sha256(path):
 
 def finished(folder):
     """The paths of the round's last attempt record and its label file. That attempt must have passed every gate."""
-    attempts = sorted(Path(folder, "attempts").glob("*.json"))
+    attempts = endings.attempts(Path(folder, "attempts"))  # in the order they started
     if not attempts:
         raise ResultsError(f"{folder}: the round has no attempt")
     attempt = _read(attempts[-1])
@@ -124,7 +127,17 @@ def entries(folder, archive):
                    "previous_sha256": record.get("previous", {}).get(skill, {}).get("sha256"),
                    "setup": labels.get("setups", {}).get(skill),
                    "shipped": labels.get("shipped", {}).get(skill)} for skill in labels["skills"]}
+    if "agreement" in labels:  # a label file written before it reported agreement has none
+        for skill in own:
+            own[skill]["agreement"] = _share(labels["agreement"], skill)
     return {skill: {**common, **own[skill], "hosts": hosts} for skill, hosts in sorted(labels["skills"].items())}
+
+
+def _share(report, skill):
+    """The part of the round's agreement `report` (`agreement.questions`) that names `skill`'s questions, copied."""
+    mine = sorted(question for question in report["questions"] if question.startswith(f"{skill}/"))
+    return {"threshold": report["threshold"], "questions": {q: report["questions"][q] for q in mine},
+            "rewrite": [question for question in report["rewrite"] if question in mine]}
 
 
 def order(entry):
@@ -188,8 +201,8 @@ def write(path, data):
     for n, entry in enumerate(data["rounds"]):
         lines.append("    {")
         for key in ("round", "attempt", "commit", "manifest_sha256", "kit", "ran", "archive", "not_run", "reference",
-                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped"):
-            if key not in entry:  # `not_run` only before situations were labelled; the last three only after setups
+                    "prices", "thresholds", "skill_sha256", "previous_sha256", "setup", "shipped", "agreement"):
+            if key not in entry:  # `not_run` only before situations were labelled; the last four only once recorded
                 continue
             lines.append(f"      {json.dumps(key)}: {json.dumps(entry[key], sort_keys=True)},")
         lines.append('      "hosts": {')

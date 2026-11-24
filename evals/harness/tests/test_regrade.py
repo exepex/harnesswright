@@ -202,6 +202,16 @@ class Regrade(Pages):
         with self.assertRaisesRegex(regrade.RegradeError, "whose grade gate passed, and every gate before the label"):
             self.run_it()
 
+    def test_the_latest_source_is_the_last_attempt_to_start(self):
+        self.source()
+        [path] = (self.store / "r1" / "attempts").glob("*.json")
+        path.with_name("99999999T999999-older.json").write_bytes(path.read_bytes())  # as an older store named it
+        r = regrade.gates.Round(regrade.gates.read(self.store, "r1", self.repo), self.store, self.repo,
+                                self.repo / "adapters")
+        self.assertEqual(regrade.source(r)[0], path.stem)
+        regrade.endings.claim(path.parent)  # a later attempt killed as it started: an empty record, no source
+        self.assertEqual(regrade.source(r)[0], path.stem)
+
     def test_a_route_proves_itself_by_every_probe_and_the_grader_fault_at_each_place(self):
         self.source()
         catalogue = json.loads((regrade.REPO / "evals" / "faults" / "harness.json").read_text())
