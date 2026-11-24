@@ -25,7 +25,7 @@ def citations(case, places):
     (`verdicts.own_checked`), or the round lists it unchecked."""
     found, problems, library = [], [], None
     documents = {p.key: p.text.split("\n", 1)[1] for p in places
-                 if p.kind in ("world", "base") and p.text is not None and not p.link}
+                 if p.kind in ("world", "base", "derived") and p.text is not None and not p.link}
     for number, expectation in enumerate(case.expectations, 1):
         if "check" in expectation:
             try:

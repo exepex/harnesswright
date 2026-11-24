@@ -5,11 +5,15 @@ exactly what the case says, and only then reads the without-skill arm. Every rul
 place that run can see. A place has a kind:
 
 - `world`: a world entry, its path and its text or link target, copies included;
-- `declared`: the prompt, a commit message, or the index row template the case writes;
+- `declared`: the prompt, a commit message, the index row template or an internal case's job rows;
 - `installed`: a file of an installed sibling skill;
 - `rows`: the index rows of the installed siblings, as the run reads them: the case's row template filled with
   each sibling's name, path and description;
-- `base`: a file of an internal world's pinned base, which the case did not add (internal.py).
+- `base`: a file of an internal world's pinned base, which the case did not add or change (internal.py);
+- `derived`: a base path the case changed, through its job rows or the release the pinned build rebuilt from its
+  files: the case's, never approved project text, so it excuses nothing. Only base files the case left byte for byte
+  unchanged are project text. The skill-name rule reads it, as every rule reads the case's files and job rows
+  (`declared`) it comes from.
 
 `RULES` says which rules read which kind. `world` and `declared` places are what the case author wrote, so every
 rule reads them. `installed` places are real project content, checked for the skill only. `rows` mix the two, so
@@ -67,12 +71,13 @@ CASE_DATA = ("case.json",)
 # The rules each kind of place is read by.
 EVERY = ("names", "arms", "skill", "tells", "eval", "expectations")
 RULES = {"world": EVERY, "declared": EVERY, "installed": ("names", "arms", "skill"),
-         "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",)}
+         "rows": ("names", "arms", "skill", "eval", "expectations"), "base": ("names",), "derived": ("names",)}
 # Standard licence texts, recorded once. Their terms are project text: a skill and a world may both carry the same
 # licence. Only text found in them is excused, never a file by its name.
 LICENCES = ("evals", "fixtures", "licences")
 INDEX_ROW = "<index row>"
 SIBLING_ROWS = "<sibling rows>"
+JOB_ROWS = "<job rows>"  # an internal case's `jobs` rows, which the world shows as written (internal.add_jobs)
 
 
 class Place:
@@ -103,11 +108,13 @@ def visible(case, arm):
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    own = None if case.internal_world is None else case.world_files  # the case's own files; the rest is the base
+    own = None if case.internal_world is None else case.own_files  # what the case wrote (internal.py)
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
         places.append(Place(INDEX_ROW, f"{case.index['after']}\n{case.index['row']}", "declared"))
+    if (case.internal_world or {}).get("jobs"):
+        places.append(Place(JOB_ROWS, "\n".join(case.internal_world["jobs"]), "declared"))
     for path, entry in sorted(files.items()):
         installed = any(path == t or path.startswith(t + "/") for t in targets)
         body = ""
@@ -116,7 +123,7 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        kind = "installed" if installed else "world" if own is None or path in own else "base"
+        kind = "installed" if installed else "world" if own is None else own.get(path, "base")
         places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]

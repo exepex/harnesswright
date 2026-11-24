@@ -290,6 +290,36 @@ class Reader(TempCase):
         with self.assertRaisesRegex(CaseError, refused):
             internal.world_of(alone, self.tmp / "alone", self.repo, self.kit())
 
+    def test_a_case_never_writes_what_the_pinned_build_owns_and_its_job_rows_are_its_own_text(self):
+        for n, (rel, at) in enumerate((("v2/build/build.py", "v2/build"), ("release/manifest.json", "release"),
+                                       ("release", "release"), ("v2", "v2"))):  # its folder found at, then above
+            with self.subTest(rel), self.assertRaisesRegex(CaseError, f"world/{at}: the pinned build owns"):
+                case = self.case({rel: "import sys\nsys.exit(0)\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+                internal.world_of(case, self.tmp / f"out-{n}", self.repo, self.kit())
+        plant = lambda folder, rows, name: (Path(folder) / "v2" / "build" / "build.py").write_text("raise SystemExit\n")
+        case = self.case({"incoming/a.md": "A.\n"}, {"internal_world": {"remove": []}}, skill=SKILL)
+        with mock.patch.object(internal, "add_jobs", plant), self.assertRaisesRegex(  # a name the name test misses
+                CaseError, "v2/build/build.py: the case's files changed what the pinned build owns"):
+            internal.world_of(case, self.tmp / "out-planted", self.repo, self.kit())
+        row = "| grader | implementer | note-taker | note-taker |"
+        case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
+                         {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
+        problems, built = self.lint(case)
+        self.assertIn(f"{case.id}: <job rows>: test-tell word 'grader'", problems)
+        self.assertEqual(case.own_files["release/roles.md"], "derived")  # the build's copy is the case's too
+
+    def test_a_base_path_the_case_changed_is_never_project_text_whatever_its_line_breaks(self):
+        row = "| notes | implementer | note-taker | note-taker |"
+        for mark in (" ", "\u2028", "\u2029"):  # the last two break lines for str.splitlines, not for the lint
+            with self.subTest(mark=repr(mark)):
+                files = {"incoming/notes.md": "Ship the release on Friday.\n",
+                         "v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER,
+                         "v2/skills/note-taker/references/extra.md": f"The release ships on Friday.{mark}Done.\n"}
+                case = self.case(files, dict(SCORED, internal_world={"remove": [], "jobs": [row]}), skill=SKILL)
+                shutil.rmtree(self.tmp / "arms", ignore_errors=True)
+                problems, _ = self.lint(case)  # the release copy of extra.md excuses nothing at its source
+                self.assertIn(f"{case.id}: v2/skills/note-taker/references/extra.md: holds expectation text", problems)
+
     def test_a_remove_comes_after_the_rebuild(self):
         case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build
         out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())
