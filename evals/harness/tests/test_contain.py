@@ -1,16 +1,19 @@
 """Containment: a run sees exactly its one list of mounts, and the audit proves it from inside the jail."""
 
+import json
 import os
 import subprocess
 import types
 import unittest
 
 from helpers import TempCase
+from test_host import fake_adapter
 
 import audit
 import cases
 import contain
 import manifest
+import world
 
 JAIL = contain.available()
 
@@ -201,6 +204,37 @@ class Jail(Setup):
         self.assertNotEqual(self.inside(run, "/usr/bin/touch", "new.md").returncode, 0)
         task = self.run_of("task")
         self.assertEqual(self.inside(task, "/usr/bin/touch", "new.md").returncode, 0)
+
+
+
+class StageTwoWorlds(TempCase):
+    """The stage 2 worlds of skill-designer as a run gets them: the build the world prescribes leaves no bytecode,
+    and the world is a repository whose label names a commit it holds, so a run can list what it changed."""
+
+    LABELS = {"draft-adapt": "evals/results/changelog-writer-baseline.json",
+              "improve-triggers": "evals/results/release-notes.json"}
+
+    def test_the_build_leaves_no_pycache_and_git_lists_the_changes_from_the_labels_commit(self):
+        found = {case.id: case for case in cases.load_cases("skill-designer") if case.id in self.LABELS}
+        self.assertEqual(sorted(found), sorted(self.LABELS))
+        for name, label in self.LABELS.items():
+            with self.subTest(case=name):
+                arm = world.build(found[name], fake_adapter(), self.tmp / name / "world").path
+                (self.tmp / name / "operator").mkdir()
+                run = contain.Containment(fake_adapter(), "task", arm, manifest.manifest(arm), self.tmp / name / "run",
+                                          operator_env={"PATH": os.environ["PATH"]},
+                                          operator_home=self.tmp / name / "operator")
+                self.assertEqual(run.env["PYTHONDONTWRITEBYTECODE"], "1")
+                built = subprocess.run(["python3", "v2/build/build.py"], cwd=arm, env=run.env, capture_output=True,
+                                       text=True, timeout=120)
+                self.assertEqual(built.returncode, 0, built.stderr)
+                self.assertEqual(sorted(p for p in manifest.manifest(arm) if "__pycache__" in p), [])
+                base = json.loads((arm / label).read_text())["commit"]
+                listed = subprocess.run(["sh", "-c", f"git add -N . && git diff --name-only {base}"], cwd=arm,
+                                        env=run.env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(listed.returncode, 0, listed.stderr)
+                self.assertIn(label, listed.stdout.split())  # recorded after the commit the label names
+                self.assertEqual([p for p in listed.stdout.split() if "__pycache__" in p], [])
 
 
 if __name__ == "__main__":
