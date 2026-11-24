@@ -130,7 +130,7 @@
   "q3": {
    "expectation": "The run says the work is done",
    "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02",
-   "answer": "yes",
+   "answer": "no",
    "by": "judge-g"
   }
  }
