@@ -74,9 +74,9 @@
   },
   "q2": {
    "expectation": "The description covers the missed intent",
-   "sha256": "2e0663f9744529b420465d42d7d26c1582f99f0aa71be9f50ef762cd8f96b5dd",
+   "sha256": "ad9367cbbc2816f797afdf6ea11807d85710df675951d6990d810ed68520b650",
    "answer": "yes",
-   "by": "judge-f"
+   "by": "judge-i"
   },
   "q3": {
    "expectation": "No trigger prompt is pasted into the description",
@@ -164,9 +164,9 @@
   },
   "q17": {
    "expectation": "Next asks for a round with the changed skill, the previous version and no skill, run by the eval owner",
-   "sha256": "d1449b86b402db738f7c9324424d77c73274505f636fd785c4a52ef667c8b945",
+   "sha256": "7e049b1e90dd996cea902893531b689683d98ded994f73874e4e7fb013e0a657",
    "answer": "no",
-   "by": "judge-f"
+   "by": "judge-i"
   },
   "q18": {
    "expectation": "harnesswright's rule and release checks pass on the world after the run",
