@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bgo\\s+test\\b",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "go test -v ./... 2>&1; echo exit $?; wc -l limiter/*.go; H(){ sha256sum $1; }; H rules.md",
+   "exit_code": 0,
+   "output": "ok  \tlimiter\t0.002s\nexit 0\n40 limiter/limiter.go\n"
+  }
+ ]
+}

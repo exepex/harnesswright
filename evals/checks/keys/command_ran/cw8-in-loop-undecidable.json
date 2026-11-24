@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 1
+ },
+ "outcome": "undecidable",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "for i in 1 2 3; do python3 -m unittest discover -s tests -t . 2>&1 | tail -15; echo \"exit ${PIPESTATUS[0]}\"; done",
+   "exit_code": 0,
+   "output": "FAILED (failures=1)\nexit 1\nFAILED (failures=1)\nexit 1\nFAILED (failures=1)\nexit 1\n"
+  }
+ ]
+}

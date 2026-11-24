@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 1
+ },
+ "outcome": "undecidable",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "cat README.md | head -30; python3 -m unittest discover -s tests -t . -v 2>&1 | tail -20; echo exit $?; ls skills",
+   "exit_code": 0,
+   "output": "FAILED (failures=1)\nexit 0\nclaims-writer\n"
+  }
+ ]
+}

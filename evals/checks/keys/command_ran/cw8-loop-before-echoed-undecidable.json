@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "undecidable",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "ls; for f in rules-text-*.md; do echo \"=== $f\"; cat $f; done; python3 -m unittest discover -s tests -t . ; echo exit $?",
+   "exit_code": 0,
+   "output": "=== rules-text-core.md\nOK\nexit 0\n"
+  }
+ ]
+}

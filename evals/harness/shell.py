@@ -22,18 +22,18 @@ the grader view (`view.py`) share, so the two never disagree on it.
 - `continues(text)`: whether the program `text` is sure to hand the shell on to what follows it: one of `CONTINUES`,
   an allow list of programs that never end or replace the shell, or assignments alone. `exit`, `exec`, `set`, a
   wrapper that runs another program, or a program by its path may not. A program proves it ran, and its exit code
-  that it is its own, only when every program before it in the command continues (`owns_exit_code`, `exit_code`).
-- `owns_exit_code(command, code)`: whether the command's exit code, when it is `code`, is its own program's. That
-  holds for one program with its arguments, each a plain word, a simple quoted string of a plain word's characters
-  and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined by `&&`, which ends with 0
-  only when each did, each before the last one that `continues`. Any other shape, such as a pipe, `||`, `;` or
-  `$(`, may end with another program's code. A plain word may hold a variable such as `$S`, which changes no exit
-  code.
+  that it is its own, only when every program before it in the command continues (`exit_code`).
+- `_owns_exit_code(command, code)`, which only `exit_code` uses: whether the command's exit code, when it is `code`,
+  is its own program's. That holds for one program with its arguments, each a plain word, a simple quoted string of
+  a plain word's characters and blanks, or a redirect such as `2>&1`; and, for code 0 only, for such programs joined
+  by `&&`, which ends with 0 only when each did, each before the last one that `continues`. Any other shape, such as
+  a pipe, `||`, `;` or `$(`, may end with another program's code. A plain word may hold a variable such as `$S`,
+  which changes no exit code.
 - `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
   as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
   A command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to
   it. One rule: the program must be the last of its unit, joined to it by `&&` only, and its code is the unit's
-  code `c` when `owns_exit_code(unit, c)`: so for a unit of programs joined by `&&`, such as `cd x && run`, only
+  code `c` when `_owns_exit_code(unit, c)`: so for a unit of programs joined by `&&`, such as `cd x && run`, only
   when `c` is 0, since a nonzero code may be an earlier program's, which stopped the unit before the run. The
   unit's code is known two ways. The last unit gives the command's code, when every unit is plain programs joined
   by `&&` (`CHAIN`). Or the next unit is `echo <words>$?` alone: it prints its words and the code on a line of
@@ -41,6 +41,10 @@ the grader view (`view.py`) share, so the two never disagree on it.
   one value, alone in its unit so it always runs, and the output has one such line for each, in order; any other
   printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line changes
   nothing; in the run's own unit it leaves the code unknown. Either way every program before it must continue.
+- `codes(command, code, output)`: [(text, exit code)] of each program `programs` finds, in its order: the code
+  `exit_code` gives, or None. This is the one place a check reads a program's exit code, so two checks never read
+  it two ways. A program in the script of a shell's `-c` flag gets the code `exit_code` gives it within that
+  script, which ends with the shell's own code, and no output, since the rest of the command prints to it too.
 - `parts(command)`: [(the operator before it, its text)] of each top-level program, as `programs` finds its starts.
 
 Standard library only.
@@ -108,7 +112,7 @@ def continues(text):
     return not rest or rest[0] in CONTINUES
 
 
-def owns_exit_code(command, code):
+def _owns_exit_code(command, code):
     """Whether `command` ending with `code` means its own program ended with it (the module's docstring)."""
     return bool((CHAIN if code == 0 else ALONE).fullmatch(command)) and all(
         continues(text) for _, text in parts(command)[:-1])
@@ -138,7 +142,7 @@ def exit_code(command, program, code, output):
         known = code if all(CHAIN.fullmatch(_joined(found, u)) for u in units) else None
     else:
         known = _echoed(found, units, at + 1, output)
-    return known if known is not None and owns_exit_code(_joined(found, units[at]), known) else None
+    return known if known is not None and _owns_exit_code(_joined(found, units[at]), known) else None
 
 
 def _joined(found, unit):
@@ -197,13 +201,19 @@ def _starts(command):
 
 def programs(command):
     """The text from each place a program starts in `command` to its end."""
+    return [text for text, _ in codes(command, None, None)]
+
+
+def codes(command, code, output):
+    """[(text, exit code or None)] of each program of `command`, which ended with `code` and printed `output`."""
     found = []
-    for _, _, start in _starts(command):
+    for n, (_, _, start) in enumerate(_starts(command)):
         text = command[start:].lstrip(" \t")
         text = text[ASSIGNMENT.match(text).end():]
-        found.append(text)
+        own = exit_code(command, n, code, output)
+        found.append((text, own))
         if script := SHELL_SCRIPT.match(text):
-            found += programs(script.group(1)[1:-1])
+            found += codes(script.group(1)[1:-1], own, None)
     return found
 
 

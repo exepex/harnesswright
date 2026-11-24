@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "^pytest\\b",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "pytest; echo exit $?",
+   "exit_code": 0,
+   "output": "3 passed in 0.01s\nexit 0\n"
+  }
+ ]
+}

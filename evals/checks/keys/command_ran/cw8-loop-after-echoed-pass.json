@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "python3 -m unittest discover -s tests -t . -v 2>&1; echo exit=$?; wc -l src/discount.py; for f in rules.md SKILL.md; do sha256sum $f; done; find . -name __pycache__",
+   "exit_code": 0,
+   "output": "OK\nexit=0\n12 src/discount.py\n"
+  }
+ ]
+}

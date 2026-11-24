@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "cd .harness/runs/r1 && cat rules.md; echo ======; cat rules-text.md | head -40; ls; cd ../../.. && python3 -m unittest discover -s tests -t . 2>&1; echo exit $?; ls log.md 2>&1",
+   "exit_code": 2,
+   "output": "OK\nexit 0\nls: cannot access 'log.md': No such file or directory\n"
+  }
+ ]
+}

@@ -9,15 +9,16 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
   (`grep -c 'go test' README.md`), never counts. A command that holds a match anywhere else, such as after a wrapper
   (`timeout 60 go test`), may or may not have run it, so when only such commands match, it is `undecidable`. An
   action the host or the jail refused that matches the pattern anywhere is a try.
-  With `exit_code`, a command that counts must also have ended with that code, and that code must be known to be
-  its own program's (`shell.owns_exit_code`). When only commands whose code may be another program's match, or a
-  matching command's code was not reported, it is `undecidable`.
+  With `exit_code`, a matching program counts only when its own exit code is known to be that code, read as
+  `shell.codes` reads it, the one reader the stop checks share: the command's code, or an echoed `$?` after it, and
+  every program before it sure to continue. When a matching program's own code is not known, and none is known to
+  be that code, it is `undecidable`.
 """
 
 import re
 
 from checks import Check, Undecidable, is_pattern
-from shell import owns_exit_code, programs  # the one splitter the grader view also cuts commands by
+from shell import codes, programs  # the one splitter the grader view also cuts commands by, and its code reader
 
 
 def command_ran(bundle, pattern, ran, exit_code=None):
@@ -28,9 +29,10 @@ def command_ran(bundle, pattern, ran, exit_code=None):
     if exit_code is None:
         found, unsure = named, []
     else:
-        alone = [e for e in named if owns_exit_code(e["command"], exit_code) and e["exit_code"] is not None]
-        found = [e for e in alone if e["exit_code"] == exit_code]
-        unsure = [e for e in named if e not in alone]
+        own = [[c for text, c in codes(e["command"], e["exit_code"], e.get("output")) if re.match(pattern, text)]
+               for e in named]  # the own exit code of each matching program, or None where it is not known
+        found = [e for e, known in zip(named, own) if exit_code in known]
+        unsure = [e for e, known in zip(named, own) if e not in found and None in known]
     ended = "" if exit_code is None else f", ending with exit code {exit_code},"
     if found:
         first = found[0]["command"][:200]

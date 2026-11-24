@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "(\\S*/)?\\bpython[0-9.]*(\\s+(-[WX]\\s*[^\\s&|;]+|-[bBdEiIOPqRsSuvx]+))*\\s+-m\\s+unittest(?![\\w.])",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "cat -n src/booking.py tests/test_booking.py; cat README.md; ls skills/claims-writer/scripts; python3 -m unittest discover -s tests -t . -v; echo exit $?",
+   "exit_code": 0,
+   "output": "Ran 3 tests in 0.000s\n\nOK\nexit 0\n"
+  }
+ ]
+}
