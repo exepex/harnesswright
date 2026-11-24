@@ -17,6 +17,9 @@ Each skill on each host gets (`measures`):
   it reads is inferred (`checks.decide`).
 - `undecidable_checks`, per arm and check: of the expectations of task runs a check was asked (`ran`), how many it
   left `undecidable` (`undecidable`), for whatever reason, so a check that seldom decides shows up by name.
+- `stop_pair`, per arm and check of the stop pair (`stoppair.py`): how many task runs it gave `pass`, `fail` and
+  `undecidable`, from the `reported` verdicts of `checks.json`. It is reported only: it never enters the pass
+  rate, the format conformance or any other measure.
 - `format_conformance`, per arm: the format expectations of task runs that passed (`passed`) of those decided
   (`decided`), a check deciding first and a trusted grader answer what no check did; `undecided` counts the rest.
   It is reported here, never in the pass rate. `format_runs`, per arm and case, gives each run's [passed, asked]
@@ -54,7 +57,7 @@ def measures(folder, attempt, gates, cases, price_file):
         here = found.setdefault((made["host"], made["skill"]), {"arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
                                             "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
-                                            "pinned": 0, "loaded": 0, "format_runs": {}, "checks": {}})
+                                            "pinned": 0, "loaded": 0, "format_runs": {}, "checks": {}, "stop": {}})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
             if (run_folder / "void.json").is_file() else 0
@@ -75,7 +78,11 @@ def measures(folder, attempt, gates, cases, price_file):
         _cost(own["cost"], record, price_file)
         if case.kind != "task":
             continue
-        verdicts = json.loads((run_folder / "checks.json").read_text())["verdicts"]
+        stored = json.loads((run_folder / "checks.json").read_text())
+        verdicts = stored["verdicts"]
+        for v in stored.get("reported", []):  # the stop pair: counted here only (stoppair.py)
+            tally = own["stop"].setdefault(v["check"], {"pass": 0, "fail": 0, "undecidable": 0})
+            tally[v["outcome"]] += 1
         sheet = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
         answers = json.loads(sheet.read_text())["answers"] if sheet.is_file() else {}
         own["inferred"] += sum(bool(v and v.get("inferred")) for v in verdicts)
@@ -112,6 +119,7 @@ def measures(folder, attempt, gates, cases, price_file):
             "inferred_evidence": {arm: own["inferred"] for arm, own in arms},
             "undecidable_checks": {arm: {name: share(*tally, undecidable=tally[0], ran=tally[1])
                                          for name, tally in sorted(own["checks"].items())} for arm, own in arms},
+            "stop_pair": {arm: dict(sorted(own["stop"].items())) for arm, own in arms},
             "format_conformance": {arm: share(own["passed"], own["decided"], passed=own["passed"],
                                               decided=own["decided"], undecided=own["undecided"])
                                    for arm, own in arms},

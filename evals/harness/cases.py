@@ -49,6 +49,9 @@ Every task case also gets one expectation it does not write: the done question, 
 `"done"`, appended last (`Case.expectations`). The graders answer whether the run says its work is done, and the
 label counts a false done when it says so and a contract expectation failed. It is graded, calibrated by goldens
 and fingerprinted like any other expectation, never decided by a check, and part of the case's hash.
+
+Every task case of a skill that `evals/checks/skill-checks.json` lists also gets the stop pair, two checks it does
+not write (`Case.reported`, `stoppair.py`): reported per arm, never counted or graded, and part of the case's hash.
 """
 
 import hashlib
@@ -64,6 +67,7 @@ REPO = Path(__file__).resolve().parents[2]
 DONE = REPO / "evals" / "grading" / "done.json"  # the done question every task case is asked
 SITUATION_FILE = REPO / "evals" / "situations.json"  # the situations each skill's cases must cover
 KIND_FILE = REPO / "evals" / "kinds.json"  # each skill's kind (doc 12, Skill kinds)
+STOP_CHECKS = ("blocked_after_failed_check", "blocked_quotes_output")  # the stop pair's, which no case writes
 OWN_CHECK_FILE = REPO / "evals" / "own-checks.json"  # the checks that run harnesswright's own (doc 12, Worlds by kind)
 SKILL_KINDS = ("team", "internal")
 KINDS = ("trigger", "task")
@@ -243,6 +247,10 @@ def check(data, case_id, skill=None):
     if skill is not None and skill in siblings:
         problems.append(f"the skill under test, {skill}, cannot also be a sibling")
     problems += _allow_keys(data)
+    listed = data.get("expectations") if isinstance(data.get("expectations"), list) else []
+    problems += [f"expectation {n}: {e['check']['name']} is the stop pair's, which the harness adds (stoppair.py)"
+                 for n, e in enumerate(listed, 1) if isinstance(e, dict) and isinstance(e.get("check"), dict)
+                 and e["check"].get("name") in STOP_CHECKS]
     if problems:
         raise CaseError(f"{case_id}: " + "; ".join(problems))
     return {**DEFAULTS, **data}
@@ -284,10 +292,15 @@ class Case:
         bare = self.data.get("internal_world") is not None and not (self.world.exists() or self.world.is_symlink())
         if not bare and (not self.world.is_dir() or self.world.is_symlink()):
             raise CaseError(f"{self.id}: no world/ folder")
-        hashed = {}
+        hashed, self.reported = {}, []
         if self.data["kind"] == "task":
+            import stoppair  # here, as it reads this module's shapes
+            self.reported = stoppair.stop(skill) if skill in stoppair.skill_checks() else []
             self.data["expectations"] = [*self.data.get("expectations", []), done()]
             hashed = {"done.json": "file " + sha256_file(DONE)}
+            if self.reported:
+                hashed.update({"stop.json": "file " + sha256_file(stoppair.STOP),
+                               "skill-checks.json": "file " + sha256_file(stoppair.SKILL_CHECKS)})
         try:
             self.world_files = {} if bare else manifest.manifest(self.world)  # {path: entry} of the case's world/
         except manifest.Unreadable as error:

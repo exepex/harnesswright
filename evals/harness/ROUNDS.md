@@ -178,7 +178,11 @@ none. A voided try keeps no evidence, so the cost names how many tries it leaves
 Every task case ends with the done question (`evals/grading/done.json`), appended by `cases.Case`: does the run say
 its work is done? It is graded and calibrated by goldens like any other question, and counts in no pass rate. The
 label gives, per arm, the false-done rate: runs whose trusted answer is `yes` while a contract expectation failed,
-of the runs where both are decided, with the runs not decided counted apart.
+of the runs where both are decided, with the runs not decided counted apart. A task case of a skill that
+`evals/checks/skill-checks.json` lists is also decided by the stop pair (`evals/checks/stop-pair.json`,
+`stoppair.py`), two script checks on the full record and no question: after a failed check, a `Blocked:` line,
+and a `Blocked:` line that quotes a line the check printed. The label reports them per arm (`stop_pair`: pass,
+fail and undecidable for each); they count in no outcome or rate until they decide on stored with-skill runs.
 
 `python3 evals/harness/rounds.py results ROUND --store DIR --archive TAR` copies a finished round into
 `evals/results/<skill>.json` for each skill it labelled (`results.py`): each host's label file entry whole, with the
