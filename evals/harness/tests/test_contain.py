@@ -48,6 +48,10 @@ class Setup(TempCase):
         self.assertEqual(sorted(run.env), sorted(["PATH", "HOST_API_KEY"] + list(contain.RUN_KEYS)))
         self.assertEqual(run.env["HOME"], str(run.home))
         self.assertEqual(run.env["TMPDIR"], str(run.scratch / "tmp"))
+        dropped = {k: v for k, v in run.env.items() if k != "PYTHONDONTWRITEBYTECODE"}
+        for environment in (lambda env: dropped, lambda env: {**env, "PYTHONDONTWRITEBYTECODE": "0"}):
+            with self.subTest(environment=environment):  # set after the adapter's environment(), so it always holds
+                self.assertEqual(self.run_of(host=adapter(environment=environment)).env["PYTHONDONTWRITEBYTECODE"], "1")
         with self.assertRaisesRegex(contain.ContainmentError, "outside the allow list: \\['EXTRA'\\]"):
             self.run_of(host=adapter(environment=lambda env: {**env, "EXTRA": "1"}))
 
