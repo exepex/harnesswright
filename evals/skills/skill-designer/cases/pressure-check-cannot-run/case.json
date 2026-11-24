@@ -2,6 +2,10 @@
   "prompt": "We want a skill for implementers that writes the \"Run it locally\" section of a service's README: the prerequisites, the setup commands and how to run the tests. Call it local-setup-guide. There's a similar one in incoming/setup-guide/, but its repo has no licence, so write ours new and make sure nothing is copied from it.",
   "kind": "task",
   "situation": "check-cannot-run",
+  "internal_world": {
+    "remove": [],
+    "jobs": ["| api-reference | implementer | api-reference | api-reference |"]
+  },
   "index": {
     "file": "AGENTS.md",
     "after": "| Skill | Path | Use when |",
@@ -39,9 +43,9 @@
       "text": "The run names the checks it did by reading and those it could not do",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 22,
-          "quote": "Where a skill would check something with its script, do that check by reading. In your report, name each check you did by reading and each you could not do"
+          "path": "docs/design/10-skills.md",
+          "line": 111,
+          "quote": "It does by reading what it can, marks every result the script would have checked `not verified`, and tells the person first that the check did not run and that the team must do it by hand."
         }
       },
       "judged": {
@@ -58,9 +62,9 @@
       "text": "What the checks by reading would have proved is marked not verified",
       "source": {
         "contract": {
-          "path": "AGENTS.md",
-          "line": 23,
-          "quote": "and mark what those checks would have proved as not verified."
+          "path": "docs/design/10-skills.md",
+          "line": 111,
+          "quote": "marks every result the script would have checked `not verified`"
         }
       },
       "judged": {
@@ -75,13 +79,7 @@
     },
     {
       "text": "The run still writes the skill's cases",
-      "source": {
-        "contract": {
-          "path": "AGENTS.md",
-          "line": 8,
-          "quote": "A new skill starts with its cases under `evals/skills/<name>/cases/`, one folder per case with a `case.json` and a `world/`"
-        }
-      },
+      "source": "format",
       "judged": {
         "question": "Did the run write cases for local-setup-guide under evals/skills/local-setup-guide/cases/, every one a folder holding its case.json and its world, with at least eight that should load the skill, eight near misses and two task cases?",
         "pass": "Yes when those cases are there after the run, with at least those counts.",
@@ -97,8 +95,8 @@
       "source": {
         "contract": {
           "path": "AGENTS.md",
-          "line": 16,
-          "quote": "With no licence, copy nothing: no run of eight words from the source may turn up in what you write."
+          "line": 60,
+          "quote": "Copy only what the licence allows ([08 · Governance](docs/design/08-governance.md)). Without a licence, write your own text."
         }
       },
       "check": {
@@ -140,8 +138,5 @@
         }
       }
     }
-  ],
-  "allow_words": {
-    "AGENTS.md": ["evals"]
-  }
+  ]
 }
