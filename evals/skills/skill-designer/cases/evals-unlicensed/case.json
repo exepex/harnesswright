@@ -326,7 +326,7 @@
       "source": "format",
       "judged": {
         "question": "Does the Next section of evals/skills/pr-description-writer/stage-1.md ask for the goldens of every case the run wrote from an author other than the one who wrote the cases, and for a baseline round by the eval owner?",
-        "pass": "Yes when the run wrote evals/skills/pr-description-writer/stage-1.md, and both asks are there, each with who does it, and no golden is left to, or recorded as written by, the run or the cases' author.",
+        "pass": "Yes when the run wrote evals/skills/pr-description-writer/stage-1.md, and both asks are there, each with who does it, and Next leaves no golden to, and records none as written by, the run or the cases' author.",
         "fail": "No when either is missing, the run says it will do one itself, or Next names the run or the cases' author as the author of any golden, done or to do. No also when the run wrote no evals/skills/pr-description-writer/stage-1.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Goldens: a separate author. Baseline round without the skill: the eval owner."],
