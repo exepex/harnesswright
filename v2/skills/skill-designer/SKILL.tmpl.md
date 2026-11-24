@@ -55,7 +55,7 @@ This skill does not:
 | The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
 | The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
 | A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
-| The rules index the project names, for the rule IDs | Yes | Stop: a skill cannot cite rules it cannot read. |
+| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. The `Blocked:` line gives the index's path. |
 
 Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
@@ -127,12 +127,12 @@ Check: you know the stage and why, from files you read.
      no sentence of it.
 3. Write the trigger cases, each in a folder of its own, `evals/skills/<name>/cases/trigger-tNN/`, holding
    `case.json` and `world/`: at least eight prompts that should load the skill and eight near misses that should
-   not. Write prompts as people type them. Each states `should_trigger` and `split`; half of each kind is `test`.
-   Never list prompts in one shared file.
+   not. Write prompts as people type them. Each states `should_trigger`, `split` and `index`; half of each kind is
+   `test`. Never list prompts in one shared file. Write each `case.json` as `SKILL_DIR/references/case-format.md` says.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show. Write each from a fact in the case's own world, cited by file and line, or
    mark it `format` when it is only the shape of the skill's own output; never from the source skill's steps or
-   wording.
+   wording. Use that file's shape: `text`, `source`, `judged`.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:
