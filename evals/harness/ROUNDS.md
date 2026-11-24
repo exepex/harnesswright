@@ -34,11 +34,12 @@ The manifest records each planned skill's kind under `kinds`, as `evals/kinds.js
 12, Skill kinds): `team` or `internal`, or null when undeclared. The file is a kit part, so the judges approve it,
 and a plan cannot set a kind. An internal skill runs with the skill and its previous version only, never without
 itself (`runs.arms`, `runs.key`), so it has no lift and no baseline backstop; it cannot be absent, and its cases are
-never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`. The
-kit part `evals/own-checks.json` lists harnesswright's own checks (`cases.own_checks`, none yet), and the manifest
-records the list: an internal skill's label is at most `inconclusive` while one of its task cases has no contract
-expectation that one of them checks, each such case named (`verdicts.decide`), and while a run of such a case has
-that check undecided: a grader's answer never stands in for it (`verdicts.own_doubt`).
+never the fault gate's. A round whose skills are all internal names a team skill's case as its `fault_case`. The kit
+part `evals/own-checks.json` lists harnesswright's own checks (`cases.own_checks`: `own_release_checks` and
+`own_case_files`, `evals/checks/own.py`), and the manifest records the list: an internal skill's label is at most
+`inconclusive` while one of its task cases has no contract expectation that one of them checks, each such case named
+(`verdicts.decide`), and while a run of such a case has that check undecided: a grader's answer never stands in for
+it (`verdicts.own_doubt`).
 
 A new skill's first baseline round needs no skill folder. A skill the plan names that has cases but no folder yet is
 `absent` in the manifest: an empty overlay. Its task cases run in the without-skill arm only (`runs.arms`), which

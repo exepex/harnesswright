@@ -1,0 +1,10 @@
+{
+ "args": {
+  "skill": "note-taker"
+ },
+ "outcome": "fail",
+ "after": {
+  "README.md": "# Team notes\n"
+ },
+ "final_message": "Done."
+}

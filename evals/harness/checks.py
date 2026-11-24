@@ -101,6 +101,11 @@ class Bundle:
             return None
         return self._blob(entry.split(" ")[1]).decode("utf-8", errors="replace")
 
+    def data(self, path):
+        """The bytes of the file at `path` after the run, or None when there is no file there."""
+        entry = self.files.get(path)
+        return self._blob(entry.split(" ")[1]) if entry is not None and manifest.is_file(entry) else None
+
     def entries(self, kind):
         """The log entries of `kind`. Raise Inferred, an Undecidable, when any of them is inferred: no check decides
         on it."""

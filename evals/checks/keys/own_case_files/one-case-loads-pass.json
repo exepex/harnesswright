@@ -1,0 +1,11 @@
+{
+ "args": {
+  "skill": "note-taker"
+ },
+ "outcome": "pass",
+ "after": {
+  "evals/skills/note-taker/cases/planning/case.json": "{\"prompt\": \"Write the notes of the planning meeting in notes/.\", \"kind\": \"task\"}\n",
+  "evals/skills/note-taker/cases/planning/world/README.md": "# Team notes\n"
+ },
+ "final_message": "Done."
+}
