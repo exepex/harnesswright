@@ -56,8 +56,8 @@ class Graded:
     `tries`, that try's final message, scrubbed and cut to `KEPT` characters, or None when the host failed; `logs`,
     the action log of each try's host run, in order, for the round's record and its faults; `costs`, each try's
     seconds and token counts by model as the host reported them (`host.Result`), in the same order; and `offered`,
-    beside each of `tries`, the answers ({id: "yes" or "no"}) its refused sheet gave, or None, which count in
-    agreement and show a retry that flipped (`flipped`)."""
+    beside each of `tries`, every answer its refused sheet gave ({id: ["yes" or "no", ...]}, duplicates kept), or
+    None, which count in agreement and show a retry that flipped (`flipped`)."""
 
     def __init__(self, sheet, tries, logs, costs=(), refused=None, offered=None):
         self.sheet, self.tries, self.logs, self.costs = sheet, tries, logs, list(costs)
@@ -148,21 +148,23 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
 
 
 def given(found, ids):
-    """The answers ({id: "yes" or "no"}) a refused sheet `found` gave to the questions `ids`, or None when it gave
-    none: a sheet refused for its form still says how its grader answered."""
+    """Every answer ({id: ["yes" or "no", ...]}, in order) a refused sheet `found` gave to the questions `ids`, a
+    duplicate kept, or None when it gave none: a sheet refused for its form still says how its grader answered."""
     answers = found.get("answers") if isinstance(found, dict) else None
-    kept = {a["id"]: a["answer"] for a in answers if isinstance(a, dict) and a.get("id") in ids
-            and a.get("answer") in grading.ANSWERS} if isinstance(answers, list) else {}
+    kept = {}
+    for a in answers if isinstance(answers, list) else []:
+        if isinstance(a, dict) and a.get("id") in ids and a.get("answer") in grading.ANSWERS:
+            kept.setdefault(a["id"], []).append(a["answer"])
     return kept or None
 
 
 def flipped(graded):
-    """The ids of the questions one grader (`Graded`, with its retries and its fresh replacement) answered two ways
-    across its tries: a retry that flipped, so that page's answer to it is not settled."""
+    """The ids of the questions one grader (`Graded`, with its retries and its fresh replacement) gave more than one
+    answer across its tries and their duplicates: a retry that flipped, so that page's answer to it is not settled."""
     found = {}
-    for answers in [*graded.offered, graded.answers]:
-        for id_, answer in (answers or {}).items():
-            found.setdefault(id_, set()).add(answer)
+    for answers in [*graded.offered, {id_: [answer] for id_, answer in (graded.answers or {}).items()}]:
+        for id_, said in (answers or {}).items():
+            found.setdefault(id_, set()).update(said)
     return sorted(id_ for id_, seen in found.items() if len(seen) > 1)
 
 
