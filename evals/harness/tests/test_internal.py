@@ -324,14 +324,25 @@ class Reader(TempCase):
         row = "| notes | implementer | note-taker | note-taker |"
         case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
                          {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
+        (case.folder / "world" / "incoming").mkdir()
+        link = case.folder / "world" / "incoming" / "design.md"
+        link.symlink_to("../docs/design/11-evals.md")  # its text is the target string, never the file
+        case = type(case)(case.folder, SKILL)
         long = lambda text: [line for line in text.splitlines() if len(lint.words(line)) >= lint.RUN]
         with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
             built = internal.resolve(case).world
-            made = next(line for line in long((built / "release" / "note-taker" / "SKILL.md").read_text())
-                        if line not in NOTE_TAKER)  # a line the build made of the case's file: derived
-            based = long((built / "docs" / "design" / "11-evals.md").read_text())[0]  # left alone: the base's
-            said = lint.golden_said(case.folder, json.dumps({"log": [{"text": made}, {"text": based}]}), SKILL)
-        self.assertEqual(set(said), lint.all_runs([based], {lint.RUN}))
+            copy = built / "release" / "note-taker" / "SKILL.md"
+            own = lint.all_runs([NOTE_TAKER, (case.folder / "case.json").read_text()], {lint.RUN})
+            made = sorted(lint.all_runs([f"release/note-taker/SKILL.md\n{copy.read_text()}"], {lint.RUN})
+                          - case.base_runs - own)[0]  # a run only the build made of the case's file: excused
+            base = {"in a file the case left alone": long((built / "docs" / "design" / "10-skills.md").read_text())[0],
+                    "in a file the case changed": long((built / "v2" / "roles.md").read_text())[0],
+                    "behind a link the case wrote": long((built / "docs" / "design" / "11-evals.md").read_text())[0]}
+            for where, line in base.items():
+                with self.subTest(where):
+                    golden = json.dumps({"log": [{"text": made}, {"text": line}]})
+                    said = lint.golden_said(case.folder, golden, SKILL)
+                    self.assertEqual(set(said), lint.all_runs([line], {lint.RUN}))  # the base's runs, never the case's
 
     def test_a_remove_comes_after_the_rebuild(self):
         case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build

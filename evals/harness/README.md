@@ -203,10 +203,11 @@ text, since the case author writes it for this case.
   Other eval text may not.
 - A golden (`evals/goldens/SKILL/CASE/NAME.json`) is a run on its case's world, so what it reads and quotes of what
   its case wrote and of its case data is the case's own text. Its eval text is the rest: each 8-word run of its text
-  values that its case's `case.json` and what its case wrote do not hold, each path with its text, from the one
-  ownership map (`lint.owned`: an internal case's world/ paths and the base paths its job rows and rebuilt release
-  changed, or a team case's world/ paths), such as the claims it writes (`lint.golden_said`). Base text it repeats
-  is eval text.
+  values that its case's `case.json` and what its case wrote do not hold, from the one ownership map (`lint.owned`),
+  each path with its text as the lint reads it (`lint.read_entry`: a link is its target, never the file), such as
+  the claims it writes (`lint.golden_said`). A `world/` path is the case's whole; a base path its job rows or rebuilt
+  release changed is the case's only in the runs the base world holds nowhere. Base text it repeats is eval text,
+  in any file.
 - Every text of an expectation is expectation text: what it says, and its judged question, rules and examples.
 - Each contract is found where it is cited: its quote, of at least three words as the lint reads words, starts on
   line `line` of the world text file `path`, never a link, and may run on over the lines after it. A quote excuses

@@ -53,6 +53,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 import manifest
+import textruns
 from cases import REPO, CaseError, is_path, is_text
 
 KIT_FILE = REPO / "evals" / "internal-world.json"
@@ -252,6 +253,9 @@ def world_of(case, out, repo=REPO, kit=None):
     _, paths, _, _ = read_kit(kit)
     base(case.skill, out, repo, kit)
     before = manifest.manifest(out)
+    # the runs of the base, so a golden is never excused base text in a path the case changed (`lint.golden_said`)
+    case.base_runs = textruns.all_runs([(Path(out) / p).read_bytes().decode("utf-8", "replace")
+                                        for p, e in before.items() if manifest.kind(e) == "file"], {textruns.RUN})
     for path, entry in sorted(case.world_files.items()):  # the one rule: the pinned build's paths are never the case's
         owned = [p for p in BUILT_BY_PIN if path == p or p.startswith(f"{path}/") and manifest.kind(entry) != "dir"
                  or path.startswith(f"{p}/")]
@@ -332,9 +336,9 @@ def resolve(case):
         folder = tempfile.mkdtemp(prefix="hw-internal-")
         atexit.register(shutil.rmtree, folder, True)
         try:
-            _BUILT[key] = world_of(case, Path(folder) / "world", REPO, KIT_FILE), case.own_files
+            _BUILT[key] = world_of(case, Path(folder) / "world", REPO, KIT_FILE), case.own_files, case.base_runs
         except BaseException:
             shutil.rmtree(folder, ignore_errors=True)
             raise
-    case.world, case.own_files = _BUILT[key]
+    case.world, case.own_files, case.base_runs = _BUILT[key]
     return case

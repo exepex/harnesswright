@@ -114,6 +114,16 @@ def owned(case):
     return case.own_files
 
 
+def read_entry(root, path, entry, installed=False):
+    """The text of world entry `path` under `root`, as every reader of the lint takes it, the one reader of it: a
+    file's text (None when an uninstalled file is not plain text), a link's target string, never what it leads to,
+    and nothing for a folder."""
+    if manifest.kind(entry) == "file":
+        data = Path(root).joinpath(path).read_bytes()
+        return data.decode("utf-8", "replace") if installed else plain(data)
+    return entry[len("link "):] if manifest.kind(entry) == "link" else ""
+
+
 def visible(case, arm):
     """Every place the without-skill run of `case` can see, from its built and proved arm `arm`."""
     files, _ = arm.read()
@@ -128,12 +138,7 @@ def visible(case, arm):
         places.append(Place(JOB_ROWS, "\n".join(case.internal_world["jobs"]), "declared"))
     for path, entry in sorted(files.items()):
         installed = any(path == t or path.startswith(t + "/") for t in targets)
-        body = ""
-        if manifest.kind(entry) == "file":
-            data = (case.world if path == index else arm.path).joinpath(path).read_bytes()
-            body = data.decode("utf-8", "replace") if installed else plain(data)
-        elif manifest.kind(entry) == "link":
-            body = entry[len("link "):]
+        body = read_entry(case.world if path == index else arm.path, path, entry, installed)
         kind = "installed" if installed else own.get(path, rest)
         places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
@@ -175,18 +180,22 @@ def said(path, text):
 
 def golden_said(case_folder, text, skill):
     """What a golden (`evals/goldens/<skill>/<case>/<name>.json`) adds to its case, as runs: each run of its text
-    values that what its case wrote (`owned`, each path with its text, as the lint reads it) and its case data do not
-    hold, since what it reads and quotes of them is the case's own text. Base text it repeats is not excused. A
-    golden that is not JSON says all of its text."""
+    values that its case data and what its case wrote (`owned`, each path with its text, `read_entry`) do not hold,
+    since what it reads and quotes of them is the case's own text. A path of the case's `world/` is the case's whole.
+    A derived path, a base file its job rows or rebuilt release changed, is the case's only in the runs the base
+    world holds nowhere (`internal`, `base_runs`): base text a golden repeats is never excused, in a file the case
+    changed or not. A golden that is not JSON says all of its text."""
     try:
         values = _strings(json.loads(text))
     except ValueError:
         return [text]
     case = Case(Path(case_folder), skill)
-    files = [case.world / path for path in owned(case)]
-    wrote = [f"{path.relative_to(case.world)}\n{path.read_bytes().decode('utf-8', 'replace') if path.is_file() else ''}"
-             for path in files] + [(Path(case_folder) / "case.json").read_text()]
-    return sorted(all_runs(values, {RUN}) - all_runs(wrote, {RUN}))
+    own, files = owned(case), manifest.manifest(case.world)
+    said = {kind: [f"{path}\n{read_entry(case.world, path, files[path]) or ''}" for path in sorted(own)
+                   if own[path] == kind and path in files] for kind in ("world", "derived")}
+    wrote = all_runs(said["world"] + [(Path(case_folder) / "case.json").read_text()], {RUN})
+    made = all_runs(said["derived"], {RUN}) - getattr(case, "base_runs", set())
+    return sorted(all_runs(values, {RUN}) - wrote - made)
 
 
 def _strings(value):
