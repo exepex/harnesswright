@@ -277,7 +277,9 @@ it too ([adapters](../../adapters/README.md#the-harness-contract)).
 An adapter reports a write that failed as `failed`, and `host.run` decides what it was from the jail's own mount
 list: when the nearest mount above the path is not writable, the jail refused it and it is `blocked`; otherwise it
 is left out, as the world diff shows. Paths inside the world are logged relative to it, on every host. An
-adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator. Its
+adapter's `RUN_ENV` holds fixed variables it sets for every run; they are never taken from the operator. The
+harness then sets its own `HARNESS_ENV` (`contain.py`) last, in every run of every arm: `PYTHONDONTWRITEBYTECODE=1`,
+so a build the world prescribes leaves no `__pycache__/` in it. The adapter's
 `memory_files(home, world)` names where its host reads memory and the user's own instructions outside the world,
 for the memory probe. The containment refuses a mount in or above the operator's home, which is both the
 `operator_home` it is given and the real one.
