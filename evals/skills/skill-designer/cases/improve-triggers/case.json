@@ -330,7 +330,7 @@
         "pass": "Yes when the run wrote evals/skills/release-notes/stage-2.md, and that ask names all three arms and who runs it.",
         "fail": "No when an arm is missing, no owner is named, or the run says it will run the round itself. No also when the run wrote no evals/skills/release-notes/stage-2.md: only what that file holds counts, never the final message or the page's list of changes.",
         "examples": {
-          "pass": ["Next: a round with the changed skill, the version at b21f9aa and no skill, run by the eval owner."],
+          "pass": ["Next: a round with the changed skill, the version at 772262a and no skill, run by the eval owner."],
           "fail": ["Next: rerun the trigger cases."]
         }
       }
