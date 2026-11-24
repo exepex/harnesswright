@@ -308,7 +308,7 @@
   },
   "q17": {
    "expectation": "Next names the goldens author and the baseline round, each with its owner",
-   "sha256": "1afb92099d409e3b2c2250aea2f4345c1f9827267388c1bec1a515a30a0abafd",
+   "sha256": "4f257d87ccbaab7becc0d9ac86dd0a9272facca1ba2c8fce1478fb84a021cfcc",
    "answer": "yes",
    "by": "judge-i"
   },
