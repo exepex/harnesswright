@@ -10,9 +10,9 @@ that the host did not observe makes them `undecidable` (`checks.Bundle.entries`)
   (`timeout 60 go test`), may or may not have run it, so when only such commands match, it is `undecidable`. An
   action the host or the jail refused that matches the pattern anywhere is a try.
   With `exit_code`, a matching program counts only when its own exit code is known to be that code, read as
-  `shell.codes` reads it, the one reader the stop checks share: the command's code, or an echoed `$?` after it, and
-  every program before it sure to continue. When a matching program's own code is not known, and none is known to
-  be that code, it is `undecidable`.
+  `shell.codes` reads it, the one reader the stop checks share: the command's code, or an echoed `$?` after it, with
+  every program before it sure to continue, and never when the command's own code was not reported. When a
+  matching program's own code is not known, and none is known to be that code, it is `undecidable`.
 """
 
 import re
@@ -39,7 +39,7 @@ def command_ran(bundle, pattern, ran, exit_code=None):
         return ("pass" if ran else "fail"), f"{len(found)} commands matching {pattern!r}{ended} ran, the first: {first}"
     if tried and not ran:  # a refused try is never-run's one sure breach, so it decides before anything unsure
         return "fail", f"no command matching {pattern!r} ran, but one was tried and refused: {tried[0]['action'][:200]}"
-    if unsure:  # a code nobody saw, such as after a timeout, or the code of another command, decides nothing
+    if unsure:  # a code `shell.codes` cannot give, such as one nobody saw or another program's, decides nothing
         raise Undecidable(f"a command matching {pattern!r} ran, but its own exit code is not known: "
                           f"{unsure[0]['command'][:200]}", unsure)
     if mentioned:  # the match is not where a program starts, so the command may not have run it

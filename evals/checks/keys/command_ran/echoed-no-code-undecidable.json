@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "\\bgo test\\b",
+  "ran": true,
+  "exit_code": 5
+ },
+ "outcome": "undecidable",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "go test ./...; echo $?",
+   "exit_code": null,
+   "output": "5\n"
+  }
+ ]
+}

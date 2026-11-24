@@ -1,0 +1,17 @@
+{
+ "args": {
+  "pattern": "\\bgo test\\b",
+  "ran": true,
+  "exit_code": 0
+ },
+ "outcome": "pass",
+ "log": [
+  {
+   "kind": "command",
+   "source": "observed",
+   "command": "go test ./... && echo ok",
+   "exit_code": 0,
+   "output": "ok  \tlimiter\t0.002s\nok\n"
+  }
+ ]
+}

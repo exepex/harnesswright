@@ -29,18 +29,20 @@ the grader view (`view.py`) share, so the two never disagree on it.
   by `&&`, which ends with 0 only when each did, each before the last one that `continues`. Any other shape, such as
   a pipe, `||`, `;` or `$(`, may end with another program's code. A plain word may hold a variable such as `$S`,
   which changes no exit code.
-- `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0,
-  as `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known.
-  A command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to
-  it. One rule: the program must be the last of its unit, joined to it by `&&` only, and its code is the unit's
-  code `c` when `_owns_exit_code(unit, c)`: so for a unit of programs joined by `&&`, such as `cd x && run`, only
-  when `c` is 0, since a nonzero code may be an earlier program's, which stopped the unit before the run. The
-  unit's code is known two ways. The last unit gives the command's code, when every unit is plain programs joined
-  by `&&` (`CHAIN`). Or the next unit is `echo <words>$?` alone: it prints its words and the code on a line of
-  `output`. Each unit that may print a line that starts with those words is an `echo` of exactly those words and
-  one value, alone in its unit so it always runs, and the output has one such line for each, in order; any other
-  printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line changes
-  nothing; in the run's own unit it leaves the code unknown. Either way every program before it must continue.
+- `exit_code(command, program, code, output)`: the exit code of the top-level program numbered `program` (from 0, as
+  `parts` counts them) of a command that ended with `code` and printed `output`, or None when it cannot be known. A
+  command is a list of units, each a program at the start or after a `;` with what `&&`, `||` or `|` joins to it. One
+  rule: the program's unit must be joined by `&&` only, and the program's code is the unit's code `c` when
+  `_owns_exit_code(unit, c)`. That holds for a nonzero `c` only when the program is the unit's only one, and for 0 at
+  any place in the unit, since a unit joined by `&&`, such as `cd x && run && echo ok`, ends with 0 only when each
+  program did; a nonzero code may be an earlier program's, which stopped the unit before the run. No code is known when
+  the command's own code was not reported: it may have been stopped before an `echo` after the run, so a line of that
+  shape may be the run's own. Otherwise the unit's code is known two ways. The last unit gives the command's code, when
+  every unit is plain programs joined by `&&` (`CHAIN`). Or the next unit is `echo <words>$?` alone: it prints its words
+  and the code on a line of `output`. Each unit that may print a line that starts with those words is an `echo` of
+  exactly those words and one value, alone in its unit so it always runs, and the output has one such line for each, in
+  order; any other printer, or another count of lines, leaves it unknown. A pipe or other shape elsewhere on the line
+  changes nothing; in the run's own unit it leaves the code unknown. Either way every program before it must continue.
 - `codes(command, code, output)`: [(text, exit code)] of each program `programs` finds, in its order: the code
   `exit_code` gives, or None. This is the one place a check reads a program's exit code, so two checks never read
   it two ways. A program in the script of a shell's `-c` flag gets the code `exit_code` gives it within that
@@ -128,16 +130,16 @@ def parts(command):
 def exit_code(command, program, code, output):
     """The exit code of program `program` of `command`, or None when it cannot be known (the module's docstring)."""
     found = parts(command)
-    if "\n" in command or not 0 <= program < len(found):
-        return None
+    if code is None or "\n" in command or not 0 <= program < len(found):
+        return None  # a command whose own code nobody saw may have stopped before any echo of a code ran
     units = []  # [program numbers] of each unit: a program after the start or a `;`, and what is joined to it
     for n, (op, _) in enumerate(found):
         units.append([n]) if op in ("", ";") else units[-1].append(n)
     if not all(continues(found[n][1]) for n in range(program)):
         return None  # an earlier program may have ended the shell, so this one may never have run
     at = next(n for n, unit in enumerate(units) if program in unit)
-    if units[at][-1] != program or any(found[n][0] != "&&" for n in units[at][1:]):
-        return None
+    if any(found[n][0] != "&&" for n in units[at][1:]):
+        return None  # `_owns_exit_code` below then holds for a nonzero code only when the program is alone
     if at == len(units) - 1:  # the last unit of a list of plain units gives the command's code
         known = code if all(CHAIN.fullmatch(_joined(found, u)) for u in units) else None
     else:
