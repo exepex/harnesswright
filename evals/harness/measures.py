@@ -15,6 +15,8 @@ Each skill on each host gets (`measures`):
   passed fault gate.
 - `inferred_evidence`, per arm: how many expectations of task runs a check left undecidable because the evidence
   it reads is inferred (`checks.decide`).
+- `undecidable_checks`, per arm and check: of the expectations of task runs a check was asked (`ran`), how many it
+  left `undecidable` (`undecidable`), for whatever reason, so a check that seldom decides shows up by name.
 - `format_conformance`, per arm: the format expectations of task runs that passed (`passed`) of those decided
   (`decided`), a check deciding first and a trusted grader answer what no check did; `undecided` counts the rest.
   It is reported here, never in the pass rate. `format_runs`, per arm and case, gives each run's [passed, asked]
@@ -52,7 +54,7 @@ def measures(folder, attempt, gates, cases, price_file):
         here = found.setdefault((made["host"], made["skill"]), {"arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
                                             "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
-                                            "pinned": 0, "loaded": 0, "format_runs": {}})
+                                            "pinned": 0, "loaded": 0, "format_runs": {}, "checks": {}})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
             if (run_folder / "void.json").is_file() else 0
@@ -77,6 +79,9 @@ def measures(folder, attempt, gates, cases, price_file):
         sheet = folder / "grades" / attempt / "runs" / f"{made['key']}.json"
         answers = json.loads(sheet.read_text())["answers"] if sheet.is_file() else {}
         own["inferred"] += sum(bool(v and v.get("inferred")) for v in verdicts)
+        for v in filter(None, verdicts):
+            tally = own["checks"].setdefault(v["check"], [0, 0])
+            tally[0], tally[1] = tally[0] + (v["outcome"] == "undecidable"), tally[1] + 1
         before = own["passed"], own["decided"] + own["undecided"]
         for number, expectation in enumerate(case.expectations, start=1):
             if expectation["source"] != "format":
@@ -105,6 +110,8 @@ def measures(folder, attempt, gates, cases, price_file):
             "faults": None if caught is None else {"caught": sum(bool(f["caught"]) for f in caught),
                                                    "planted": len(caught)},
             "inferred_evidence": {arm: own["inferred"] for arm, own in arms},
+            "undecidable_checks": {arm: {name: share(*tally, undecidable=tally[0], ran=tally[1])
+                                         for name, tally in sorted(own["checks"].items())} for arm, own in arms},
             "format_conformance": {arm: share(own["passed"], own["decided"], passed=own["passed"],
                                               decided=own["decided"], undecided=own["undecided"])
                                    for arm, own in arms},

@@ -168,12 +168,12 @@ score 174 of 198 (87.9%), not the plain mean's 93.85%. The label file's `false_d
 arm, and each situation's counts, stay pooled counts.
 
 Beside each label, `measures.py` reports what it rests on, counted from the store and never estimated, each share
-with its counts: the void rate and the pinned-load rate per arm, golden accuracy from the goldens' grade records, the
-faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, format
-conformance per arm with the expectations left undecided, and per arm the runs, seconds, token counts by model and
-money at the price file, whose date the label file names. A run with no token counts, or a model with no price,
-leaves its arm with no money, and the arm says how many runs had none. A voided try keeps no evidence, so the
-cost names how many tries it leaves out.
+with its counts: the void rate and the pinned-load rate per arm, golden accuracy from the goldens' grade records,
+the faults the fault gate caught, how many expectations a check left undecidable on inferred evidence, the share of
+its verdicts each check left undecidable, per arm, format conformance per arm with the expectations left undecided,
+and per arm the runs, seconds, token counts by model and money at the price file, whose date the label file names. A
+run with no token counts, or a model with no price, leaves its arm with no money, and the arm says how many runs had
+none. A voided try keeps no evidence, so the cost names how many tries it leaves out.
 
 Every task case ends with the done question (`evals/grading/done.json`), appended by `cases.Case`: does the run say
 its work is done? It is graded and calibrated by goldens like any other question, and counts in no pass rate. The
