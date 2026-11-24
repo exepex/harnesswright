@@ -320,6 +320,19 @@ class Reader(TempCase):
                 problems, _ = self.lint(case)  # the release copy of extra.md excuses nothing at its source
                 self.assertIn(f"{case.id}: v2/skills/note-taker/references/extra.md: holds expectation text", problems)
 
+    def test_a_golden_is_excused_what_its_case_wrote_and_never_the_base(self):
+        row = "| notes | implementer | note-taker | note-taker |"
+        case = self.case({"v2/skills/note-taker/SKILL.tmpl.md": NOTE_TAKER},
+                         {"internal_world": {"remove": [], "jobs": [row]}}, skill=SKILL)
+        long = lambda text: [line for line in text.splitlines() if len(lint.words(line)) >= lint.RUN]
+        with mock.patch.object(internal, "REPO", self.repo), mock.patch.object(internal, "KIT_FILE", self.kit()):
+            built = internal.resolve(case).world
+            made = next(line for line in long((built / "release" / "note-taker" / "SKILL.md").read_text())
+                        if line not in NOTE_TAKER)  # a line the build made of the case's file: derived
+            based = long((built / "docs" / "design" / "11-evals.md").read_text())[0]  # left alone: the base's
+            said = lint.golden_said(case.folder, json.dumps({"log": [{"text": made}, {"text": based}]}), SKILL)
+        self.assertEqual(set(said), lint.all_runs([based], {lint.RUN}))
+
     def test_a_remove_comes_after_the_rebuild(self):
         case = self.internal_case(["v2/VERSION"])  # the build needs it, so it is removed only after the build
         out = internal.world_of(case, self.tmp / "out", self.repo, self.kit())

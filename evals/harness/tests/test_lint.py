@@ -304,7 +304,7 @@ class Lint(TempCase):
         added = "Every criterion of the story is met and proved by its own named test in the suite today."
         (evals / "skills/x/cases/a/world").mkdir(parents=True)
         (evals / "skills/x/cases/a/world/README.md").write_text(world)
-        (evals / "skills/x/cases/a/case.json").write_text('{"prompt": "Write the claims."}')
+        (evals / "skills/x/cases/a/case.json").write_text('{"prompt": "Write the claims.", "kind": "task"}')
         (evals / "goldens/x/a").mkdir(parents=True)
         path = "notes/the claims say every check passed and nothing at all was left out.md"  # a key says too
         (evals / "goldens/x/a/g.json").write_text(json.dumps({"log": [{"text": world}], "changes": {"c.md": added,

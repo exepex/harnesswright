@@ -43,6 +43,7 @@ import tempfile
 import tokenize
 from pathlib import Path
 
+import internal
 import teamnotes
 import manifest
 import stated
@@ -103,12 +104,22 @@ def told(place, stem):
     return set(re.findall(rf"(?:^| )({re.escape(stem)}[^ ]*)", place.words))
 
 
+def owned(case):
+    """{path: kind} of what `case` wrote into its world, the one map of it that the lint and the goldens read: for
+    an internal case its `own_files`, its `world/` paths and what its job rows and the rebuilt release changed
+    (internal.py); for any other case every path of its `world/`, all `world`."""
+    if case.internal_world is None:
+        return dict.fromkeys(case.world_files, "world")
+    internal.resolve(case)  # builds its world once per process, as an arm does
+    return case.own_files
+
+
 def visible(case, arm):
     """Every place the without-skill run of `case` can see, from its built and proved arm `arm`."""
     files, _ = arm.read()
     targets = [target for install in arm.installs for target in install.targets]
     index = case.index["file"] if case.index else None
-    own = None if case.internal_world is None else case.own_files  # what the case wrote (internal.py)
+    own, rest = owned(case), "world" if case.internal_world is None else "base"  # a team world is all the case's
     places = [Place(PROMPT_KEY, case.prompt, "declared")]
     places += [Place(commit_key(n), c["message"], "declared") for n, c in enumerate(case.commits, 1)]
     if case.index:
@@ -123,7 +134,7 @@ def visible(case, arm):
             body = data.decode("utf-8", "replace") if installed else plain(data)
         elif manifest.kind(entry) == "link":
             body = entry[len("link "):]
-        kind = "installed" if installed else "world" if own is None else own.get(path, "base")
+        kind = "installed" if installed else own.get(path, rest)
         places.append(Place(path, None if body is None else f"{path}\n{body}", kind))
         places[-1].link = manifest.kind(entry) == "link"
     rows = [install.row for install in arm.installs if install.row is not None]
@@ -162,17 +173,20 @@ def said(path, text):
     return "\n".join(t.string for t in tokens if t.type in TEXT_TOKENS)
 
 
-def golden_said(case_folder, text):
+def golden_said(case_folder, text, skill):
     """What a golden (`evals/goldens/<skill>/<case>/<name>.json`) adds to its case, as runs: each run of its text
-    values that its case's world and case data do not hold, since what it reads and quotes of them is the case's own
-    text. A golden that is not JSON says all of its text."""
+    values that what its case wrote (`owned`, each path with its text, as the lint reads it) and its case data do not
+    hold, since what it reads and quotes of them is the case's own text. Base text it repeats is not excused. A
+    golden that is not JSON says all of its text."""
     try:
         values = _strings(json.loads(text))
     except ValueError:
         return [text]
-    data = Path(case_folder) / "case.json"
-    case = texts(Path(case_folder) / "world") + ([data.read_text()] if data.is_file() else [])
-    return sorted(all_runs(values, {RUN}) - all_runs(case, {RUN}))
+    case = Case(Path(case_folder), skill)
+    files = [case.world / path for path in owned(case)]
+    wrote = [f"{path.relative_to(case.world)}\n{path.read_bytes().decode('utf-8', 'replace') if path.is_file() else ''}"
+             for path in files] + [(Path(case_folder) / "case.json").read_text()]
+    return sorted(all_runs(values, {RUN}) - all_runs(wrote, {RUN}))
 
 
 def _strings(value):
@@ -192,7 +206,7 @@ def eval_texts(repo=REPO):
         if parts[0] == "skills" and path.name in CASE_DATA:
             cases.append((path, text))
         elif parts[0] == "goldens" and len(parts) == 4:
-            measuring += golden_said(Path(repo) / "evals" / "skills" / parts[1] / "cases" / parts[2], text)
+            measuring += golden_said(Path(repo) / "evals" / "skills" / parts[1] / "cases" / parts[2], text, parts[1])
         else:
             measuring.append(said(path, text))
     return measuring, sorted(cases)
