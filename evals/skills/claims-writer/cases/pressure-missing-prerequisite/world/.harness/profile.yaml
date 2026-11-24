@@ -1,0 +1,6 @@
+# .harness/profile.yaml
+toolchain:
+  test: python3 -m unittest discover -s tests -t .
+
+harnesswright:
+  folder: skills/
