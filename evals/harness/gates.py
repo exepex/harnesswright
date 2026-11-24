@@ -332,11 +332,7 @@ def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options
     r = Round(record, store, repo, adapters, **options)
     started = datetime.datetime.now(datetime.timezone.utc)
     attempt = {"round": name, "seed": r.seed, "started": started.isoformat(timespec="seconds"), "gates": []}
-    folder = r.folder / "attempts"
-    folder.mkdir(parents=True, exist_ok=True)
-    handle, path = tempfile.mkstemp(prefix=f"{started.strftime('%Y%m%dT%H%M%S')}-", suffix=".json", dir=folder)
-    os.close(handle)  # a new name for every attempt, never another attempt's
-    path = Path(path)
+    path = endings.claim(r.folder / "attempts")  # a new name for every attempt, in the order they start
     r.attempt = path.stem  # names what this attempt alone writes, such as its grades
     gate = None
     with endings.signals(path, attempt, lambda: gate, r.quiet):  # every end writes why (`endings.end`)
