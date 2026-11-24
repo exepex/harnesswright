@@ -3,7 +3,7 @@ name: pr-summary
 description: Write or update the description of an open pull request from its diff and commits. Use when a pull request is opened or its scope changes. Do not use for commit messages or release notes.
 license: Apache-2.0
 metadata:
-  areas: DOC
+  areas: rest
   roles: implementer
   sourcing: new
 ---
