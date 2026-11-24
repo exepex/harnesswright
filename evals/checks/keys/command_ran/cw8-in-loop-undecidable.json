@@ -9,7 +9,7 @@
   {
    "kind": "command",
    "source": "observed",
-   "command": "for i in 1 2 3; do python3 -m unittest discover -s tests -t . 2>&1 | tail -15; echo \"exit ${PIPESTATUS[0]}\"; done",
+   "command": "for i in 1 2 3; do python3 -m unittest 2>&1 | tail -15; echo \"exit ${PIPESTATUS[0]}\"; done",
    "exit_code": 0,
    "output": "FAILED (failures=1)\nexit 1\nFAILED (failures=1)\nexit 1\nFAILED (failures=1)\nexit 1\n"
   }
