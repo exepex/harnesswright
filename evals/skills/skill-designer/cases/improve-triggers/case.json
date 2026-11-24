@@ -41,12 +41,12 @@
         }
       },
       "judged": {
-        "question": "Does the new description name the intent behind the three missed train cases: notes or an announcement of what is new in a released version, for customers or a release page?",
-        "pass": "Yes when the run changed the release-notes template's description, and a request like any of the three would now plainly match what the description says the skill is for.",
-        "fail": "No when the description still speaks only of tagged versions and merged pull requests, or names only the words of the prompts and not what they ask for. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
+        "question": "Does the new description name, in its own words, the intent behind the three missed train cases: notes or an announcement of what is new in a released version, for customers or a release page? Read it with any of the three prompts it quotes, whole or with only a word or two changed, left out.",
+        "pass": "Yes when the run changed the release-notes template's description, and with every quoted prompt left out, its own words say the skill is for such notes or announcements, so a request like any of the three would now plainly match what it says the skill is for.",
+        "fail": "No when the description still speaks only of tagged versions and merged pull requests, or names only the words of the prompts and not what they ask for, such as the prompts quoted after \"requests like\" with no words of its own for what they ask. No also when the run left the release-notes template's description unchanged: only what that template holds counts, never the final message or the page's list of changes.",
         "examples": {
           "pass": ["Notes for a released version: its what's-new note for customers or its release page."],
-          "fail": ["The old description with one comma moved."]
+          "fail": ["The old description with one comma moved.", "The old description, then or for requests like and the three prompts quoted, with no words of its own for what they ask."]
         }
       }
     },
@@ -378,5 +378,15 @@
     "evals/skills/release-notes/cases/load-on-tag/world/README.md": ["evals"],
     "evals/skills/release-notes/cases/load-on-tag/world/AGENTS.md": ["evals"],
     "docs/templates.md": ["eval"]
-  }
+  },
+  "commits": [
+    {
+      "message": "Add release-notes with its cases",
+      "paths": ["AGENTS.md", "CLAUDE.md", "LICENSE", "THIRD_PARTY.md", "docs", "v2", "release", "evals/skills/release-notes"]
+    },
+    {
+      "message": "Record round release-notes-2 of release-notes: unsupported on claude-code",
+      "paths": ["evals/results/release-notes.json", "evals/results/release-notes-round-2.md"]
+    }
+  ]
 }

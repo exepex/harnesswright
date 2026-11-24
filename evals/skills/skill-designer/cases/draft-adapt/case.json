@@ -392,5 +392,15 @@
     "<prompt>": ["evals", "goldens"],
     "evals/skills/changelog-writer/cases/load-on-merge/world/AGENTS.md": ["evals"],
     "docs/templates.md": ["evals"]
-  }
+  },
+  "commits": [
+    {
+      "message": "Add the changelog-writer cases and the source to adapt",
+      "paths": ["AGENTS.md", "CLAUDE.md", "LICENSE", "THIRD_PARTY.md", "docs", "incoming", "v2", "release", "evals/skills/changelog-writer"]
+    },
+    {
+      "message": "Record the baseline round of changelog-writer",
+      "paths": ["evals/results/changelog-writer-baseline.json"]
+    }
+  ]
 }
