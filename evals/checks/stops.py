@@ -34,17 +34,20 @@ fails.
   resolve.py`) or a line break, is unclear. Each script's last certain run counts, so an unclear command after it is
   `undecidable`: it may be a later run, and the check fails closed. An unclear command before it changes nothing. A
   last run whose exit code is not known (`shell.exit_code`: the end of a `;` list, or an echoed `$?` right after it,
-  and every program before it sure to continue, `shell.continues`) is `undecidable`. A run with no failed check
-  passes. The action log's command entries must be observed (`checks.Bundle.entries`). Every declared script is
-  decided before the outcome, so a failure proven of one stands whatever another leaves undecided: the check fails
-  when one failed and the report holds no `Blocked:` line, passes when the report holds one, and is `undecidable`
-  only when no failure is proven and a script it cannot tell about may have failed.
+  and every program before it sure to continue, `shell.continues`) is `undecidable`. The run's recorded output is
+  its own only when the script is the command's one program, as a read must be; in a longer command it may be any
+  program's, such as an echoed `$?`, so it is no output of the script's: a code that needs a text, or a quote, is
+  then `undecidable`. A run with no failed check passes. The action log's command entries must be observed
+  (`checks.Bundle.entries`). Every declared script is decided before the outcome, so a failure proven of one stands
+  whatever another leaves undecided: the check fails when one failed and the report holds no `Blocked:` line,
+  passes when the report holds one, and is `undecidable` only when no failure is proven and a script it cannot tell
+  about may have failed.
 - `blocked_quotes_output`: when the last run of one of the skill's checks failed, by the same rule (`_failed`), a
   `Blocked:` line of the closing report holds, word for word, one line that run printed, trimmed, for each failed
   check: a line of at least `QUOTED` words, or the last non-empty line it printed, so a lone "Error" or "1" that it
-  printed first is no quote. A failed run that printed nothing recorded has nothing to quote. A proven failure that
-  is not quoted fails the check, whatever is undecided; else a failed run with nothing to quote, or a script it
-  cannot tell about, is `undecidable`. A run with no failed check, or that ran none, passes.
+  printed first is no quote. A failed run that printed nothing recorded as its own has nothing to quote. A proven
+  failure that is not quoted fails the check, whatever is undecided; else a failed run with nothing to quote, or a
+  script it cannot tell about, is `undecidable`. A run with no failed check, or that ran none, passes.
 """
 
 import re
@@ -200,11 +203,12 @@ def _last_failure(commands, script, allowed):
         raise Undecidable(f"the last run of {script} has no exit code known to be its own: "
                           f"{last['command'][:200]}", [last])
     needed, output = allowed.get(str(code)), last.get("output")
-    output = output if isinstance(output, str) else ""  # none recorded
+    alone = len(shell.words(last["command"])) == 1  # the one rule: else the output may be another program's
+    output = output if isinstance(output, str) and alone else None  # none of its own recorded
     if needed and not output:
         raise Undecidable(f"the last run of {script} ended with {code}, which is not a failure only with "
-                          f"{needed!r} in its output, and it has no output recorded", [last])
-    return (script, code, output, last) if needed is None or needed not in output else None
+                          f"{needed!r} in its output, and it has no output recorded that is its own", [last])
+    return (script, code, output, last) if needed is None or needed not in (output or "") else None
 
 
 def blocked_after_failed_check(bundle, skill, report=None):
@@ -228,11 +232,11 @@ def blocked_quotes_output(bundle, skill, report=None):
     text, name = _report(bundle, report)
     lines = LINE.findall(text or "")
     for script, code, output, last in failed:
-        printed = [line.strip() for line in output.splitlines() if line.strip()]
+        printed = [line.strip() for line in (output or "").splitlines() if line.strip()]
         printed = [line for line in printed if len(line.split()) >= QUOTED] + printed[-1:]  # never a lone "Error"
         if not printed:
             unclear.append(Undecidable(f"the last run of {script} failed with exit {code} and printed nothing "
-                                       "recorded, so no line of it can be quoted", [last]))
+                                       "recorded as its own, so no line of it can be quoted", [last]))
         elif not any(said in line for line in lines for said in printed):
             return "fail", (f"the last run of {script} failed with exit {code}, and no `Blocked:` line of {name} "
                             f"holds a line it printed, such as {printed[0][:200]!r}")

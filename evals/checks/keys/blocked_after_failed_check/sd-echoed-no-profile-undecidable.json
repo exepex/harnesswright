@@ -2,7 +2,7 @@
  "args": {
   "skill": "skill-designer"
  },
- "outcome": "pass",
+ "outcome": "undecidable",
  "final_message": "The cases are written.",
  "log": [
   {
