@@ -4,7 +4,10 @@
   "should_trigger": true,
   "split": "test",
   "internal_world": {
-    "remove": []
+    "remove": [],
+    "jobs": [
+      "| dependency-bump | implementer | dependency-bump | dependency-bump |"
+    ]
   },
   "index": {
     "file": "AGENTS.md",

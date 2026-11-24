@@ -1,9 +1,9 @@
 ---
 name: scenario-tester
 description: Run the acceptance scenarios of a story against a running build.
-allowed-tools: Bash, Read
 metadata:
-  roles: scenario tester
+  roles: qa tester
+  areas: rest
 ---
 
 1. Read the story's scenarios.

@@ -1,10 +1,13 @@
 {
-  "prompt": "the scenario-tester skill names a host's subagent tool in step 4 and keeps allowed-tools in its frontmatter. make it portable under the rules in AGENTS.md",
+  "prompt": "the scenario-tester skill names a host's subagent tool in step 4. make it portable under the rules in AGENTS.md",
   "kind": "trigger",
   "should_trigger": true,
   "split": "train",
   "internal_world": {
-    "remove": []
+    "remove": [],
+    "jobs": [
+      "| scenario-testing | qa tester | scenario-tester | scenario-tester |"
+    ]
   },
   "index": {
     "file": "AGENTS.md",

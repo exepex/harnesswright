@@ -3,6 +3,7 @@ name: dependency-upgrade
 description: Upgrade one dependency and fix what breaks. Do not use for adding a new dependency.
 metadata:
   roles: implementer
+  areas: rest
 ---
 
 1. Read the build file and find the dependency.

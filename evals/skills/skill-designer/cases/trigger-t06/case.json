@@ -4,7 +4,10 @@
   "should_trigger": true,
   "split": "train",
   "internal_world": {
-    "remove": []
+    "remove": [],
+    "jobs": [
+      "| test-review | test reviewer | test-reviewer | test-reviewer |"
+    ]
   },
   "index": {
     "file": "AGENTS.md",
