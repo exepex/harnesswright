@@ -38,16 +38,15 @@ import tempfile
 import tokenize
 from pathlib import Path
 
-import checks
 import teamnotes
 import manifest
 import world
+from cited import SHORTEST, citations, expectation_texts, stated_quotes
 from cases import ARMS, PREVIOUS, PROMPT_KEY, REPO, Case, CaseError, commit_key, is_plain, kinds, sha256_bytes
 from skills import folders, library, skill_files, tracked, tracked_file
 from textruns import RUN, all_runs, plain, runs, words
 
 EXPECTATION_RUN = 6
-SHORTEST = 3
 # Tell stems (doc 11): a word that starts with one tells an agent it is being tested. `allow_words` lets a place
 # hold the words it names. `.harness/runs/` is the project's own run folder (doc 06), so no stem matches it.
 TELLS = ("eval", "fixture", "grader", "grading", "graded", "benchmark", "rubric", "golden", "test harness",
@@ -230,59 +229,6 @@ def without_skill_rows(data, skills):
     lines = data.splitlines(keepends=True)
     return b"".join(line for line in lines if not (line.lstrip().startswith(b"|") and any(
         names(Place("", line.decode("utf-8", "replace"), "rows"), skill) for skill in skills)))
-
-
-def citations(case, places):
-    """(quotes, problems): for each expectation, the quote of its contract when a world text file holds it where it
-    is cited, else None; and a problem for each quote not held there, and for each check whose name or arguments
-    are not in the check library. A quote starts on its line, in the words the lint reads, and may run on over the
-    lines after it."""
-    found, problems, library = [], [], None
-    documents = {p.key: p.text.split("\n", 1)[1] for p in places
-                 if p.kind in ("world", "base") and p.text is not None and not p.link}
-    for number, expectation in enumerate(case.expectations, 1):
-        if "check" in expectation:
-            try:
-                library = checks.library() if library is None else library
-                checks.validate(expectation["check"]["name"], expectation["check"]["args"], library)
-            except checks.CheckError as error:
-                problems.append(f"expectation {number}: {error}")
-        source = expectation["source"]
-        found.append(None)
-        if source in ("format", "done"):
-            continue
-        path, line, quote = source["contract"]["path"], source["contract"]["line"], source["contract"]["quote"]
-        rows = documents[path].splitlines() if path in documents else []
-        here = " ".join(words(rows[line - 1])) if line <= len(rows) else ""
-        rest, said = " ".join(words("\n".join(rows[line - 1:]))), " ".join(words(quote))
-        at = f" {rest} ".find(f" {said} ")  # where the quote's first word starts in `rest`, or -1
-        if len(said.split()) < SHORTEST or not here or not 0 <= at < len(here):
-            problems.append(f"expectation {number}: {path}:{line} does not start the quote {quote[:80]!r}, of at "
-                            f"least {SHORTEST} words" + ("" if path in documents else f"; no world text file {path}"))
-            continue
-        found[-1] = quote
-    return found, problems
-
-
-def expectation_texts(expectation):
-    """Every text an expectation holds: what it says, and its judged question, rules and examples."""
-    judged = expectation.get("judged") or {}
-    examples = judged.get("examples", {})
-    return [expectation["text"]] + [judged[k] for k in ("question", "pass", "fail") if k in judged] \
-        + examples.get("pass", []) + examples.get("fail", [])
-
-
-def stated_quotes(text):
-    """The contract quotes a case data file states, or none when it is not a case.json of that shape."""
-    try:
-        data = json.loads(text)
-    except ValueError:
-        return []
-    found = data.get("expectations") if isinstance(data, dict) else None
-    if not isinstance(found, list):
-        return []
-    return [e["source"]["contract"]["quote"] for e in found if isinstance(e, dict) and isinstance(e.get("source"), dict)
-            and isinstance(e["source"].get("contract"), dict) and isinstance(e["source"]["contract"].get("quote"), str)]
 
 
 def protected(case, places, copied, skill_dir, upstream=(), repo=REPO, sizes=frozenset()):
