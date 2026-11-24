@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
   rulebook-version: "0.8.1"
-  content-hash: "96e09a3b4d318a66e01a97c09696194dfc354cdacd855abc62c0a1602de42d23"
+  content-hash: "01b50e571d3e6ef19d8281358386bcaf33a994ce808aaa97b6ea6a63ab794905"
   size-floors: "15627"
-  size-rest: "29994"
+  size-rest: "29999"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.1. Do not edit. -->
 
@@ -574,7 +574,7 @@ Check: you know the stage and why, from files you read.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show. Write each from a fact in the case's own world, cited by file and line, or
    mark it `format` when it is only the shape of the skill's own output; never from the source skill's steps or
-   wording. Use that file's shape: `text`, `source`, `judged`.
+   wording. Use case-format.md's shape: `text`, `source`, `judged`.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:

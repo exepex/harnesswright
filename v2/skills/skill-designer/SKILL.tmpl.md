@@ -132,7 +132,7 @@ Check: you know the stage and why, from files you read.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show. Write each from a fact in the case's own world, cited by file and line, or
    mark it `format` when it is only the shape of the skill's own output; never from the source skill's steps or
-   wording. Use that file's shape: `text`, `source`, `judged`.
+   wording. Use case-format.md's shape: `text`, `source`, `judged`.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:

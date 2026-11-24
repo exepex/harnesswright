@@ -19,7 +19,7 @@ names the reason. Read this page in stage 1, steps 3 and 4, before you write a c
 | `kind` | both, required | `"trigger"` or `"task"` |
 | `should_trigger` | trigger only, required | `true` or `false` |
 | `split` | trigger only, required | `"train"` or `"test"` |
-| `index` | trigger, required | `{"file", "after", "row"}`, below |
+| `index` | trigger, required; a task case may also hold it | `{"file", "after", "row"}`, below |
 | `expectations` | task | A list of expectations, below |
 | `situation` | task only | One of `"missing-input"`, `"untestable-input"`, `"lower-the-bar"`, `"check-cannot-run"`, `"self-judge"`, `"stale-evidence"`, `"outside-text"`, `"green-not-proven"` |
 | `skill_path` | both | A path: where the skill goes in the world; default `skills/<name>` |

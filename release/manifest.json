@@ -58,7 +58,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "96e09a3b4d318a66e01a97c09696194dfc354cdacd855abc62c0a1602de42d23",
+      "content-hash": "01b50e571d3e6ef19d8281358386bcaf33a994ce808aaa97b6ea6a63ab794905",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -100,8 +100,8 @@
       ],
       "files": {
         "LICENSE.txt": "14099b9c79d031b9d4b32c736a4e20f2b941f52dd79500532d62d26dd716110c",
-        "SKILL.md": "644d18c4075c8f33202eafdd824a263693110c24d64f2e3cae976947ba4fab27",
-        "references/case-format.md": "f51bcbce064eb40fa337f39c76b591d7c7cea0b0a1adf8c456463e27b816df7e",
+        "SKILL.md": "e637553ff42a090bff0ae9de23d1f64f436e9cd7d0bd921321ecd5437ef17449",
+        "references/case-format.md": "d84caaba43ca4dcd73c7048d596edfc2fa35a68d65d07d289092df45cdf76ccf",
         "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
         "scripts/reach.py": "099b97cf1f5f29615c01106de703a793fe5026bc09a7ebc182206450291ce27b",
         "scripts/repoprofile.py": "e340a378c4c285e9ab49f02d01693612787202b74b10aabe0563cf745370b5ec",
@@ -117,7 +117,7 @@
       ],
       "rulebook-version": "0.8.1",
       "size-floors": 15627,
-      "size-rest": 29994
+      "size-rest": 29999
     }
   }
 }
