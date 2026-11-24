@@ -130,7 +130,7 @@ class Graded(Pages):
         def flipping(adapter, page, asked, model=None, timeout=None, **containment):
             found = answering(pond)(adapter, page, asked)
             if HELLO.strip() in page:  # the golden settled `no`: each grader was refused once for a `yes` to q2
-                found.offered.append({"q2": "yes"})
+                found.offered.append({"q2": ["yes"]})
             return found
 
         outcome = self.graded([POND], flipping)
