@@ -17,7 +17,7 @@ import world
 from cases import CaseError
 from test_world import Adapter
 
-PROFILE = "harnesswright:  # the release\n  folder: 'skills/'  # unpacked here\n  version: \"0.8.0\"\n"
+PROFILE = "scripts: forbidden\nharnesswright:  # the release\n  folder: 'skills/'  # unpacked here\n"
 RUN_TIME = ["skills/manifest.json", "skills/roles.md", "skills/rules/core/work.md"]
 
 
@@ -42,6 +42,37 @@ class TeamArms(TempCase):
         (self.tmp / "w" / teamrelease.PROFILE).write_text("harnesswright:\n  folder: ../out\n")
         with self.assertRaisesRegex(CaseError, "not a path inside the world"):
             teamrelease.release_folder(self.tmp / "w")
+        for text in ("harnesswright:\n  folder: skills\n  version: 0.8.0\n",
+                     'harnesswright:\n  "version": "0.8.0"\n  folder: skills\n',
+                     "harnesswright:\n  folder: skills\n  folder: tools\n"):  # an allow list: folder and comments
+            (self.tmp / "w" / teamrelease.PROFILE).write_text(text)
+            with self.assertRaisesRegex(CaseError, "holds only its one `folder:` line and comments"):
+                teamrelease.release_folder(self.tmp / "w")
+        (self.tmp / "w" / teamrelease.PROFILE).write_text("harnesswright:\n  folder: skills\n\nscripts: forbidden\n")
+        with self.assertRaisesRegex(CaseError, "not the profile's last entry; .* moves no line a case cites"):
+            teamrelease.release_folder(self.tmp / "w")
+
+    def stated(self, arm):
+        """The version line of the harnesswright block of an arm's profile, or None."""
+        lines = (arm / teamrelease.PROFILE).read_text().splitlines()
+        return next((line for line in lines if line.lstrip().startswith("version:")), None)
+
+    def test_each_skill_arm_profile_states_the_version_of_the_release_it_installed(self):
+        self.arms({".harness/profile.yaml": PROFILE})
+        self.assertEqual(self.stated(self.tmp / "arm-True"),
+                         '  version: "0.8.0"  # checked against skills/manifest.json')
+        self.assertEqual((self.tmp / "arm-False" / teamrelease.PROFILE).read_text(), PROFILE)
+        self.assertEqual((self.tmp / "arm-True" / teamrelease.PROFILE).read_text(),
+                         PROFILE + self.stated(self.tmp / "arm-True") + "\n")  # no line of the case's profile moves
+
+    def test_a_case_may_declare_the_profile_version_it_tests(self):
+        self.arms({".harness/profile.yaml": PROFILE}, {"profile_version": "0.5.1"})
+        self.assertEqual(self.stated(self.tmp / "arm-True"),
+                         '  version: "0.5.1"  # checked against skills/manifest.json')
+        self.assertIsNone(self.stated(self.tmp / "arm-False"))
+        case = self.case({}, {"profile_version": "0.5.1"}, skill="claims-writer")
+        with self.assertRaisesRegex(CaseError, "profile_version is only for a team skill's case whose profile"):
+            world.plan(case, Adapter, False, self.tmp / "skills")
 
     def test_with_a_profile_the_skill_arm_holds_the_run_time_files_and_the_plain_arm_none(self):
         _, skills, (without, with_skill) = self.arms({".harness/profile.yaml": PROFILE})
@@ -98,6 +129,7 @@ class TeamArms(TempCase):
         case = self.case({".harness/profile.yaml": PROFILE}, skill="claims-writer")
         arm = world.build(case, Adapter, self.tmp / "prev", self.tmp / "skills", True, previous / "claims-writer")
         self.assertEqual((arm.path / "skills" / "roles.md").read_text(), "# Roles, as the previous release had them\n")
+        self.assertEqual(self.stated(arm.path), '  version: "0.8.0"  # checked against skills/manifest.json')
 
     def old_release(self):
         """A previous release built before 0.8.0: no hashes, and a rules file the current release does not ship."""
@@ -118,6 +150,7 @@ class TeamArms(TempCase):
         case = self.case({".harness/profile.yaml": PROFILE}, skill="claims-writer")
         arm = world.build(case, Adapter, self.tmp / "old", self.tmp / "skills", True, previous / "claims-writer")
         self.assertEqual((arm.path / "skills" / "rules" / "core" / "old.md").read_text(), "# Old\n")
+        self.assertEqual(self.stated(arm.path), '  version: "0.7.1"  # checked against skills/manifest.json')
         self.assertTrue((arm.path / "skills" / "manifest.json").is_file())
         with self.assertRaisesRegex(CaseError, "before releases hashed their files.*only a previous version"):
             world.plan(case, Adapter, True, previous)
@@ -149,6 +182,20 @@ class TeamArms(TempCase):
             shown.append(view.view(record, blobs.__getitem__))
         self.assertEqual(shown[0], shown[1])
         self.assertFalse([p for p in shown[1][0]["files_after"] if p.startswith("skills")])
+        self.assertEqual(layer["edited"], {teamrelease.PROFILE: manifest.manifest(self.tmp / "arm-False")[
+            teamrelease.PROFILE]})
+        shown = []  # a run that edits the profile shows the same change in either arm
+        for arm in (False, True):
+            path = self.tmp / f"arm-{arm}"
+            before = manifest.manifest(path)[teamrelease.PROFILE]
+            (path / teamrelease.PROFILE).write_text((path / teamrelease.PROFILE).read_text() + "notes: kept\n")
+            files = manifest.manifest(path)
+            blobs = {e.split(" ")[1]: (path / p).read_bytes() for p, e in files.items() if manifest.is_file(e)}
+            diff = {teamrelease.PROFILE: {"before": before, "after": files[teamrelease.PROFILE]}}
+            record = {"overlay": layer, "folders": {}, "own_files": [], "files_after": files, "diff": diff,
+                      "case": case.id, "mode": "task", "log": [], "final_message": "Done."}
+            shown.append(view.view(record, blobs.__getitem__))
+        self.assertEqual(shown[0], shown[1])
 
 
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
 # .harness/profile.yaml
-harnesswright:
-  version: "0.5.1"
-  folder: skills/
 
 toolchain:
   test: python3 -m unittest discover -s tests -t .
 
+# Agent skills can bring helper scripts with them.
+# The team reviewed what those scripts would do here
+# and chose to run none of them.
 scripts: forbidden                  # the team decided: no helper script of an agent skill runs here
+
+harnesswright:
+  folder: skills/

@@ -45,20 +45,24 @@ def overlay(case, adapter, skills_root=None, skill_dir=None):
     """What the with-skill arm of `case` adds to the without-skill arm: the skill, the paths it is installed at (its
     declared folder and the host's discovery copy), every other file a team install adds (`release`, such as the
     release's run-time files), its index file and row, and the index file's entry in the without-skill arm (all
-    three None without an index). A skill with no folder yet adds nothing: its round runs without it only
-    (`rounds.plan`, `absent`), and every reader of an overlay (runs, faults, goldens) takes it here."""
+    three None without an index), and `edited`: each file the install edits in place, the index and a team
+    profile (`world.edits`), with its entry in the without-skill arm. A skill with no folder yet adds nothing: its
+    round runs without it only (`rounds.plan`, `absent`), and every reader of an overlay (runs, faults, goldens)
+    takes it here."""
     known = skills.library(skills_root) if skills_root else skills.folders(REPO)
     if skill_dir is None and case.skill not in known:
-        return {"skill": case.skill, "paths": [], "release": [], "index": None, "row": None, "index_without": None}
+        return {"skill": case.skill, "paths": [], "release": [], "index": None, "row": None, "index_without": None,
+                "edited": {}}
     installs = worlds.plan(case, adapter, True, skills_root, skill_dir)
     skill = installs[-1]  # the plan installs the skill last
     index = case.index["file"] if case.index else None
     without = worlds.expected(case, worlds.plan(case, adapter, False, skills_root, skill_dir))[0]
-    added = worlds.expected(case, installs)[0]
+    added, edited = worlds.expected(case, installs)
     release = sorted(path for path, entry in added.items() if path not in without and manifest.kind(entry) != "dir"
                      and not covers(skill.targets, path))
     return {"skill": skill.name, "paths": list(skill.targets), "release": release, "index": index, "row": skill.row,
-            "index_without": without.get(index) if index else None}
+            "index_without": without.get(index) if index else None,
+            "edited": {path: without[path] for path in sorted(edited)}}
 
 
 def places(overlay):

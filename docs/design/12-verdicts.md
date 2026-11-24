@@ -40,6 +40,11 @@ they are measured differently.
   is proved by its commit: its skill folder hashes to the sha256 the round recorded, and its run-time files are the
   files of that commit's release that the current run-time list covers. The round's manifest names each arm's
   proof, and any other release stops the round as a harness fault.
+- Where the profile names the release folder, each arm that installs a release gets the profile's version line from
+  that release's manifest, as a team that installed it would have it. A case's profile states the folder and what
+  else it tests, never a version that must track `v2/VERSION`; a case that tests a mismatch declares the version.
+  The line moves no line of the case's profile: the harnesswright block holds only its folder and comments, it is
+  the profile's last entry, and the version line goes at its end.
 - Lift is what the skill, with the files it needs to run, adds over a plain agent in the same repository.
 - Contract expectations cite the outcome a team expects, such as a story's outcomes and its tests, never the
   skill's own wording, so a plain agent can meet them.
