@@ -15,7 +15,7 @@ GATES = ["kit check", "lint", "probe", "faults", "run", "check", "grade", "label
 
 
 class Results(TempCase):
-    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None, shipped=None):
+    def round(self, name="r1", passed=True, approved=KIT, skills=None, ran=None, shipped=None, agreement=None):
         folder = self.tmp / "store" / name
         (folder / "attempts").mkdir(parents=True)
         (folder / "labels").mkdir()
@@ -26,7 +26,8 @@ class Results(TempCase):
         (folder / "labels" / "t1.json").write_text(json.dumps({
             "attempt": "t1", "commit": "c" * 40, "round": name, "reference": "fakehost", "prices": "2026-11-14",
             "thresholds": {"min_runs": 3}, "skills": skills or {"haiku-writer": {"fakehost": HOST}},
-            **({"shipped": shipped} if shipped is not None else {})}))
+            **({"shipped": shipped} if shipped is not None else {}),
+            **({"agreement": agreement} if agreement is not None else {})}))
         archive = self.tmp / f"{name}.tar"
         with tarfile.open(archive, "w") as tar:
             tar.add(folder, arcname=name)
@@ -71,6 +72,11 @@ class Results(TempCase):
         (folder / "labels" / "t2.json").write_bytes((folder / "labels" / "t1.json").read_bytes())
         with self.assertRaisesRegex(results.ResultsError, "such as attempts/t2.json, labels/t2.json"):
             results.entries(folder, archive)  # an archive made before a later attempt
+        folder, _ = self.round("r8")
+        failed = {"gates": [{"gate": "kit check", "passed": False}]}
+        (folder / "attempts" / "000001.json").write_text(json.dumps(failed))
+        with self.assertRaisesRegex(results.ResultsError, "000001.json: the last attempt did not pass"):
+            results.finished(folder)  # numbered attempts come after those an older store named
         folder, archive = self.round("r7")
         (folder / "runs" / "k1").mkdir(parents=True)
         (folder / "runs" / "k1" / "checks.json").write_text("{}")
@@ -121,3 +127,19 @@ class Results(TempCase):
         self.assertEqual(len(path.read_text().splitlines()), 36)  # 14 fields, each host 4 lines and its braces, compared
         self.assertEqual(results.publish(folder, archive, out), [path])  # the same round again: one entry
         self.assertEqual(len(json.loads(path.read_text())["rounds"]), 1)
+
+    def test_each_skill_s_share_of_the_round_s_agreement_is_published(self):
+        low = {"agreement": {"rate": 0.5, "agreed": 1, "pages": 2}, "flipped": ["k1"]}
+        report = {"threshold": 0.9, "overall": {"rate": 0.75, "agreed": 3, "pages": 4},
+                  "questions": {"haiku-writer/c1 q2": low, "limerick-writer/c1 q1": low},
+                  "rewrite": ["haiku-writer/c1 q2", "limerick-writer/c1 q1"]}
+        skills = {"haiku-writer": {"fakehost": HOST}, "limerick-writer": {"fakehost": HOST}}
+        folder, archive = self.round(skills=skills, agreement=report)
+        out = self.tmp / "results"
+        out.mkdir()
+        results.publish(folder, archive, out)
+        entry = json.loads((out / "haiku-writer.json").read_text())["rounds"][0]
+        self.assertEqual(entry["agreement"], {"threshold": 0.9, "questions": {"haiku-writer/c1 q2": low},
+                                              "rewrite": ["haiku-writer/c1 q2"]})  # its own questions alone
+        folder, archive = self.round("r2")  # a label file written before it reported agreement
+        self.assertNotIn("agreement", results.entries(folder, archive)["haiku-writer"])
