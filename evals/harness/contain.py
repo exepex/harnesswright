@@ -7,7 +7,8 @@ an empty `/tmp`, a fresh `/proc` and a minimal `/dev`, and the gate's socket. Th
 every connection goes through the gate (`gate.py`), which allows only the host's model hosts. The jail is built from
 the list, and `audit.py` checks the jail against the same list from inside it before the host starts. Any problem
 raises ContainmentError: the run is void and the round stops. The environment is built from an allow list
-(`BASE_KEYS`, the adapter's `ENV_KEYS`, its fixed `RUN_ENV` and the run's folders), never inherited.
+(`BASE_KEYS`, the adapter's `ENV_KEYS`, its fixed `RUN_ENV`, the harness's fixed `HARNESS_ENV` and the run's
+folders), never inherited.
 """
 
 import json
@@ -33,7 +34,10 @@ CA_KEYS = ("SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_
            "GIT_SSL_CAINFO")
 # Set by the harness: the run's own folders (PWD is the world, as the jail sets it) and the gate as the only proxy.
 PROXY_KEYS = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")
-RUN_KEYS = ("HOME", "TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "PWD") + PROXY_KEYS
+# Fixed by the harness for every run of every arm, set last so no adapter changes them: Python writes no bytecode,
+# so a command the world prescribes, such as its build, leaves no `__pycache__/` in the world it changes.
+HARNESS_ENV = {"PYTHONDONTWRITEBYTECODE": "1"}
+RUN_KEYS = ("HOME", "TMPDIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "PWD") + PROXY_KEYS + tuple(HARNESS_ENV)
 GATE = "/run/gate"  # where the gate's socket is inside the jail
 PYTHON = "/usr/bin/python3"
 SYSTEM = ("/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32")
@@ -184,6 +188,7 @@ class Containment:
         fixed = dict(getattr(self.adapter, "RUN_ENV", {}))  # set by the adapter, never taken from the operator
         env.update(fixed)
         env = dict(self.adapter.environment(env))
+        env.update(HARNESS_ENV)
         extra = sorted(set(env) - set(keys) - set(RUN_KEYS) - set(fixed))
         if extra:
             raise ContainmentError(f"the adapter added variables outside the allow list: {extra}")

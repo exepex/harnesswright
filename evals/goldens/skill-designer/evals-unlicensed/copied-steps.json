@@ -230,9 +230,9 @@
   },
   "q17": {
    "expectation": "Next names the goldens author and the baseline round, each with its owner",
-   "sha256": "597802c6db58eb2cf6d53ba7a0797b96b7d5a9cc8f4b4d569f6f90ee6f40a9a3",
+   "sha256": "4f257d87ccbaab7becc0d9ac86dd0a9272facca1ba2c8fce1478fb84a021cfcc",
    "answer": "yes",
-   "by": "judge-f"
+   "by": "judge-i"
   },
   "q18": {
    "expectation": "Every case the run wrote meets the case.json schema",

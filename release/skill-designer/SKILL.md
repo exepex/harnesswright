@@ -9,12 +9,12 @@ metadata:
   source-licence: Apache-2.0
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
-  rulebook-version: "0.8.0"
-  content-hash: "20d64a31bd880286a1326a454239e993313f224254535e9449fbef79627d2a45"
+  rulebook-version: "0.8.1"
+  content-hash: "01b50e571d3e6ef19d8281358386bcaf33a994ce808aaa97b6ea6a63ab794905"
   size-floors: "15627"
-  size-rest: "29822"
+  size-rest: "29999"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.0. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.1. Do not edit. -->
 
 # Skill designer
 
@@ -497,7 +497,7 @@ This skill does not:
 | The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
 | The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
 | A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
-| The rules index the project names, for the rule IDs | Yes | Stop: a skill cannot cite rules it cannot read. |
+| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. The `Blocked:` line gives the index's path. |
 
 Rules: CORE-SKILL-28 (A skill states its purpose, limits and inputs, and stops on a missing required input), CORE-WORK-07 (Do not stop silently)
 
@@ -569,12 +569,12 @@ Check: you know the stage and why, from files you read.
      no sentence of it.
 3. Write the trigger cases, each in a folder of its own, `evals/skills/<name>/cases/trigger-tNN/`, holding
    `case.json` and `world/`: at least eight prompts that should load the skill and eight near misses that should
-   not. Write prompts as people type them. Each states `should_trigger` and `split`; half of each kind is `test`.
-   Never list prompts in one shared file.
+   not. Write prompts as people type them. Each states `should_trigger`, `split` and `index`; half of each kind is
+   `test`. Never list prompts in one shared file. Write each `case.json` as `SKILL_DIR/references/case-format.md` says.
 4. Write at least two task cases, each in a folder of its own holding `case.json` and `world/`. Its `expectations`
    list what a good run must show. Write each from a fact in the case's own world, cited by file and line, or
    mark it `format` when it is only the shape of the skill's own output; never from the source skill's steps or
-   wording.
+   wording. Use case-format.md's shape: `text`, `source`, `judged`.
 5. Keep the skill out of the worlds: no world holds the skill's name or its text.
 6. On the write-new path with a source, compare every file you wrote with every file of the source: no eight words in a row may
    match, ignoring case and punctuation. Run the copy check from the project root:
