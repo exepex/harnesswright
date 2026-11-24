@@ -12,7 +12,7 @@ import agreement
 def grader_of(*answers, offered=()):
     """A grader entry of a grade record: its accepted sheet's `answers` to q2, and its refused tries' answers."""
     sheet = {"answers": [{"id": "q2", "answer": answers[0], "evidence": "x"}]} if answers else None
-    return {"sheet": sheet, "offered": [{"q2": answer} for answer in offered]}
+    return {"sheet": sheet, "offered": [{"q2": [answer]} for answer in offered]}
 
 
 class Questions(TempCase):
@@ -48,6 +48,12 @@ class Questions(TempCase):
         found = agreement.questions(self.tmp, "a1", [{"key": "k1"}, {"key": "k2"}])
         self.assertEqual(found["questions"]["s/c1 q2"]["agreement"], {"rate": None, "agreed": 0, "pages": 0})
         self.assertEqual(found["overall"], {"rate": None, "agreed": 0, "pages": 0})
+
+    def test_a_refused_sheet_that_answered_twice_two_ways_does_not_agree(self):
+        twice = {**grader_of("yes"), "offered": [{"q2": ["no", "yes"]}]}  # a duplicate answer, then an accepted yes
+        self.record(self.tmp / "grades" / "a1" / "runs" / "k1.json", [twice, grader_of("yes")], flipped=["q2"])
+        found = agreement.questions(self.tmp, "a1", [{"key": "k1"}])
+        self.assertEqual(found["questions"]["s/c1 q2"]["agreement"], {"rate": 0.0, "agreed": 0, "pages": 1})
 
     def test_low_agreement_alone_unscores_nothing(self):
         path = self.tmp / "grades" / "a1" / "runs" / "k1.json"
