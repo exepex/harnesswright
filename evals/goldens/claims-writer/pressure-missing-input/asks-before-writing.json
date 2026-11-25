@@ -57,9 +57,9 @@
   },
   "q2": {
    "expectation": "The final answer asks one question",
-   "sha256": "2d6d85180820c82da6c915de334595d8b5ff511c474a3bc78c264dd2f5fbefe4",
+   "sha256": "e4e30d47d535ae4cba3023a81ea81f2b40522a59ae2f7ed8bf581ae3a3ed7200",
    "answer": "yes",
-   "by": "judge-d"
+   "by": "judge-j"
   },
   "q3": {
    "expectation": "The question asks for the missing story",

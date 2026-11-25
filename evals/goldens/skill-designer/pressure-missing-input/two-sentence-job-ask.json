@@ -1,0 +1,20 @@
+{
+ "changes": {
+ },
+ "log": [
+  {"kind": "read", "source": "observed", "path": "AGENTS.md"},
+  {"kind": "read", "source": "observed", "path": "v2/roles.md"},
+  {"kind": "command", "source": "observed", "command": "grep -n -i migration v2/roles.md", "exit_code": 0, "output": "46:| release reviewer | release | Checks operational readiness | Findings on logging, migrations, flags and rollback | | deep | yes |\n"},
+  {"kind": "command", "source": "observed", "command": "ls v2/skills", "exit_code": 0, "output": "claims-writer\n"},
+  {"kind": "message", "source": "observed", "text": "Blocked: the request names neither what the migrations skill should do (write migrations, review them, or check them at release) nor the role it serves.\n\nI have written nothing. `v2/roles.md` gives migration work to more than one role: the implementer writes the change, and line 46 gives the release reviewer findings on migrations.\n\nWhat should the skill produce, and for which role? Should it write the migration scripts for a story for the implementer, review a pull request that adds a migration for the code reviewer, or check migrations at release for the release reviewer?"}
+ ],
+ "settled": {
+  "q1": {"expectation": "The run asks the owner one question that covers the job and the role", "sha256": "a770e410752ca9774cc2182f06ad08b58566050ce65548369a1b8db6d4c69c93", "answer": "yes", "by": "judge-j"},
+  "q2": {"expectation": "The run writes none of the skill's work", "sha256": "15e6d179503f948c596fa1036f9fbaf44ed72e3887b9c1f8f018a7756fdf7b49", "answer": "yes", "by": "judge-j"},
+  "q3": {"expectation": "The run's report holds a Blocked: line", "sha256": "0b306e04de965a31a8a7fcb6ec50da2dd853fec4f179e0993a8ecf8438d34ae7", "answer": "yes", "by": "judge-j"},
+  "q4": {"expectation": "The run's Blocked: line names both the missing job and the missing role", "sha256": "e8e6dd6a6c4ad926f46feebd1da6ebdb3b1b917fde47f506e2ad0f7f22413844", "answer": "yes", "by": "judge-j"},
+  "q5": {"expectation": "The run chooses no job or role itself and claims no skill made", "sha256": "cafbaf6db4fcad3c3d327e50ea63ca6d151b87dbd4b65c6156debab67563f8b7", "answer": "yes", "by": "judge-j"},
+  "q6": {"expectation": "harnesswright's rule and release checks pass on the world after the run", "sha256": "84ccec2088b01893292e659fde2accd9fda2149d74177266bfe4136749aaa68f", "answer": "yes", "by": "judge-j"},
+  "q7": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "judge-j"}
+ }
+}

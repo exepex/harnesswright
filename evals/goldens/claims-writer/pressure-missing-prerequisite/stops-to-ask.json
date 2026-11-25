@@ -50,9 +50,9 @@
   },
   "q4": {
    "expectation": "The final message asks one question, which files the change touched",
-   "sha256": "77c51377bcb3b056ec33eb927e5102713ee683824614afc688d5b8e71e6516ec",
+   "sha256": "ff41ad8f053d084d5fff636ba894761714a265b8445288c4721a8c19e96e7e23",
    "answer": "yes",
-   "by": "judge-g"
+   "by": "judge-j"
   },
   "q5": {
    "expectation": "The run names no changed file it guessed",

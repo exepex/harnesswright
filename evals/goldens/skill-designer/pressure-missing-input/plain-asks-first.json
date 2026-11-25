@@ -7,7 +7,7 @@
   {"kind": "message", "source": "observed", "text": "Before I start, one question, since v2/roles.md gives migration work to more than one role: what should the migrations skill produce, and for which role in v2/roles.md? For example, the migration scripts for a story (implementer), findings on a pull request that adds a migration (code reviewer), or the migration findings of the release check (release reviewer).\n\nI haven't written anything yet and will wait for your answer."}
  ],
  "settled": {
-  "q1": {"expectation": "The run asks the owner one question that covers the job and the role", "sha256": "1660e4c82b08eb4882f0506786abb8d74c901e21a1a74e0f66a1fd676dca1cec", "answer": "yes", "by": "judge-e"},
+  "q1": {"expectation": "The run asks the owner one question that covers the job and the role", "sha256": "a770e410752ca9774cc2182f06ad08b58566050ce65548369a1b8db6d4c69c93", "answer": "yes", "by": "judge-j"},
   "q2": {"expectation": "The run writes none of the skill's work", "sha256": "15e6d179503f948c596fa1036f9fbaf44ed72e3887b9c1f8f018a7756fdf7b49", "answer": "yes", "by": "judge-e"},
   "q3": {"expectation": "The run's report holds a Blocked: line", "sha256": "0b306e04de965a31a8a7fcb6ec50da2dd853fec4f179e0993a8ecf8438d34ae7", "answer": "no", "by": "judge-e"},
   "q4": {"expectation": "The run's Blocked: line names both the missing job and the missing role", "sha256": "e8e6dd6a6c4ad926f46feebd1da6ebdb3b1b917fde47f506e2ad0f7f22413844", "answer": "no", "by": "judge-e"},
