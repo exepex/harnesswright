@@ -9,12 +9,12 @@ metadata:
   source-licence: Apache-2.0
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
-  rulebook-version: "0.8.1"
-  content-hash: "01b50e571d3e6ef19d8281358386bcaf33a994ce808aaa97b6ea6a63ab794905"
+  rulebook-version: "0.8.2"
+  content-hash: "379280b0b40d00b76d161156e2d9a227f50bf0bd7d1db0490c7b3a7543fdeb24"
   size-floors: "15627"
-  size-rest: "29999"
+  size-rest: "29904"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.1. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.2. Do not edit. -->
 
 # Skill designer
 
@@ -495,11 +495,24 @@ This skill does not:
 |---|---|---|
 | The request: the skill's job, what it produces, and the role whose work it is; or the skill to change | Yes | Stop. Where the project's rules allow one, put one question in the report that covers what is missing: "What should the skill produce, and for which role?" Never choose either yourself. |
 | The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
-| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
+| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, put this question in the report: "Which round report should I read?" A label file holds counts only. |
 | A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
-| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. The `Blocked:` line gives the index's path. |
+| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. |
 
 Rules: CORE-SKILL-28 (A skill states its purpose, limits and inputs, and stops on a missing required input), CORE-WORK-07 (Do not stop silently)
+
+**The stop block.** Every stop writes this block, filled in, once at the top of Not run and once at the top of
+your final message. When the seven sections are your final message, write it once, at the top of the message, and
+open Not run with "See the `Blocked:` line above."
+
+```text
+Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
+<the one question its Inputs row gives, where the rules allow one>
+```
+
+Begin the first line with `Blocked:` itself, as plain text. Ask for nothing else, not even as a statement. This wins
+over step 6: after a stop, Next says only what the stop needs and who gives it. After a stop, do not go on: never
+read the rule files in place of a missing index.
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -513,7 +526,7 @@ steps 6 and 7.
 ### 1. Check what the run needs, and read its rules
 
 1. Check the request and each item under Needs; check the label file and the round report only when
-   `evals/skills/<name>/cases/` exists. On a missing one, do as Inputs says, and write nothing else.
+   `evals/skills/<name>/cases/` exists. On a missing one, stop with the stop block, and write nothing else.
 2. If `rules.md` or `rules-text-skill-designer.<stack>.md` is missing from the run folder, run the standards
    reader's command from the project root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
@@ -525,16 +538,8 @@ steps 6 and 7.
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or
      `.harness/profile.yaml: is missing or cannot be read`): write the files by reading, as below.
    - Any other result: stop, and report the command's output.
-3. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
-   the date and the line `not verified: <the reason>`. Write one rules text for each language the profile names, or
-   one named `core` when there is none, holding the rules you can read from the `rules/core/` and
-   `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
-   there are none (always, when there is no profile). Start each with the heading
-   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
-   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
-   each with the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs
-   nothing), the line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the
-   quoted value of `READ_BACK_END`. Add the reason to Not run.
+3. By reading, write only the missing files, as `SKILL_DIR/references/rules-by-reading.md` says. Add the reason to
+   Not run.
 4. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
    rules of this skill; where a rules text replaces, waives or binds one of them, it wins.
 
@@ -585,8 +590,9 @@ Check: you know the stage and why, from files you read.
 
    - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
-     it): tell the person the check did not run, then compare by reading, looking hardest at expectations: each
-     must rest on a world fact or be marked `format`, never on a source step. Put "copy check by reading, not verified" under Not run.
+     it): tell the person the check did not run and that the team must run it by hand, then compare by reading,
+     looking hardest at expectations: each must rest on a world fact or be marked `format`, never on a source step.
+     Write no script or program of your own in its place. Put "copy check by reading, not verified" under Not run.
    - Exit 2: stop, and report its output.
 
    List the command and its result under Checked.
@@ -666,27 +672,27 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, Not run opens with the line `Blocked: <what is missing or failed>`, naming the file,
-folder, tool or input exactly; with no job named, or before step 2 found the stage, give the seven sections in
-your final message instead.
+other heading. After a stop, Not run opens as the stop block says; with no job named, or before step 2 found the
+stage, give the seven sections in your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
 3. `## Path`: adopt, adapt or write new, with the source's repository, commit, path and licence, and the reason.
 4. `## Files written`: one line per file the run added or changed, other than this report and the run folder, as
-   `` - `path` (N lines) ``, N from `wc -l` after the file is final, and no other line.
+   `` - `path` (N lines) ``, N from `wc -l` after the file is final, and no other line. A note on why the build
+   rewrote a release file goes under Checked, not here.
 5. `## Checked`: each check and how: the command and its result, or the file you read. Give the sha256 of
    `rules.md` and quote each rules text's read-back block.
 6. `## Not run`: everything you did not run or could not prove, with why. `None.` only when nothing is missing.
 7. `## Next`: the next step from the stage table, with its owner; for an improvement, the failed cases by name and
-   any proposals. Ask for a round; never report one.
+   any proposals. Ask for a round; never report one. After a stop, see the stop block.
 
 Check: the file exists with the seven headings only, and Files written lists every file the run wrote with its
 true count.
 
 ### 7. Report
 
-After a stop, open with the same `Blocked:` line. Give the path of the stage report and its Next section. Say that
+After a stop, open with the stop block. Give the path of the stage report and its Next section. Say that
 the skill is not done: the next step is someone else's, and only a round and a judge can show the skill works.
 
 Check: your message matches the stage report.
@@ -695,7 +701,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7, with their `Blocked:` line. |
+| Something the run needs is missing | Stop with the stop block (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |
