@@ -59,6 +59,16 @@ This skill does not:
 
 Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
+**The stop block.** Every stop opens Not run and your final message with this block, filled in:
+
+```text
+Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
+<the one question its Inputs row gives, if any>
+```
+
+The `Blocked:` line is plain text, with no bold, list mark or word before it. Ask nothing else and make no other
+request, not even as a statement. A stop holds: never read rule files in place of the index.
+
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
 and never run a borrowed script before a person has reviewed it.
@@ -71,7 +81,7 @@ steps 6 and 7.
 ### 1. Check what the run needs, and read its rules
 
 1. Check the request and each item under Needs; check the label file and the round report only when
-   `evals/skills/<name>/cases/` exists. On a missing one, do as Inputs says, and write nothing else.
+   `evals/skills/<name>/cases/` exists. On a missing one, stop with the stop block, and write nothing else.
 2. If `rules.md` or `rules-text-skill-designer.<stack>.md` is missing from the run folder, run the standards
    reader's command from the project root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
@@ -83,16 +93,8 @@ steps 6 and 7.
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or
      `.harness/profile.yaml: is missing or cannot be read`): write the files by reading, as below.
    - Any other result: stop, and report the command's output.
-3. By reading, write only the missing files, and keep a `rules.md` that exists. A new `rules.md` holds the run ID,
-   the date and the line `not verified: <the reason>`. Write one rules text for each language the profile names, or
-   one named `core` when there is none, holding the rules you can read from the `rules/core/` and
-   `rules/<language>/` folders of the release the profile names and the layer folders it lists, and `None.` when
-   there are none (always, when there is no profile). Start each with the heading
-   `### Changes to rules that reach this run` and one line for each rule a layer replaces, waives or tightens, as
-   `- <ID> · <title>: replaced by <ID>`, `waived until <date>: <reason>` or `tightened by <ID>`, or `None.`. End
-   each with the quoted value of `READ_BACK` in `SKILL_DIR/scripts/copyform.py` (open the file; reading it runs
-   nothing), the line `Stack: <stack>. Rules in this text: <count>. Last rule: <ID · title, or none>.`, then the
-   quoted value of `READ_BACK_END`. Add the reason to Not run.
+3. By reading, write only the missing files, as `SKILL_DIR/references/rules-by-reading.md` says. Add the reason to
+   Not run.
 4. A skill touches no stack's code, so read every rules text in the run folder. Apply every rule in them and in the
    rules of this skill; where a rules text replaces, waives or binds one of them, it wins.
 
@@ -143,8 +145,9 @@ Check: you know the stage and why, from files you read.
 
    - Exit 0: no shared run. Exit 1: reword each run it prints, then run it again.
    - It could not run (scripts forbidden in `.harness/profile.yaml`, no Python, or the host or the person refused
-     it): tell the person the check did not run, then compare by reading, looking hardest at expectations: each
-     must rest on a world fact or be marked `format`, never on a source step. Put "copy check by reading, not verified" under Not run.
+     it): tell the person the check did not run and that the team must run it by hand, then compare by reading,
+     looking hardest at expectations: each must rest on a world fact or be marked `format`, never on a source step.
+     Write no script or program of your own in its place. Put "copy check by reading, not verified" under Not run.
    - Exit 2: stop, and report its output.
 
    List the command and its result under Checked.
@@ -224,15 +227,15 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, Not run opens with the line `Blocked: <what is missing or failed>`, naming the file,
-folder, tool or input exactly; with no job named, or before step 2 found the stage, give the seven sections in
-your final message instead.
+other heading. After a stop, Not run opens with the stop block; with no job named, or before step 2 found the
+stage, give the seven sections in your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
 3. `## Path`: adopt, adapt or write new, with the source's repository, commit, path and licence, and the reason.
 4. `## Files written`: one line per file the run added or changed, other than this report and the run folder, as
-   `` - `path` (N lines) ``, N from `wc -l` after the file is final, and no other line.
+   `` - `path` (N lines) ``, N from `wc -l` after the file is final, and no other line. A note on why the build
+   rewrote a release file goes under Checked, not here.
 5. `## Checked`: each check and how: the command and its result, or the file you read. Give the sha256 of
    `rules.md` and quote each rules text's read-back block.
 6. `## Not run`: everything you did not run or could not prove, with why. `None.` only when nothing is missing.
@@ -244,7 +247,7 @@ true count.
 
 ### 7. Report
 
-After a stop, open with the same `Blocked:` line. Give the path of the stage report and its Next section. Say that
+After a stop, open with the stop block. Give the path of the stage report and its Next section. Say that
 the skill is not done: the next step is someone else's, and only a round and a judge can show the skill works.
 
 Check: your message matches the stage report.
@@ -253,7 +256,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop, with a question in the report where the rules allow one (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7, with their `Blocked:` line. |
+| Something the run needs is missing | Stop with the stop block (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |
