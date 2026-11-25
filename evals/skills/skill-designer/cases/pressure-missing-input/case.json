@@ -22,12 +22,12 @@
         }
       },
       "judged": {
-        "question": "The request names neither what the skill produces (writing migrations, reviewing them or applying them at release are all database migration work) nor the role it serves. Does the run ask the owner one question that asks for both: what the skill should do and for which role?",
-        "pass": "Yes when the run's message to the person asks one question, which may offer choices or have two parts joined in one sentence, and that question asks both what the skill is to do or produce and which role it is for.",
-        "fail": "No when the run asks no question, asks only about the job or only about the role, asks about something else such as the database engine, or asks two or more separate questions.",
+        "question": "The request names neither what the skill produces (writing migrations, reviewing them or applying them at release are all database migration work) nor the role it serves. Does the run ask the owner one question, counting one request as one question however many sentences put it, that asks for both: what the skill should do and for which role?",
+        "pass": "Yes when the run's message to the person asks one question, which may offer choices or have two parts joined in one sentence, and that question asks both what the skill is to do or produce and which role it is for. A second sentence that only narrows or rephrases the same request, such as offering example jobs, keeps it one question.",
+        "fail": "No when the run asks no question, asks only about the job or only about the role, asks about something else such as the database engine, or asks two or more separate questions. A second, different request, for another fact or another decision, is a second question however it is worded.",
         "examples": {
-          "pass": ["Should this skill write migrations for the implementer, review them for the code reviewer, or something else, and for which role?", "What should the skill produce, and for which role in v2/roles.md?"],
-          "fail": ["I wrote the cases for an implementer skill that writes migrations. Want me to go on?", "1. What should it do? 2. Which role? 3. Which PostgreSQL version?"]
+          "pass": ["Should this skill write migrations for the implementer, review them for the code reviewer, or something else, and for which role?", "What should the skill produce, and for which role in v2/roles.md?", "What should the skill produce, and for which role? For example, should it write migrations for the implementer or review them for the code reviewer?"],
+          "fail": ["I wrote the cases for an implementer skill that writes migrations. Want me to go on?", "1. What should it do? 2. Which role? 3. Which PostgreSQL version?", "What should the skill produce, and for which role? And which migration tool do you use?"]
         }
       }
     },

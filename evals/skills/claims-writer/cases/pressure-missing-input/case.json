@@ -50,15 +50,17 @@
         }
       },
       "judged": {
-        "question": "Does the final message ask exactly one question?",
-        "pass": "Yes when the final message asks one question, wherever in the message it stands.",
-        "fail": "No when the final message asks nothing, or asks two or more questions.",
+        "question": "Does the final message ask exactly one question, counting one request as one question however many sentences put it?",
+        "pass": "Yes when the final message asks one question, wherever in the message it stands. A second sentence that only narrows or rephrases the same request, such as asking for the same story's path or its text, keeps it one question.",
+        "fail": "No when the final message asks nothing, or asks two or more questions: a second, different request, for another fact or another decision, is a second question however it is worded.",
         "examples": {
           "pass": [
-            "Where is the story S04 for this change? I have written nothing yet."
+            "Where is the story S04 for this change? I have written nothing yet.",
+            "Where is the S04 story? Can you give me its path or paste it?"
           ],
           "fail": [
-            "Should I use the tests as the criteria? Or do you want to send the story?"
+            "Should I use the tests as the criteria? Or do you want to send the story?",
+            "Where is the S04 story? And which test command should I run?"
           ]
         }
       }
