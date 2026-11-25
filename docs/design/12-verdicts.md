@@ -103,8 +103,8 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
   never pasted into the prompt. A host with its own way to invoke a skill may use it only if it reports a load
   event that the load proof accepts.
 - The lead line is the one declared difference between the arms' prompts. It is hashed into the run key, never
-  written in `case.json`, and hidden from graders by the view, so a grader still cannot tell the arm. A planted
-  grader fault, a page that shows the lead line, proves the view hides it.
+  written in `case.json`, and kept from graders: the page shows the case's prompt, and the view marks the lead
+  line's names wherever a run repeats it. A planted grader fault, a page that shows them, proves the view hides them.
 - **Load proof.** One reader decides whether a pinned run loaded the skill. A load is proven by an observed event,
   never by an inferred one:
   - the host's own skill event for that skill;

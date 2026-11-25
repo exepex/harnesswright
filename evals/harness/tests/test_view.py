@@ -1,5 +1,5 @@
 """The grader view: built from a bundle by allow lists and three rules, it is the same for the same run in either
-arm."""
+arm, and it shows each name of the skill in a text as one mark with the rest of its line."""
 
 import json
 import unittest
@@ -19,7 +19,7 @@ import world
 LONG = AGENTS + "x" * 5000 + "\n"  # longer than the output a grader sees, with the row before the cut
 LISTED = [{"do": "write", "path": "notes.txt", "text": "hi\n"},
           {"do": "command", "command": "pwd && ls -a && ls skills; find . | sort && wc -l AGENTS.md"},
-          {"do": "command", "command": "cat AGENTS.md && cp AGENTS.md copy.md && sed -i 's/ | /|/g' AGENTS.md"},
+          {"do": "command", "command": "cat AGENTS.md && cp README.md copy.md && sed -i 's/ | /|/g' AGENTS.md"},
           {"do": "say", "text": "Done."}]
 RESTORED = [{"do": "command", "command": f"printf '%s' '{LONG}' > AGENTS.md"},  # the index without its row
             {"do": "command", "command": "rm -rf skills && echo x > skills"}]  # a folder above the skill replaced
@@ -68,7 +68,7 @@ class Views(TempCase):
         self.assertEqual(shown["final_message"], "Done.")
         self.assertEqual(shown["log"][0]["sha256"], host.sha256("hi\n"))
         self.assertEqual(sorted(shown["diff"]), ["AGENTS.md", "copy.md", "notes.txt"])
-        self.assertEqual(blobs[shown["files_after"]["copy.md"].split(" ")[1]].decode(), LONG)
+        self.assertEqual(blobs[shown["files_after"]["copy.md"].split(" ")[1]].decode(), "A notes app.\n")
 
     def test_a_read_inferred_from_a_command_on_the_overlay_goes_with_it(self):
         guide = "references/guide.md"  # one name in the skill and in the world, so the command names both
@@ -193,16 +193,37 @@ class Views(TempCase):
             with self.subTest(item=item):
                 self.assertEqual(view.on_overlay(item, words), mine)
         self.assertEqual(view.text("a\n| haiku-writer |\r\nb /x/w/c", words, {"/x/w": "/run/project"}),
-                         "a\nb /run/project/c")
-        self.assertEqual(view.text(b"a\n|haiku-writer|\n", words, {}), b"a\n")
+                         "a\n| [hidden] |\r\nb /run/project/c")
+        self.assertEqual(view.text(b"a\n|haiku-writer|\n", words, {}), b"a\n|[hidden]|\n")
+        self.assertEqual(view.installed(b"a\n|haiku-writer|\r\nb\n", words), b"a\nb\n")  # the install's own line
         test = view.spelled(["test", "skills/test"])  # never inside a word, in any other spelling it is found
         self.assertFalse(view.on_overlay({"kind": "command", "source": "observed", "command": "pytest -q"}, test))
         cat = {"kind": "command", "source": "observed", "command": "cat skills/test/a"}
         self.assertTrue(view.on_overlay(cat, test))
         self.assertEqual(view.text("pytest ok\ndef test_save():\nuse test.\nrules-text-test.core.md\n", test, {}),
-                         "pytest ok\n")
+                         "pytest ok\ndef [hidden]_save():\nuse [hidden].\nrules-text-[hidden].core.md\n")
         self.assertEqual(view._relative("/x/w/notes.txt", "/x/w"), "notes.txt")  # a host may report it absolute
-        self.assertEqual(view.text("我使用test技能\n", test, {}), "")  # the same for text as for bytes
+        self.assertEqual(view.text("我使用test技能\n", test, {}), "我使用[hidden]技能\n")  # as for bytes
+        self.assertEqual(view.text("/x/test-w/a test\n", test, {"/x/test-w": "/run/project"}),
+                         "/run/project/a [hidden]\n")  # a folder becomes its word whole, before any mark
+
+    def test_a_name_in_what_the_run_said_is_marked_and_the_rest_of_its_line_stays(self):
+        said = ("I ran neither the standards reader (`resolve.py`) nor the claims check (`claims_check.py`). I wrote "
+                "`rules.md` and `rules-text-claims-writer.core.md` by reading.\n"
+                "I ran neither the claims-writer skill's standards reader nor its claims check script.\n")
+        shown = ("I ran neither the standards reader (`resolve.py`) nor the claims check (`claims_check.py`). I wrote "
+                 "`rules.md` and `rules-text-[hidden].core.md` by reading.\n"
+                 "I ran neither the [hidden] skill's standards reader nor its claims check script.\n")
+        copy = "| claims-writer | [skills/claims-writer/SKILL.md](skills/claims-writer/SKILL.md) | Writes claims. |\n"
+        record = {**self.record([host.entry("message", text=said)], ("skills/claims-writer",),
+                                {"copy.md": f"file {host.sha256(copy)}", "AGENTS.md": f"file {host.sha256(copy)}"}),
+                  "final_message": said, "overlay": {"skill": "claims-writer", "paths": ["skills/claims-writer"],
+                                                     "index": "AGENTS.md"}}
+        found, blobs = view.view(record, lambda digest: copy.encode())
+        self.assertEqual((found["final_message"], found["log"][0]["text"]), (shown, shown))
+        files = {path: blobs[entry.split(" ")[1]].decode() for path, entry in found["files_after"].items()}
+        self.assertEqual(files, {"AGENTS.md": "", "copy.md": "| [hidden] | [[hidden]/SKILL.md]([hidden]/SKILL.md) | "
+                                 "Writes claims. |\n"})  # the index row goes whole; a copy of it is the run's
 
 
 if __name__ == "__main__":

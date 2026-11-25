@@ -163,8 +163,8 @@ def with_rows(data, after, rows):
     """`data` (bytes) with `rows` added at the end of the table whose header line is `after`.
 
     The file is edited as bytes, so its encoding and line endings are kept; each row takes the header's ending. Each
-    row is one whole line and the only bytes added, so the grader view, which removes every line naming the skill,
-    gives the index back exactly as the without-skill arm has it: a row with a line break, or a table whose last
+    row is one whole line and the only bytes added, so the grader view, which removes each line naming the skill
+    from a file the install edits (`view.installed`), gives the index back exactly as the without-skill arm has it: a row with a line break, or a table whose last
     line has no ending, is refused.
     """
     lines = data.splitlines(keepends=True)

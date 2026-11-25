@@ -115,8 +115,8 @@ def check_adapter(adapter):
 def lead(adapter, skill, path):
     """The lead line that pins the load of `skill` at `path` (its `SKILL.md`, relative to the world) for `adapter`'s
     host, through the adapter's `pin`. Raise HostError unless it is one line that names both the skill and the path
-    as whole names: the grader view removes every line that names either in any spelling, whole names among them
-    (`view.text`, `view.spelled`), so no page can show it. The test is written here, not taken from `view.spelled`,
+    as whole names: the grader view marks each name of either in any spelling, whole names among them
+    (`view.text`, `view.spelled`), so no page can show them. The test is written here, not taken from `view.spelled`,
     so a fault planted in that pattern cannot hide itself."""
     line = adapter.pin(skill, path)
     if not isinstance(line, str) or line.splitlines() != [line] or not all(

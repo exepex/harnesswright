@@ -241,9 +241,10 @@ Graders get a **grader view** of the bundle, never the full record. It leaves ou
 skill, the generated index row, the host discovery copy and everything else the with-skill overlay added, from the
 files after as well as from the diff. It shows each command as the command the agent ran, without its output or
 exit code, since the two arms are different worlds and what a world prints back tells the arm; outcomes such as
-"the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
-removed from the view's text, and every file whose path names one is left out, in any spelling: whole, or inside a
-longer name. A run's rules files, `rules.md` and each `rules-text-<skill>.<stack>.md` of a run folder, are left out in
+"the tests passed" are decided by script checks on the full bundle. Each name of the skill or its paths in the view's
+text becomes one neutral mark and the rest of its line stays, so graders see what the run said; a line the install
+added to a file it edits in place goes whole. Every file whose path names one is left out. Both hold in any
+spelling: whole, or inside a longer name. A run's rules files, `rules.md` and each `rules-text-<skill>.<stack>.md` of a run folder, are left out in
 both arms, with every action that names one by its path: only a skill's resolver writes them, so they tell the arm
 whatever skill they name. Their names are the resolver's own. A command is cut where the command checks find its
 programs, so it loses only the pipelines on the overlay (naming the skill, its paths, a folder only the overlay made
@@ -253,7 +254,7 @@ stays visible. The full bundle is kept for checks, audits and judges.
 
 A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
 or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The
-page shows the case's prompt only: the view removes the pinned lead line of a task run
+page shows the case's prompt only: the pinned lead line of a task run is not on it, and the view marks its names
 ([12 · Verdicts](12-verdicts.md#proven-use)), so the request is the same in every arm and tells no arm, and the
 world lint keeps the skill out of it. A golden is
 graded as a page of its case, so it gets the same request.
@@ -363,7 +364,7 @@ Every harness fault must be caught, or the round stops.
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
 | A grading file missing, repeating or misquoting an answer | The schema check rejects it |
 | Two graders that disagree, or one with no answer sheet | A fresh tie-breaker answers only the split questions; a fresh grader of the same host stands in once for one with no sheet; one grader never decides alone |
-| A view that names the arm or the skill, or shows the lead line | The page a grader reads names neither and holds no lead line |
+| A view that names the arm or the skill, or shows the lead line's names | The page a grader reads names neither, and a lead line on it holds only marks for its names |
 | A grader that writes to its folder or reads outside it | The jail stops every write and read; the grader's page, its folder and the folders beside it stay as they were |
 
 Each fault is an entry of `evals/faults/harness.json`, planted where a seed chooses; its own gate runs unchanged,

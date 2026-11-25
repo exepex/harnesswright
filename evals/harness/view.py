@@ -23,9 +23,11 @@ known to be risky. Each rule is applied the same way in both arms, so the same r
   (`COMMAND_FIELDS`), never by its output or exit code: the arms are different worlds, so what a world prints back
   (a listing, a line count, a commit's size) tells the arm, however it is filtered. Doc 11 gives graders the command
   list; the full record keeps the output for checks, audits and judges.
-- **Text.** In every text the view shows (each log value, the final message, each file and each link target), a
-  line that names the skill or one of its paths is removed, so the generated index row and every copy or edit of
-  it goes too, and the run's folders become neutral words (`text`).
+- **Text.** In every text the view shows (each log value, the final message, each file and each link target), the
+  run's folders become neutral words and each name of the skill or one of its paths becomes one mark, `MARK`, the
+  same in either arm, so the rest of the line stays for graders to weigh (`text`). A file the install edits in place
+  (the index, a team profile) is the one exception, as the overlay's own line is in it: there a line that names the
+  skill, the line the install added or an edit of it, goes whole (`installed`).
 
 The diff is the diff of the view's own entries, so a change that only touched overlay lines is no change. A file's
 entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
@@ -53,6 +55,9 @@ FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all 
 ACTION_FIELDS = ("path", "command", "action")  # the fields that say what an action acts on
 COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command: what the agent ran
 RUNFILES = Path(__file__).resolve().parents[2] / "v2" / "build" / "runfiles.py"  # the resolver's names of its files
+# What the view shows for each name of the skill or its paths in a text: one bracketed word that is no name, no
+# arm word and no folder, so it tells only that a name stood there, never which one.
+MARK = "[hidden]"
 
 
 def view(record, blob):
@@ -67,7 +72,8 @@ def view(record, blob):
     def after(path, entry):
         if manifest.is_file(entry):
             digest, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-            data = text(blob(digest), words, folders)
+            data = blob(digest)
+            data = text(installed(data, words) if path in edited else data, words, folders)
             hashes[path] = (digest, hashlib.sha256(data).hexdigest())
             blobs[hashes[path][1]] = data
             return f"file {hashes[path][1]}{rest}"
@@ -210,16 +216,23 @@ def on_overlay(item, words):
 
 
 def text(value, words, folders):
-    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `spelled`), and
-    with each of the run's `folders` (`scrub.folders`) as its neutral word."""
+    """`value` (text or bytes) with each of the run's `folders` (`scrub.folders`) as its neutral word, then each name
+    of the skill or its paths (`words`, from `spelled`) as MARK, so the rest of each line stays. The folders go
+    first, so a folder whose name holds a name of the skill still becomes its neutral word whole."""
     raw = isinstance(value, bytes)
     encode = (lambda word: word.encode()) if raw else (lambda word: word)
-    find = re.compile(words.pattern.encode()) if raw else words
-    kept = [line for line in value.splitlines(keepends=True) if not find.search(line)]
-    value = (b"" if raw else "").join(kept)
     for folder in sorted(folders, key=len, reverse=True):
         value = value.replace(encode(folder), encode(folders[folder]))
-    return value
+    find = re.compile(words.pattern.encode()) if raw else words
+    return find.sub(lambda _: encode(MARK), value)
+
+
+def installed(data, words):
+    """The bytes `data` of a file the install edits in place, without each line that names the skill or its paths
+    (`words`): the line the install added (an index row, a team profile's version line), or the run's edit of it, is
+    the overlay's, so the file is the without-skill arm's where the run left the rest as it was."""
+    find = re.compile(words.pattern.encode())
+    return b"".join(line for line in data.splitlines(keepends=True) if not find.search(line))
 
 
 def _named_by(shown, command, root):

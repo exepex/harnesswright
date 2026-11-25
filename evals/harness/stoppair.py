@@ -8,7 +8,7 @@ decided by, which no case writes. `cases.Case` gives them to the case as `report
 
 Both read the full record, which holds each command's exit code and output, and the one declaration of the skill's
 scripts and the exit codes that are no failure, `evals/checks/skill-checks.json` (`skill_checks`). Neither has a
-judged question: a grader's page shows no command output and drops what names the skill (`view.py`), so no
+judged question: a grader's page shows no command output and marks what names the skill (`view.py`), so no
 question about it could be answered from the page. Where no script ran, as when the profile forbids scripts, no
 check failed, and both pass.
 

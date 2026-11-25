@@ -256,7 +256,7 @@ rests on an outside address failing.
 is loaded. `adapter.jail_command` turns the host's own sandbox off (the jail enforces the table), turns its bundled
 skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`, each named with a kind of
 `powers.TOOLS`. `adapter.pin(skill, path)` gives the lead line of a pinned task run; `host.lead` takes it only as one
-line that names the skill and its path, so the grader view removes it. `host.run` is the one place a host runs: in
+line that names the skill and its path, so the grader view never shows either name. `host.run` is the one place a host runs: in
 the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
@@ -358,8 +358,9 @@ the same view. Fields and paths: only `view.FIELDS` (no arm, host, model, timing
 transcript), and only world paths outside the overlay and the host's own files. Actions: a log entry is dropped
 when it loads the skill or its path, command or refused action names the skill. What the agent did, not what the
 world showed it: a command is shown as the command the agent ran, without output or exit code, since the two
-arms are different worlds. Text: in every text the view shows, each line that names the skill or its paths is
-removed (the index row with it, however edited or copied), and the run's folders become neutral words. The diff is
+arms are different worlds. Text: in every text the view shows, the run's folders become neutral words and each name
+of the skill or its paths becomes one mark, `view.MARK`, with the rest of its line kept; in a file the install edits in
+place (the index, a team profile), a line that names the skill is the install's, or an edit of it, and goes whole. The diff is
 the diff of the view's own entries. A run's folders must never name its arm.
 
 ## Grading

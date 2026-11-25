@@ -31,10 +31,9 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   folders above it, its files and their writes; a link to one; lines in a world file's text, and its write). Neither the
   view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
   name none, reading an arm word everywhere except in a world file both arms hold byte for byte (`tells`). The world
-  file that holds the plant's lines names no arm word. And the planted view and page must equal those of a control,
-  the same record without the plant's actions on
-  the overlay and its lines that name the skill: a tell with its names taken out, such as an empty skill-load entry,
-  still shows.
+  file that holds the plant's lines names no arm word and is not one the install edits in place. And the planted view
+  and page must equal those of a control, the same record without the plant's actions on the overlay and with each
+  name in its lines as the view's mark (`view.MARK`): an action with its names taken out still shows.
 
 Standard library only.
 """
@@ -282,12 +281,11 @@ def view_(setup, fault, rng, place):
     command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
     their writes and changes), a link to one, a world file's text and its write, and a run's rules files as the
     resolver names them (`view.run_names`), written in a run folder that both records hold. Its control is the same
-    record with the plant's actions on the overlay and its rules files left out, its lines that name the skill left
-    out, its run folders as their neutral words and its command output empty. Caught when the clean view and page
-    name none of them, by the rule of `tells` (an arm word, or an overlay path inside a longer path, may stand only in
-    a world file both arms are built holding byte for byte), and the planted view and page equal the control's:
-    nothing of the plant shows, not even an entry with its names taken out. The world file that takes the plant's
-    lines is one whose text names no arm word and that the clean view shows."""
+    record with the plant's actions on the overlay and its rules files left out, each name in its lines as the mark,
+    its run folders as their neutral words and its command output empty. Caught when the clean view and page name
+    none of them, by the rule of `tells` (an arm word, or an overlay path inside a longer path, may stand only in a
+    world file both arms are built holding byte for byte), and the planted view and page equal the control's. The
+    world file that takes the plant's lines names no arm word, the clean view shows it and the install leaves it."""
     case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     held, arms = tells.shared(tells.built(case, setup.adapter, setup.folder), record), (*cases.ARMS, cases.PREVIOUS)
@@ -306,6 +304,8 @@ def view_(setup, fault, rng, place):
     ran = "".join(f"{f}\n" + "".join(f"x{c}{f}{c}x\n" for c in edges) for f in folders)
     neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
     word = record["folders"].get(world, world)
+    longest = "|".join(re.escape(name) for name in sorted(names, key=len, reverse=True))  # never `view.spelled`
+    marked = re.sub(longest, view.MARK, (lines + kept + neutral).replace(world, word))  # the control's text
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
 
     def stored(data):
@@ -318,7 +318,7 @@ def view_(setup, fault, rng, place):
         planted["folders"][f"/tmp/{skill}-with_skill"] = control["folders"]["/tmp/hw-plain"] = "/run/other"
     elif place == "message":
         planted["final_message"] = lines + kept + ran + (record["final_message"] or "")
-        control["final_message"] = kept + neutral + (record["final_message"] or "")
+        control["final_message"] = marked + (record["final_message"] or "")
     elif place == "log":
         world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file ")
                             and path in shows)[0]
@@ -336,14 +336,14 @@ def view_(setup, fault, rng, place):
                            {"kind": "blocked", "action": f"write {f}/notes.md", "reason": "refused"}]
         planted["log"][:0] = [{"source": "observed", **entry} for entry in acts + made(lines + kept + ran) + [
             shown(lines + ran, 1)] + [e for f in folders for e in acted(f)]]
-        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)] + [
+        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(marked) + [shown("", 0)] + [
             e for f in folders for e in acted(record["folders"][f])]]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file ")
-                             and p in shows and not any(
+                             and p in shows and p not in (layer.get("edited") or [layer["index"]]) and not any(
                                  arm in blob(e.split(" ")[1]).decode("utf-8", "replace") for arm in arms))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-        for one, data in ((planted, lines + kept + ran), (control, kept + neutral)):  # the agent wrote it
+        for one, data in ((planted, lines + kept + ran), (control, marked)):  # the agent wrote it
             digest = stored(data.encode() + blob(old))
             one["files_after"][target] = f"file {digest}{rest}"
             for item in one["log"]:
@@ -351,7 +351,7 @@ def view_(setup, fault, rng, place):
                     item["sha256"] = digest
             one["log"].append({"kind": "write", "source": "observed", "path": target, "sha256": digest})
         link = f"{target}.hw-link"
-        for one, to, was in ((planted, files[0], files[-1]), (control, "", "")):
+        for one, to, was in ((planted, files[0], files[-1]), (control, *[f"{view.MARK}/SKILL.md"] * 2)):
             one["files_after"][link] = f"link {to}"
             one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
         for one, root in ((planted, world), (control, word)):  # a link to a world file by the world's own folder
