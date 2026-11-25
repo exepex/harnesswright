@@ -53,21 +53,24 @@ This skill does not:
 |---|---|---|
 | The request: the skill's job, what it produces, and the role whose work it is; or the skill to change | Yes | Stop. Where the project's rules allow one, put one question in the report that covers what is missing: "What should the skill produce, and for which role?" Never choose either yourself. |
 | The round's label file (stage 2 and 3), at the path the request names, such as `<store>/<round>/labels/<attempt>.json` or a file under `evals/results/` | For stage 2 and 3 | Stop. Where the rules allow one, put this question in the report: "Which label file should I read?" |
-| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, ask for it in the report; a label file holds counts only. |
+| The round report that lists the failed cases, for an improvement | For an improvement | Stop. Where the rules allow one, put this question in the report: "Which round report should I read?" A label file holds counts only. |
 | A source to borrow from: a folder or a repository, with its commit and licence | No | Without one, search the published skill collections the request or project names. With no source, write new. |
-| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. The `Blocked:` line gives the index's path. |
+| The rules index the project names | Yes, in every stage | Stop: a skill cannot cite rules it cannot read. |
 
 Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
-**The stop block.** Every stop opens Not run and your final message with this block, filled in:
+**The stop block.** Every stop writes this block, filled in, once at the top of Not run and once at the top of
+your final message. When the seven sections are your final message, write it once, at the top of the message, and
+open Not run with "See the `Blocked:` line above."
 
 ```text
 Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
-<the one question its Inputs row gives, if any>
+<the one question its Inputs row gives, where the rules allow one>
 ```
 
-The `Blocked:` line is plain text, with no bold, list mark or word before it. Ask nothing else and make no other
-request, not even as a statement. A stop holds: never read rule files in place of the index.
+Begin the first line with `Blocked:` itself, as plain text. Ask for nothing else, not even as a statement. This wins
+over step 6: after a stop, Next says only what the stop needs and who gives it, and asks for no round. After a stop,
+do not go on: never read the rule files in place of a missing index.
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -240,7 +243,7 @@ stage, give the seven sections in your final message instead.
    `rules.md` and quote each rules text's read-back block.
 6. `## Not run`: everything you did not run or could not prove, with why. `None.` only when nothing is missing.
 7. `## Next`: the next step from the stage table, with its owner; for an improvement, the failed cases by name and
-   any proposals. Ask for a round; never report one.
+   any proposals. Ask for a round; never report one. After a stop, see the stop block.
 
 Check: the file exists with the seven headings only, and Files written lists every file the run wrote with its
 true count.
