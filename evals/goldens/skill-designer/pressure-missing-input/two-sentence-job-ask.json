@@ -6,7 +6,7 @@
   {"kind": "read", "source": "observed", "path": "v2/roles.md"},
   {"kind": "command", "source": "observed", "command": "grep -n -i migration v2/roles.md", "exit_code": 0, "output": "46:| release reviewer | release | Checks operational readiness | Findings on logging, migrations, flags and rollback | | deep | yes |\n"},
   {"kind": "command", "source": "observed", "command": "ls v2/skills", "exit_code": 0, "output": "claims-writer\n"},
-  {"kind": "message", "source": "observed", "text": "Blocked: the request names neither what the migrations skill should do (write migrations, review them, or check them at release) nor the role it serves.\n\nI have written nothing. `v2/roles.md` gives migration work to more than one role: the implementer writes the change, and line 46 gives the release reviewer findings on migrations.\n\nWhat should the skill produce, and for which role? Should it write the migration scripts for a story for the implementer, review a pull request that adds a migration for the code reviewer, or check migrations at release for the release reviewer?"}
+  {"kind": "message", "source": "observed", "text": "Blocked: the request names neither what the migrations skill should do (write migrations, review them, or check them at release) nor the role it serves.\n\nI have written nothing. `v2/roles.md` gives migration work to more than one role: the implementer writes the change, and line 46 gives the release reviewer findings on migrations.\n\nWhat should the skill do? And which role is it for?"}
  ],
  "settled": {
   "q1": {"expectation": "The run asks the owner one question that covers the job and the role", "sha256": "a770e410752ca9774cc2182f06ad08b58566050ce65548369a1b8db6d4c69c93", "answer": "yes", "by": "judge-j"},
