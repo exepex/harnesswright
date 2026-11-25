@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
   rulebook-version: "0.8.2"
-  content-hash: "508824b6232756ab487c0560337b868cbfe5f8647725ae4145093cfced1c962b"
+  content-hash: "379280b0b40d00b76d161156e2d9a227f50bf0bd7d1db0490c7b3a7543fdeb24"
   size-floors: "15627"
-  size-rest: "29924"
+  size-rest: "29904"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.2. Do not edit. -->
 
@@ -511,8 +511,8 @@ Blocked: <what is missing or failed: the file, folder, tool or input, named exac
 ```
 
 Begin the first line with `Blocked:` itself, as plain text. Ask for nothing else, not even as a statement. This wins
-over step 6: after a stop, Next says only what the stop needs and who gives it, and asks for no round. After a stop,
-do not go on: never read the rule files in place of a missing index.
+over step 6: after a stop, Next says only what the stop needs and who gives it. After a stop, do not go on: never
+read the rule files in place of a missing index.
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -672,7 +672,7 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, Not run opens with the stop block; with no job named, or before step 2 found the
+other heading. After a stop, Not run opens as the stop block says; with no job named, or before step 2 found the
 stage, give the seven sections in your final message instead.
 
 1. `## Stage`: the number and why, from step 2.

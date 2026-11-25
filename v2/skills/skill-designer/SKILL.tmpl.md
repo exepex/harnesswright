@@ -69,8 +69,8 @@ Blocked: <what is missing or failed: the file, folder, tool or input, named exac
 ```
 
 Begin the first line with `Blocked:` itself, as plain text. Ask for nothing else, not even as a statement. This wins
-over step 6: after a stop, Next says only what the stop needs and who gives it, and asks for no round. After a stop,
-do not go on: never read the rule files in place of a missing index.
+over step 6: after a stop, Next says only what the stop needs and who gives it. After a stop, do not go on: never
+read the rule files in place of a missing index.
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -230,7 +230,7 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, Not run opens with the stop block; with no job named, or before step 2 found the
+other heading. After a stop, Not run opens as the stop block says; with no job named, or before step 2 found the
 stage, give the seven sections in your final message instead.
 
 1. `## Stage`: the number and why, from step 2.
