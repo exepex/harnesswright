@@ -254,8 +254,8 @@ def check(data, case_id, skill=None):
                  for n, e in enumerate(listed, 1) if isinstance(e, dict) and isinstance(e.get("check"), dict)
                  and e["check"].get("name") in STOP_CHECKS]
     read = data.get("reads_final_message") if isinstance(data.get("reads_final_message"), list) else []
-    problems += [f"reads_final_message: {q} is no question of the case, or repeats" for n, q in enumerate(read)
-                 if q in read[:n] or not str(q)[1:].isdigit() or int(str(q)[1:]) > len(listed) + 1]  # + done
+    problems += [f"reads_final_message: {q} is no expectation the case lists, or repeats" for n, q in enumerate(read)
+                 if q in read[:n] or not str(q)[1:].isdigit() or int(str(q)[1:]) > len(listed)]  # done: checks.unseen
     if problems:
         raise CaseError(f"{case_id}: " + "; ".join(problems))
     return {**DEFAULTS, **data}

@@ -191,12 +191,14 @@ def decide(name, bundle, args, checks=None):
 
 
 def unseen(case, bundle):
-    """The ids of the judged questions `case` says read the final message (`reads_final_message`), when the grader
-    view drops a line of that message (`view.drops_final`): no grader can then weigh them, so none is asked
-    (`grading.questions`) and the run is not scored on them. An empty set otherwise."""
+    """The ids of the judged questions that read the final message, when the grader view drops a line of that
+    message (`view.drops_final`): those `case` names (`reads_final_message`) and the done question, which every
+    task case is asked and which reads it too. No grader can then weigh them, so none is asked
+    (`grading.questions`) and the run is not measured on them. An empty set otherwise."""
     if not view.drops_final(bundle.overlay, bundle.final_message):
         return set()
-    return set(getattr(case, "reads_final_message", None) or [])
+    done = {f"q{n}" for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"}
+    return set(getattr(case, "reads_final_message", None) or []) | done
 
 
 def _hidden(bundle, check, args, entries):

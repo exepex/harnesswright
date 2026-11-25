@@ -12,7 +12,7 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
-  "reads_final_message": ["q2"],
+  "reads_final_message": ["q2", "q3"],
   "expectations": [
     {
       "text": "No script a skill brings is run",

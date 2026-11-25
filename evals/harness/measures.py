@@ -21,7 +21,9 @@ Each skill on each host gets (`measures`):
   `undecidable`, from the `reported` verdicts of `checks.json`. It is reported only: it never enters the pass
   rate, the format conformance or any other measure.
 - `format_conformance`, per arm: the format expectations of task runs that passed (`passed`) of those decided
-  (`decided`), a check deciding first and a trusted grader answer what no check did; `undecided` counts the rest.
+  (`decided`), a check deciding first and a trusted grader answer what no check did; `unmeasured` counts those
+  never asked because the grader view dropped a line of the final message (`checks.unseen`), which leave every
+  other count, and `undecided` counts the rest.
   It is reported here, never in the pass rate. `format_runs`, per arm and case, gives each run's [passed, asked]
   format items, which the format verdict flips run by run (`verdicts.mean`).
 - `cost`, per arm, of the runs made (`runs`): their `seconds` and token counts by model (`tokens`), and their
@@ -36,6 +38,7 @@ Standard library only.
 
 import json
 
+import checks
 import evidence
 import grades
 import prices
@@ -56,7 +59,8 @@ def measures(folder, attempt, gates, cases, price_file):
         case, arm = cases[(made["skill"], made["case"])], made["arm"]
         here = found.setdefault((made["host"], made["skill"]), {"arms": {}})
         own = here["arms"].setdefault(arm, {"tries": 0, "voids": 0, "inferred": 0, "passed": 0, "decided": 0,
-                                            "undecided": 0, "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
+                                            "undecided": 0, "unmeasured": 0,
+                                            "cost": dict.fromkeys(COST, 0) | {"tokens": {}},
                                             "pinned": 0, "loaded": 0, "format_runs": {}, "checks": {}, "stop": {}})
         run_folder = folder / "runs" / made["key"]
         voids = len(json.loads((run_folder / "void.json").read_text())["reasons"]) \
@@ -90,12 +94,15 @@ def measures(folder, attempt, gates, cases, price_file):
             tally = own["checks"].setdefault(v["check"], [0, 0])
             tally[0], tally[1] = tally[0] + (v["outcome"] == "undecidable"), tally[1] + 1
         before = own["passed"], own["decided"] + own["undecided"]
+        unseen = checks.unseen(case, checks.Bundle(record, None))  # the questions on the final message not asked
         for number, expectation in enumerate(case.expectations, start=1):
             if expectation["source"] != "format":
                 continue
             verdict = verdicts[number - 1]
             if verdict is not None and verdict["outcome"] in ("pass", "fail"):
                 own["passed"], own["decided"] = own["passed"] + (verdict["outcome"] == "pass"), own["decided"] + 1
+            elif f"q{number}" in unseen:  # never asked: the view dropped a line of the final message
+                own["unmeasured"] += 1
             elif f"q{number}" in answers:
                 own["passed"], own["decided"] = own["passed"] + (answers[f"q{number}"] == "yes"), own["decided"] + 1
             else:
@@ -121,7 +128,8 @@ def measures(folder, attempt, gates, cases, price_file):
                                          for name, tally in sorted(own["checks"].items())} for arm, own in arms},
             "stop_pair": {arm: dict(sorted(own["stop"].items())) for arm, own in arms},
             "format_conformance": {arm: share(own["passed"], own["decided"], passed=own["passed"],
-                                              decided=own["decided"], undecided=own["undecided"])
+                                              decided=own["decided"], undecided=own["undecided"],
+                                              unmeasured=own["unmeasured"])
                                    for arm, own in arms},
             "format_runs": {arm: own["format_runs"] for arm, own in arms},
             "cost": {arm: _priced(own["cost"]) for arm, own in arms}}

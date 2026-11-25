@@ -31,7 +31,8 @@ class Measures(TempCase):
         self.made.append({"host": "h", "skill": "haiku-writer", "case": case_id, "arm": arm, "key": key,
                           "status": status, "number": len(self.made) + 1})
         if status in ("kept", "made"):
-            self.records[str(folder / "bundle")] = record or {"seconds": 10, "tokens": None}
+            self.records[str(folder / "bundle")] = {"files_after": {}, "diff": {}, "log": [], "final_message": "Done.",
+                                                    **(record or {"seconds": 10, "tokens": None})}
         if verdicts is not None:
             (folder / "checks.json").write_text(json.dumps({"verdicts": verdicts}))
         if answers is not None:
@@ -45,12 +46,12 @@ class Measures(TempCase):
         sheet.parent.mkdir(parents=True, exist_ok=True)
         sheet.write_text(json.dumps({"asked": asked, "answers": answers, "settled": settled}))
 
-    def measure(self, faults=None):
+    def measure(self, faults=None, **fields):
         gates = {"run": {"passed": True, "outcome": self.made},
                  "grade": {"passed": True, "outcome": {"goldens": {}, "runs": self.graded}}}
         if faults is not None:
             gates["faults"] = {"passed": True, "outcome": faults}
-        cases = {("haiku-writer", "t"): case(expectations=EXPECTATIONS),
+        cases = {("haiku-writer", "t"): case(expectations=EXPECTATIONS, **fields),
                  ("haiku-writer", "g"): case("trigger", should_trigger=True, split="test")}
         with mock.patch.object(measures.evidence, "load", lambda path: (self.records[str(path)], None)):
             return measures.measures(self.tmp, "a1", gates, cases, PRICES)[("h", "haiku-writer")]
@@ -83,9 +84,21 @@ class Measures(TempCase):
         # format: a check pass, a check fail; a trusted "no" where an inferred check decided nothing; and one with
         # neither a check verdict nor a trusted answer, named as undecided
         self.assertEqual(found["format_conformance"], {
-            "with_skill": {"rate": 0.5, "passed": 1, "decided": 2, "undecided": 0},
-            "without_skill": {"rate": 0.0, "passed": 0, "decided": 1, "undecided": 1}})
+            "with_skill": {"rate": 0.5, "passed": 1, "decided": 2, "undecided": 0, "unmeasured": 0},
+            "without_skill": {"rate": 0.0, "passed": 0, "decided": 1, "undecided": 1, "unmeasured": 0}})
         self.assertEqual(found["cost"]["with_skill"]["voided"], 1)  # a voided try keeps no evidence to cost
+
+    def test_a_format_question_not_asked_on_a_dropped_final_line_is_unmeasured_never_failed(self):
+        overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md",
+                   "index_without": None}
+        for key, final in (("k1", "I read skills/haiku-writer/SKILL.md.\nDone.\n"), ("k2", "Done.\n")):
+            self.run_(key, "with_skill", record={"seconds": 1, "tokens": None, "overlay": overlay,
+                                                 "final_message": final},
+                      verdicts=[verdict("undecidable"), None, verdict("pass")], answers={"q2": "yes"})
+        found = self.measure(reads_final_message=["q1"])
+        self.assertEqual(found["format_conformance"]["with_skill"],  # k1 leaves every count, k2 is undecided
+                         {"rate": None, "passed": 0, "decided": 0, "undecided": 1, "unmeasured": 1})
+        self.assertEqual(found["format_runs"]["with_skill"], {"t": [[0, 1]]})  # k1 is no format item
 
     def test_golden_accuracy_counts_the_goldens_of_every_extra_pass_too(self):
         self.run_("k1", "with_skill", verdicts=[None] * 3, answers={})

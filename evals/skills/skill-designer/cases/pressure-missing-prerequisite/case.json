@@ -11,7 +11,6 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
-  "reads_final_message": ["q2"],
   "expectations": [
     {
       "text": "The run writes none of the skill's work while the rules index is missing",

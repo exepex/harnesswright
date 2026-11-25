@@ -275,8 +275,14 @@ with a source, "ends with exactly one question", commands run or never run. A sk
   graders with the command list.
 - **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
   such as a command that names the skill's path, or cuts away the part that left it so, the expectation is asked
-  of no one, and the run is not scored on it. So is a question the case says reads the final message, when the
-  view dropped a line of that message: the run counts as not scored on it, never as passed.
+  of no one, and the run is not scored on it. The same holds for a question on the final message when the view
+  dropped a line of that message. A task case declares those questions in `reads_final_message` by one test: it
+  names every expectation with no check whose pass or fail rule could turn on what the run says to the person in
+  its final message, such as what it tells, asks, claims or reports, and none whose rule turns only on files or
+  commands. The done question reads the final message in every task case, so the harness adds it itself. Such a
+  question is not asked: a contract question leaves the run not scored, a format question leaves both counts of
+  the format floor and is named as not measured, a doubt the label shows, and the done question leaves the
+  false-done tally undecided. None of them ever counts as passed or as failed.
 - **A check counts only once it decides on stored with-skill runs;** until then it is reported per arm and never
   counted, as the stop pair (`evals/checks/stop-pair.json`) is until 7c-4 lands and a recount shows it decides.
 

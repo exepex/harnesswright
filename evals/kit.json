@@ -17,6 +17,7 @@
                    "evals/harness/view.py", "v2/build/runfiles.py"],
     "grader prompt": ["evals/grading/prompt.md", "evals/grading/done.json"],
     "fault catalogue": ["evals/faults", "evals/harness/faults.py", "evals/harness/host_faults.py",
-                        "evals/harness/backstop_faults.py", "evals/harness/grader_faults.py", "evals/harness/grading_faults.py"]
+                        "evals/harness/backstop_faults.py", "evals/harness/grader_faults.py", "evals/harness/grading_faults.py",
+                        "evals/harness/panel_faults.py"]
   }
 }

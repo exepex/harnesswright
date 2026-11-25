@@ -238,7 +238,7 @@ def judged(measures, reference=None, false_done=None, thresholds=THRESHOLDS):
         found["gap to the reference host"] = judge(lambda m: _less(mean(theirs, -m), mean(ran, m)),
                                                    lambda value: value <= thresholds["max_gap"] + EPSILON,
                                                    {"with_skill": ran, f"{THEIRS}with_skill": theirs})
-    formats = (measures.get("format_runs") or {}).get("with_skill")
+    formats = (measures.get("format_runs") or {}).get("with_skill")  # with no unmeasured item (`measures.measures`)
     if formats:
         found["format conformance"] = judge(lambda m: mean(formats, m, by_items=True),
                                             at_least(thresholds["format_conformance"]), {"with_skill": formats})
@@ -308,8 +308,11 @@ def decide(measures, unsettled, reference=None, reference_doubt=None, thresholds
             for verdict in ("fail", "too close")}
     tally = (measures.get("format_conformance") or {}).get("with_skill") or {}
     unasked = not tally.get("decided", 0) + tally.get("undecided", 0)  # the format floor was not measured
+    unmeasured = tally.get("unmeasured", 0)  # in no count: the view dropped a line of the final message
     doubted = doubts(measures, unsettled, false_done, thresholds) + ([reference_doubt] if reference_doubt else []) + [
         "format conformance: no format expectation was asked in the with-skill arm"] * unasked + [
+        f"format conformance: {unmeasured} format question(s) not measured in the with-skill arm, as the grader view "
+        "dropped a line of the final message"] * bool(unmeasured) + [
         f"task case {i}: no contract expectation runs one of harnesswright's own checks (evals/own-checks.json)"
         for i in measures.get("unchecked", [])]
     floor = [gap for gap in gaps["fail"] + gaps["too close"] if gap.startswith("situation ")]

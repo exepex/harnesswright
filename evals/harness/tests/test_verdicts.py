@@ -46,10 +46,10 @@ def summary(cases, scored, situations=NOTHING, kind="team", **flags):
     return verdicts.summary(cases, scored, situations=situations, kind=kind, **flags)
 
 
-def formatted(passed=9, decided=10, undecided=0):
+def formatted(passed=9, decided=10, undecided=0, unmeasured=0):
     """The format conformance of the with-skill arm, as the label's measures hold it: one run of case t."""
     return {"format_conformance": {"with_skill": {"rate": None, "passed": passed, "decided": decided,
-                                                  "undecided": undecided}},
+                                                  "undecided": undecided, "unmeasured": unmeasured}},
             "format_runs": {"with_skill": {"t": [[passed, decided + undecided]]} if decided + undecided else {}}}
 
 
@@ -173,6 +173,13 @@ class Decide(unittest.TestCase):
             with self.subTest(form=form):
                 self.assertEqual(decided(measured(form=form), []), {"label": "inconclusive", "gaps": [
                     "format conformance: no format expectation was asked in the with-skill arm"]})
+
+    def test_a_format_question_not_measured_is_named_as_a_doubt_and_never_counts_as_failed(self):
+        unmeasured = ("format conformance: 2 format question(s) not measured in the with-skill arm, as the grader "
+                      "view dropped a line of the final message")
+        self.assertEqual(decided(measured(form=(9, 10, 0, 2)), []), {"label": "inconclusive", "gaps": [unmeasured]})
+        self.assertEqual(decided(measured(form=(0, 0, 0, 2)), [])["gaps"], [
+            "format conformance: no format expectation was asked in the with-skill arm", unmeasured])
 
     def test_a_missed_threshold_is_unsupported_with_each_gap_named(self):
         found = decided(measured(task=(0, 0, 0), trigger=(0, 0, 1)), [], measured(), None)

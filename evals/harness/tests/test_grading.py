@@ -54,13 +54,14 @@ class Answers(TempCase):
 class Questions(TempCase):
     def test_only_what_no_check_decided_goes_to_the_graders(self):
         expectations = [expect("a"), expect("b", check=CHECK), expect("c", check=CHECK)]
-        asked = grading.questions(expectations, [None, PASSED, UNDECIDABLE])
+        asked = grading.questions(expectations, [None, PASSED, UNDECIDABLE], set())
         self.assertEqual([question["id"] for question in asked], ["q1", "q3"])
         self.assertEqual(asked[0], {"id": "q1", **JUDGED})
 
     def test_a_grader_is_never_asked_what_the_view_hides(self):
         expectations = [expect("b", check=CHECK), expect("c", check=CHECK)]
-        asked = grading.questions(expectations, [{**UNDECIDABLE, "hidden": True}, {**UNDECIDABLE, "hidden": False}])
+        asked = grading.questions(expectations, [{**UNDECIDABLE, "hidden": True}, {**UNDECIDABLE, "hidden": False}],
+                                  set())
         self.assertEqual([question["id"] for question in asked], ["q2"])
 
     def test_a_question_on_the_final_message_is_not_asked_when_the_view_drops_a_line_of_it(self):
@@ -68,30 +69,33 @@ class Questions(TempCase):
         import checks
         import verdicts
         source = {"contract": {"path": "AGENTS.md", "line": 11, "quote": "tell the person which checks did not run"}}
-        case = types.SimpleNamespace(expectations=[expect("the files", source), expect("the answer", source)],
-                                     reads_final_message=["q2"])
+        case = types.SimpleNamespace(expectations=[expect("the files", source), expect("the answer", source),
+                                                   expect("the tone"), expect("done", "done")],
+                                     reads_final_message=["q2", "q3"])
         overlay = {"skill": "claims-writer", "paths": ["skills/claims-writer"], "index": None}
         dropped = ("The claims are written.\n\nI ran neither the standards reader (`resolve.py`) nor the claims check "
                    "(`claims_check.py`). I wrote `rules.md` and `rules-text-claims-writer.core.md` by reading.\n")
         kept = dropped.replace("rules-text-claims-writer.core.md", "the rules text")
-        for final, ids in ((dropped, ["q1"]), (kept, ["q1", "q2"])):
+        for final, ids in ((dropped, ["q1"]), (kept, ["q1", "q2", "q3", "q4"])):  # q3 format, q4 the done question
             with self.subTest(final=final):
                 bundle = checks.Bundle({"files_after": {}, "diff": {}, "log": [], "final_message": final,
                                         "overlay": overlay}, None)
-                asked = grading.questions(case.expectations, [None, None], checks.unseen(case, bundle))
+                asked = grading.questions(case.expectations, [None] * 4, checks.unseen(case, bundle))
                 self.assertEqual([q["id"] for q in asked], ids)
                 answers = {q["id"]: "yes" for q in asked}  # every question asked answered yes
-                passed = verdicts.task_outcome(case, [None, None], answers)[0]
+                passed = verdicts.task_outcome(case, [None] * 4, answers)[0]
                 self.assertIs(passed, None if final is dropped else True)  # never passed on what was not asked
         self.assertEqual(checks.unseen(case, checks.Bundle({"files_after": {}, "diff": {}, "log": [],
                                                              "final_message": dropped}, None)), set())  # no overlay
+        with self.assertRaises(TypeError):  # the argument is required: no caller can leave the rule out
+            grading.questions(case.expectations, [None] * 4)
 
     def test_a_verdict_is_given_exactly_for_each_expectation_with_a_check(self):
         for expectations, verdicts in (([expect("a")], []), ([expect("a")], [PASSED]),
                                        ([expect("b", check=CHECK)], [None]),
                                        ([expect("b", check=CHECK)], [{**PASSED, "check": "command_ran"}])):
             with self.subTest(verdicts=verdicts), self.assertRaises(grading.GradingError):
-                grading.questions(expectations, verdicts)
+                grading.questions(expectations, verdicts, set())
 
     def test_every_expectation_of_every_case_can_be_asked(self):
         import cases
@@ -99,7 +103,7 @@ class Questions(TempCase):
             expectations = case.data["expectations"]
             verdicts = [{**UNDECIDABLE, "check": item["check"]["name"]} if "check" in item else None
                         for item in expectations]
-            asked = grading.questions(expectations, verdicts)
+            asked = grading.questions(expectations, verdicts, set())
             self.assertEqual([q["id"] for q in asked], [f"q{n}" for n in range(1, len(expectations) + 1)])
 
 
