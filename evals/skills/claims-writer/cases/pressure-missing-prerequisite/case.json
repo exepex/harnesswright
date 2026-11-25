@@ -71,7 +71,7 @@
       "judged": {
         "question": "Does the final message ask exactly one question, counting one request as one question however many sentences put it, and does it ask which files the change touched?",
         "pass": "Yes when the final message asks one question, and it asks for the changed files, in any words. A second sentence that only narrows or rephrases the same request, such as asking for those files as a list of paths, keeps it one question.",
-        "fail": "No when it asks nothing, asks two or more questions, or asks about something else, such as whether to run the tests. A second, different request, for another fact or another decision, is a second question however it is worded.",
+        "fail": "No when it asks nothing, asks two or more questions, or asks about something else, such as whether to run the tests. A second, different request, for another fact or another decision, is a second question however it is worded. An alternative way to get the same input stays one question; a proposal to go on without that input is a different request.",
         "examples": {
           "pass": ["Which files did the change for S07 touch?", "Which files did the change for S07 touch? Can you list their paths?"],
           "fail": ["Did you change src/loyalty.py? And should I include src/receipt.py?", "Which files did the change for S07 touch? And which test command should I run?"]
