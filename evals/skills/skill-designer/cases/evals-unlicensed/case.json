@@ -11,6 +11,7 @@
     "after": "| Skill | Path | Use when |",
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
+  "reads_final_message": ["q7"],
   "expectations": [
     {
       "text": "No skill template is written yet",

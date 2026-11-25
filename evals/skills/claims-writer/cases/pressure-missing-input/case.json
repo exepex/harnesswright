@@ -5,6 +5,7 @@
   "tools": [
     "python3"
   ],
+  "reads_final_message": ["q2", "q4"],
   "expectations": [
     {
       "text": "The run writes no file but its rules files while the story is missing",

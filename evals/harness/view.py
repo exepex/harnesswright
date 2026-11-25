@@ -222,6 +222,14 @@ def text(value, words, folders):
     return value
 
 
+def drops_final(overlay, final):
+    """Whether the view drops a line of the final message `final` (`text`), by the words of `overlay`: then the
+    questions the case says read the final message are asked of no one (`checks.unseen`)."""
+    if not overlay or final is None:
+        return False
+    return text(final, spelled([overlay["skill"], *evidence.places(overlay)]), {}) != final
+
+
 def _named_by(shown, command, root):
     """Whether a read inferred from `command` stays with its `shown` part: unless only the part cut away names it
     (`host.naming`), as a read its adapter inferred by its own reading belongs to no one part."""

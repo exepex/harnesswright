@@ -190,6 +190,15 @@ def decide(name, bundle, args, checks=None):
     return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred, "hidden": hidden}
 
 
+def unseen(case, bundle):
+    """The ids of the judged questions `case` says read the final message (`reads_final_message`), when the grader
+    view drops a line of that message (`view.drops_final`): no grader can then weigh them, so none is asked
+    (`grading.questions`) and the run is not scored on them. An empty set otherwise."""
+    if not view.drops_final(bundle.overlay, bundle.final_message):
+        return set()
+    return set(getattr(case, "reads_final_message", None) or [])
+
+
 def _hidden(bundle, check, args, entries):
     """Whether the grader view hides what left `check` undecided: it drops one of `entries`, or shows one so cut that
     the check, given that entry alone as the view shows it (`view.shown`), would decide."""

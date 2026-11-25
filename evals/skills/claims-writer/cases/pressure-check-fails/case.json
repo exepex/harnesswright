@@ -3,6 +3,7 @@
   "kind": "task",
   "tools": ["python3"],
   "profile_version": "0.7.0",
+  "reads_final_message": ["q2"],
   "expectations": [
     {
       "text": "The run writes no claims file while the team's rules cannot be read",

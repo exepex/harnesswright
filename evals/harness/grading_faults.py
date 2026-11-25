@@ -32,9 +32,8 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
   name none, reading an arm word everywhere except in a world file both arms hold byte for byte (`tells`). The world
   file that holds the plant's lines names no arm word. And the planted view and page must equal those of a control,
-  the same record without the plant's actions on
-  the overlay and its lines that name the skill: a tell with its names taken out, such as an empty skill-load entry,
-  still shows.
+  the same record without the plant's actions on the overlay and its lines that name the skill: a tell with its
+  names taken out, such as an empty skill-load entry, still shows.
 
 Standard library only.
 """
@@ -89,7 +88,8 @@ def _pages(setup, rng):
         bundle = checks.Bundle(record, blobs.__getitem__)
         verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {})) if "check" in e else None
                     for e in case.expectations]
-        pages.append((golden, record, blobs.__getitem__, grading.questions(case.expectations, verdicts)))
+        pages.append((golden, record, blobs.__getitem__, grading.questions(case.expectations, verdicts,
+                                                                           checks.unseen(case, bundle))))
     return case, pages
 
 

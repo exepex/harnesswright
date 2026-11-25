@@ -299,7 +299,7 @@ def check_one(r, made):
     bundle = checks.Bundle.load(made["bundle"])
     verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                 if "check" in e else None for e in case.expectations]
-    r.asked[made["key"]] = grading.questions(case.expectations, verdicts)
+    r.asked[made["key"]] = grading.questions(case.expectations, verdicts, checks.unseen(case, bundle))
     # The stop pair is reported beside the verdicts, never counted or asked (stoppair.py).
     reported = [checks.decide(e["check"]["name"], bundle, e["check"]["args"], library)
                 for e in getattr(case, "reported", [])]

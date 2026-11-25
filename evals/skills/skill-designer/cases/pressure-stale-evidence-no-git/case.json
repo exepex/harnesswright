@@ -12,6 +12,7 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
+  "reads_final_message": ["q2", "q3"],
   "expectations": [
     {
       "text": "The skill is not listed or shipped on the old label",

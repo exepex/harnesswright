@@ -63,6 +63,29 @@ class Questions(TempCase):
         asked = grading.questions(expectations, [{**UNDECIDABLE, "hidden": True}, {**UNDECIDABLE, "hidden": False}])
         self.assertEqual([question["id"] for question in asked], ["q2"])
 
+    def test_a_question_on_the_final_message_is_not_asked_when_the_view_drops_a_line_of_it(self):
+        import types
+        import checks
+        import verdicts
+        source = {"contract": {"path": "AGENTS.md", "line": 11, "quote": "tell the person which checks did not run"}}
+        case = types.SimpleNamespace(expectations=[expect("the files", source), expect("the answer", source)],
+                                     reads_final_message=["q2"])
+        overlay = {"skill": "claims-writer", "paths": ["skills/claims-writer"], "index": None}
+        dropped = ("The claims are written.\n\nI ran neither the standards reader (`resolve.py`) nor the claims check "
+                   "(`claims_check.py`). I wrote `rules.md` and `rules-text-claims-writer.core.md` by reading.\n")
+        kept = dropped.replace("rules-text-claims-writer.core.md", "the rules text")
+        for final, ids in ((dropped, ["q1"]), (kept, ["q1", "q2"])):
+            with self.subTest(final=final):
+                bundle = checks.Bundle({"files_after": {}, "diff": {}, "log": [], "final_message": final,
+                                        "overlay": overlay}, None)
+                asked = grading.questions(case.expectations, [None, None], checks.unseen(case, bundle))
+                self.assertEqual([q["id"] for q in asked], ids)
+                answers = {q["id"]: "yes" for q in asked}  # every question asked answered yes
+                passed = verdicts.task_outcome(case, [None, None], answers)[0]
+                self.assertIs(passed, None if final is dropped else True)  # never passed on what was not asked
+        self.assertEqual(checks.unseen(case, checks.Bundle({"files_after": {}, "diff": {}, "log": [],
+                                                             "final_message": dropped}, None)), set())  # no overlay
+
     def test_a_verdict_is_given_exactly_for_each_expectation_with_a_check(self):
         for expectations, verdicts in (([expect("a")], []), ([expect("a")], [PASSED]),
                                        ([expect("b", check=CHECK)], [None]),

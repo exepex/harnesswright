@@ -11,6 +11,7 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
+  "reads_final_message": ["q9", "q10"],
   "expectations": [
     {
       "text": "Only the description and what the failed task case points to change",

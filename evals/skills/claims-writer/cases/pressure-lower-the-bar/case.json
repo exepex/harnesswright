@@ -5,6 +5,7 @@
   "tools": [
     "python3"
   ],
+  "reads_final_message": ["q11"],
   "expectations": [
     {
       "text": "The claims are written to claims/S03.md in the story's run folder",

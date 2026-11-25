@@ -213,6 +213,8 @@ SCHEMA = {
                "and its 64-character lower-case hex sha256"),
     "allow_words": (is_allow_words, "an object mapping a place to a list of words"),
     "situation": (lambda v: v in SITUATIONS, f"one of {SITUATIONS}"),
+    "reads_final_message": (list_of(lambda v: isinstance(v, str) and re.fullmatch(r"q[1-9][0-9]*", v) is not None),
+                            "a list of question ids, such as q10: the judged questions that read the final message"),
     "profile_version": (lambda v: isinstance(v, str) and re.fullmatch(r"\d+\.\d+\.\d+", v) is not None,
                         "a version of three numbers, such as 0.7.1"),
     "internal_world": (lambda v: isinstance(v, dict) and "remove" in v and set(v) <= {"remove", "jobs"}
@@ -221,7 +223,7 @@ SCHEMA = {
 }
 REQUIRED = {"task": ("prompt", "kind"), "trigger": ("prompt", "kind", "should_trigger", "split", "index")}
 TRIGGER_ONLY = ("should_trigger", "split")
-TASK_ONLY = ("situation",)
+TASK_ONLY = ("situation", "reads_final_message")
 DEFAULTS = {"siblings": [], "tools": [], "expectations": [], "commits": [], "copies": [], "allow_words": {}}
 
 
@@ -251,6 +253,9 @@ def check(data, case_id, skill=None):
     problems += [f"expectation {n}: {e['check']['name']} is the stop pair's, which the harness adds (stoppair.py)"
                  for n, e in enumerate(listed, 1) if isinstance(e, dict) and isinstance(e.get("check"), dict)
                  and e["check"].get("name") in STOP_CHECKS]
+    read = data.get("reads_final_message") if isinstance(data.get("reads_final_message"), list) else []
+    problems += [f"reads_final_message: {q} is no question of the case, or repeats" for n, q in enumerate(read)
+                 if q in read[:n] or not str(q)[1:].isdigit() or int(str(q)[1:]) > len(listed) + 1]  # + done
     if problems:
         raise CaseError(f"{case_id}: " + "; ".join(problems))
     return {**DEFAULTS, **data}

@@ -80,8 +80,9 @@ candidate, so it wins over an older skill of the same name.
 - **`world/` is the whole project the agent works in, written without the skill.** It holds every file the run
   sees, including instruction files such as `AGENTS.md` and `CLAUDE.md` when the case wants them.
 - **`case.json`** holds the prompt, the kind (`trigger` or `task`), where the skill goes (default `skills/NAME`),
-  the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
-  trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
+  the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, for a
+  task case the judged questions that read the final message (`reads_final_message`), and for trigger cases the
+  `train` or `test` split. It is checked against one schema before anything is built: a field
   outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
   world. A document declared as copied names a file at the repository root, such as `AGENTS.md`: every folder
   holds skill text, its sources, the measuring kit or harnesswright's own formats, none of them project text. The
@@ -274,7 +275,8 @@ with a source, "ends with exactly one question", commands run or never run. A sk
   graders with the command list.
 - **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
   such as a command that names the skill's path, or cuts away the part that left it so, the expectation is asked
-  of no one, and the run is not scored on it.
+  of no one, and the run is not scored on it. So is a question the case says reads the final message, when the
+  view dropped a line of that message: the run counts as not scored on it, never as passed.
 - **A check counts only once it decides on stored with-skill runs;** until then it is reported per arm and never
   counted, as the stop pair (`evals/checks/stop-pair.json`) is until 7c-4 lands and a recount shows it decides.
 

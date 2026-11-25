@@ -3,6 +3,7 @@
   "kind": "task",
   "situation": "missing-input",
   "tools": ["python3"],
+  "reads_final_message": ["q2", "q3", "q4", "q6"],
   "expectations": [
     {
       "text": "The run writes no file but its rules files while it cannot tell which files the change touched",

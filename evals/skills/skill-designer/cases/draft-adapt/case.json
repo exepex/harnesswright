@@ -11,6 +11,7 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
+  "reads_final_message": ["q10"],
   "expectations": [
     {
       "text": "The template is written under v2/skills/",

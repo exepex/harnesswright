@@ -11,6 +11,7 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
+  "reads_final_message": ["q1", "q3", "q4", "q5"],
   "expectations": [
     {
       "text": "The run asks the owner one question that covers the job and the role",

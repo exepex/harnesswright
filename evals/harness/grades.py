@@ -92,7 +92,7 @@ def grade(r, made_runs, folder):
             verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                         if "check" in e else None for e in case.expectations]
             name = f"golden {skill}/{case_id}/{golden.name}"
-            asked[name] = grading.questions(case.expectations, verdicts)
+            asked[name] = grading.questions(case.expectations, verdicts, checks.unseen(case, bundle))
             if asked[name]:  # a golden whose every question a check decided has no page to grade
                 pages[name], case_of[name] = text(case, record, blobs.__getitem__), (skill, case_id)
     panel, pair = _panel(r, top)
