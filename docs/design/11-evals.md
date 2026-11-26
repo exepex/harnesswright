@@ -428,7 +428,8 @@ After each round the judges look for ways the round could have been wrong, and a
   them, making no run. It copies the round's manifest, drift records and kept bundles to a new store, so the
   round's results never change and no kept grade of an old page is reused. The copy goes through the round's gates,
   a judge's approval of the kit in the new store first, with a run gate that only finds the runs and no extra runs.
-  Every case and skill must be as it was at the round's commit, save the fields that shape only a grader's page.
+  Every case and skill, and the plan's fault case, must be as it was at the round's commit, save the fields that
+  shape only a grader's page: that one check holds a relabel's cases.
 - **Store.** Rounds go to the folder given with `--store`, outside the working tree, checked by writing and reading
   back a hash. The round's store folder is kept as one archive. `rounds.py results` copies each skill's label file
   entry, whole, into `evals/results/<skill>.json`, with the round's name, attempt, commit, manifest hash, kit hash

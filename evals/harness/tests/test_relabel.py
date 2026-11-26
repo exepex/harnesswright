@@ -1,10 +1,12 @@
 """A relabel grades a labelled round's stored runs again in a copy of the round, making no run."""
 
 import json
+import shutil
 import unittest
+from unittest import mock
 
 from test_gates import Gated
-from test_runs import DRIFT
+from test_runs import DRIFT, VERSION
 
 from test_grades import POND, wrote
 
@@ -17,11 +19,14 @@ import runs
 
 
 class Relabel(Gated):
-    """A planned round whose one labelled attempt kept one run and voided another."""
+    """A planned round whose one labelled attempt kept one run and voided another. Its faults are planted on `c2`,
+    a case it does not run."""
 
     def setUp(self):
         super().setUp()
-        self.record = self.planned()
+        shutil.copytree(self.case_dir, self.case_dir.with_name("c2"))
+        self.record = self.plan(2, fault_case={"skill": "haiku-writer", "case": "c2"})
+        rounds.write(self.record, self.store, self.repo)
         old = self.store / "r1"
         case = gates.Round(self.record, self.store, self.repo, self.repo / "adapters").cases[("haiku-writer", "c1")]
         record, blobs = goldens.bundle(goldens.Golden("run", wrote(POND)), case, rounds.adapter(
@@ -34,7 +39,7 @@ class Relabel(Gated):
         (old / "runs" / "k1" / "checks.json").write_text("{}")
         for path, data in {"attempts/a.json": {"gates": [{"gate": "run", "passed": True, "outcome": made}]},
                            "labels/a.json": {}, "drift/fakehost.json": DRIFT, "kept-grades/k1.json": {},
-                           "grades/a/runs/k1.json": {}}.items():
+                           "grades/a/runs/k1.json": {}, "runs/k2/void.json": {"reasons": ["refused"]}}.items():
             (old / path).parent.mkdir(parents=True, exist_ok=True)
             (old / path).write_text(json.dumps(data))
         self.made, self.copy = made, self.tmp / "copy"
@@ -43,7 +48,7 @@ class Relabel(Gated):
         new = relabel.copy(self.store, "r1", "a", self.copy, self.repo)
         found = sorted(str(p.relative_to(new)) for p in new.rglob("*") if p.is_file())
         self.assertEqual([p for p in found if not p.startswith("runs/k1/bundle/")],
-                         ["drift/fakehost.json", "manifest.json", relabel.SOURCE])
+                         ["drift/fakehost.json", "manifest.json", relabel.SOURCE, "runs/k2/void.json"])
         self.assertEqual(json.loads((new / relabel.SOURCE).read_text())["run"], self.made)
         with self.assertRaisesRegex(relabel.RelabelError, "a new folder"):
             relabel.copy(self.store, "r1", "a", self.copy, self.repo)
@@ -77,6 +82,29 @@ class Relabel(Gated):
             with self.assertRaisesRegex(rounds.RoundError, f"changed since the round's commit .*{path}"):
                 gates.run(self.copy, "r1", self.repo, self.repo / "adapters", gates=steps,
                           at=rounds.commit(self.repo))
+
+    def test_the_fault_case_is_held_to_the_one_check_of_a_relabel_s_cases(self):
+        relabel.copy(self.store, "r1", "a", self.copy, self.repo)
+        fault = self.case_dir.with_name("c2")
+        (fault / "case.json").write_text(json.dumps({"prompt": "Write two.", "kind": "task"}))
+        self.commit_all()
+        r = gates.Round(self.record, self.copy, self.repo, self.repo / "adapters", version=lambda m, **c: VERSION)
+        r.hosts["fakehost"] = {"drift": DRIFT}
+        self.enterContext(mock.patch.object(gates.faults, "load", return_value=[]))  # the catalogue is not tested
+        with self.assertRaisesRegex(gates.Stop, "fault_case haiku-writer/c2 changed since the round was planned"):
+            gates.faults_gate(r)  # a round's own check is as it was
+        with self.assertRaisesRegex(relabel.RelabelError, "c2/case.json"):
+            relabel.same(r)
+        with mock.patch.object(relabel, "GRADING_ONLY", ("prompt",)):  # a change in a grading-only field only
+            relabel.same(r)
+            with mock.patch.object(gates.faults, "Setup", side_effect=LookupError("planted")), \
+                    self.assertRaisesRegex(LookupError, "planted"):
+                relabel.faults_gate(r)  # past the hash, to the planting
+            self.assertEqual(json.loads((self.copy / "r1" / rounds.MANIFEST).read_text()), self.record)
+            (fault / "world" / "README.md").write_text("changed\n")
+            self.commit_all()
+            with self.assertRaisesRegex(relabel.RelabelError, "c2/world/README.md"):
+                relabel.same(r)  # any other change still stops
 
     def commit_all(self):
         self.git("add", "-A")
