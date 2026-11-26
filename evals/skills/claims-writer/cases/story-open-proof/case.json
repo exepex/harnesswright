@@ -4,7 +4,6 @@
   "tools": [
     "go"
   ],
-  "reads_final_message": ["q17"],
   "expectations": [
     {
       "text": "The claims are written to claims/S03.md in the story's run folder",

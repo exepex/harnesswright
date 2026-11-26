@@ -51,13 +51,6 @@ class Schema(TempCase):
     def test_trigger_fields_are_refused_in_a_task_case(self):
         self.refused({"split": "train"}, "split is only for trigger cases")
 
-    def test_reads_final_message_names_questions_of_the_case_once(self):
-        for ids, why in ((["10"], "reads_final_message must be"), (["q2"], "q2 is no expectation"),
-                         (["q1"], "q1 is no expectation the case lists, or repeats")):
-            with self.subTest(ids=ids):  # q1 is the done question, which the harness adds itself (`checks.unseen`)
-                self.refused({"reads_final_message": ids}, why)
-        self.refused({"expectations": [expect("Writes a haiku.")], "reads_final_message": ["q1", "q1"]}, "repeats")
-
     def test_every_path_stays_inside_the_world(self):
         for path in ("../out", "/etc/passwd", "a/../../b", "", ".git/config", "a\\b", "./a", "a//b", "a\nb",
                      "skills/x ", " ", "a:b", "<prompt>", 3):

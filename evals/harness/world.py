@@ -63,8 +63,7 @@ def names(words):
     """A pattern that finds each of `words` (a skill's name and paths) as a whole name: not inside a longer name,
     so a skill named `test` is not found in `pytest` or `test_save`. A name character is an ASCII letter, digit, `_`
     or `-`, the same for text and bytes. The lint and the internal world read it, and every index row must hold one
-    (`plan`). The grader view does not: it finds the skill's name in any spelling (`view.spelled`), which holds
-    every whole name too."""
+    (`plan`)."""
     return re.compile("(?<![\\w-])(?:" + "|".join(re.escape(word) for word in words) + ")(?![\\w-])", re.ASCII)
 
 
@@ -104,7 +103,7 @@ def plan(case, adapter, with_skill, skills_root=None, skill_dir=None):
         row = None
         if case.index:
             row = case.index["row"].format(name=name, path=f"{rel}/SKILL.md", description=meta["description"])
-            if not names([name, *targets]).search(row):  # a whole name, which the grader view finds too
+            if not names([name, *targets]).search(row):  # a whole name
                 raise CaseError(f"{case.id}: the index row {row!r} must name {name} or its path as a whole name")
         installs.append(Install(name, source, targets, row, files))
         if team and name == case.skill:
@@ -163,7 +162,7 @@ def with_rows(data, after, rows):
     """`data` (bytes) with `rows` added at the end of the table whose header line is `after`.
 
     The file is edited as bytes, so its encoding and line endings are kept; each row takes the header's ending. Each
-    row is one whole line and the only bytes added, so the grader view, which removes every line naming the skill,
+    row is one whole line and the only bytes added, so the grader view, which removes each line that is the row,
     gives the index back exactly as the without-skill arm has it: a row with a line break, or a table whose last
     line has no ending, is refused.
     """

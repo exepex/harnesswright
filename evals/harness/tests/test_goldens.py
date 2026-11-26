@@ -80,8 +80,7 @@ class Goldens(TempCase):
         log = [*LOG[:2], {"kind": "message", "source": "observed", "text": "Read .harness/active/SKILL.md.\nDone."}]
         record, blobs = self.built({**GOLDEN, "log": log})
         page = grading.page("Write the notes.", *view.view(record, blobs.__getitem__))
-        self.assertNotIn(".harness/active", page)  # the skill's path is the overlay's, whatever its name
-        self.assertIn("Done.", page)
+        self.assertIn("Read .harness/active/SKILL.md.\nDone.", page)  # what the run said stays, as in every run
 
     def test_a_file_written_again_keeps_its_mode_and_a_change_a_run_could_not_make_is_refused(self):
         record, blobs = self.built({**GOLDEN, "changes": {"run.sh": "echo hi\n", "notes.txt": "Café ☕\n"}})
@@ -102,6 +101,25 @@ class Goldens(TempCase):
             goldens.load(trigger, self.folder)
         self.write("g.json", {**no_done, "changes": {}})
         self.assertEqual([g.name for g in goldens.load(trigger, self.folder)], ["g"])
+
+    def test_a_named_golden_is_one_of_a_pair_with_its_twin_that_names_the_skill(self):
+        self.write("g.json", {**GOLDEN, "named": "I used the haiku-writer skill."})
+        one, twin = goldens.load(self.subject, self.folder)
+        self.assertEqual((one.name, one.pair, twin.name, twin.pair), ("g", "g-named", "g-named", "g"))
+        self.assertEqual((one.settled, one.changes), (twin.settled, twin.changes))
+        self.assertEqual([item["text"] for item in twin.log if item["kind"] == "message"],
+                         ["Wrote the notes.\nI used the haiku-writer skill."])
+        self.assertEqual(goldens.unpaired(self.subject, [one, twin]), [])
+        self.assertEqual(goldens.unpaired(self.subject, [goldens.Golden("a", GOLDEN)]), ["q1", "q2", "q3"])
+        for name, data, why in (("h.json", {**GOLDEN, "named": "I used a skill."}, "names haiku-writer"),
+                                ("h.json", {**GOLDEN, "named": "haiku-writer\nagain"}, "one line"),
+                                ("h.json", {**GOLDEN, "log": LOG[:2], "named": "haiku-writer"}, "final message"),
+                                ("g-named.json", GOLDEN, "the name of another's twin")):
+            with self.subTest(why=why):
+                self.write(name, data)
+                with self.assertRaisesRegex(goldens.GoldenError, why):
+                    goldens.load(self.subject, self.folder)
+                (self.folder / name).unlink()
 
     def test_a_case_without_goldens_has_none(self):
         self.assertEqual(goldens.load(self.subject, self.tmp / "none"), [])
@@ -171,6 +189,18 @@ class Gate(TempCase):
         self.assertEqual(goldens.gate(self.subject, [], {}), dict.fromkeys(("q1", "q2", "q3"), found["q1"]))
         self.assertEqual((goldens.uncovered(self.subject, self.goldens), goldens.uncovered(self.subject, [])),
                          ([], ["q1", "q2", "q3"]))
+
+    def test_a_paired_case_trusts_a_question_only_when_a_pair_got_it_right(self):
+        twin = goldens.Golden("a-named", GOLDEN, "a")
+        pair = [goldens.Golden("a", GOLDEN, "a-named"), twin, self.goldens[1], goldens.Golden("c", GOLDEN)]
+        right = {"a": (["q2"], {"q2": "no"}, []), "a-named": (["q2"], {"q2": "no"}, []),
+                 "b": (["q1", "q2"], {"q1": "no", "q2": "yes"}, []), "c": (["q1"], {"q1": "yes"}, [])}
+        self.assertIsNone(goldens.gate(self.subject, pair, right, paired=True)["q2"])
+        self.assertIsNone(goldens.gate(self.subject, pair, right)["q2"])
+        self.assertIn("no pair of goldens", goldens.gate(self.subject, pair, right, paired=True)["q1"])
+        moved = {**right, "a-named": (["q2"], {"q2": "yes"}, [])}  # naming the skill moved the answer
+        self.assertEqual(goldens.gate(self.subject, pair, moved, paired=True)["q2"],
+                         "a golden was missed: a-named got yes, not no")
 
     def test_a_golden_that_was_not_graded_cannot_drop_out(self):
         for graded in ({"a": (["q1", "q2"], {"q1": "yes", "q2": "no"}, [])},

@@ -52,7 +52,7 @@ def pond(page):
 
 
 class Pages(Gated):
-    """A round of one case with two goldens, its runs stored as a round stores them."""
+    """A round of one case with two goldens, one of them paired, its runs stored as a round stores them."""
 
     def setUp(self):
         super().setUp()
@@ -62,7 +62,7 @@ class Pages(Gated):
                                                              "expectations": EXPECTATIONS}))
         self.goldens = self.repo / "evals" / "goldens" / "haiku-writer" / "c1"
         self.goldens.mkdir(parents=True)
-        self.golden("yes", wrote(POND))
+        self.golden("yes", {**wrote(POND), goldens.NAMED: "I used the haiku-writer skill."})  # and its pair
         self.golden("no", wrote(HELLO, "no"))
 
     def golden(self, name, data):
@@ -115,8 +115,9 @@ class Graded(Pages):
         self.assertEqual((golden["asked"], golden["answers"], golden["settled"]),
                          (["q2", "q4"], {"q2": "no", "q4": "no"}, {"q2": "no", "q4": "no"}))
         self.assertEqual(outcome["goldens"], {"haiku-writer/c1": {"q2": None, "q4": None}})  # what a page was asked
-        # Two runs and two goldens, each graded by two fresh graders with the host's model, on q2 and q4 alone.
-        self.assertEqual(calls, [("named-model", ["q2", "q4"])] * 8)
+        # Two runs and three goldens (the pair's twin too), each graded by two fresh graders with the host's model,
+        # on q2 and q4 alone.
+        self.assertEqual(calls, [("named-model", ["q2", "q4"])] * 10)
 
     def test_a_run_stays_ungraded_on_a_question_whose_goldens_were_missed(self):
         outcome = self.graded([POND], answering(lambda page: "yes"))
@@ -184,7 +185,7 @@ class Graded(Pages):
         self.assertEqual(json.loads(kept)["trusted"], {"q2": None, "q4": None})  # the goldens it was graded under
         calls, steps = [], (("run", self.ran([POND])), ("check", gates.check_gate), ("grade", grades.grade_gate))
         outcome = self.go(steps, grade=answering(pond, calls))["gates"][2]["outcome"]
-        self.assertEqual(len(calls), 4)  # the two goldens, graded again by two graders each; the run's page is not
+        self.assertEqual(len(calls), 6)  # the three goldens, graded again by two graders each; the run's page is not
         self.assertEqual((outcome["runs"][0]["answered"], outcome["runs"][0]["graded_in"]),
                          (["q2", "q4"], json.loads(kept)["attempt"]))
         self.assertEqual((self.store / "r1" / grades.KEPT / "k1.json").read_text(), kept)  # never replaced
@@ -204,7 +205,7 @@ class Graded(Pages):
         path.write_text(json.dumps(other))  # as if an earlier attempt's panel had other routes
         calls, steps = [], (("run", self.ran([POND])), ("check", gates.check_gate), ("grade", grades.grade_gate))
         outcome = self.go(steps, grade=answering(pond, calls))["gates"][2]["outcome"]
-        self.assertEqual(len(calls), 4)  # the goldens only: the run's page is not graded again
+        self.assertEqual(len(calls), 6)  # the goldens only: the run's page is not graded again
         self.assertEqual((outcome["runs"][0]["answered"], outcome["runs"][0]["untrusted"]), ([], ["q2", "q4"]))
         whys = [json.loads((attempt / "runs" / "k1.json").read_text())["untrusted"].get("q2")
                 for attempt in (self.store / "r1" / "grades").iterdir()]  # the first attempt's is None

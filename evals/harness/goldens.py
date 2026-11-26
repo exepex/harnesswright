@@ -17,6 +17,11 @@ A golden is `evals/goldens/<skill>/<case>/<name>.json`, written by hand by a jud
   `{"expectation": its text, "sha256": its fingerprint (`fingerprint`), "answer": "yes" or "no", "by": the judge
   who settled it}`. The fingerprint covers the whole expectation, its text, check and judged question, rules and
   examples, so a golden never settles an expectation that has moved or changed in any way.
+- `named` (optional): one sentence that names the skill as a whole name. It makes the golden one of a pair: `load`
+  gives the golden and its twin, `<name>-named`, the same golden with the sentence as a last line of its final
+  message and the same settled answers. A page may name the skill wherever the run did (`view.py`), so a pair tests
+  that naming it moves no answer: graders that answer the two differently miss one of them, and the gate stops
+  trusting that question.
 
 - `load(case, folder)`: the case's goldens, checked against that shape.
 - `bundle(golden, case, adapter, out, drift, host_version, model)`: the golden as a run's record and blobs. The
@@ -27,12 +32,16 @@ A golden is `evals/goldens/<skill>/<case>/<name>.json`, written by hand by a jud
   which no view shows.
 - `uncovered(case, goldens)`: the question ids of the case that its goldens do not settle both ways, at least one
   `yes` and one `no` (decision 1 of the grading plan): every case with goldens must have none.
-- `gate(case, goldens, graded)`: for each question id of the case, None when its grading is trusted, or why not.
-  Every golden must be in `graded`: one that was not graded cannot be left out of the gate.
+- `unpaired(case, goldens)`: the question ids of the case that no pair settles, for a case that grades an arm
+  without the skill: a golden author writes a pair for each.
+- `gate(case, goldens, graded, paired)`: for each question id of the case, None when its grading is trusted, or why
+  not. Every golden must be in `graded`: one that was not graded cannot be left out of the gate. With `paired`, for
+  a case that grades an arm without the skill, a question is trusted only when both goldens of a pair were asked it.
 
 Standard library only.
 """
 
+import copy
 import hashlib
 import json
 import os
@@ -48,6 +57,7 @@ import world
 
 ROOT = cases.REPO / "evals" / "goldens"
 FIELDS = ("changes", "log", "settled")
+NAMED = "named"  # the optional field that makes a golden one of a pair, and the end of its twin's name
 SETTLED_FIELDS = ("expectation", "sha256", "answer", "by")
 NOTHING_EXPOSED = {"skills": [], "tools": []}
 
@@ -57,10 +67,11 @@ class GoldenError(ValueError):
 
 
 class Golden:
-    """One golden: its `name`, `changes`, `log`, and `settled`, {question id: "yes" or "no"}."""
+    """One golden: its `name`, `changes`, `log`, `settled`, {question id: "yes" or "no"}, and `pair`, the name of the
+    other golden of its pair, or None."""
 
-    def __init__(self, name, data):
-        self.name, self.changes, self.log = name, data["changes"], data["log"]
+    def __init__(self, name, data, pair=None):
+        self.name, self.changes, self.log, self.pair = name, data["changes"], data["log"], pair
         self.settled = {id_: given["answer"] for id_, given in data["settled"].items()}
 
 
@@ -75,7 +86,19 @@ def load(case, folder=None):
     folder = Path(folder) if folder else ROOT / case.skill / case.id
     if not folder.is_dir():
         return []
-    return [Golden(path.stem, check(path, case)) for path in sorted(folder.iterdir())]
+    found = []
+    for path in sorted(folder.iterdir()):
+        data = check(path, case)
+        if NAMED not in data:
+            found.append(Golden(path.stem, data))
+            continue
+        log, twin = copy.deepcopy(data["log"]), f"{path.stem}-{NAMED}"
+        last = [item for item in log if item["kind"] == "message"][-1]  # the final message, as a run's (`check`)
+        last["text"] = last["text"].rstrip("\n") + "\n" + data[NAMED]
+        found += [Golden(path.stem, data, twin), Golden(twin, {**data, "log": log}, path.stem)]
+    if len({golden.name for golden in found}) != len(found):
+        raise GoldenError(f"{folder}: a golden has the name of another's twin, <name>-{NAMED}")
+    return found
 
 
 def check(path, case):
@@ -87,8 +110,9 @@ def check(path, case):
         json.dumps(data, ensure_ascii=False).encode()  # a lone surrogate is no text a run could hold
     except (UnicodeError, json.JSONDecodeError) as error:
         raise GoldenError(f"{path.name}: not UTF-8 JSON: {error}") from None
-    if not isinstance(data, dict) or set(data) != set(FIELDS):
-        raise GoldenError(f"{path.name}: a golden holds {', '.join(FIELDS)} and nothing else")
+    if not isinstance(data, dict) or not set(FIELDS) <= set(data) <= {*FIELDS, NAMED}:
+        raise GoldenError(f"{path.name}: a golden holds {', '.join(FIELDS)}, {NAMED} if it is one of a pair, and "
+                          "nothing else")
     problems = []
     if not isinstance(data["changes"], dict) or not all(
             cases.is_path(p) and (t is None or isinstance(t, str)) for p, t in data["changes"].items()):
@@ -100,7 +124,12 @@ def check(path, case):
     except host.HostError as error:
         problems.append(str(error))
     problems += _settled(data["settled"], case.expectations or [])
-    shown = json.dumps([data["changes"], data["log"]], ensure_ascii=False)
+    named = data.get(NAMED)
+    if NAMED in data and not (isinstance(named, str) and named.splitlines() == [named] and world.names([case.skill]).search(named)
+            and isinstance(data["log"], list) and any(isinstance(i, dict) and i.get("kind") == "message"
+                                                      for i in data["log"])):
+        problems.append(f"{NAMED}: one line that names {case.skill} as a whole name, added to a final message")
+    shown = json.dumps([data["changes"], data["log"], data.get(NAMED)], ensure_ascii=False)
     problems += [f"names the arm {arm!r}, which a grader page would show" for arm in (*cases.ARMS, cases.PREVIOUS)
                  if arm in shown]
     if problems:
@@ -171,7 +200,13 @@ def uncovered(case, goldens):
     return [id_ for id_ in ids if {golden.settled[id_] for golden in goldens} != set(grading.ANSWERS)]
 
 
-def gate(case, goldens, graded):
+def unpaired(case, goldens):
+    """The question ids of `case` that no pair of its `goldens` settles (`NAMED`)."""
+    ids = [f"q{number}" for number in range(1, len(case.expectations or []) + 1)]
+    return [] if any(golden.pair for golden in goldens) else ids
+
+
+def gate(case, goldens, graded, paired=False):
     """{question id: None, or why its grading is not trusted this round} for every expectation of `case`.
     `goldens` are its goldens (`load`); `graded` is {golden name: (the ids it was asked, the answers its panel gave,
     the ids a grader's retry flipped on it)}, one entry for every golden. A golden passes a question only when its
@@ -187,6 +222,8 @@ def gate(case, goldens, graded):
             found[id_] = "a golden was missed: " + "; ".join(missed)
         elif {golden.settled[id_] for golden in asked} != set(grading.ANSWERS):
             found[id_] = "no golden with a settled yes and one with a settled no was asked it"
+        elif paired and not any(golden.pair in {g.name for g in asked} for golden in asked):
+            found[id_] = "no pair of goldens, with and without a sentence naming the skill, was asked it"
         else:
             found[id_] = None
     return found

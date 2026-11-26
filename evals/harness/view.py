@@ -1,78 +1,79 @@
 """The grader view: what a grader sees of one bundle (doc 11, Evidence). Graders never read the full record.
 
-The view is built from the bundle by allow lists and four rules, never by copying the bundle and deleting what is
-known to be risky. Each rule is applied the same way in both arms, so the same run in either arm gives the same view.
+One rule: a grader sees everything the run wrote and said, and the view removes only what the harness put there.
+`ADDED` is the one list of what the harness puts there, and each item is removed at one place below, from what the
+bundle records the harness added, never by a pattern over what the run wrote:
 
-- **The skill's name, in any spelling.** The view never shows the skill's name or one of its paths, whole or inside a
-  longer name such as `rules-text-<skill>.core.md`: one pattern finds them (`spelled`), and every rule below that
-  names the skill uses it, the checks' question of what the view shows too (`overlay_names`, `checks.decide`).
-- **A run's rules files.** The view never shows the files a run writes beside its rules, `rules.md` and each
-  `rules-text-<skill>.<stack>.md` of a run folder, in either arm: only a skill's resolver writes them, so they tell
-  the arm whichever skill they name. Their names are the resolver's own (`RUN_FILES`, from `v2/build/runfiles.py`),
-  never a list here. A path that is one is left out, and an action on one is the overlay's (`overlay_names`).
-- **Fields and paths.** The view holds only the fields in FIELDS, and only the world paths outside the overlay (both
-  copies of the skill, and the folders above them while they only hold them), outside the host's own files, that do
-  not name the skill (`spelled`) and that are not a run's rules file.
-- **Actions.** A log entry is dropped when its action is on the overlay: it loads the skill, or its path, command or
-  refused action names the skill, one of its paths, or a folder above them that only the overlay made
-  (`on_overlay`, `overlay_names`). The view hides what is on the overlay, not what sits beside it: a command is
-  shown without its pipelines on the overlay and what depends on them, cut where `shell.programs` splits it, and
-  is dropped whole only when nothing else is left or no clean cut can be made (`shown`, `shell.cut`). A read
-  inferred from a cut command goes when only the part cut away names it.
-- **What the agent did, not what the world showed it.** A command is shown by what the agent ran
-  (`COMMAND_FIELDS`), never by its output or exit code: the arms are different worlds, so what a world prints back
-  (a listing, a line count, a commit's size) tells the arm, however it is filtered. Doc 11 gives graders the command
-  list; the full record keeps the output for checks, audits and judges.
-- **Text.** In every text the view shows (each log value, the final message, each file and each link target), a
-  line that names the skill or one of its paths is removed, so the generated index row and every copy or edit of
-  it goes too, and the run's folders become neutral words (`text`).
+- `skill`: the installed skill, both copies and the folders above them while they only hold them, and every other
+  file a team install adds (`evidence.places`), from the files after and from the diff (`evidence.covers`).
+- `row`: the line the install adds to each file it edits in place (`edited`): each line of the index file that is
+  the overlay's row byte for byte (`skills.with_rows`), and each line of a team profile that is the version line
+  naming a release manifest the install added (`teamrelease.with_version`). A line the run changed, or wrote in
+  another file, is the run's.
+- `lead`: the lead line that pins the skill's load (`host.LEAD`), as each line of a text that holds it, and the load
+  it pins: the host's skill event for the skill, and a read of the `SKILL.md` of an installed copy. A command the
+  run typed stays whole, whatever it reads.
+- `arm`: every field of the record outside FIELDS: the arm, the host, its model, timings, what the host exposed,
+  its requests and its failure.
+- `world`: what the world printed back, a command's output and exit code (`COMMAND_FIELDS`): the arms are
+  different worlds. Script checks decide outcomes on the full bundle.
+- `host`: the host's own files, which it writes on an empty run (`own_files`), and the run's real folders, which
+  become their neutral words (`scrub.folders`).
 
-The diff is the diff of the view's own entries, so a change that only touched overlay lines is no change. A file's
+Everything else is the run's, and the view shows it whole: every file it wrote, under any name, every line of it;
+every action and every command as it ran it; its final message. So a page names the skill wherever the run did. In
+a case with a without-skill arm that may tell the arm; the paired goldens (`goldens.unpaired`) test that it moves
+no settled answer (doc 11, Graders).
+
+The diff is the diff of the view's own entries, so a change that only touched the overlay is no change. A file's
 entry is the hash of its view bytes, which the view holds as a blob. Before the run the bundle keeps no blob, so a
-file's entry is the arm's own, and a file the install edits in place (the index, a team profile) has the entry it
-has in the without-skill arm, as the arms differ there only by the line the install adds. A write's hash is shown
-only when it is the hash of its file's view bytes. What the agent wrote of what it saw, such as a folder listing it
-saved to a file, or a word it made from the skill's name, is its own output and is not hidden.
+file the install edits in place (the index, a team profile) has the entry it has in the without-skill arm. A write's
+hash is shown only when it is the hash of its file's view bytes.
 
 Standard library only.
 """
 
-import ast
 import hashlib
 import os
-import re
-from pathlib import Path, PurePosixPath
 
 import evidence
 import host
 import manifest
 import scrub
-import shell
+import teamrelease
 
+ADDED = ("skill", "row", "lead", "arm", "world", "host")  # what the harness puts there: all the view removes
 FIELDS = ("case", "mode", "files_after", "diff", "log", "final_message")  # all a grader may see of a record
-ACTION_FIELDS = ("path", "command", "action")  # the fields that say what an action acts on
 COMMAND_FIELDS = ("kind", "source", "command")  # all a grader sees of a command: what the agent ran
-RUNFILES = Path(__file__).resolve().parents[2] / "v2" / "build" / "runfiles.py"  # the resolver's names of its files
 
 
 def view(record, blob):
     """The grader view of a bundle as `evidence.load` gives it: its view record and its blobs by hash."""
     overlay, folders = record["overlay"], record["folders"]
-    words = spelled([overlay["skill"], *evidence.places(overlay)])
-    acts = overlay_names(overlay, record["files_after"], record["diff"])  # what puts an action on the overlay
-    places, own = evidence.places(overlay), record["own_files"]
+    places, own, leads = evidence.places(overlay), record["own_files"], lead_lines(overlay)
     edited = overlay.get("edited") or {overlay["index"]: overlay.get("index_without")}  # stored before profiles
     blobs, hashes = {}, {}  # hashes: {path: (bundle hash, view hash)}
+
+    def added(path, line):
+        """Whether `line` of the file at `path` is the line the install adds to it: the index row, byte for byte,
+        or a team profile's version line, which names a release manifest the install added."""
+        if path == overlay["index"]:
+            return bool(overlay.get("row")) and line.rstrip(b"\r\n") == overlay["row"].encode()
+        named = teamrelease.stated(line.decode("utf-8", "replace"))
+        return named is not None and evidence.covers(places, named)
 
     def after(path, entry):
         if manifest.is_file(entry):
             digest, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-            data = text(blob(digest), words, folders)
+            data = blob(digest)
+            if path in edited:  # a file the install edits in place, without the line it adds
+                data = b"".join(line for line in data.splitlines(keepends=True) if not added(path, line))
+            data = text(data, leads, folders)
             hashes[path] = (digest, hashlib.sha256(data).hexdigest())
             blobs[hashes[path][1]] = data
             return f"file {hashes[path][1]}{rest}"
         if manifest.kind(entry) == "link":
-            return "link " + text(entry[len("link "):], words, folders)
+            return "link " + text(entry[len("link "):], leads, folders)
         return entry
 
     def before(path, entry):
@@ -80,36 +81,27 @@ def view(record, blob):
             return None  # a folder that held the skill before the run is the overlay's
         if path in edited and manifest.is_file(entry):
             return edited[path]
-        return "link " + text(entry[len("link "):], words, folders) if manifest.kind(entry) == "link" else entry
+        return "link " + text(entry[len("link "):], leads, folders) if manifest.kind(entry) == "link" else entry
 
     entries = {path: after(path, entry) for path, entry in record["files_after"].items()}
     old = {path: before(path, change["before"]) for path, change in record["diff"].items() if change["before"]}
     old = {path: entry for path, entry in old.items() if entry is not None}
     new = {path: entries[path] for path, change in record["diff"].items() if change["after"]}
-    hidden = lambda path: words.search(path) or RUN_FILES.search(path)  # noqa: E731
     files = {path: entry for path, entry in entries.items()
-             if path not in own and not evidence.covers(places, path, entry, entry) and not hidden(path)}
-    changes = {path: change for path, change in evidence.diff(old, new, places, own).items() if not hidden(path)}
+             if path not in own and not evidence.covers(places, path, entry, entry)}
+    changes = evidence.diff(old, new, places, own)
     named = [*files.values(), *(change["after"] for change in changes.values() if change["after"])]
     blobs = {digest: blobs[digest] for digest in {entry.split(" ")[1] for entry in named if manifest.is_file(entry)}}
     log = []
     root = next((path for path, word in folders.items() if word == scrub.NEUTRAL_FOLDERS["world"]), None)
-    names = None  # right after a command the view drops, False; after one it cuts, what its shown part names
+    loads = {os.path.normpath(f"{path}/SKILL.md") for path in overlay["paths"]}  # the files the pin loads
     read = set()  # the paths the view shows read
     for item in record["log"]:
-        if names is not None and host.part_of_command(item):
-            if names is False or item["kind"] != "read" or not names(item["path"]):
-                continue  # it stands right after the command it came from, and goes with the part not shown
-        else:
-            names = None
-        action = shown(item, acts)
-        if action is None:
-            names = False if item["kind"] == "command" else None
-            continue
-        if action is not item:  # a command cut to its pipelines that do not name the skill
-            names = _named_by(action["command"], item["command"], os.path.normpath(root) if root else ".")
-        item, written = action, item.get("path")
-        item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, words, folders)
+        if item["kind"] == "skill" and item["name"] == overlay["skill"] or item["kind"] == "read" and \
+                os.path.normpath(_relative(item["path"], root)) in loads:
+            continue  # the load the lead line pins
+        written = item.get("path")
+        item = {name: value if name in host.FIXED or not isinstance(value, str) else text(value, leads, folders)
                 for name, value in item.items()}
         if item["kind"] == "read":  # a file's inferred read is shown once, the first time, the same in either arm
             if item["source"] == "inferred" and os.path.normpath(item["path"]) in read:
@@ -123,118 +115,25 @@ def view(record, blob):
         log.append(item)
     final = record["final_message"]
     built = {"files_after": files, "diff": changes, "log": log,
-             "final_message": None if final is None else text(final, words, folders)}
+             "final_message": None if final is None else text(final, leads, folders)}
     return {name: built[name] if name in built else record[name] for name in FIELDS}, blobs
 
 
-def overlay_names(overlay, files_after, diff):
-    """The pattern that finds what puts an action on the overlay: the skill's name and paths (`spelled`), a run's
-    rules files (`RUN_FILES`), and,
-    as a path, each folder above one of its paths that the overlay alone made: before the run it held nothing but
-    the overlay (`evidence.covers`), or was not there. A folder of that name the world holds itself does not count,
-    and both arms find the same folders, so the same run in either arm gives the same view."""
-    places = evidence.places(overlay)
-    before = {path: entry for path, entry in files_after.items() if path not in diff}
-    before.update({path: change["before"] for path, change in diff.items() if change["before"]})
-    above = {str(folder) for place in places for folder in PurePosixPath(place).parents if str(folder) != "."}
-    only = sorted(folder for folder in above
-                  if all(evidence.covers(places, path) for path in before if path.startswith(folder + "/")))
-    pattern = spelled([overlay["skill"], *places]).pattern
-    # a folder is named as a path from the world: at a word's start or after ./, whole or with a path below it
-    start, end = r"""(?<![^\s'"`;&|<>()=])(?:\./)?""", r"""(?=/|$|[\s'"`;&|<>()*])"""
-    folders = "".join(f"|{start}{re.escape(folder)}{end}" for folder in only)
-    return re.compile(pattern + folders + "|" + RUN_FILES.pattern, re.ASCII)
+def lead_lines(overlay):
+    """The lead line that pins the load of the overlay's skill at each of its installed copies (`host.LEAD`)."""
+    return [host.LEAD.format(skill=overlay["skill"], path=f"{path}/SKILL.md") for path in overlay["paths"]]
 
 
-def shown(item, words):
-    """A log entry as the view shows its action, or None when it shows none. An action on the overlay
-    (`on_overlay`) is dropped, except a command whose every pipeline that names the skill can be cut away
-    (`shell.cut`): it is shown as its other pipelines. Checks ask this of the view (`checks.decide`)."""
-    if not on_overlay(item, words):
-        return item
-    if item["kind"] != "command":
-        return None
-    command = shell.cut(item["command"], lambda part: bool(words.search(part)))
-    if not command or not command.strip(" \t"):
-        return None
-    return {**item, "command": command, "exit_code": None}  # the code was the whole command's, not its shown part's
-
-
-def run_names(source=RUNFILES):
-    """[the resolver's own names of a run's rules files]: `RULES_MD` and `RULES_TEXT`, built on `RUN`, in `source`,
-    with their fields such as `{run}` and `{skill}`. Raise ValueError when the source does not name them as strings."""
-    known = {}
-    for node in ast.parse(source.read_text()).body:
-        if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] in (["RUN"], ["RULES_MD"],
-                                                                                              ["RULES_TEXT"]):
-            known[node.targets[0].id] = _joined(node.value, known)
-    if set(known) != {"RUN", "RULES_MD", "RULES_TEXT"}:
-        raise ValueError(f"{source}: names no RUN, RULES_MD and RULES_TEXT")
-    return [known["RULES_MD"], known["RULES_TEXT"]]
-
-
-def run_files(source=RUNFILES):
-    """The pattern that finds a run's rules files (`run_names`) as a path from the world, whole, each of their
-    fields any one path part."""
-    part = r"""[^/\s'"`;&|<>()*]+"""
-    names = [re.sub(r"\\\{\w+\\\}", lambda _: part, re.escape(name)) for name in run_names(source)]
-    return re.compile(r"""(?<![^/\s'"`;&|<>()=])(?:\./)?(?:""" + "|".join(names) + r""")(?=$|[\s'"`;&|<>()*])""",
-                      re.ASCII)
-
-
-def _joined(node, known):
-    """The string a module-level expression of strings and names joined by `+` gives."""
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value
-    if isinstance(node, ast.Name) and node.id in known:
-        return known[node.id]
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        return _joined(node.left, known) + _joined(node.right, known)
-    raise ValueError(f"not a string of strings and names: {ast.dump(node)}")
-
-
-def spelled(words):
-    """The one pattern that finds each of `words` (the skill's name and paths) as the view hides it: in any spelling,
-    whole or inside a longer name, so `rules-text-<skill>.core.md` or `<skill>_notes` names the skill. A name is
-    found where no ASCII letter or digit stands next to it, so a skill named `test` is still not found in `pytest`;
-    a `-`, `_` or `.` beside it is a separator, not part of it. Longer words are tried first."""
-    found = sorted(set(words), key=lambda word: (-len(word), word))
-    return re.compile("(?<![A-Za-z0-9])(?:" + "|".join(re.escape(word) for word in found) + ")(?![A-Za-z0-9])",
-                      re.ASCII)
-
-
-def on_overlay(item, words):
-    """Whether a log entry's action is on the overlay: a skill load, or a path, command or refused
-    action that names it (`spelled`)."""
-    return item["kind"] == "skill" or any(words.search(item.get(name, "")) for name in ACTION_FIELDS)
-
-
-def text(value, words, folders):
-    """`value` (text or bytes) without each line that names the skill or its paths (`words`, from `spelled`), and
-    with each of the run's `folders` (`scrub.folders`) as its neutral word."""
+def text(value, leads, folders):
+    """`value` (text or bytes) without each line that holds one of `leads` (`lead_lines`), and with each of the run's
+    `folders` (`scrub.folders`) as its neutral word."""
     raw = isinstance(value, bytes)
     encode = (lambda word: word.encode()) if raw else (lambda word: word)
-    find = re.compile(words.pattern.encode()) if raw else words
-    kept = [line for line in value.splitlines(keepends=True) if not find.search(line)]
+    kept = [line for line in value.splitlines(keepends=True) if not any(encode(lead) in line for lead in leads)]
     value = (b"" if raw else "").join(kept)
     for folder in sorted(folders, key=len, reverse=True):
         value = value.replace(encode(folder), encode(folders[folder]))
     return value
-
-
-def drops_final(overlay, final):
-    """Whether the view drops a line of the final message `final` (`text`), by the words of `overlay`: then the
-    questions the case says read the final message are asked of no one (`checks.unseen`)."""
-    if not overlay or final is None:
-        return False
-    return text(final, spelled([overlay["skill"], *evidence.places(overlay)]), {}) != final
-
-
-def _named_by(shown, command, root):
-    """Whether a read inferred from `command` stays with its `shown` part: unless only the part cut away names it
-    (`host.naming`), as a read its adapter inferred by its own reading belongs to no one part."""
-    kept, whole = host.naming(shown, root), host.naming(command, root)
-    return lambda path: kept(path) or not whole(path)
 
 
 def _relative(path, world):
@@ -242,6 +141,3 @@ def _relative(path, world):
     if world and path.startswith(world.rstrip("/") + "/"):
         return path[len(world.rstrip("/")) + 1:]
     return path
-
-
-RUN_FILES = run_files()  # a run's rules files, as the resolver names them

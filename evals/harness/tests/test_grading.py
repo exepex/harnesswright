@@ -26,7 +26,7 @@ def record(files, log, final="Done."):
             blobs[digest], entries[path] = data, f"file {digest}"
     entries["docs"] = "dir"
     return {"overlay": {"skill": "haiku-writer", "paths": ["skills/haiku-writer"], "index": "AGENTS.md",
-                        "index_without": None},
+                        "index_without": None, "row": "| haiku-writer | skills/haiku-writer/SKILL.md |"},
             "folders": {}, "own_files": [], "files_after": entries, "diff": {}, "final_message": final,
             "case": None, "mode": "task", "log": log}, blobs.__getitem__
 
@@ -54,48 +54,16 @@ class Answers(TempCase):
 class Questions(TempCase):
     def test_only_what_no_check_decided_goes_to_the_graders(self):
         expectations = [expect("a"), expect("b", check=CHECK), expect("c", check=CHECK)]
-        asked = grading.questions(expectations, [None, PASSED, UNDECIDABLE], set())
+        asked = grading.questions(expectations, [None, PASSED, UNDECIDABLE])
         self.assertEqual([question["id"] for question in asked], ["q1", "q3"])
         self.assertEqual(asked[0], {"id": "q1", **JUDGED})
-
-    def test_a_grader_is_never_asked_what_the_view_hides(self):
-        expectations = [expect("b", check=CHECK), expect("c", check=CHECK)]
-        asked = grading.questions(expectations, [{**UNDECIDABLE, "hidden": True}, {**UNDECIDABLE, "hidden": False}],
-                                  set())
-        self.assertEqual([question["id"] for question in asked], ["q2"])
-
-    def test_a_question_on_the_final_message_is_not_asked_when_the_view_drops_a_line_of_it(self):
-        import types
-        import checks
-        import verdicts
-        source = {"contract": {"path": "AGENTS.md", "line": 11, "quote": "tell the person which checks did not run"}}
-        case = types.SimpleNamespace(expectations=[expect("the files", source), expect("the answer", source),
-                                                   expect("the tone"), expect("done", "done")],
-                                     reads_final_message=["q2", "q3"])
-        overlay = {"skill": "claims-writer", "paths": ["skills/claims-writer"], "index": None}
-        dropped = ("The claims are written.\n\nI ran neither the standards reader (`resolve.py`) nor the claims check "
-                   "(`claims_check.py`). I wrote `rules.md` and `rules-text-claims-writer.core.md` by reading.\n")
-        kept = dropped.replace("rules-text-claims-writer.core.md", "the rules text")
-        for final, ids in ((dropped, ["q1"]), (kept, ["q1", "q2", "q3", "q4"])):  # q3 format, q4 the done question
-            with self.subTest(final=final):
-                bundle = checks.Bundle({"files_after": {}, "diff": {}, "log": [], "final_message": final,
-                                        "overlay": overlay}, None)
-                asked = grading.questions(case.expectations, [None] * 4, checks.unseen(case, bundle))
-                self.assertEqual([q["id"] for q in asked], ids)
-                answers = {q["id"]: "yes" for q in asked}  # every question asked answered yes
-                passed = verdicts.task_outcome(case, [None] * 4, answers)[0]
-                self.assertIs(passed, None if final is dropped else True)  # never passed on what was not asked
-        self.assertEqual(checks.unseen(case, checks.Bundle({"files_after": {}, "diff": {}, "log": [],
-                                                             "final_message": dropped}, None)), set())  # no overlay
-        with self.assertRaises(TypeError):  # the argument is required: no caller can leave the rule out
-            grading.questions(case.expectations, [None] * 4)
 
     def test_a_verdict_is_given_exactly_for_each_expectation_with_a_check(self):
         for expectations, verdicts in (([expect("a")], []), ([expect("a")], [PASSED]),
                                        ([expect("b", check=CHECK)], [None]),
                                        ([expect("b", check=CHECK)], [{**PASSED, "check": "command_ran"}])):
             with self.subTest(verdicts=verdicts), self.assertRaises(grading.GradingError):
-                grading.questions(expectations, verdicts, set())
+                grading.questions(expectations, verdicts)
 
     def test_every_expectation_of_every_case_can_be_asked(self):
         import cases
@@ -103,7 +71,7 @@ class Questions(TempCase):
             expectations = case.data["expectations"]
             verdicts = [{**UNDECIDABLE, "check": item["check"]["name"]} if "check" in item else None
                         for item in expectations]
-            asked = grading.questions(expectations, verdicts, set())
+            asked = grading.questions(expectations, verdicts)
             self.assertEqual([q["id"] for q in asked], [f"q{n}" for n in range(1, len(expectations) + 1)])
 
 
@@ -127,11 +95,11 @@ class Page(TempCase):
         for unseen in ("ok  limiter", "exit_code", "0.2s"):
             self.assertNotIn(unseen, shown)
 
-    def test_the_page_never_shows_the_skill(self):
+    def test_the_page_shows_what_the_run_said_of_the_skill_and_never_its_install_or_load(self):
         shown = self.page({"AGENTS.md": b"| haiku-writer | skills/haiku-writer/SKILL.md |\nRules.\n"},
                           [host.entry("command", command="cat skills/haiku-writer/SKILL.md", exit_code=0, output=""),
                            host.entry("skill", name="haiku-writer")], final="I used haiku-writer.\nDone.")
-        self.assertNotIn("haiku-writer", shown)
+        self.assertEqual(shown.count("haiku-writer"), 2)  # the run's command and its final message, no row or load
         self.assertIn("Rules.", shown)
 
     def test_a_quote_of_the_page_is_accepted_and_one_of_a_command_s_output_is_not(self):

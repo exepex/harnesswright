@@ -11,7 +11,6 @@ arguments outside its list, raise CheckError: a broken check stops the round, it
 Standard library only.
 """
 
-import copy
 import fnmatch
 import hashlib
 import importlib.util
@@ -23,7 +22,6 @@ from pathlib import Path
 
 import evidence
 import manifest
-import view
 from cases import REPO
 
 LIBRARY = REPO / "evals" / "checks"
@@ -38,7 +36,7 @@ class CheckError(RuntimeError):
 
 class Undecidable(Exception):
     """Raised inside a check when the evidence it needs is not the host's own, with the reason and the log `entries`
-    that left it undecided (`decide` reads them to say whether the grader view shows them all)."""
+    that left it undecided."""
 
     def __init__(self, reason, entries=()):
         super().__init__(reason)
@@ -68,7 +66,6 @@ class Bundle:
         self.changes = record["diff"]
         self.final_message = record["final_message"]
         self._log, self._blob = record["log"], blob
-        self.overlay = record.get("overlay")  # what the grader view hides (`view.shown`); none in an answer key
 
     @classmethod
     def load(cls, folder):
@@ -174,52 +171,19 @@ def validate(name, args, checks=None):
 
 
 def decide(name, bundle, args, checks=None):
-    """{"check", "outcome", "reason", "inferred", "hidden"} of the check `name` on `bundle` with `args`: `inferred`
-    is True when it is undecidable because evidence it reads is inferred, and `hidden` when it is undecidable and
-    the grader view drops an entry that left it so, which no grader can then weigh (`grading.questions`)."""
-    check, inferred, hidden = validate(name, args, checks), False, False
+    """{"check", "outcome", "reason", "inferred"} of the check `name` on `bundle` with `args`: `inferred` is True
+    when it is undecidable because evidence it reads is inferred. An undecidable expectation goes to the graders,
+    whose view shows every action the run took (`view.py`)."""
+    check, inferred = validate(name, args, checks), False
     try:
         outcome, reason = check.decide(bundle, **args)
     except Undecidable as error:
         outcome, reason, inferred = "undecidable", str(error), isinstance(error, Inferred)
-        hidden = _hidden(bundle, check, args, error.entries)
     except Exception as error:  # a check that breaks decides nothing, and the round stops
         raise CheckError(f"{name}: the check failed to run: {type(error).__name__}: {error}") from None
     if outcome not in OUTCOMES or not isinstance(reason, str) or not reason:
         raise CheckError(f"{name}: gave {outcome!r} with reason {reason!r}, not an outcome with a reason")
-    return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred, "hidden": hidden}
-
-
-def unseen(case, bundle):
-    """The ids of the judged questions that read the final message, when the grader view drops a line of that
-    message (`view.drops_final`): those `case` names (`reads_final_message`) and the done question, which every
-    task case is asked and which reads it too. No grader can then weigh them, so none is asked
-    (`grading.questions`) and the run is not measured on them. An empty set otherwise."""
-    if not view.drops_final(bundle.overlay, bundle.final_message):
-        return set()
-    done = {f"q{n}" for n, e in enumerate(case.expectations, start=1) if e["source"] == "done"}
-    return set(getattr(case, "reads_final_message", None) or []) | done
-
-
-def _hidden(bundle, check, args, entries):
-    """Whether the grader view hides what left `check` undecided: it drops one of `entries`, or shows one so cut that
-    the check, given that entry alone as the view shows it (`view.shown`), would decide."""
-    if not bundle.overlay:
-        return False
-    words = view.overlay_names(bundle.overlay, bundle.files, bundle.changes)
-    for item in entries:
-        seen = view.shown(item, words)
-        if seen is None:
-            return True
-        if seen is not item:
-            alone = copy.copy(bundle)
-            alone._log = [seen]
-            try:
-                check.decide(alone, **args)
-            except Undecidable:
-                continue
-            return True
-    return False
+    return {"check": name, "outcome": outcome, "reason": reason, "inferred": inferred}
 
 
 def keys(name, folder=KEYS):

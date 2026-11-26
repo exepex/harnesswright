@@ -80,9 +80,8 @@ candidate, so it wins over an older skill of the same name.
 - **`world/` is the whole project the agent works in, written without the skill.** It holds every file the run
   sees, including instruction files such as `AGENTS.md` and `CLAUDE.md` when the case wants them.
 - **`case.json`** holds the prompt, the kind (`trigger` or `task`), where the skill goes (default `skills/NAME`),
-  the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, for a
-  task case the judged questions that read the final message (`reads_final_message`), and for trigger cases the
-  `train` or `test` split. It is checked against one schema before anything is built: a field
+  the index file and row format the world uses, the tools the case needs (such as `go`), the expectations, and for
+  trigger cases the `train` or `test` split. It is checked against one schema before anything is built: a field
   outside the schema, or a value of the wrong shape, is refused with the reason. Every path in it stays inside the
   world. A document declared as copied names a file at the repository root, such as `AGENTS.md`: every folder
   holds skill text, its sources, the measuring kit or harnesswright's own formats, none of them project text. The
@@ -238,19 +237,25 @@ The evidence bundle holds the case, the arm, the diff, the files after, the acti
 model, the host version and timings, plus a scrubbed transcript as evidence of last resort: the arm, skill paths
 and skill loads replaced by neutral words, and credentials redacted. Every check and grader reads only the bundle.
 
-Graders get a **grader view** of the bundle, never the full record. It leaves out both copies of the installed
-skill, the generated index row, the host discovery copy and everything else the with-skill overlay added, from the
-files after as well as from the diff. It shows each command as the command the agent ran, without its output or
-exit code, since the two arms are different worlds and what a world prints back tells the arm; outcomes such as
-"the tests passed" are decided by script checks on the full bundle. Every line that names the skill or its paths is
-removed from the view's text, and every file whose path names one is left out, in any spelling: whole, or inside a
-longer name. A run's rules files, `rules.md` and each `rules-text-<skill>.<stack>.md` of a run folder, are left out in
-both arms, with every action that names one by its path: only a skill's resolver writes them, so they tell the arm
-whatever skill they name. Their names are the resolver's own. A command is cut where the command checks find its
-programs, so it loses only the pipelines on the overlay (naming the skill, its paths, a folder only the overlay made
-or a run's rules file) and what depends on them, by `$?`, `&&` or `||`; it is dropped whole only when nothing else
-is left or no clean cut can be made. What the agent itself wrote or said about what it saw is its own output and
-stays visible. The full bundle is kept for checks, audits and judges.
+Graders get a **grader view** of the bundle, never the full record. One rule: **a grader sees everything the run
+wrote and said; the view removes only what the harness put there.** What the harness puts there is one list, each
+item taken from what the bundle records the harness added, never found by a pattern over the run's text:
+
+- the installed skill: both copies, the folders above them while they only hold them, and every other file a team
+  install adds, from the files after as well as from the diff;
+- the line the install adds to each file it edits in place: the index row, as each line of the index file that is
+  that row byte for byte, and a team profile's version line, which names a release manifest the install added;
+- the pinned lead line ([12 · Verdicts](12-verdicts.md#proven-use)), as each line of a text that holds it, and the
+  load it pins: the host's skill event for the skill and a read of an installed copy's `SKILL.md`;
+- the arm and everything else the record holds about the run rather than from it, such as the host and its model;
+- what the world printed back: a command's output and exit code, since the two arms are different worlds; outcomes
+  such as "the tests passed" are decided by script checks on the full bundle;
+- the host's own files, and the run's real folders, which become neutral words.
+
+Everything else is the run's and stays whole: every file it wrote, under any name, every line of it; every command
+as it ran it, whatever it names; and its final message. So a page names the skill wherever the run did. In an
+internal world both arms hold the skill, so this tells nothing. In a case with a without-skill arm it may tell the
+arm; paired goldens test that it moves no answer (Graders). The full bundle is kept for checks, audits and judges.
 
 A judged question turns only on what the grader reads: every fact its pass or fail rule depends on is on the page
 or written in the question. The page a grader reads therefore starts with the case's **request**, its prompt. The
@@ -273,16 +278,6 @@ with a source, "ends with exactly one question", commands run or never run. A sk
   toward the lift. Format conformance is reported separately, and the with-skill arm's must meet its own floor.
 - **A check never decides on inferred evidence.** It returns `undecidable`, and the expectation goes to the
   graders with the command list.
-- **A grader never weighs what it cannot see.** When the grader view drops an entry that left a check undecidable,
-  such as a command that names the skill's path, or cuts away the part that left it so, the expectation is asked
-  of no one, and the run is not scored on it. The same holds for a question on the final message when the view
-  dropped a line of that message. A task case declares those questions in `reads_final_message` by one test: it
-  names every expectation with no check whose pass or fail rule could turn on what the run says to the person in
-  its final message, such as what it tells, asks, claims or reports, and none whose rule turns only on files or
-  commands. The done question reads the final message in every task case, so the harness adds it itself. Such a
-  question is not asked: a contract question leaves the run not scored, a format question leaves both counts of
-  the format floor and is named as not measured, a doubt the label shows, and the done question leaves the
-  false-done tally undecided. None of them ever counts as passed or as failed.
 - **A check counts only once it decides on stored with-skill runs;** until then it is reported per arm and never
   counted, as the stop pair (`evals/checks/stop-pair.json`) is until 7c-4 lands and a recount shows it decides.
 
@@ -295,7 +290,7 @@ failing example.
 
 - **Graders are sealed runs** started by the runner, never by the session doing the work. Each sees one bundle,
   the expectations and their examples.
-- **Blind:** the arm is removed, skill loads are neutralised, and runs from both arms are interleaved.
+- **Blind:** the arm and the pinned load are removed (Evidence), and runs from both arms are interleaved.
 - **Two graders per run, on two different hosts** when both are available, so no model only grades its own host's
   output. A third grader breaks ties. Agreement is reported, not used as a gate.
 - **The grader setup is calibrated, not each grader.** Golden bundles, built in the current world format with
@@ -303,6 +298,10 @@ failing example.
   accuracy for each expectation across the round is the gate. An expectation whose goldens are missed is marked
   unreliable, its runs stay ungraded, and the label is `inconclusive` and names it. Goldens are settled by an
   independent judge; the owner breaks ties.
+- **Paired goldens guard a tell.** A golden may name one sentence that names the skill; it is then one of a pair,
+  graded with its twin, the same golden with that sentence added to its final message and the same settled answers.
+  In a case that grades an arm without the skill, a question is trusted only when a pair was asked it and graders
+  gave both its settled answer: graders who answer the two differently miss one, and the question is unreliable.
 - **Every grading file is validated** against its schema: every expectation answered, with evidence quoted.
 
 ### Baseline backstop
@@ -371,7 +370,7 @@ Every harness fault must be caught, or the round stops.
 | A golden bundle | Graders give its settled answer, or the expectation is marked unreliable |
 | A grading file missing, repeating or misquoting an answer | The schema check rejects it |
 | Two graders that disagree, or one with no answer sheet | A fresh tie-breaker answers only the split questions; a fresh grader of the same host stands in once for one with no sheet; one grader never decides alone |
-| A view that names the arm or the skill, or shows the lead line | The page a grader reads names neither and holds no lead line |
+| A view that shows what the harness added (the arm, the lead line and its load, the installed skill, its index row or profile version line, a command's output, the run's real folders), or hides what the run wrote | The page a grader reads shows none of it, and shows every word the run wrote |
 | A grader that writes to its folder or reads outside it | The jail stops every write and read; the grader's page, its folder and the folders beside it stay as they were |
 
 Each fault is an entry of `evals/faults/harness.json`, planted where a seed chooses; its own gate runs unchanged,

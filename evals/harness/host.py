@@ -52,10 +52,11 @@ CONTRACT = {
     "tokens": callable,
     # each host fault the harness plants (PLANTED), by name: (command) -> the jail command with that fault planted
     "PLANTS": dict,
-    # (skill, path): the one lead line that pins a skill's load in a task run's prompt (doc 12, Proven use), such as
-    # "Load the skill NAME at PATH before anything else." It never holds the skill's text (`lead`)
+    # (skill, path): the one lead line that pins a skill's load in a task run's prompt (doc 12, Proven use), `LEAD`
+    # for that skill and path. It never holds the skill's text (`lead`)
     "pin": callable,
 }
+LEAD = "Load the skill {skill} at {path} before anything else."  # the one lead line (`lead`), which no view shows
 # The host faults an adapter plants in its own command (doc 11, Harness faults): its bundled skills turned on, and its
 # command tools taken away. Only a fault run passes one to `run`.
 PLANTED = ("bundled skills", "no commands")
@@ -114,14 +115,11 @@ def check_adapter(adapter):
 
 def lead(adapter, skill, path):
     """The lead line that pins the load of `skill` at `path` (its `SKILL.md`, relative to the world) for `adapter`'s
-    host, through the adapter's `pin`. Raise HostError unless it is one line that names both the skill and the path
-    as whole names: the grader view removes every line that names either in any spelling, whole names among them
-    (`view.text`, `view.spelled`), so no page can show it. The test is written here, not taken from `view.spelled`,
-    so a fault planted in that pattern cannot hide itself."""
+    host, through the adapter's `pin`. Raise HostError unless it is the harness's one lead line, `LEAD`, for that
+    skill and path: the grader view removes every line that holds it (`view.lead_lines`), so no page can show it."""
     line = adapter.pin(skill, path)
-    if not isinstance(line, str) or line.splitlines() != [line] or not all(
-            re.search(rf"(?<![\w-]){re.escape(word)}(?![\w-])", line, re.ASCII) for word in (skill, path)):
-        raise HostError(f"adapter {adapter.NAME}: its pin is not one line naming the skill and its path: {line!r}"[:300])
+    if line != LEAD.format(skill=skill, path=path):
+        raise HostError(f"adapter {adapter.NAME}: its pin is not the lead line {LEAD!r} for the skill: {line!r}"[:300])
     return line
 
 

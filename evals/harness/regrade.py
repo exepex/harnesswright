@@ -130,8 +130,7 @@ def pages(r, attempt, outcome):
         case = r.cases[(skill, case_id)]
         found[path.stem] = {"text": grades.text(case, record, blob), "kept": kept, "kind": "run", "case": kept["case"],
                             "host": record["host"], "model": record["model"], "arm": record["arm"],
-                            "asked": grading.questions(case.expectations, verdicts,
-                                                       checks.unseen(case, checks.Bundle(record, blob)))}
+                            "asked": grading.questions(case.expectations, verdicts)}
     top = grades.reference(r.hosts)
     library = checks.library(r.repo / "evals" / "checks")
     expected = set()  # the golden records the grade gate wrote: one for each golden with a question to grade
@@ -143,7 +142,7 @@ def pages(r, attempt, outcome):
             bundle = checks.Bundle(record, blobs.__getitem__)
             verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                         if "check" in e else None for e in case.expectations]
-            asked = grading.questions(case.expectations, verdicts, checks.unseen(case, bundle))
+            asked = grading.questions(case.expectations, verdicts)
             if not asked:
                 continue
             path = graded / "goldens" / skill / case_id / f"{golden.name}.json"

@@ -70,27 +70,6 @@ class Library(TempCase):
         unsure = {"unsure": checks.Check(lambda bundle: ("undecidable", "no output to read"), {})}
         self.assertIs(checks.decide("unsure", bundle, {}, unsure)["inferred"], False)
 
-    def test_an_undecided_verdict_says_whether_the_grader_view_hides_what_left_it_so(self):
-        overlay = {"skill": "haiku-writer", "paths": ["skills/haiku-writer"]}
-        tests, script = "python3 -m unittest discover -s tests", "timeout 60 python3 skills/haiku-writer/scripts/x.py"
-        script_ran = {"pattern": r"python3 \S*x\.py", "ran": False}
-        for command, args, hidden in (
-                (script, script_ran, True), ("time python3 scripts/x.py", script_ran, False),
-                (f"{tests}; {script}", {"pattern": r"python3 -m unittest", "ran": True, "exit_code": 0}, False),
-                (f"{tests}; {script}", script_ran, True),  # its match is cut away
-                (f"cd skills/haiku-writer; time {tests}", {"pattern": r"python3 -m unittest", "ran": True}, True)):
-            log = [{"kind": "command", "source": "observed", "command": command, "exit_code": 0, "output": ""}]
-            bundle = checks.Bundle({"files_after": {}, "diff": {}, "log": log, "final_message": None,
-                                    "overlay": overlay}, {}.__getitem__)
-            verdict = checks.decide("command_ran", bundle, args)  # it asks the view (`view.shown`) what it shows
-            with self.subTest(command=command, args=args):
-                self.assertEqual((verdict["outcome"], verdict["hidden"]), ("undecidable", hidden))
-        log = [{"kind": "command", "source": "observed", "command": "time python3 scripts/x.py", "exit_code": 0,
-                "output": ""}]
-        key = checks.Bundle.key({"log": log})  # an answer key has no overlay, so the view hides nothing of it
-        self.assertIs(checks.decide("command_ran", key, {"pattern": r"python3 \S*x\.py", "ran": False})["hidden"],
-                      False)
-
     def test_a_broken_check_or_wrong_arguments_stop_the_round(self):
         bundle = checks.Bundle.key({})
         for path in ("./a", "a//b", "a/", "a/./b", "../a", "/a", ""):  # one spelling of a world path, never a typo

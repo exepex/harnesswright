@@ -1,10 +1,10 @@
 """The rule of `tells`: an arm word may be only in a world file that both arms are built holding byte for byte and
-the run left as built; anywhere else it counts, and the skill's names count everywhere."""
+the run left as built; a word only the harness writes and an overlay file count everywhere; the skill's names are
+the run's words and count nowhere."""
 
 import copy
 import hashlib
 import random
-import re
 import types
 import unittest
 from unittest import mock
@@ -14,6 +14,7 @@ from test_host import JAIL
 
 import evidence
 import grading_faults
+import host
 import tells
 import view
 
@@ -26,7 +27,8 @@ class Tells(Fake):
         setup = self.setup_of()
         case, pages = grading_faults._pages(setup, random.Random(0))
         _, record, blob, _ = pages[0]
-        names = [record["overlay"]["skill"], *evidence.places(record["overlay"])]
+        names = [host.LEAD.format(skill=record["overlay"]["skill"], path=f"{path}/SKILL.md")
+                 for path in record["overlay"]["paths"]]  # what only the harness writes
         return setup, case, record, blob, names
 
     def test_an_arm_word_counts_unless_both_arms_are_built_holding_its_file_unchanged(self):
@@ -47,7 +49,7 @@ class Tells(Fake):
         planted["final_message"] = "Done in with_skill.\n"  # outside every file
         self.assertEqual(tells.shown(case, planted, blob, names, held), ["with_skill"])
 
-    def test_the_skill_s_name_inside_a_longer_name_counts_and_the_view_never_shows_it(self):
+    def test_the_skill_s_names_count_nowhere_and_a_lead_line_everywhere(self):
         setup, case, record, blob, names = self.page()
         skill, digest = record["overlay"]["skill"], hashlib.sha256(b"rules\n").hexdigest()
         rest = next(e for e in record["files_after"].values() if e.startswith("file "))[len("file ") + 64:]
@@ -56,12 +58,12 @@ class Tells(Fake):
         path = f".harness/runs/r1/rules-text-{skill}.core.md"
         planted["files_after"][path] = entry = f"file {digest}{rest}"
         planted["diff"][path] = {"before": None, "after": entry}
-        planted["final_message"] = f"Read rules-text-{skill}.core.md.\nDone.\n"
+        planted["final_message"] = f"Read rules-text-{skill}.core.md in {evidence.places(record['overlay'])[0]}.\n"
         held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)  # a world may name the arms
         self.assertEqual(tells.shown(case, planted, read, names, held), [])
-        whole = lambda words: re.compile("(?<![\\w-])(?:" + "|".join(map(re.escape, words)) + ")(?![\\w-])", re.ASCII)
-        with mock.patch.object(tells.view, "spelled", whole):  # the view as it was: whole names only
-            self.assertEqual(tells.shown(case, planted, read, names, held), [skill])
+        planted["final_message"] += f"{names[0]}\n"
+        with mock.patch.object(view, "lead_lines", lambda overlay: []):  # a view that keeps the lead line
+            self.assertEqual(tells.shown(case, planted, read, names, held), names[:1])
 
     def test_a_file_is_held_by_both_arms_only_when_each_built_arm_has_the_records_bytes(self):
         setup, case, record, blob, _ = self.page()
@@ -84,31 +86,20 @@ class Tells(Fake):
         changed["files_after"][path] = f"file {'0' * 64}{held[path][len('file ') + 64:]}"
         self.assertNotIn(path, tells.shared(tells.built(case, setup.adapter, setup.folder), changed))
 
-    def test_an_overlay_path_counts_unless_it_ends_a_longer_path_of_a_file_both_arms_hold(self):
+    def test_an_overlay_path_counts_as_a_file_of_the_view_and_a_longer_path_does_not(self):
         setup, case, record, blob, _ = self.page()
         held = tells.shared(tells.built(case, setup.adapter, setup.folder), record)
         nested = sorted(p for p in held if "/" in p)[0]
         tail = nested.split("/", 1)[1]  # a release file a team install would add, which the world holds deeper down
         beside = copy.deepcopy(record)
         beside["overlay"]["release"] = [tail]
+        beside["files_after"][tail] = record["files_after"][nested]
+        self.assertEqual(tells.shown(case, beside, blob, [], held), [])  # the view hides it, and shows the world's
         blind = types.SimpleNamespace(**vars(evidence))
         blind.places = lambda overlay: overlay["paths"]  # a view that reads the skill's paths only, and so shows it
         with mock.patch.object(view, "evidence", blind):
-            self.assertEqual(tells.shown(case, beside, blob, [tail], held), [])  # the page names the world's own file
-            self.assertEqual(tells.shown(case, beside, blob, [tail], {p: e for p, e in held.items() if p != nested}),
-                             [tail])  # not proven held by both arms, so it counts
-        only = copy.deepcopy(beside)  # judge-a's probe: a release file, and a file of the record no built arm holds
-        only["overlay"]["release"] = ["only-with.md"]
-        only["files_after"]["kept/only-with.md"] = record["files_after"][nested]
-        self.assertEqual(tells.shown(case, only, blob, ["only-with.md"], held), [])  # the view hides it
-        with mock.patch.object(view, "evidence", blind):
-            self.assertEqual(tells.shown(case, only, blob, ["only-with.md"], held), ["only-with.md"])
-        kept = {nested}
-        for text, inside in ((f"Read {nested}.", True), (f"Read /world/{tail}", False), (f"Read {tail}", False),
-                             (f"Read other/{tail}", False), (f"Read {nested}/notes.md", False)):
-            with self.subTest(text=text):
-                found = re.search(f"(?<![A-Za-z0-9]){re.escape(tail)}(?![A-Za-z0-9])", text)
-                self.assertEqual(tells._inside(text, found, kept), inside)
+            self.assertEqual(tells.shown(case, beside, blob, [], held), [tail])
+
 
 if __name__ == "__main__":
     unittest.main()

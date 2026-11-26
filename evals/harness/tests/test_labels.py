@@ -67,7 +67,7 @@ class Gate(Pages):
                                          "by": "judge-a"}
                                for n, (e, a) in enumerate(zip([*EXPECTATIONS, cases.done()],
                                                               ["yes", answer, "yes", done]), start=1)}
-            self.golden(name, data)
+            self.golden(name, {**data, goldens.NAMED: "I used the haiku-writer skill."} if name == "yes" else data)
         (self.repo / "evals" / "results").mkdir(parents=True, exist_ok=True)
         (self.repo / "evals" / "results" / "prices.json").write_text(json.dumps(PRICES))
 
@@ -120,7 +120,8 @@ class Gate(Pages):
             "fakehost": {"tools": {}, **DRIFT}})})
         self.assertEqual((found["prices"], entry["faults"], entry["void_rate"]["with_skill"]["tries"]),
                          (PRICES["date"], None, 3))  # no fault gate here
-        self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 6, "asked": 6})  # q2 and q4 of 3 goldens
+        # q2 and q4 of 4 goldens, a pair's twin too
+        self.assertEqual(entry["golden_accuracy"], {"rate": 1.0, "right": 8, "asked": 8})
         # every run without the skill wrote the wrong poem and said it was done; every run with it was right
         self.assertEqual(entry["false_done"], {
             "with_skill": {"rate": 0.0, "false_done": 0, "decided": 3, "undecided": 0},

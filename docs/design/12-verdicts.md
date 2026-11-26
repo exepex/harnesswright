@@ -46,7 +46,8 @@ they are measured differently.
   that release's manifest, as a team that installed it would have it. A case's profile states the folder and what
   else it tests, never a version that must track `v2/VERSION`; a case that tests a mismatch declares the version.
   The line moves no line of the case's profile: the harnesswright block holds only its folder and comments, it is
-  the profile's last entry, and the version line goes at its end.
+  the profile's last entry, and the version line goes at its end. The install adds it, so the grader view removes
+  it, as it removes the index row ([11 · Evals](11-evals.md#evidence-one-record-for-every-host)).
 - Lift is what the skill, with the files it needs to run, adds over a plain agent in the same repository.
 - Contract expectations cite the outcome a team expects, such as a story's outcomes and its tests, never the
   skill's own wording, so a plain agent can meet them.
@@ -103,8 +104,10 @@ A pipeline loads a skill on purpose. A round does the same, and proves it.
   never pasted into the prompt. A host with its own way to invoke a skill may use it only if it reports a load
   event that the load proof accepts.
 - The lead line is the one declared difference between the arms' prompts. It is hashed into the run key, never
-  written in `case.json`, and hidden from graders by the view, so a grader still cannot tell the arm. A planted
-  grader fault, a page that shows the lead line, proves the view hides it.
+  written in `case.json`, and removed by the view with the load it pins, as everything else the harness put there
+  ([11 · Evals](11-evals.md), Evidence), so the request tells no arm. What the run itself wrote and said stays on
+  the page, and paired goldens test that naming the skill moves no answer. A planted grader fault, a page that
+  shows the lead line, proves the view removes it.
 - **Load proof.** One reader decides whether a pinned run loaded the skill. A load is proven by an observed event,
   never by an inferred one:
   - the host's own skill event for that skill;

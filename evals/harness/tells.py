@@ -1,19 +1,19 @@
-"""What a grader view tells of its run's arm: the names a view or its page holds, read by one rule for the view
-fault (`grading_faults.view_`), on the clean record and on the planted one alike.
+"""What a grader view shows of what the harness added: read by one rule for the view fault
+(`grading_faults.view_`), on the clean record and on the planted one alike.
 
-One rule. Text that both arms hold byte for byte, in a world file the run left as built, cannot tell the arms
-apart, so the arm words (`cases.ARMS`, `cases.PREVIOUS`) are read everywhere except in those files. An internal
-world keeps docs 11 and 12 (doc 12, Internal worlds), which name the arms; a grader reads the same text in every
-arm. That a file is held by both arms is proven, never assumed: both arms of the case are built and a file is
-allowed only when its entry is the record's in each (`built`, `shared`). The skill's name and paths count everywhere,
-in any spelling: whole, or inside a longer name such as `rules-text-<skill>.core.md`, a file only the with-skill arm
-writes.
+One rule. A page may show everything the run wrote and said, and nothing the harness put there (`view.ADDED`). So
+it may hold no text that only the harness writes (a lead line, a run's real folder: `words`), no entry of the
+overlay's files, and no arm word outside a world file both arms hold byte for byte, in a world file the run left as
+built: such text cannot tell the arms apart. An internal world keeps docs 11 and 12 (doc 12, Internal worlds), which
+name the arms; a grader reads the same text in every arm. That a file is held by both arms is proven, never assumed:
+both arms of the case are built and a file is allowed only when its entry is the record's in each (`built`,
+`shared`). The skill's name and paths are the run's words wherever it wrote them, and count nowhere. The tests are
+written here, not taken from the view, so a fault in the view cannot hide itself.
 
 Standard library only.
 """
 
 import json
-import re
 import shutil
 
 import cases
@@ -50,14 +50,10 @@ def shared(arms, record):
             and digest(entry) and all(digest(arm.get(path)) == digest(entry) for arm in arms)}
 
 
-def shown(case, record, blob, names, held=None):
-    """The names that the view of `record` (its record and every blob) or its page holds, each by the rule the view
-    keeps for it. The skill's name and paths count wherever no ASCII letter or digit stands next to them, so inside
-    a longer name such as `rules-text-<skill>.core.md` too, as the view hides them. One allow rule, the same for
-    arm words and paths: text that both arms hold tells nothing. An arm's name counts anywhere except in a file of
-    `held` (`shared`) that `record` still holds unchanged; a path of the overlay counts anywhere except as the end
-    of a longer path of such a file, such as `rules/core/work.md` in `v2/rules/core/work.md`. The tests are written
-    here, not taken from `view.spelled`, so a fault in that pattern cannot hide itself."""
+def shown(case, record, blob, words, held=None):
+    """What the view of `record` (its record and every blob) or its page shows of what the harness added: each of
+    `words` it holds, each path of its files and changes that is an overlay path or lies under one, and each arm
+    word outside a file of `held` (`shared`) that `record` still holds unchanged."""
     found, blobs, page = seen(case, record, blob)
     text = json.dumps(found, ensure_ascii=False) + "".join(data.decode("utf-8", "replace") for data in blobs.values())
     text += page
@@ -68,23 +64,8 @@ def shown(case, record, blob, names, held=None):
     rest_blobs = {digest: data for digest, data in blobs.items() if digest in used}
     arm_text = json.dumps(rest, ensure_ascii=False) + "".join(
         data.decode("utf-8", "replace") for data in rest_blobs.values()) + grading.page(case.prompt, rest, rest_blobs)
-    return [name for name in names if any(not _inside(text, found_, kept) for found_ in re.finditer(
-        f"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])", text))] \
-        + [arm for arm in (*cases.ARMS, cases.PREVIOUS) if arm in arm_text]
-
-
-def _inside(text, match, kept):
-    """Whether `match` of a name ends a longer path in `text` that is a file of `kept`: the path runs back from the
-    match over path characters, and its last parts are that file's whole path, one part or more longer than the
-    name. A match that ends no such path counts."""
-    end = match.end()
-    while end < len(text) and re.match(r"[\w./-]", text[end]):
-        end += 1
-    if text[match.end():end].strip("."):
-        return False  # the name runs on into a longer path or word, so it ends no path of a file here
-    start = match.start()
-    while start and re.match(r"[\w./-]", text[start - 1]):
-        start -= 1
-    parts, name = text[start:match.end()].split("/"), match.group(0)
-    return any("/".join(parts[n:]) in kept for n in range(len(parts)) if "/".join(parts[n:]) != name)
-
+    places = [*record["overlay"]["paths"], *record["overlay"].get("release", [])]
+    paths = [path for path in sorted({*found["files_after"], *found["diff"]})
+             if any(path == place or path.startswith(place + "/") for place in places)]
+    return [word for word in words if word in text] + paths + [arm for arm in (*cases.ARMS, cases.PREVIOUS)
+                                                               if arm in arm_text]

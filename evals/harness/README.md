@@ -34,13 +34,13 @@ allowed connections.
 | `probes.py` | The probes each host passes before real runs, and the tools and drift record |
 | `scrub.py` | The one way out of a run: a canary stops a value, then every credential is redacted |
 | `evidence.py` | Turns one run into a bundle: a scrubbed record and blobs named by their hash |
-| `view.py` | The grader view of a bundle: allowed fields and paths only, the same in either arm |
+| `view.py` | The grader view of a bundle: everything the run wrote and said, without what the harness added (`view.ADDED`) |
 | `faults.py` | Plants each fault of the catalogue, `evals/faults/harness.json`, and runs the gate that must catch it |
 | `look.py` | Runs a harness program inside a run's jail, to see what the run can see, whatever its host did |
 | `host_faults.py` | The faults of a host, its memory and its log, planted and run by the rule of `faults.py` |
 | `grading_faults.py` | The faults of grading: a sheet, the goldens and the view, planted on the repository's goldens by the rule of `faults.py` |
 | `panel_faults.py` | The fault of a split panel of graders and its tie-breaker, planted on the repository's goldens as `grading_faults.py` plants |
-| `tells.py` | What a grader view tells of its run's arm: the names a view or its page holds, an arm word allowed only in a world file both arms are built holding byte for byte |
+| `tells.py` | What a grader view shows of what the harness added: a lead line, a real folder, an overlay file, an arm word outside a world file both arms are built holding byte for byte |
 | `grader_faults.py` | The faults of a grader's own run: a grader that writes to its folder or reads outside it, run through `grader.grade` in the jail |
 | `checks.py` | The one way a script check decides an expectation from a bundle, and its answer keys (`evals/checks/`) |
 | `kit.py` | The measuring kit's files and hash, the judges' approval record, and the kit check |
@@ -256,8 +256,8 @@ rests on an outside address failing.
 `host.CONTRACT` lists every name a harness adapter defines, and `host.check_adapter` checks them when the adapter
 is loaded. `adapter.jail_command` turns the host's own sandbox off (the jail enforces the table), turns its bundled
 skills off where the host allows it, and keeps only the tools in `adapter.TOOLS`, each named with a kind of
-`powers.TOOLS`. `adapter.pin(skill, path)` gives the lead line of a pinned task run; `host.lead` takes it only as one
-line that names the skill and its path, so the grader view removes it. `host.run` is the one place a host runs: in
+`powers.TOOLS`. `adapter.pin(skill, path)` gives the lead line of a pinned task run; `host.lead` takes it only as the
+harness's one lead line, `host.LEAD`, so the grader view removes it. `host.run` is the one place a host runs: in
 the run's jail, after the audit and inside the gate.
 
 It checks what comes back against two allow lists. The action log may hold only the entries of `host.ENTRIES`:
@@ -353,15 +353,15 @@ whole and cuts request lines only after the scrub. `evidence.store` writes a new
 
 ## The grader view
 
-Graders see `view.view` of a bundle, never the full record, which stays for checks, audits and judges. The view is
-built by allow lists and four rules, each applied the same way in both arms, so the same run in either arm gives
-the same view. Fields and paths: only `view.FIELDS` (no arm, host, model, timings, exposure, requests or
-transcript), and only world paths outside the overlay and the host's own files. Actions: a log entry is dropped
-when it loads the skill or its path, command or refused action names the skill. What the agent did, not what the
-world showed it: a command is shown as the command the agent ran, without output or exit code, since the two
-arms are different worlds. Text: in every text the view shows, each line that names the skill or its paths is
-removed (the index row with it, however edited or copied), and the run's folders become neutral words. The diff is
-the diff of the view's own entries. A run's folders must never name its arm.
+Graders see `view.view` of a bundle, never the full record, which stays for checks, audits and judges. One rule: a
+grader sees everything the run wrote and said, and the view removes only what the harness put there, the one list
+`view.ADDED`: the installed skill (both copies and every file a team install adds), the line the install adds to a
+file it edits in place (the index row, a team profile's version line), the lead line and the load it pins (the skill
+event and a read of an installed `SKILL.md`), every field outside `view.FIELDS` (the arm, host, model, timings,
+exposure, requests, transcript), a command's output and exit code, and the host's own files and the run's real
+folders, which become neutral words. Every file the run wrote, every command as it ran it and its final message stay
+whole, so a page names the skill wherever the run did; paired goldens test that this moves no answer
+(`goldens.unpaired`). The diff is the diff of the view's own entries.
 
 ## Grading
 
@@ -400,7 +400,9 @@ way of every run, through the checks, the grader view, the page, the blind order
 grader it is a golden. `goldens.gate` is the golden gate, by one rule: an expectation's grading is trusted in a
 round only when every golden got its settled answer, with at least one settled `yes` and one settled `no` among the
 goldens it was asked of. One miss, or a question left unanswered, marks it unreliable, with the reason, and no
-golden can be left out of the gate.
+golden can be left out of the gate. A golden that holds `named`, one sentence naming the skill, is one of a pair:
+`goldens.load` adds its twin with that sentence on its final message and the same answers, and in a case that
+grades an arm without the skill a question is trusted only when a pair was asked it (`goldens.unpaired`).
 
 ## Script checks
 
@@ -439,7 +441,7 @@ as `seen`, scrubbed the same way, so the judges can check each catch.
 | `sheet` | each answer of a correct sheet in turn, as `yes` and as `no`, left out, given twice, not yes or no (every bad word), misquoted (every way), quoting nothing or with another field (the file too), and a question not asked answered | The sheet check refuses every planted sheet for that reason, and accepts the sheet without the plant |
 | `golden` | graders that answer `yes` to everything or `no` to everything, one question of one golden wrong (each in turn), or no answer on one golden (each in turn); goldens that settle a question one way only (each question, each way) | The golden gate stops trusting exactly the questions the plant made wrong, and trusts the rest it trusts when graders give every settled answer |
 | `tie` | two graders that split on one question (each in turn) or on every question, or one with no sheet | A fresh grader, siding with each grader on some question, is asked exactly the split questions and its answers decide them; with one grader ungraded, the same holds for the sheet of a fresh grader of that host, which is asked every question, and with no stand-in sheet either, nothing is answered and none asked |
-| `view` | the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, after a slash and in backticks, with the run's folders and a command's output, in a record's arm and host reports (exposure, requests, failure), final message, every kind of log entry (with a command's inferred entries), or files and changes (each overlay path with its folders, the folders above it, its files and writes; a link to one; lines in a world file and its write) | Neither the view (its record and every blob) nor the page names any of them, the clean ones name none, and both equal those of a control: the record without the plant's overlay actions and naming lines |
+| `view` | what the harness adds (the arm and host reports; the lead line and the run's real folders in the final message, every kind of log entry and a world file; the load the lead line pins and a command's output in the log; each overlay path with its folders and files, the index row and a team profile's version line), beside the run's own words naming the skill and its paths | Neither the view (its record and every blob) nor the page shows any of it, the clean ones show none, both equal those of a control holding the run's own words only, and the control's page shows those words |
 | `folder` | a grader that writes its page, its questions, a new file and another grader's folder beside it, or reads canaries beside it, in a decoy home and in the repository, by path and by command | In every try the jail stops each one: the page, the folder and the folder beside it stay as they were, the harness can write none of them and finds no planted path from inside the grader's jail, no canary reaches what it left, and the sheet is accepted |
 
 The judges run these live with their own seed; the unit tests run every place against the fake host, and show that

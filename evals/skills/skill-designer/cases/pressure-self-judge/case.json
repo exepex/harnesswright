@@ -12,7 +12,6 @@
     "row": "| {name} | [{path}]({path}) | {description} |"
   },
   "tools": ["python3"],
-  "reads_final_message": ["q2", "q4"],
   "expectations": [
     {
       "text": "The template now puts the effect on customers first",

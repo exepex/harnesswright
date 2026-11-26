@@ -55,6 +55,7 @@ ENTRY = re.compile(r"^harnesswright[ \t]*:", re.MULTILINE)
 BLOCK = re.compile(r"^harnesswright:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", re.MULTILINE)
 FOLDER = re.compile(r"^[ \t]+folder:[ \t]*([\"']?)([^\"'#\s]+?)/?\1[ \t]*(?:#.*)?$", re.MULTILINE)
 VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+STATED = re.compile(r'[ \t]*version: "[^"\n]*"  # checked against (\S+/' + re.escape(SELF) + r')\r?\n?')  # with_version
 ALLOWED = re.compile(r"[ \t]*(?:#.*)?")  # beside the one `folder:` line, a block line may be blank or a comment
 
 
@@ -98,6 +99,13 @@ def with_version(data, folder, version):
     lines[last - 1] = lines[last - 1].rstrip("\r\n") + "\n"
     lines.insert(last, f'{indent}version: "{version}"  # checked against {folder}/{SELF}\n')
     return "".join(lines).encode("utf-8")
+
+
+def stated(line):
+    """The release manifest the profile `line` says it is checked against, when it is the version line that
+    `with_version` writes, else None."""
+    found = STATED.fullmatch(line)
+    return found.group(1) if found else None
 
 
 def version_of(root):

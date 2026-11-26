@@ -18,18 +18,16 @@ one part misses the fault at every seed, never only at the seeds that happen to 
   a question one way only (each question, each way). The golden gate (`goldens.gate`) must stop trusting exactly
   the questions whose settled answer was missed, or that are no longer settled both ways, and trust the rest it
   trusts when graders give every settled answer on every golden.
-- `view`: the arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, in the
-  lead line that pins the skill's load (`host.lead`), under the world's absolute path and in backticks, with the
-  run's own folders and a command's output that names them, put in a record's arm and what its host reported
-  (exposure, requests, failure), final message, every kind of log entry (with the inferred entries of a command),
-  or files and changes (each overlay path as a run holds it, with its folders, the
-  folders above it, its files and their writes; a link to one; lines in a world file's text, and its write). Neither the
-  view (`view.view`, its record and every blob) nor the page (`grading.page`) may name any of them, and the clean ones
-  name none, reading an arm word everywhere except in a world file both arms hold byte for byte (`tells`). The world
-  file that holds the plant's lines names no arm word. And the planted view and page must equal those of a control,
-  the same record without the plant's actions on
-  the overlay and its lines that name the skill: a tell with its names taken out, such as an empty skill-load entry,
-  still shows.
+- `view`: what the harness adds (`view.ADDED`) put in a record beside the run's own words that name the skill and
+  its paths: the arm and what its host reported (exposure, requests, failure); the lead line that pins the skill's
+  load (`host.lead`) and the run's real folders, in the final message, in every kind of log entry and in a world
+  file's text and a link; the load the lead line pins and a command's output and exit code, in the log; and each
+  overlay path as a run holds it (its folders, the folders above it, its files and their writes) and the line the
+  install adds to a file it edits in place (the index row, a team profile's version line), in the files. Neither
+  the view (`view.view`, its record and every blob) nor the page (`grading.page`) may show any of it, and the clean
+  ones show none, reading an arm word everywhere except in a world file both arms hold byte for byte (`tells`). The
+  planted view and page must equal those of a control, the same record with the run's own words only, and the
+  control's page must still show those words: a view that hides what the run wrote is a miss too.
 
 Standard library only.
 """
@@ -48,7 +46,9 @@ import goldens
 import grader
 import grading
 import host
+import manifest
 import scrub
+import teamrelease
 import tells
 import view
 from faults import Missed
@@ -60,6 +60,7 @@ GOLDEN = ("all yes", "all no", "one wrong", "one-sided", "unanswered")
 WORDS = ("maybe", "unknown", "Yes", "YES", " yes", "no.", "", "yes or no")  # answers that are text but not yes or no
 VIEW = ("arm", "message", "log", "file")
 SHOWN = view.FIELDS  # what the view is meant to show; every other field of a record a plant fills
+RULES_FILES = (".harness/runs/{run}/rules.md", ".harness/runs/{run}/rules-text-{skill}.{stack}.md")  # a run writes
 
 
 def _flip(answer):
@@ -84,8 +85,7 @@ def _pages(setup, rng):
         bundle = checks.Bundle(record, blobs.__getitem__)
         verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {})) if "check" in e else None
                     for e in case.expectations]
-        pages.append((golden, record, blobs.__getitem__, grading.questions(case.expectations, verdicts,
-                                                                           checks.unseen(case, bundle))))
+        pages.append((golden, record, blobs.__getitem__, grading.questions(case.expectations, verdicts)))
     return case, pages
 
 
@@ -224,38 +224,33 @@ def golden(setup, fault, rng, place):
 
 
 def view_(setup, fault, rng, place):
-    """The arm, or the skill's name and each of its paths, on lines of their own, inside a sentence, under the world's
-    absolute path and in backticks, with the run's own folders and a command's output that names them, put in one
-    golden's record at `place`, everywhere that place can carry them: the arm and what the host reported; the final
-    message; every kind of log entry (`host.ENTRIES`), as an action on each path, with an inferred entry after its
-    command, or as lines in its text; each overlay path as a run holds it (its folders, the folders above it, its files,
-    their writes and changes), a link to one, a world file's text and its write, and a run's rules files as the
-    resolver names them (`view.run_names`), written in a run folder that both records hold. Its control is the same
-    record with the plant's actions on the overlay and its rules files left out, its lines that name the skill left
-    out, its run folders as their neutral words and its command output empty. Caught when the clean view and page
-    name none of them, by the rule of `tells` (an arm word, or an overlay path inside a longer path, may stand only in
-    a world file both arms are built holding byte for byte), and the planted view and page equal the control's:
-    nothing of the plant shows, not even an entry with its names taken out. The world file that takes the plant's
-    lines is one whose text names no arm word and that the clean view shows."""
+    """What the harness adds, put in one golden's record at `place` beside the run's own words, as the module says.
+    The run's own words are the skill's name and each installed path, on lines of their own, inside a sentence,
+    under the world's absolute path and in backticks, and as actions on each path (a command, a read of a file in
+    the skill's folder, a write, a refused action, a link, a file under a longer name of the skill, a run's rules
+    files); the planted record holds them too, and its control holds them alone, with its folders as their neutral
+    words and its command output empty. Caught when the clean view and page show nothing the harness added
+    (`tells.shown`), the planted view and page equal the control's, and the control's page shows the run's words."""
     case, pages = _pages(setup, rng)
     _, record, blob, _ = rng.choice(pages)
     held, arms = tells.shared(tells.built(case, setup.adapter, setup.folder), record), (*cases.ARMS, cases.PREVIOUS)
     shows = tells.seen(case, record, blob)[0]["files_after"]  # a world file a plant acts on is one the view shows
     layer = record["overlay"]
     skill, files = layer["skill"], [f"{path}/SKILL.md" for path in layer["paths"]]
-    names = [skill, *evidence.places(layer)]  # the skill's paths and the files a team install adds
     world = next((f for f, word in record["folders"].items() if word == scrub.NEUTRAL_FOLDERS["world"]), "/world")
+    word = record["folders"].get(world, world)
     edges = [c for c in string.punctuation + " " if not re.fullmatch(r"[A-Za-z0-9]", c)]  # each not of a name
-    lines = "".join(f"{line}\n" for line in (skill, *files, f"I used {skill}, from {files[-1]}, here.",
-                                             *(host.lead(setup.adapter, skill, file) for file in files),  # a pin
-                                             *(f"cat {world}/{file}" for file in files),
-                                             *(f"x{c}{name}{c}x" for name in (skill, *files) for c in edges)))
+    mine = lambda root: "".join(f"{line}\n" for line in (  # the run's own words, with the world at `root`
+        skill, *files, f"I used {skill}, from {files[-1]}, here.", *(f"cat {root}/{file}" for file in files),
+        *(f"x{c}{name}{c}x" for name in (skill, *files) for c in edges)))
+    leads = [host.lead(setup.adapter, skill, file) for file in files]
+    pins = "".join(f"{lead}\n" for lead in leads)
     kept = f"hw-kept-{rng.getrandbits(32):08x}\n"  # a neutral line next to the plant, which the view must keep
     folders = sorted(record["folders"])  # the run's own folders, bare and at every edge, and as the view words them
     ran = "".join(f"{f}\n" + "".join(f"x{c}{f}{c}x\n" for c in edges) for f in folders)
     neutral = "".join(f"{w}\n" + "".join(f"x{c}{w}{c}x\n" for c in edges) for w in map(record["folders"].get, folders))
-    word = record["folders"].get(world, world)
     planted, control, added = copy.deepcopy(record), copy.deepcopy(record), {}
+    harness, own = pins + mine(world) + kept + ran, mine(word) + kept + neutral  # a planted text and its control's
 
     def stored(data):
         added[hashlib.sha256(data).hexdigest()] = data
@@ -263,79 +258,88 @@ def view_(setup, fault, rng, place):
 
     if place == "arm":
         for field in sorted(set(record) - set(SHOWN) - {"overlay", "folders", "own_files"}):  # all kept back
-            planted[field], control[field] = f"with_skill\n{lines}", None
+            planted[field], control[field] = f"with_skill\n{pins}{mine(world)}", None
         planted["folders"][f"/tmp/{skill}-with_skill"] = control["folders"]["/tmp/hw-plain"] = "/run/other"
     elif place == "message":
-        planted["final_message"] = lines + kept + ran + (record["final_message"] or "")
-        control["final_message"] = kept + neutral + (record["final_message"] or "")
+        planted["final_message"] = harness + (record["final_message"] or "")
+        control["final_message"] = own + (record["final_message"] or "")
     elif place == "log":
         world_file = sorted(path for path, entry in record["files_after"].items() if entry.startswith("file ")
                             and path in shows)[0]
-        acts = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (
-            {"kind": "read", "path": file}, {"kind": "write", "path": file, "sha256": None},
+        acts = lambda root: [entry for file in files for entry in (  # the run's own actions on each path
+            {"kind": "read", "path": f"{file.rsplit('/', 1)[0]}/references/notes.md"},
+            {"kind": "write", "path": file, "sha256": None},
             {"kind": "command", "command": f"cat {file} {world_file}", "output": "", "exit_code": 0},
             {"kind": "read", "path": world_file, "source": "inferred"},  # part of the command before it
-            {"kind": "command", "command": f"cat {world}/{file}", "output": "", "exit_code": 0},
-            {"kind": "blocked", "action": f"cat {world}/{file}", "reason": "refused"},
-            {"kind": "blocked", "action": f"cat {file}", "reason": "refused"})]
+            {"kind": "command", "command": f"cat {root}/{file}", "output": "", "exit_code": 0},
+            {"kind": "blocked", "action": f"cat {root}/{file}", "reason": "refused"})]
+        pin = [{"kind": "skill", "name": skill}] + [entry for file in files for entry in (  # the load it pins
+            {"kind": "read", "path": file}, {"kind": "read", "path": f"{world}/{file}", "source": "inferred"})]
         texts = [("agent", "task", {}), ("message", "text", {}), ("blocked", "reason", {"action": "ls"})]
         made = lambda text: [{"kind": kind, field: text, **other} for kind, field, other in texts]
         shown = lambda output, code: {"kind": "command", "command": "ls", "output": output, "exit_code": code}
         acted = lambda f: [{"kind": "command", "command": f"ls {f}", "output": "", "exit_code": 0},
                            {"kind": "blocked", "action": f"write {f}/notes.md", "reason": "refused"}]
-        planted["log"][:0] = [{"source": "observed", **entry} for entry in acts + made(lines + kept + ran) + [
-            shown(lines + ran, 1)] + [e for f in folders for e in acted(f)]]
-        control["log"][:0] = [{**entry, "source": "observed"} for entry in made(kept + neutral) + [shown("", 0)] + [
-            e for f in folders for e in acted(record["folders"][f])]]
+        planted["log"][:0] = [{"source": "observed", **entry} for entry in pin + acts(world) + made(harness) + [
+            shown(pins + mine(world) + ran, 1)] + [e for f in folders for e in acted(f)]]
+        control["log"][:0] = [{"source": "observed", **entry} for entry in acts(word) + made(own) + [
+            shown("", 0)] + [e for f in folders for e in acted(record["folders"][f])]]
     else:
         target, entry = next((p, e) for p, e in sorted(record["files_after"].items()) if e.startswith("file ")
                              and p in shows and not any(
                                  arm in blob(e.split(" ")[1]).decode("utf-8", "replace") for arm in arms))
         old, rest = entry.split(" ")[1], entry[len("file ") + 64:]
-        for one, data in ((planted, lines + kept + ran), (control, kept + neutral)):  # the agent wrote it
+        for one, data in ((planted, harness), (control, own)):  # the agent wrote it
             digest = stored(data.encode() + blob(old))
             one["files_after"][target] = f"file {digest}{rest}"
             for item in one["log"]:
                 if item["kind"] == "write" and item.get("sha256") == old:
                     item["sha256"] = digest
             one["log"].append({"kind": "write", "source": "observed", "path": target, "sha256": digest})
-        link = f"{target}.hw-link"
-        for one, to, was in ((planted, files[0], files[-1]), (control, "", "")):
-            one["files_after"][link] = f"link {to}"
-            one["diff"][link] = {"before": f"link {was}", "after": f"link {to}"}
-        for one, root in ((planted, world), (control, word)):  # a link to a world file by the world's own folder
-            one["files_after"][f"{link}-world"] = f"link {root}/{target}"
-        rules = [name.format(run="hw-run", skill=f"hw-{rng.getrandbits(16):04x}", stack="core")
-                 for name in view.run_names()]  # the files only a skill's resolver writes, whatever skill it names
-        above = {str(f) for file in rules for f in PurePosixPath(file).parents if str(f) != "."}
-        for one in (planted, control):  # their run folder is in both records; only the planted one holds them
+        rules = [name.format(run="hw-run", skill=skill, stack="core") for name in RULES_FILES]
+        for one, root in ((planted, world), (control, word)):  # the run's links, a longer name and rules files
+            one["files_after"][f"{target}.hw-link"] = f"link {files[0]}"
+            one["files_after"][f"{target}.hw-link-world"] = f"link {root}/{target}"
+            above = {str(f) for file in rules for f in PurePosixPath(file).parents if str(f) != "."}
             made = {folder: "dir" for folder in sorted(above) if folder not in record["files_after"]}
+            made.update({file: f"file {stored(f'| CORE-WORK-01 | {skill} |'.encode())}{rest}"
+                         for file in [*rules, f"notes-{skill}.md"]})
             one["files_after"].update(made)
-            one["diff"].update({name: {"before": None, "after": "dir"} for name in made})
-        for file in rules:
-            digest = stored(b"| CORE-WORK-01 | core | principle |  |  |\n")  # names no skill: only its path tells
-            planted["files_after"][file] = f"file {digest}{rest}"
-            planted["diff"][file] = {"before": None, "after": f"file {digest}{rest}"}
-            planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": digest})
+            one["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
+        index = layer.get("index")
+        if index and layer.get("row") and manifest.is_file(record["files_after"].get(index, "")):
+            was = record["files_after"][index]  # the row the install adds, before the run, as the install writes it
+            planted["files_after"][index] = f"file {stored(blob(was.split(' ')[1]) + layer['row'].encode() + b'\n')}" \
+                + was[len("file ") + 64:]
+        named = [p for p in layer.get("release", []) if PurePosixPath(p).name == teamrelease.SELF]
+        for path in sorted(set(layer.get("edited") or {}) - {index}):  # a team profile's version line
+            was = planted["files_after"].get(path, "")
+            if named and manifest.is_file(was):
+                data = added.get(was.split(" ")[1]) or blob(was.split(" ")[1])
+                line = f'  version: "0.0.0"  # checked against {named[0]}\n'.encode()
+                planted["files_after"][path] = f"file {stored(data + line)}{was[len('file ') + 64:]}"
+                for item in planted["log"]:  # in the file before the run wrote it, so in what each write wrote
+                    if item["kind"] == "write" and item.get("sha256") == was.split(" ")[1]:
+                        item["sha256"] = planted["files_after"][path].split(" ")[1]
         for path in evidence.places(layer):  # the overlay as a run holds it: its folders, those above, its files
             above = [str(folder) for folder in PurePosixPath(path).parents if str(folder) != "."]
-            own = stored(f"# {skill}\n{lines}".encode())  # the skill's own bytes, which the view must not hold
+            mark = stored(f"# {skill}\nhw-skill-{rng.getrandbits(32):08x}\n".encode())  # the skill's own bytes
             made = {folder: "dir" for folder in above if folder not in record["files_after"]}
             file = f"{path}/SKILL.md" if path in layer["paths"] else path  # a skill's folder, or a file of a release
-            made[file] = f"file {own}{rest}"
+            made[file] = f"file {mark}{rest}"
             if file != path:
                 made.update({path: "dir", f"{path}/references": "dir", f"{path}/references/notes.md": made[file]})
             planted["files_after"].update(made)
             planted["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
-            planted["log"].append({"kind": "write", "source": "observed", "path": file, "sha256": own})
     read = lambda digest: added[digest] if digest in added else blob(digest)
+    words = [*leads, *folders]  # what only the harness writes
     for one, of in ((record, blob), (planted, read)):  # the clean record, then the planted one, by the same rule
-        shown = tells.shown(case, one, of, names, held)
+        shown = tells.shown(case, one, of, words, held)
         if shown:
             return f"the view a grader gets names {shown}" + (" in the clean record" if one is record else "")
     seen = tells.seen(case, control, read)
-    if place != "arm" and kept.strip() not in seen[2]:
-        return "the control's page lost the neutral line next to the plant, so the view hides what it must show"
+    if place != "arm" and not all(line in seen[2] for line in (kept.strip(), *mine(word).splitlines())):
+        return "the control's page lost the run's own words, so the view hides what it must show"
     if tells.seen(case, planted, read) != seen:
         return "the view a grader gets differs from its control's: the plant shows"
     return None

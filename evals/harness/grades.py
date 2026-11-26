@@ -3,8 +3,9 @@ trusted only where the goldens were.
 
 One rule: every page a round grades, each kept or made run's and each golden's, goes the same way, in one blind
 order: the grader view, the page, a panel of two graders and a tie-breaker. A question is answered for a run only
-when its expectation's goldens got their settled answers this round (`goldens.gate`); otherwise it stays ungraded
-on that question, with why.
+when its expectation's goldens got their settled answers this round (`goldens.gate`), and, in a case that grades an
+arm without the skill, a pair of its goldens with and without a sentence naming the skill was asked it; otherwise
+it stays ungraded on that question, with why.
 
 - Goldens: each case's goldens (`evals/goldens/<skill>/<case>/`, at the round's commit) are built as runs of the
   reference host (`reference`), checked with the round's check library, and asked what no check decided, as a run
@@ -34,11 +35,13 @@ Standard library only.
 import json
 import tempfile
 
+import cases
 import checks
 import evidence
 import goldens
 import grader
 import grading
+import runs
 import view
 
 REFERENCE = "claude-code"  # the reference host (doc 10, Hosts)
@@ -92,7 +95,7 @@ def grade(r, made_runs, folder):
             verdicts = [checks.decide(e["check"]["name"], bundle, e["check"].get("args", {}), library)
                         if "check" in e else None for e in case.expectations]
             name = f"golden {skill}/{case_id}/{golden.name}"
-            asked[name] = grading.questions(case.expectations, verdicts, checks.unseen(case, bundle))
+            asked[name] = grading.questions(case.expectations, verdicts)
             if asked[name]:  # a golden whose every question a check decided has no page to grade
                 pages[name], case_of[name] = text(case, record, blobs.__getitem__), (skill, case_id)
     panel, pair = _panel(r, top)
@@ -103,8 +106,9 @@ def grade(r, made_runs, folder):
     trusted = {}
     for (skill, case_id), (case, found) in calibrated.items():
         names = {golden.name: f"golden {skill}/{case_id}/{golden.name}" for golden in found}
+        paired = cases.ARMS[0] in runs.arms(r.record, case)  # it grades an arm without the skill: pairs guard it
         gate = goldens.gate(case, found, {golden.name: _graded(asked, sheets, names[golden.name])
-                                          for golden in found})
+                                          for golden in found}, paired)
         trusted[(skill, case_id)] = gate
         for golden in found:
             if names[golden.name] in sheets:

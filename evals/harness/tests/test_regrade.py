@@ -52,13 +52,14 @@ class Regrade(Pages):
         kept = {p: p.read_text() for p in (self.store / "r1" / "grades").rglob("*.json")}
         calls = []
         out = self.run_it(calls=calls)
-        self.assertEqual(calls, [("other-model", ["q2", "q4"])] * 8)  # 2 runs and 2 goldens, two graders each
+        self.assertEqual(calls, [("other-model", ["q2", "q4"])] * 10)  # 2 runs and 3 goldens, two graders each
         pages = json.loads((out / "pages.json").read_text())
-        self.assertEqual(sorted(pages), ["0001", "0002", "0003", "0004"])  # named by place in the blind order
+        self.assertEqual(sorted(pages), ["0001", "0002", "0003", "0004", "0005"])  # named by place in the blind order
         self.assertEqual(sorted((p["kind"], p["host"], p["model"]) for p in pages.values()),
-                         [("golden", "fakehost", "named-model")] * 2 + [("run", "fakehost", "named-model")] * 2)
+                         [("golden", "fakehost", "named-model")] * 3 + [("run", "fakehost", "named-model")] * 2)
         self.assertEqual(sorted(p["name"] for p in pages.values() if p["kind"] == "golden"),
-                         ["golden haiku-writer/c1/no", "golden haiku-writer/c1/yes"])
+                         ["golden haiku-writer/c1/no", "golden haiku-writer/c1/yes",
+                          "golden haiku-writer/c1/yes-named"])
         route = out / regrade.folder_name(*ROUTE)
         self.assertEqual(json.loads((route / "proved.json").read_text()), PROVED)
         q2 = {}
@@ -69,6 +70,7 @@ class Regrade(Pages):
             q2[page["name"]] = [[a["answer"] for a in g["sheet"]["answers"] if a["id"] == "q2"]
                                 for g in graded["graders"]]
         self.assertEqual(q2, {"k1": [["yes"]] * 2, "k2": [["no"]] * 2, "golden haiku-writer/c1/yes": [["yes"]] * 2,
+                              "golden haiku-writer/c1/yes-named": [["yes"]] * 2,
                               "golden haiku-writer/c1/no": [["no"]] * 2})
         record = json.loads((out / "regrade.json").read_text())
         self.assertEqual((record["seed"], record["prices"], record["graders"], record["pages"]),
@@ -82,7 +84,7 @@ class Regrade(Pages):
         self.source()
         calls = []
         out = self.run_it(calls=calls, kinds=("golden",), times=1)
-        self.assertEqual(calls, [("other-model", ["q2", "q4"])] * 2)
+        self.assertEqual(calls, [("other-model", ["q2", "q4"])] * 3)
         self.assertEqual({p["kind"] for p in json.loads((out / "pages.json").read_text()).values()}, {"golden"})
         for wrong in ({"kinds": ()}, {"kinds": ("void",)}, {"times": 0}, {"times": 3}, {"routes": ()},
                       {"routes": (ROUTE, ROUTE)}):
@@ -106,9 +108,9 @@ class Regrade(Pages):
         out = self.run_it(kinds=("golden",), times=1)
         found = compare.report(out, repo=self.repo)
         [route] = found["routes"].values()
-        self.assertEqual((route["golden accuracy"]["right"], route["golden accuracy"]["asked"]), (4, 4))
+        self.assertEqual((route["golden accuracy"]["right"], route["golden accuracy"]["asked"]), (6, 6))
         self.assertIsNone(route["graders agree"])
-        self.assertEqual((found["pass"]["pages graded"], found["pairs"]), ({"golden": 2}, []))
+        self.assertEqual((found["pass"]["pages graded"], found["pairs"]), ({"golden": 3}, []))
 
     def test_a_round_with_an_extra_pass_regrades_its_extra_runs_too(self):
         self.planned()
@@ -128,7 +130,7 @@ class Regrade(Pages):
         calls = []
         pages = json.loads((self.run_it(calls=calls) / "pages.json").read_text())
         self.assertEqual(sorted(p["name"] for p in pages.values() if p["kind"] == "run"), ["k1", "k2"])
-        self.assertEqual(len(calls), 8)  # both runs and the grade gate's two goldens, two graders each
+        self.assertEqual(len(calls), 10)  # both runs and the grade gate's three goldens, two graders each
 
     def test_a_page_or_questions_that_are_not_the_ones_the_round_graded_stop_the_pass(self):
         self.source()
