@@ -425,7 +425,7 @@ After each round the judges look for ways the round could have been wrong, and a
   (containment, adapter, world builder, evidence). Only missing or voided runs are remade. Each label records the
   commits behind its runs.
 - **Relabel.** `relabel.py` grades the stored runs of a labelled round again under the kit as it is now, and labels
-  them, making no run. It copies the round's manifest, drift records and kept bundles to a new store, so the
+  them, making no run. It copies the round's manifest, drift records and run slots to a new store, so the
   round's results never change and no kept grade of an old page is reused. The copy goes through the round's gates,
   a judge's approval of the kit in the new store first, with a run gate that only finds the runs and no extra runs.
   Every case and skill, and the plan's fault case, must be as it was at the round's commit, save the fields that

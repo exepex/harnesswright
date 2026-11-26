@@ -249,8 +249,9 @@ python3 evals/harness/kit.py approve --store NEW_STORE --judge NAME
 python3 evals/harness/relabel.py run ROUND --store NEW_STORE [--host-path PATH ...] [--seed N]
 ```
 
-The copy holds the round's manifest, drift records, the bundle of each run the attempt kept and each slot's
-`void.json`, which the void rate counts. The run goes through the round's kit check, lint, probe, faults, check,
-grade and label gates, with a run gate that only finds those runs; there is no extra runs gate, so a measure that is
-too close stays too close. Its labels are proof of the kit, not results: `rounds.py results` refuses a round whose
-kit check names a kit other than the manifest's.
+The copy holds the round's manifest, drift records and each slot's folder as the run gate left it (its bundle, the
+voids and tries not loaded that the void and pinned-load rates count, and backstop matches), all but its check
+verdicts. The run goes through the round's kit check, lint, probe, faults, check, grade and label gates, with a run
+gate that only finds those runs; there is no extra runs gate, so a measure that is too close stays too close. Its
+labels are proof of the kit, not results: `rounds.py results` refuses a round whose kit check names a kit other than
+the manifest's.

@@ -4,9 +4,9 @@ run made (doc 11, Relabel).
 One rule: a relabel is a new attempt of a copy of the round, through the round's own gates, with the run gate
 replaced by one that only finds the runs the labelled attempt kept (`found_gate`). Everything else is the round's:
 
-- `copy` writes the copy to a new store, never the round's: the round's manifest, its drift records and the bundle
-  of each run the labelled attempt kept or made, each slot's `void.json`, which the void rate counts, and that
-  attempt's run gate outcome (`SOURCE`). Nothing graded, checked or labelled is copied, so the round's recorded
+- `copy` writes the copy to a new store, never the round's: the round's manifest, its drift records, each slot's
+  folder as the run gate left it (its bundle, voids, tries not loaded and backstop matches), and that attempt's run
+  gate outcome (`SOURCE`). Nothing graded, checked or labelled is copied (`CHECKED`), so the round's recorded
   results never change and no kept grade of an old page is reused (`grades.KEPT`).
 - `kit check`: a judge approved the kit as it is now in the new store (`kit.check`). The repository may be at a
   later commit than the round's, but each case and skill the round ran must be as it was at the round's commit,
@@ -41,6 +41,7 @@ import rounds
 import runs
 from cases import REPO, Case
 
+CHECKED = "checks.json"  # a slot's check verdicts (`gates.check_one`), the one file of a slot a relabel makes again
 SOURCE = "relabel.json"  # in the copy's round folder: where it came from, and the run gate outcome it relabels
 GRADING_ONLY = ("reads_final_message",)  # the case fields a relabel may find changed: none shapes a run
 
@@ -63,13 +64,11 @@ def copy(source, name, attempt, target, repo=REPO):
     new.mkdir(parents=True)
     shutil.copy2(old / rounds.MANIFEST, new / rounds.MANIFEST)
     shutil.copytree(old / "drift", new / "drift", symlinks=True)
-    for run in made:
-        if run["status"] in ("kept", "made"):
-            shutil.copytree(old / "runs" / run["key"] / runs.BUNDLE, new / "runs" / run["key"] / runs.BUNDLE,
-                            symlinks=True)
-        if (old / "runs" / run["key"] / runs.VOID).is_file():  # the voids of the slot, a remade one's too
-            (new / "runs" / run["key"]).mkdir(parents=True, exist_ok=True)
-            shutil.copy2(old / "runs" / run["key"] / runs.VOID, new / "runs" / run["key"] / runs.VOID)
+    for run in made:  # each slot as the run gate left it, its voids and tries not loaded too
+        slot = old / "runs" / run["key"]
+        if slot.is_dir():  # all but the check gate's verdicts, which the relabel makes again
+            shutil.copytree(slot, new / "runs" / run["key"], symlinks=True, ignore=lambda folder, names, top=str(
+                slot): [CHECKED] if folder == top and CHECKED in names else [])
     (new / SOURCE).write_text(json.dumps({"from": str(old), "attempt": attempt, "run": made}, indent=1,
                                          sort_keys=True) + "\n")
     return new
@@ -86,7 +85,8 @@ def same(r):
     """Raise RelabelError unless each case and skill of round `r`, and its `fault_case`, is as it was at the round's
     commit, save the fields of `GRADING_ONLY` in each `case.json`."""
     commit, problems = r.record["commit"], []
-    for case in [case for _, case in sorted(r.cases.items())] + [fault_case(r)] * bool(r.record.get("fault_case")):
+    cases, skill_folders = held(r)
+    for case in cases:
         folder = case.folder.relative_to(r.repo)
         for path in rounds._git(r.repo, "diff", "--name-only", commit, "--", str(folder)).splitlines():
             if path != f"{folder}/case.json":
@@ -97,26 +97,40 @@ def same(r):
             if {k: v for k, v in then.items() if k not in GRADING_ONLY} != {
                     k: v for k, v in now.items() if k not in GRADING_ONLY}:
                 problems.append(path)
-    for name in sorted(r.record["skills"]):
+    for name, folder in skill_folders.items():
+        if folder is None:
+            problems.append(f"{name}: no folder")
+            continue
         problems += rounds._git(r.repo, "diff", "--name-only", commit, "--",
-                                str(r.skills[name].relative_to(r.repo))).splitlines()
+                                str(folder.relative_to(r.repo))).splitlines()
     if problems:
         raise RelabelError(f"changed since the round's commit {commit}, so its runs are not of them: "
                            f"{', '.join(problems)}")
 
 
+def held(r):
+    """What round `r` holds to its commit, read from its record one way: its cases and the plan's fault case, when
+    it names one (`fault_case`), and {name: folder, or None when it has none} of each skill it records."""
+    fault = fault_case(r)
+    return [case for _, case in sorted(r.cases.items())] + [fault] * (fault is not None), {
+        name: r.skills.get(name) for name in sorted(r.record["skills"])}
+
+
 def fault_case(r):
-    """The plan's `fault_case` of round `r`, as the repository holds it now."""
-    chosen = r.record["fault_case"]
+    """The plan's `fault_case` of round `r`, as the repository holds it now, or None when the plan names none."""
+    chosen = r.record.get("fault_case")
+    if chosen is None:
+        return None
     return Case(r.repo / "evals" / "skills" / chosen["skill"] / "cases" / chosen["case"], chosen["skill"])
 
 
 def faults_gate(r):
     """The round's faults gate, on the plan's `fault_case` as it now is: `same`, the one check of a relabel's cases,
     proved it the round's."""
-    if r.record.get("fault_case"):
+    fault = fault_case(r)
+    if fault is not None:
         r = copying.copy(r)  # the gate reads the record alone; the manifest is never written
-        r.record = {**r.record, "fault_case": {**r.record["fault_case"], "sha256": fault_case(r).sha256}}
+        r.record = {**r.record, "fault_case": {**r.record["fault_case"], "sha256": fault.sha256}}
     return gates.faults_gate(r)
 
 
