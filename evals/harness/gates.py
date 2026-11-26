@@ -327,11 +327,12 @@ def read(store, name, repo=REPO):
         raise rounds.RoundError(f"round {name}: its manifest cannot be read: {error}") from None
 
 
-def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, **options):
-    """Take round `name` of `store` through `gates` in order, from the repository `repo` at the round's commit.
-    Return the attempt record; raise RoundError, naming the gate, at the first gate that fails."""
+def run(store, name, repo=REPO, adapters=rounds.ADAPTERS, gates=GATES, at=None, **options):
+    """Take round `name` of `store` through `gates` in order, from the repository `repo` at the round's commit, or
+    at `at`, a relabel's (`relabel.py`). Return the attempt record; raise RoundError, naming the gate, at the first
+    gate that fails."""
     record = read(store, name, repo)
-    if rounds.commit(repo) != record["commit"]:
+    if rounds.commit(repo) != (at or record["commit"]):
         raise rounds.RoundError(f"{repo} is not at round {name}'s commit {record['commit']}")
     r = Round(record, store, repo, adapters, **options)
     started = datetime.datetime.now(datetime.timezone.utc)

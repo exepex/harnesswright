@@ -62,6 +62,7 @@ allowed connections.
 | `results.py` | `round results`: a finished round's labels copied whole into `evals/results/<skill>.json`, named by its manifest, kit and archive |
 | `setups.py` | One setup: the fingerprint of everything that measured a skill in a round, except the skill, and the parts in which two setups differ |
 | `regrade.py` | Cross-model grading: every page of a finished round graded again by each grader route, after it passed its probes and grader faults, apart from the round's grades |
+| `relabel.py` | A relabel: a labelled round's stored runs graded again under the kit as it is now, in a copy of the round in a new store, through its gates with a run gate that makes no run |
 | `compare.py` | The cross-model comparison report of one finished regrade pass: per route golden accuracy, grader agreement, untrusted questions, refused sheets and cost; per pair agreement, Cohen's kappa and every disagreement |
 | `prices.py` | What a run cost: its token counts by model, priced by the one dated price file |
 

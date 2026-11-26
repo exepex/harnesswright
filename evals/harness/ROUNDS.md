@@ -234,3 +234,21 @@ python3 evals/harness/compare.py STORE/ROUND/regrade/PASS [--family HOST ADAPTER
 ```
 
 It refuses a pass with no finish time, and writes `report.json` beside the pass.
+
+## Relabel
+
+`relabel.py` grades the runs of a labelled round again under the kit as it is now, and labels them, making no run
+(doc 11, Relabel). It copies the round to a new store, never the round's own, so the round's results stay as they
+are; a judge approves the kit in that store first. The repository may be at a later clean commit, but every case
+and skill of the round must be as it was at the round's commit, save the fields that shape only a grader's page.
+
+```sh
+python3 evals/harness/relabel.py copy ROUND --from STORE --attempt ATTEMPT --to NEW_STORE
+python3 evals/harness/kit.py approve --store NEW_STORE --judge NAME
+python3 evals/harness/relabel.py run ROUND --store NEW_STORE [--host-path PATH ...] [--seed N]
+```
+
+The copy holds the round's manifest, drift records and the bundle of each run the attempt kept. The run goes through
+the round's kit check, lint, probe, faults, check, grade and label gates, with a run gate that only finds those
+runs; there is no extra runs gate, so a measure that is too close stays too close. Its labels are proof of the kit,
+not results: `rounds.py results` refuses a round whose kit check names a kit other than the manifest's.
