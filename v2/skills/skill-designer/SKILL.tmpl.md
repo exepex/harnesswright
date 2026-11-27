@@ -59,18 +59,17 @@ This skill does not:
 
 Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
-**The stop block.** Every stop writes this block, filled in, once at the top of Not run and once at the top of
-your final message. When the seven sections are your final message, write it once, at the top of the message, and
-open Not run with "See the `Blocked:` line above."
+**The stop report.** A stop ends the run with this report, filled in, as your final message and its closing step.
+Write nothing else: no stage report and none of the stage's files.
 
 ```text
 Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
 <the one question its Inputs row gives, where the rules allow one>
+Done: <what you checked before the stop, and how>
+Not done: <the stage's work, which waits on the line above>
 ```
 
-Begin the first line with `Blocked:` itself, as plain text. Ask for nothing else, not even as a statement. This wins
-over step 6: after a stop, Next says only what the stop needs and who gives it. After a stop, do not go on: never
-read the rule files in place of a missing index.
+Begin the first line with `Blocked:` itself, as plain text. Never read the rule files in place of a missing index.
 
 `<name>` is the skill's name: lowercase words joined by `-`. The run folder is
 `.harness/runs/<YYYY-MM-DD>-skill-<name>/`. Read every file of a borrowed source in full before you copy from it,
@@ -78,13 +77,13 @@ and never run a borrowed script before a person has reviewed it.
 
 ## Steps
 
-Do the steps in order. Each ends with a check; do not start the next until it passes. After any stop, still do
-steps 6 and 7.
+Do the steps in order. Each ends with a check; do not start the next until it passes. A stop ends the run with
+the stop report.
 
 ### 1. Check what the run needs, and read its rules
 
 1. Check the request and each item under Needs; check the label file and the round report only when
-   `evals/skills/<name>/cases/` exists. On a missing one, stop with the stop block, and write nothing else.
+   `evals/skills/<name>/cases/` exists. On a missing one, stop.
 2. If `rules.md` or `rules-text-skill-designer.<stack>.md` is missing from the run folder, run the standards
    reader's command from the project root. `SKILL_DIR` is the folder that holds this `SKILL.md`.
 
@@ -230,8 +229,7 @@ Check: the skill is unchanged since the round, provenance agrees, and you wrote 
 ### 6. Write the stage report
 
 Write `evals/skills/<name>/stage-<n>.md` with exactly these seven second-level headings, in this order, and no
-other heading. After a stop, Not run opens as the stop block says; with no job named, or before step 2 found the
-stage, give the seven sections in your final message instead.
+other heading.
 
 1. `## Stage`: the number and why, from step 2.
 2. `## Request`: the request, quoted with `>` on each line.
@@ -243,15 +241,15 @@ stage, give the seven sections in your final message instead.
    `rules.md` and quote each rules text's read-back block.
 6. `## Not run`: everything you did not run or could not prove, with why. `None.` only when nothing is missing.
 7. `## Next`: the next step from the stage table, with its owner; for an improvement, the failed cases by name and
-   any proposals. Ask for a round; never report one. After a stop, see the stop block.
+   any proposals. Ask for a round; never report one.
 
 Check: the file exists with the seven headings only, and Files written lists every file the run wrote with its
 true count.
 
 ### 7. Report
 
-After a stop, open with the stop block. Give the path of the stage report and its Next section. Say that
-the skill is not done: the next step is someone else's, and only a round and a judge can show the skill works.
+Give the path of the stage report and its Next section. Say that the skill is not done: the next step is someone
+else's, and only a round and a judge can show the skill works.
 
 Check: your message matches the stage report.
 
@@ -259,7 +257,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop with the stop block (Inputs). Write none of the stage's files: the step 6 report is the one file you still write. Then do steps 6 and 7. |
+| Something the run needs is missing | Stop: give the stop report (Inputs) and nothing else. |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |

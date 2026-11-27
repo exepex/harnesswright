@@ -1,4 +1,4 @@
-<!-- Generated from v2/skills/skill-designer/references/rules-by-reading.md at version 0.8.2. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/references/rules-by-reading.md at version 0.8.3. Do not edit. -->
 
 # Writing the rules files by reading
 
