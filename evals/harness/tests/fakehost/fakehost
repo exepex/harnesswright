@@ -56,7 +56,7 @@ def main():
     usage = {}
     prompt = sys.stdin.read()
     pinned = re.match(r"Load the skill (\S+) at ", prompt)  # a pinned run's lead line, before the list
-    for action in json.loads(prompt[prompt.find("["):]):
+    for action in json.JSONDecoder().raw_decode(prompt, prompt.find("["))[0]:  # a grader's retry reason may follow
         if action["do"] == "pinned":  # load the skill the lead line names, as a host that follows it; none, nothing
             if not pinned:
                 continue

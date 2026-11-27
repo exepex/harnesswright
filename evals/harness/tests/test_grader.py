@@ -12,6 +12,7 @@ from helpers import JUDGED, TempCase
 
 import contain
 import grader
+import grading
 import manifest
 import scrub
 from test_host import FAKE, changed, fake_adapter
@@ -62,6 +63,20 @@ class Sheet(unittest.TestCase):
     def test_a_line_break_inside_a_quote_is_read_as_it_stands(self):
         found = grader.sheet('{"answers": [{"id": "q1", "answer": "yes", "evidence": "The limit is\n100."}]}')
         self.assertEqual(found["answers"][0]["evidence"], "The limit is\n100.")
+
+
+class Told(unittest.TestCase):
+    def test_a_first_try_is_told_nothing_and_a_retry_its_form_problems(self):
+        self.assertEqual(grader.instructions("Grade it."), "Grade it.")
+        self.assertEqual(grader.instructions("Grade it.", ["not answered: q2"]),
+                         "Grade it." + grader.RETRY.format(problems="- not answered: q2"))
+
+    def test_the_form_still_refuses_a_field_a_grader_adds(self):
+        noted = {"answers": [{**answer, "note": "sure"} for answer in GOOD["answers"]]}
+        self.assertEqual(grading.check(noted, ["q1", "q2"], PAGE)[:2],
+                         [f"answer {n}: holds id, answer, evidence as texts, and nothing else" for n in (1, 2)])
+        self.assertEqual(grading.check({**GOOD, "note": "sure"}, ["q1", "q2"], PAGE),
+                         ['a grading file holds "answers", a list, and nothing else'])
 
 
 class Blind(unittest.TestCase):
@@ -248,6 +263,26 @@ class FakeGrader(TempCase):
         self.assertEqual((graded.sheet, len(graded.logs)), (None, grader.TRIES))
         self.assertEqual(graded.refused, [json.dumps(bad)] * grader.TRIES)
         self.assertEqual(graded.offered, [{"q1": "yes"}] * grader.TRIES)  # its refused answers count in agreement
+
+    def test_a_retry_after_a_refused_form_is_told_why_and_a_first_try_is_told_nothing(self):
+        prompts, run = [], grader.host.run
+        noted = {"answers": [{**GOOD["answers"][0], "note": "with_skill hw-arm-word"},  # a field the form refuses
+                             {"id": "hw-run-word", "answer": "maybe hw-answer-word", "evidence": "TestX"}]}
+        recorded = lambda contained, prompt, **options: prompts.append(prompt) or run(contained, prompt, **options)
+        with mock.patch.object(grader.host, "run", recorded):
+            graded, _ = self.grade([{"do": "say", "text": json.dumps(noted)}])
+        self.assertIsNone(graded.sheet)  # the form never loosens: the note is refused on the retry too
+        self.assertEqual(graded.offered, [{"q1": "yes"}] * grader.TRIES)
+        first = prompts[0]
+        self.assertEqual(json.loads(first), [{"do": "say", "text": json.dumps(noted)}])  # told nothing
+        told = graded.tries[0].split("; ")
+        self.assertEqual(told, ["answer 1: holds id, answer, evidence as texts, and nothing else",
+                                "answer 2: its id is not a question of this run",
+                                "answer 2: its answer is not yes or no", "not answered: q1, q2"])
+        self.assertEqual(prompts[1], grader.instructions(first, told))
+        self.assertIn("- answer 1: holds id, answer, evidence as texts, and nothing else\n", prompts[1])
+        self.assertFalse([word for word in ("with_skill", "hw-arm-word", "hw-run-word", "hw-answer-word", "maybe",
+                                            "Done", "TestX") if word in prompts[1][len(first):]])
 
     def test_a_final_message_that_is_not_a_sheet_is_refused(self):
         graded, _ = self.grade([{"do": "say", "text": json.dumps(GOOD)}, {"do": "say", "text": "Done."}])

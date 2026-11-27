@@ -6,12 +6,14 @@ read its folder and write nothing the harness reads, so a grader sees one page a
 message, which is its answer sheet. The sheet is accepted only when `grading.check` finds no problem with it.
 
 - `grade(adapter, page, asked)`: one page graded, with one more try when the host fails or the sheet is refused
-  (`TRIES`). It returns the accepted sheet, or None with why, so that grader is ungraded. `grade` alone chooses where
-  a grader's folder is, since a grader starts in it and sees its whole path: a new folder of random name in the
-  operator's temp folder (`place`), the same for every page of a round, so the path tells no run, arm or golden
-  from another. The folder is removed after the try, once everything the run made outside it has passed
-  `evidence.reported`, the one way every run's output is scrubbed and checked for canaries, so a grader leaves no
-  credential and a canary stops the round.
+  (`TRIES`). A retry after a refused sheet is told why: the problems `grading.check` found, which are the harness's
+  own words and never the sheet's answers, its quotes or a word of the page, scrubbed (`instructions`), so a grader
+  that broke the form once is not left to break it the same way again. The form itself never loosens. It returns the
+  accepted sheet, or None with why, so that grader is ungraded. `grade` alone chooses where a grader's folder is,
+  since a grader starts in it and sees its whole path: a new folder of random name in the operator's temp folder
+  (`place`), the same for every page of a round, so the path tells no run, arm or golden from another. The folder is
+  removed after the try, once everything the run made outside it has passed `evidence.reported`, the one way every
+  run's output is scrubbed and checked for canaries, so a grader leaves no credential and a canary stops the round.
 - `sheet(message)`: the grading file in a final message: the JSON object the message ends with, after any closing
   fence. Text before it is ignored, since a grader may say a sentence or open a fence first; text after it refuses.
   A line break inside a string is read as it stands. Each try keeps its final message, scrubbed and cut to `KEPT`
@@ -48,6 +50,9 @@ PROMPT = Path(__file__).resolve().parents[1] / "grading" / "prompt.md"
 PAGE, QUESTIONS = "page.md", "questions.json"
 TRIES = 2  # a refused sheet or a failed host gets one more try, as a voided slot gets one remake
 KEPT = 4000  # characters of a refused message the grade record keeps
+RETRY = ("\n\nYour last answer sheet was refused for its form, before any answer in it was read:\n{problems}\n"
+         "Write the whole sheet again in the form above, every question answered, and nothing else in your last "
+         "message.\n")
 
 
 class Graded:
@@ -86,6 +91,14 @@ def sheet(message):
     return None
 
 
+def instructions(text, problems=()):
+    """The grader prompt, built here alone: `text`, and after a sheet refused for its form, `problems`, the scrubbed
+    problems `grading.check` found in it (`RETRY`). A first try, or one after the host failed, is told nothing."""
+    if not problems:
+        return text
+    return text + RETRY.format(problems="\n".join(f"- {problem}" for problem in problems))
+
+
 def place():
     """Where every grader folder is made: the operator's temp folder, which is the same for every page."""
     return Path(tempfile.gettempdir())
@@ -113,14 +126,14 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
         return Graded({"answers": []}, [], [])
     ids = [question["id"] for question in asked]
     text = PROMPT.read_text() if prompt is None else prompt
-    tries, logs, costs, refused, offered = [], [], [], [], []
+    tries, logs, costs, refused, offered, told = [], [], [], [], [], []
     for _ in range(TRIES):
         made, world = folder(page, asked)
         contained = ran = None
         try:
             contained = contain.Containment(adapter, "trigger", world, manifest.manifest(world), root=made / "run",
                                             **containment)
-            result = host.run(contained, text, skills=[], model=model, timeout=timeout)
+            result = host.run(contained, instructions(text, told), skills=[], model=model, timeout=timeout)
             clean = scrubs.Scrub.of_run(contained)  # made before the folder goes, so a refreshed credential counts
             ran, _ = evidence.reported(contained, result, clean, "grader")
         finally:
@@ -135,13 +148,15 @@ def grade(adapter, page, asked, model=None, timeout=900, prompt=None, watch=None
             tries.append(f"the host failed: {ran['failure']}")
             refused.append(None)
             offered.append(None)
+            told = []  # a host that failed has no sheet to be told about
             continue
         found = sheet(ran["final_message"])
         problems = (["the final message does not end with one JSON object"] if found is None
                     else grading.check(found, ids, page))
         if not problems:
             return Graded(found, tries, logs, costs, refused, offered)
-        tries.append(clean.text("; ".join(problems), "grader/problems"))
+        told = [clean.text(problem, "grader/problems") for problem in problems]
+        tries.append("; ".join(told))
         refused.append((ran["final_message"] or "")[:KEPT])  # scrubbed by evidence.reported
         offered.append(given(found, ids))
     return Graded(None, tries, logs, costs, refused, offered)

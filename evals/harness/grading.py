@@ -99,7 +99,9 @@ def _shown(entry, blobs):
 
 def check(grading, ids, page_text):
     """The problems of `grading` (a parsed grading file) for the question `ids` and the `page_text` the grader
-    read, as a list of texts. An empty list means the file is accepted."""
+    read, as a list of texts. An empty list means the file is accepted. Each is the harness's own words, an answer's
+    number and the question ids, and never a word of the file or the page, since a retry is told them
+    (`grader.instructions`)."""
     if not isinstance(grading, dict) or set(grading) != {"answers"} or not isinstance(grading["answers"], list):
         return ['a grading file holds "answers", a list, and nothing else']
     problems, seen = [], []
@@ -110,12 +112,12 @@ def check(grading, ids, page_text):
             problems.append(f"answer {number}: holds {', '.join(ANSWER_FIELDS)} as texts, and nothing else")
             continue
         if answer["id"] not in ids:
-            problems.append(f"answer {number}: {answer['id']!r} is not a question of this run")
+            problems.append(f"answer {number}: its id is not a question of this run")
         elif answer["id"] in seen:
             problems.append(f"answer {number}: {answer['id']} is answered twice")
         seen.append(answer["id"])
         if answer["answer"] not in ANSWERS:
-            problems.append(f"answer {number}: {answer['answer']!r} is not yes or no")
+            problems.append(f"answer {number}: its answer is not yes or no")
         quote = words(answer["evidence"])
         if not quote:
             problems.append(f"answer {number}: the evidence quotes nothing")
