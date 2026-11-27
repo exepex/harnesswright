@@ -1,6 +1,6 @@
 ---
 name: skill-designer
-description: Make or change a harnesswright skill in stages, one stage per run, each ending with a stage report that names who does the next step. It writes a skill's trigger and task cases first, then its template once goldens and a baseline round exist, then lists it once a round verifies it, and it decides whether a borrowed skill is adopted, adapted or written new from its licence. Use when asked to create a skill, adopt or adapt one from elsewhere, improve a skill's description or steps, fix a skill that failed its round, write its evals, or make it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill.
+description: Makes and changes harnesswright skills. It owns a skill's SKILL.tmpl.md template, description, steps and references under v2/skills/, and its trigger and task cases under evals/skills/. Use for any change to a skill there, however small, such as creating one, adopting or adapting one from elsewhere, improving its description or one of its steps, fixing a skill that failed its round, writing its evals, or making it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill or a change to one.
 license: Apache-2.0. LICENSE.txt has the full terms.
 metadata:
   roles: skill designer
@@ -9,12 +9,12 @@ metadata:
   source-licence: Apache-2.0
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
-  rulebook-version: "0.8.3"
-  content-hash: "fc106f9a1d026500e573508df86db683dfba03c7cc3cb13dea1aad109e2aa75e"
+  rulebook-version: "0.8.4"
+  content-hash: "198464dc032207753d4a253558101d3afe290ecab643c0cf5a22833c0a8fd523"
   size-floors: "15627"
-  size-rest: "29396"
+  size-rest: "29285"
 ---
-<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.3. Do not edit. -->
+<!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.4. Do not edit. -->
 
 # Skill designer
 

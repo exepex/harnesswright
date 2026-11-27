@@ -1,5 +1,5 @@
 {
-  "rulebook-version": "0.8.3",
+  "rulebook-version": "0.8.4",
   "run-time": [
     "manifest.json",
     "roles.md",
@@ -17,7 +17,7 @@
   "skills": {
     "claims-writer": {
       "areas": [],
-      "content-hash": "f8df2368d93cd326818511a9a7ab77beaba4b71d7afd0ed3c739aa7f38baffa0",
+      "content-hash": "5b3909de9678e96523fc27484466fbeedcdf0377bae66b221877686582909519",
       "copied-ids": [
         "CORE-SKILL-25",
         "CORE-WORK-01",
@@ -32,8 +32,8 @@
       ],
       "files": {
         "LICENSE-MIT.txt": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
-        "SKILL.md": "a44bb1fd51f62ebef453b70ecf8da16beefa7be44dd0cdd401897de67e1c8e1b",
-        "references/claims-template.md": "1223dd0c03dfdf0bce33647a91ad1dae8da73fa30fc9821f2924eadf2ec02019",
+        "SKILL.md": "953a782bddc31c9e64c53c7ac71d670d770683e656cf1e25a0973704e4a3a4a5",
+        "references/claims-template.md": "573f1c85ee210937c491d647adf62b572df2debfa36cd84d012d607956d0baff",
         "scripts/claims_check.py": "0e355d99e2c70dc6d3768aa758e343716e6d28f8440291f3660d3a6c0ef01e48",
         "scripts/claims_standards.py": "268a55803144c64b000575f89c09c1656618f5ebc3968393bc5f453800cffda9",
         "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
@@ -48,7 +48,7 @@
       "roles": [
         "claims writer"
       ],
-      "rulebook-version": "0.8.3",
+      "rulebook-version": "0.8.4",
       "size-floors": 4881,
       "size-rest": 20734
     },
@@ -58,7 +58,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "fc106f9a1d026500e573508df86db683dfba03c7cc3cb13dea1aad109e2aa75e",
+      "content-hash": "198464dc032207753d4a253558101d3afe290ecab643c0cf5a22833c0a8fd523",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -100,9 +100,9 @@
       ],
       "files": {
         "LICENSE.txt": "14099b9c79d031b9d4b32c736a4e20f2b941f52dd79500532d62d26dd716110c",
-        "SKILL.md": "dfc7e15d90a3e19bff828c8915f54730e04f7f1aa6389fad26447cc12605023f",
-        "references/case-format.md": "49b4e4cec84c25e901845cac544bb1bee3f7dfe310051f6f35dacf1e14fc0424",
-        "references/rules-by-reading.md": "e97e53a1137653e2b540129f11eb44c4aec3fb4c348554c04795b9931ada9476",
+        "SKILL.md": "56d819e94569cbbfa7512a969b3abd0847b7eb91fe1c9c04b7064144bdd3007d",
+        "references/case-format.md": "681d0e4ec57f9efc9cd3cca181ce7e530c7ca3d79d82bfe9657177cc1660614e",
+        "references/rules-by-reading.md": "4c6636d526fb6512fe6afc17f906e74717a11fdd1630e919edca7bf5f14f96cd",
         "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
         "scripts/reach.py": "099b97cf1f5f29615c01106de703a793fe5026bc09a7ebc182206450291ce27b",
         "scripts/repoprofile.py": "e340a378c4c285e9ab49f02d01693612787202b74b10aabe0563cf745370b5ec",
@@ -116,9 +116,9 @@
       "roles": [
         "skill designer"
       ],
-      "rulebook-version": "0.8.3",
+      "rulebook-version": "0.8.4",
       "size-floors": 15627,
-      "size-rest": 29396
+      "size-rest": 29285
     }
   }
 }
