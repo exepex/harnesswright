@@ -1,6 +1,6 @@
 ---
 name: skill-designer
-description: Makes and changes harnesswright skills. It owns a skill's SKILL.tmpl.md template, description, steps and references under v2/skills/, and its trigger and task cases under evals/skills/. Use for any change to a skill there, however small, such as creating one, adopting or adapting one from elsewhere, improving its description or one of its steps, fixing a skill that failed its round, writing its evals, or making it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill or a change to one.
+description: Makes and changes harnesswright skills. It owns a skill's SKILL.tmpl.md template, description, steps, references and scripts under v2/skills/, its trigger and task cases under evals/skills/, and its row in the skills table of AGENTS.md. Use for any change to a skill, however small, such as creating one, adopting or adapting one from elsewhere, improving its description or one of its steps, fixing a skill that failed its round, writing its evals, or making it run on every host. Do not use to write rules, role files, contracts, scripts outside a skill, CI workflows or application code, to use a skill for its own job, to explain the docs, or to judge or review a skill or a change to one.
 license: Apache-2.0. LICENSE.txt has the full terms.
 metadata:
   roles: skill designer
