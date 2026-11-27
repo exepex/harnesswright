@@ -10,9 +10,9 @@ metadata:
   sourcing: adapted
   copied-ids: "CORE-SKILL-07, CORE-SKILL-18, CORE-SKILL-19, CORE-SKILL-20, CORE-SKILL-21, CORE-SKILL-22, CORE-SKILL-24, CORE-SKILL-25, CORE-SKILL-27, CORE-TEMPLATE-02, CORE-TEMPLATE-03, CORE-TEMPLATE-05, CORE-TEMPLATE-06, CORE-WORK-01, CORE-WORK-02, CORE-WORK-03, CORE-WORK-04, CORE-WORK-05, CORE-WORK-06, CORE-WORK-07, CORE-CATALOG-01, CORE-SKILL-01, CORE-SKILL-03, CORE-SKILL-05, CORE-SKILL-09, CORE-SKILL-10, CORE-SKILL-12, CORE-SKILL-13, CORE-SKILL-14, CORE-SKILL-15, CORE-SKILL-16, CORE-SKILL-17, CORE-SKILL-23, CORE-SKILL-26, CORE-SKILL-28, CORE-SKILL-29, CORE-WORK-08"
   rulebook-version: "0.8.3"
-  content-hash: "889f6c06cab7654a85838bba98f36b1e5bc3aff3a897157a5e942aa6c4b57c37"
+  content-hash: "fc106f9a1d026500e573508df86db683dfba03c7cc3cb13dea1aad109e2aa75e"
   size-floors: "15627"
-  size-rest: "29390"
+  size-rest: "29396"
 ---
 <!-- Generated from v2/skills/skill-designer/SKILL.tmpl.md at version 0.8.3. Do not edit. -->
 
@@ -463,7 +463,7 @@ the harnesswright repository.
 
 This skill works in stages, because the goldens and rounds that a skill's evals need are made by other agents.
 Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
-and ends with a stage report.
+and ends with a stage report, or with the stop report when it stops.
 
 Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, the round's label
 file; for an improvement, the round report.
@@ -501,13 +501,13 @@ This skill does not:
 
 Rules: CORE-SKILL-28 (A skill states its purpose, limits and inputs, and stops on a missing required input), CORE-WORK-07 (Do not stop silently)
 
-**The stop report.** A stop ends the run with this report, filled in, as your final message and its closing step.
-Write nothing else: no stage report and none of the stage's files.
+**The stop report.** A stop ends the run. Your final message is these lines, filled in, and no other text. Write
+no file after the stop.
 
 ```text
-Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
+Blocked: <what is missing or failed, named exactly; for the rules index, its path; for a command, the command and the line of its output that names the failure>
 <the one question its Inputs row gives, where the rules allow one>
-Done: <what you checked before the stop, and how>
+Done: <what you checked and how, and every file you wrote before the stop>
 Not done: <the stage's work, which waits on the line above>
 ```
 
@@ -519,8 +519,7 @@ and never run a borrowed script before a person has reviewed it.
 
 ## Steps
 
-Do the steps in order. Each ends with a check; do not start the next until it passes. A stop ends the run with
-the stop report.
+Do the steps in order. Each ends with a check; do not start the next until it passes.
 
 ### 1. Check what the run needs, and read its rules
 
@@ -699,7 +698,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop: give the stop report (Inputs) and nothing else. |
+| Something the run needs is missing | Stop: give the stop report (Inputs). |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |

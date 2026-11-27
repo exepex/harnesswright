@@ -21,7 +21,7 @@ the harnesswright repository.
 
 This skill works in stages, because the goldens and rounds that a skill's evals need are made by other agents.
 Each run finds its stage from what exists, does only that stage, writes only the files that stage allows,
-and ends with a stage report.
+and ends with a stage report, or with the stop report when it stops.
 
 Needs: the rules index the project names, such as `v2/rules/core/index.md`; for stage 2 and 3, the round's label
 file; for an improvement, the round report.
@@ -59,13 +59,13 @@ This skill does not:
 
 Rules: {{rule:CORE-SKILL-28}}, {{rule:CORE-WORK-07}}
 
-**The stop report.** A stop ends the run with this report, filled in, as your final message and its closing step.
-Write nothing else: no stage report and none of the stage's files.
+**The stop report.** A stop ends the run. Your final message is these lines, filled in, and no other text. Write
+no file after the stop.
 
 ```text
-Blocked: <what is missing or failed: the file, folder, tool or input, named exactly; for the rules index, its path>
+Blocked: <what is missing or failed, named exactly; for the rules index, its path; for a command, the command and the line of its output that names the failure>
 <the one question its Inputs row gives, where the rules allow one>
-Done: <what you checked before the stop, and how>
+Done: <what you checked and how, and every file you wrote before the stop>
 Not done: <the stage's work, which waits on the line above>
 ```
 
@@ -77,8 +77,7 @@ and never run a borrowed script before a person has reviewed it.
 
 ## Steps
 
-Do the steps in order. Each ends with a check; do not start the next until it passes. A stop ends the run with
-the stop report.
+Do the steps in order. Each ends with a check; do not start the next until it passes.
 
 ### 1. Check what the run needs, and read its rules
 
@@ -257,7 +256,7 @@ Check: your message matches the stage report.
 
 | Situation | What to do |
 |---|---|
-| Something the run needs is missing | Stop: give the stop report (Inputs) and nothing else. |
+| Something the run needs is missing | Stop: give the stop report (Inputs). |
 | The request asks for the skill and no cases exist | Do stage 1. Say the skill comes after its goldens and a baseline round. |
 | A source has no licence, or its licence forbids copying | Write new. Name the source and the missing licence in Path. |
 | You find no goldens for the skill | Expected: others keep them. The label file is the evidence; do not search or stop. |

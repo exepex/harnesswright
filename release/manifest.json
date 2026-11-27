@@ -58,7 +58,7 @@
         "SKILL",
         "TEMPLATE"
       ],
-      "content-hash": "889f6c06cab7654a85838bba98f36b1e5bc3aff3a897157a5e942aa6c4b57c37",
+      "content-hash": "fc106f9a1d026500e573508df86db683dfba03c7cc3cb13dea1aad109e2aa75e",
       "copied-ids": [
         "CORE-SKILL-07",
         "CORE-SKILL-18",
@@ -100,7 +100,7 @@
       ],
       "files": {
         "LICENSE.txt": "14099b9c79d031b9d4b32c736a4e20f2b941f52dd79500532d62d26dd716110c",
-        "SKILL.md": "a95e0630ebd1bab8831717ecb7fd45ca0449c9b46c0a111fc9da2a23d516cef5",
+        "SKILL.md": "dfc7e15d90a3e19bff828c8915f54730e04f7f1aa6389fad26447cc12605023f",
         "references/case-format.md": "49b4e4cec84c25e901845cac544bb1bee3f7dfe310051f6f35dacf1e14fc0424",
         "references/rules-by-reading.md": "e97e53a1137653e2b540129f11eb44c4aec3fb4c348554c04795b9931ada9476",
         "scripts/copyform.py": "aeca65ef7c22439133675af14cce773db5bc2847084cda19a03bfc7c25d4867a",
@@ -118,7 +118,7 @@
       ],
       "rulebook-version": "0.8.3",
       "size-floors": 15627,
-      "size-rest": 29390
+      "size-rest": 29396
     }
   }
 }
