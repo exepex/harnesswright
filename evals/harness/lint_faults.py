@@ -17,6 +17,8 @@ import world
 from cases import REPO
 from faults import Missed
 
+NEUTRAL = "Keep it short."  # text that names, states and quotes nothing, so no rule of the lint refuses it
+
 
 def _lint(setup, folder):
     """The lint's problems for the case in `folder`, as `lint.lint_skill` lints a skill's cases."""
@@ -37,10 +39,9 @@ def _refused(setup, rng, where, plant, rule):
     control = _lint(setup, folder)
     if control:
         return f"the clean case does not pass the lint, so the fault proves nothing: {control[0]}"
-    neutral = f"hw-plain-{rng.getrandbits(32):08x}"
     for place in _places(folder, where, rng):
         folder, data = faults._copy(setup)
-        plant(folder, data, place, neutral)
+        plant(folder, data, place, NEUTRAL)
         (folder / "case.json").write_text(json.dumps(data))
         if _lint(setup, folder):
             continue  # another rule decides here, so a refusal here would prove nothing of this one
