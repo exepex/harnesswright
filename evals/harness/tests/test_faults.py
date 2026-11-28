@@ -14,10 +14,12 @@ from test_gate import Upstream
 from test_probes import SOUND
 from test_world import AGENTS, INDEX
 
+import cases
 import contain
 import faults
 import host
 import lint
+import lint_faults
 
 KEY = "fake-key-0123456789abcdef"
 PROMPTS = {
@@ -97,6 +99,20 @@ class Fingerprint(Fake):
             with self.subTest(seed=seed):
                 outcome = faults.run(names, setup, seed, place="existing/fingerprint")
                 self.assertEqual((outcome["caught"], outcome["reason"]), (True, None))
+
+    def test_a_plant_goes_only_where_its_rule_is_the_one_that_decides(self):
+        # The seed of a round whose fault planted the fingerprint after story-met's harnesswright block, where the
+        # lint refused it as "not the profile's last entry": another rule, so the fault was missed and the round
+        # stopped. A place where the plant's own rule does not decide is never planted.
+        [case] = [c for c in cases.load_cases("claims-writer") if c.id == "story-met"]
+        setup = faults.Setup(fake_adapter(), case, faults.REPO / "release", self.tmp / "faults", {})
+        names = next(e for e in faults.load() if e["id"] == "names")
+        outcome = faults.run(names, setup, "1896257030:claude-code:names")
+        self.assertEqual((outcome["place"], outcome["caught"], outcome["reason"]), ("existing/fingerprint", True, None))
+        with mock.patch.object(lint_faults, "_places", lambda folder, where, rng: [".harness/profile.yaml"]):
+            outcome = faults.run(names, setup, 0, place="existing/name")  # no place left where its rule decides
+        self.assertFalse(outcome["caught"])  # another refusal is never a catch
+        self.assertIn("alone decides", outcome["reason"])
 
 
 # What the gate saw when it caught each fault that stops its run before a bundle holds the catch.

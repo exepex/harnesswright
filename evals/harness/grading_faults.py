@@ -69,10 +69,19 @@ def _flip(answer):
 
 def _pages(setup, rng):
     """(case, [(golden, record, blob, asked)]) for the goldens of the repository case the seed chooses."""
-    found = [(s.name, c.name) for s in sorted(goldens.ROOT.glob("*")) if s.is_dir() for c in sorted(s.iterdir())]
+    found = held()
     if not found:
         raise Missed("the repository has no goldens to plant grading faults on")
-    skill, name = rng.choice(found)
+    return built(setup, *rng.choice(found))
+
+
+def held():
+    """Each repository case with goldens, as (skill, case id), in order."""
+    return [(s.name, c.name) for s in sorted(goldens.ROOT.glob("*")) if s.is_dir() for c in sorted(s.iterdir())]
+
+
+def built(setup, skill, name):
+    """(case, [(golden, record, blob, asked)]) for the goldens of the case `name` of `skill`."""
     [case] = [c for c in cases.load_cases(skill) if c.id == name]
     pages = []
     for golden in goldens.load(case):
@@ -306,19 +315,20 @@ def view_(setup, fault, rng, place):
                          for file in [*rules, f"notes-{skill}.md"]})
             one["files_after"].update(made)
             one["diff"].update({name: {"before": None, "after": value} for name, value in made.items()})
+        # Each line the install adds to a file it edits in place, the index row and a team profile's version line,
+        # goes in that file as the planted record holds it, so in what each of the run's writes of it wrote.
         index = layer.get("index")
-        if index and layer.get("row") and manifest.is_file(record["files_after"].get(index, "")):
-            was = record["files_after"][index]  # the row the install adds, before the run, as the install writes it
-            planted["files_after"][index] = f"file {stored(blob(was.split(' ')[1]) + layer['row'].encode() + b'\n')}" \
-                + was[len("file ") + 64:]
         named = [p for p in layer.get("release", []) if PurePosixPath(p).name == teamrelease.SELF]
-        for path in sorted(set(layer.get("edited") or {}) - {index}):  # a team profile's version line
+        lines = {path: f'  version: "0.0.0"  # checked against {named[0]}\n'
+                 for path in set(layer.get("edited") or {}) - {index} if named}
+        if index and layer.get("row"):
+            lines[index] = layer["row"] + "\n"
+        for path, line in sorted(lines.items()):
             was = planted["files_after"].get(path, "")
-            if named and manifest.is_file(was):
+            if manifest.is_file(was):
                 data = added.get(was.split(" ")[1]) or blob(was.split(" ")[1])
-                line = f'  version: "0.0.0"  # checked against {named[0]}\n'.encode()
-                planted["files_after"][path] = f"file {stored(data + line)}{was[len('file ') + 64:]}"
-                for item in planted["log"]:  # in the file before the run wrote it, so in what each write wrote
+                planted["files_after"][path] = f"file {stored(data + line.encode())}{was[len('file ') + 64:]}"
+                for item in planted["log"]:
                     if item["kind"] == "write" and item.get("sha256") == was.split(" ")[1]:
                         item["sha256"] = planted["files_after"][path].split(" ")[1]
         for path in evidence.places(layer):  # the overlay as a run holds it: its folders, those above, its files

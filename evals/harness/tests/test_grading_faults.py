@@ -15,6 +15,7 @@ import goldens
 import grader
 import grading
 import grading_faults
+import teamrelease
 import view
 
 
@@ -122,6 +123,19 @@ def survivor_wins(page, asked, graders, tiebreak):
     return found
 
 
+def team(setup, rng):
+    """The pages of the first case with goldens, in order, that is a team install on every golden: its overlay adds a
+    release with its manifest and writes the version line into a file of the world. Chosen by that shape, never by
+    the seed, so a test that needs it holds however many cases have goldens."""
+    for skill, name in grading_faults.held():
+        case, found = grading_faults.built(setup, skill, name)
+        if found and all(any(PurePosixPath(p).name == teamrelease.SELF for p in r["overlay"].get("release", []))
+                         and set(r["overlay"].get("edited") or {}) - {r["overlay"].get("index")}
+                         for _, r, _, _ in found):
+            return case, found
+    raise AssertionError("no case with goldens is a team install")
+
+
 def first_wins(page, asked, graders, tiebreak):
     """A panel that asks the tie-breaker, then keeps the first grader's answers."""
     found = PANEL(page, asked, graders, tiebreak)
@@ -190,10 +204,10 @@ class Missed(Fake):
                     self.assertIn(reason, outcome["reason"])
 
     def test_a_view_that_leaves_a_release_file_of_the_overlay_unguarded_is_a_miss(self):
-        setup, entry, pages = self.setup_of(), next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
+        setup, entry = self.setup_of(), next(e for e in faults.load() if e["id"] == "view")
 
         def with_release(setup, rng):  # a team install's overlay: its skill's folder and the release files it adds
-            case, found = pages(setup, rng)
+            case, found = team(setup, rng)
             for _, record, _, _ in found:
                 record["overlay"]["release"] = ["rules/core/work.md"]
             return case, found
@@ -210,9 +224,10 @@ class Missed(Fake):
 
     def test_a_view_that_leaves_a_team_profile_s_version_line_is_a_miss(self):
         setup, entry = self.setup_of(), next(e for e in faults.load() if e["id"] == "view")
-        self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])  # the case's world has a profile
-        with mock.patch.object(view.teamrelease, "stated", lambda line: None):
-            outcome = faults.run(entry, setup, seed=0, place="file")
+        with mock.patch.object(grading_faults, "_pages", team):  # a case whose world has a team profile
+            self.assertTrue(faults.run(entry, setup, seed=0, place="file")["caught"])
+            with mock.patch.object(view.teamrelease, "stated", lambda line: None):
+                outcome = faults.run(entry, setup, seed=0, place="file")
         self.assertFalse(outcome["caught"])
         self.assertIn("the view a grader gets", outcome["reason"])
 
@@ -221,7 +236,7 @@ class Missed(Fake):
         entry, pages = next(e for e in faults.load() if e["id"] == "view"), grading_faults._pages
 
         def with_release(setup, rng):  # a release file's path names no skill, but it is one of the overlay's paths
-            case, found = pages(setup, rng)
+            case, found = team(setup, rng)
             for _, record, _, _ in found:
                 record["overlay"]["release"] = ["rules/core/work.md"]
             return case, found
@@ -229,6 +244,15 @@ class Missed(Fake):
             with self.subTest(setting=setting.__name__), mock.patch.object(grading_faults, "_pages", setting), \
                     mock.patch.object(view.evidence, "covers", covers_without("place")):
                 self.assertFalse(faults.run(entry, setup, seed=0, place="file")["caught"])
+
+    def test_a_view_fault_in_a_file_is_caught_on_every_case_with_goldens(self):
+        # A file the run wrote can be one the install also edits, such as the index: the plant puts both in it.
+        setup, entry = self.setup_of(), next(e for e in faults.load() if e["id"] == "view")
+        for skill, name in grading_faults.held():
+            pick = lambda setup, rng, skill=skill, name=name: grading_faults.built(setup, skill, name)
+            with self.subTest(case=f"{skill}/{name}"), mock.patch.object(grading_faults, "_pages", pick):
+                outcome = faults.run(entry, setup, seed=0, place="file")
+                self.assertEqual((outcome["caught"], outcome["reason"]), (True, None))
 
     def test_the_seed_chooses_the_golden_and_the_place(self):
         setup = self.setup_of()

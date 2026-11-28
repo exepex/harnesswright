@@ -19,7 +19,6 @@ import cases
 import contain
 import evidence
 import host
-import lint
 import look
 import manifest
 import probes
@@ -280,107 +279,23 @@ def _secrets(env, keys):
     return [spelling for v in found if v for spelling in {v, urllib.parse.unquote(v)}]  # as written, and decoded
 
 
-def _lint(setup, folder):
-    """The lint's problems for the case in `folder`, as `lint.lint_skill` lints a skill's cases."""
-    return lint.lint_skill(setup.case.skill, setup.adapter, folder.parent, setup.skills_root, setup.repo,
-                           setup.skill_dir)
-
-
-def _refused(setup, plant, rule):
-    """Copy the case, check that the lint passes it, plant with `plant(folder, data)`, which returns the key of the
-    place it planted (a world path or `<prompt>`), and check that the lint refuses that place by `rule`, the words
-    of the one problem the plant must cause. Another problem at that place is not this fault caught."""
-    folder, data = _copy(setup)
-    control = _lint(setup, folder)
-    if control:
-        return f"the clean case does not pass the lint, so the fault proves nothing: {control[0]}"
-    key = plant(folder, data)
-    (folder / "case.json").write_text(json.dumps(data))
-    found = _lint(setup, folder)
-    if any(problem.startswith(f"{setup.case.id}: {key}: ") and rule in problem for problem in found):
-        return None
-    return f"the lint did not refuse {key} as {rule!r}: {found[:2]}"
-
-
-def _put(folder, data, rng, place, text):
-    """Put `text` at `place`: a new world file, the end of an existing one, or the end of the prompt."""
-    if place == "prompt":
-        data["prompt"] += f" {text}"
-        return cases.PROMPT_KEY
-    files = sorted(p for p in (folder / "world").rglob("*")
-                   if p.is_file() and not p.is_symlink() and lint.plain(p.read_bytes()) is not None)
-    if place == "existing" and files:
-        path = rng.choice(files)
-        path.write_text(path.read_text() + f"\n{text}\n")
-    else:
-        path = folder / "world" / f"notes-{rng.randrange(16 ** 6):06x}.md"
-        path.write_text(f"# Notes\n\n{text}\n")
-    return str(path.relative_to(folder / "world"))
-
-
-def names(setup, fault, rng, place):
-    """The skill's name, its path, or a run of its own text (its fingerprint) at a place the run sees. Caught when
-    the lint refuses that place."""
-    where, what = place.split("/")
-    skill = setup.case.skill
-    if what == "name":
-        text = f"Ask {skill} for help here."
-    elif what == "path":
-        text = f"See {setup.case.skill_rel} first."
-    else:
-        # A run of the skill's own text that the lint protects in this case, as the lint itself finds them.
-        repo, arm = Path(setup.repo), world.build(setup.case, setup.adapter, setup.folder() / "a", setup.skills_root)
-        copied, _ = lint.verified_copies(setup.case, repo)
-        own = sorted(lint.protected(setup.case, lint.visible(setup.case, arm), copied, setup.skill_dir,
-                                    lint.texts(repo / "evals" / "skills" / skill / "upstream"), repo)[1])
-        if not own:
-            raise Missed("the skill has no text of its own for the lint to protect, so no fingerprint can be planted")
-        text = rng.choice(own)
-    rule = "of the skill's own text" if what == "fingerprint" else "names the skill"
-    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
-
-
-def tells(setup, fault, rng, place):
-    """A test-tell word, a run of the measuring kit's own text, or a whole eval file (a copy of this catalogue) at a
-    place the run sees. Caught when the lint refuses that place."""
-    where, what = place.split("/")
-    if what == "eval file":
-        def plant(folder, data):
-            name = f"plan-{rng.randrange(16 ** 6):06x}.json"
-            shutil.copyfile(Path(setup.repo) / CATALOGUE.relative_to(REPO), folder / "world" / name)
-            return name
-        return _refused(setup, plant, "holds eval text")
-    if what == "word":
-        allowed = {" ".join(lint.words(w)) for ws in setup.case.allow_words.values() for w in ws}  # a case's own
-        text = f"Keep the {rng.choice([t for t in lint.TELLS if t not in allowed])} notes short."
-    else:
-        rows = [w for e in load(Path(setup.repo) / CATALOGUE.relative_to(REPO))
-                for w in [e.get("prompt", "").split()] if len(w) >= lint.RUN]
-        said = rng.choice(rows)
-        start = rng.randrange(len(said) - lint.RUN + 1)
-        text = " ".join(said[start:start + lint.RUN])
-    rule = "test-tell word" if what == "word" else "holds eval text"
-    return _refused(setup, lambda folder, data: _put(folder, data, rng, where, text), rule)
-
-
 def plants():
-    """Every plant, by id: this module's, the host faults' (`host_faults.py`), the backstop's (`backstop_faults.py`)
-    and the grading faults' (`grading_faults.py`, `panel_faults.py`, `grader_faults.py`), which use this module."""
+    """Every plant, by id: this module's, the host faults' (`host_faults.py`), the lint's (`lint_faults.py`), the
+    backstop's (`backstop_faults.py`) and the grading faults' (`grading_faults.py`, `panel_faults.py`,
+    `grader_faults.py`), which use this module."""
     import backstop_faults
     import grader_faults
     import grading_faults
     import host_faults
+    import lint_faults
     import panel_faults
-    return {**PLANTS, **host_faults.PLANTS, **backstop_faults.PLANTS, **grading_faults.PLANTS, **panel_faults.PLANTS,
-            **grader_faults.PLANTS}
+    return {**PLANTS, **host_faults.PLANTS, **lint_faults.PLANTS, **backstop_faults.PLANTS, **grading_faults.PLANTS,
+            **panel_faults.PLANTS, **grader_faults.PLANTS}
 
 
-SPOTS = ("file", "existing", "prompt")
 # Each plant: its function, its places, and whether it runs a case on a host (so needs a prompt, and stores a bundle).
 PLANTS = {
     "outside": (outside, ("beside", "operator", "other run", "machine", "repository"), True),
     "inside": (inside, ("world", "host path", "credential"), False),
     "environment": (environment, ("operator env",), True),
-    "names": (names, tuple(f"{s}/{w}" for s in SPOTS for w in ("name", "path", "fingerprint")), False),
-    "tells": (tells, tuple(f"{s}/{w}" for s in SPOTS for w in ("word", "kit text")) + ("file/eval file",), False),
 }
