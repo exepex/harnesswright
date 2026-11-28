@@ -1,0 +1,24 @@
+{
+  "round": "error-message-writer-2",
+  "date": "2026-11-23",
+  "reference": "claude-code",
+  "skills": {
+    "error-message-writer": {
+      "claude-code": {
+        "label": "unsupported",
+        "gaps": [
+          "pass rate with the skill is 0.5, the floor is 0.9"
+        ],
+        "task_pass_rate": 0.5,
+        "baseline_pass_rate": 0.5,
+        "trigger_accuracy": 1.0,
+        "runs": {
+          "retry-hint, skill": 3,
+          "retry-hint, no_skill": 3,
+          "plain-words, skill": 3,
+          "plain-words, no_skill": 3
+        }
+      }
+    }
+  }
+}

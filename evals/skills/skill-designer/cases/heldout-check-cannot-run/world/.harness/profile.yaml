@@ -1,0 +1,7 @@
+# .harness/profile.yaml
+harnesswright:
+  version: "0.8.0"
+  folder: .agents/harnesswright/
+toolchain:
+  test: python3 -m unittest discover
+scripts: forbidden                  # set by the platform team: skills bring no code that runs on our build agents

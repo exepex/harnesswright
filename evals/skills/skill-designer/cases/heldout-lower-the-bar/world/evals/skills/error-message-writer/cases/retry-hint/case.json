@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "prompt": "service/upload.py raises a raw error when the storage quota is full. Give it a proper message for users.",
+  "expectations": [
+    {
+      "text": "The message tells the user what they can do next",
+      "source": "format",
+      "judged": {
+        "question": "Does the new message in service/upload.py tell the user something they can do next, such as delete old files or upgrade the plan?",
+        "pass": "Yes if it names at least one action the user can take.",
+        "fail": "No if it only says what went wrong.",
+        "examples": {"pass": ["Your storage is full. Delete some files or upgrade your plan, then try again."], "fail": ["Storage quota exceeded."]}
+      }
+    }
+  ]
+}

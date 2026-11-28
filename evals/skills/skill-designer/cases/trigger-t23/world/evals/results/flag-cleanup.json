@@ -1,0 +1,21 @@
+{
+  "round": "flag-cleanup-2",
+  "date": "2026-11-24",
+  "reference": "claude-code",
+  "skills": {
+    "flag-cleanup": {
+      "claude-code": {
+        "label": "verified",
+        "task_pass_rate": 1.0,
+        "trigger_accuracy": 0.95,
+        "trigger": {"met": true, "accuracy": 0.95}
+      },
+      "codex": {
+        "label": "verified",
+        "task_pass_rate": 0.9444,
+        "trigger_accuracy": 0.9,
+        "trigger": {"met": true, "accuracy": 0.9}
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "prompt": "small one: v2/skills/config-reference/references/key-table.md still has a Default column in its example, but step 2 of the template now says leave defaults out. take that column out of the example so the two agree",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "internal_world": {
+    "remove": [],
+    "jobs": [
+      "| config-reference | implementer | config-reference | config-reference |"
+    ]
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

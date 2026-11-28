@@ -1,0 +1,20 @@
+{
+  "prompt": "run flag-cleanup on services/billing please. new_invoice_layout has been on for every customer since March and nobody wants the old layout back, so get rid of the flag",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "internal_world": {
+    "remove": [],
+    "jobs": [
+      "| flag-cleanup | implementer | flag-cleanup | flag-cleanup |"
+    ]
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}
