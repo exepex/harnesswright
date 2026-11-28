@@ -1,0 +1,20 @@
+{
+ "changes": {
+ },
+ "log": [
+  {"kind": "read", "source": "observed", "path": "AGENTS.md"},
+  {"kind": "read", "source": "observed", "path": "v2/roles.md"},
+  {"kind": "read", "source": "observed", "path": "v2/rules/core/index.md"},
+  {"kind": "command", "source": "observed", "command": "ls evals/skills", "exit_code": 2, "output": "ls: cannot access 'evals/skills': No such file or directory\n"},
+  {"kind": "message", "source": "observed", "text": "Blocked: the request does not say what the on-call handover skill should produce, or which role it is for.\n\nNothing is written. Handover work could be the outgoing engineer's note, a check of a note someone else wrote, or a summary of the pages in a shift, and `v2/roles.md` has no role whose job is any of these.\n\nWhat should the skill produce (the note itself, a check of a note, or a shift summary), and for which role in `v2/roles.md`?\n\nWhen you answer, a new run writes the skill's cases first; the skill itself comes after its goldens and a baseline round."}
+ ],
+ "settled": {
+  "q1": {"expectation": "The run puts one question to the owner, asking what the skill produces and for which role", "sha256": "0cde74931be81e612b563865c37f7f513fcb1bf5e8e612f1a6e70b41717d08d4", "answer": "yes", "by": "golden-author-h"},
+  "q2": {"expectation": "No file outside the run folder is added, changed or removed", "sha256": "402e9504a037d3d43ba89d6017d9818262dda5511f680168e8f13db93d0ad6c8", "answer": "yes", "by": "golden-author-h"},
+  "q3": {"expectation": "The closing report carries a line beginning Blocked:", "sha256": "40520ba01f17ec55b982a8c568e10c451df95892c13522d52b6af480c30d89f8", "answer": "yes", "by": "golden-author-h"},
+  "q4": {"expectation": "That Blocked: line names the missing output and the missing role", "sha256": "4525dcd127417233472e5764d7ee231668ddac25b15f185c62c4a63871eba9aa", "answer": "yes", "by": "golden-author-h"},
+  "q5": {"expectation": "The run leaves the job and the role to the owner and says no skill work is made", "sha256": "5da410c6ed970d45b25bab5da12272a5edeb9d307396883ec6f888353357a570", "answer": "yes", "by": "golden-author-h"},
+  "q6": {"expectation": "harnesswright's rule and release checks pass on the world after the run", "sha256": "8bcce3ae6256abaa24f56c634aa586a358f1d16d4540ecad1b290b5696033ec7", "answer": "yes", "by": "golden-author-h"},
+  "q7": {"expectation": "The run says the work is done", "sha256": "b670af9b7fe4dcaabb5da5ab08d56f937f5800b1f8dfdd9b55b602d4b912ae02", "answer": "no", "by": "golden-author-h"}
+ }
+}

@@ -1,0 +1,17 @@
+{
+  "prompt": "the Capabilities table in docs/design/07-repo-profile.md has nothing for feature flags. add a feature-flags row after ci: it reads which flags are on for which users, typically LaunchDarkly or Unleash through an MCP server or their CLI",
+  "kind": "trigger",
+  "should_trigger": false,
+  "split": "test",
+  "internal_world": {
+    "remove": []
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

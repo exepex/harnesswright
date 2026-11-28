@@ -1,0 +1,20 @@
+{
+  "prompt": "release-blurb keeps telling people their announcement is over 80 words when it plainly isn't. the counter in v2/skills/release-blurb/scripts/count_words.py splits on hyphens, so long-running counts as two words. can you sort that out",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "internal_world": {
+    "remove": [],
+    "jobs": [
+      "| release-blurb | implementer | release-blurb | release-blurb |"
+    ]
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ]
+}

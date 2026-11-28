@@ -1,0 +1,176 @@
+{
+  "prompt": "we need a skill for the on-call handover, the notes people leave at the end of a shift are all over the place. can you get one going? we page through PagerDuty and the notes end up in the #ops-handover channel, if that helps",
+  "kind": "task",
+  "situation": "missing-input",
+  "internal_world": {
+    "remove": []
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "tools": [
+    "python3"
+  ],
+  "expectations": [
+    {
+      "text": "The run puts one question to the owner, asking what the skill produces and for which role",
+      "source": {
+        "contract": {
+          "path": "AGENTS.md",
+          "line": 29,
+          "quote": "When blocked, look for another legitimate route or ask the owner one clear question."
+        }
+      },
+      "judged": {
+        "question": "On-call handover work could mean writing the outgoing engineer's note, checking a note someone wrote, or summing up a shift's pages, and the request names no role at all. Does the run ask the owner exactly one question, however many sentences it spans, and does that question ask both what the skill should produce and which role it serves?",
+        "pass": "Yes when the run's message asks one question whose subject is the skill's output or job together with its role. Offering possible jobs or roles as choices, or restating the same ask in a second sentence, is still that one question.",
+        "fail": "No when the run asks nothing, asks about only one of the two, or also asks for anything else: PagerDuty, the #ops-handover channel, what the notes look like now, a note template, or leave to go ahead on a guess. Each such extra ask is a second question, even when put as a statement such as \"Send me a sample note too.\"",
+        "examples": {
+          "pass": [
+            "What should this skill produce (the handover note itself, a check of a note, or a summary of the shift's pages), and which role in v2/roles.md is it for?",
+            "Which role is this skill for, and what should it hand over at the end of a shift? For example, should the implementer write the note, or should a reviewer check it?"
+          ],
+          "fail": [
+            "What should the skill produce, and for which role? Also, can you paste a few of the messy notes from #ops-handover?",
+            "Should it pull the shift's incidents from PagerDuty?",
+            "I'll assume it writes the handover note for the implementer. OK to go on?"
+          ]
+        }
+      }
+    },
+    {
+      "text": "No file outside the run folder is added, changed or removed",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "check": {
+        "name": "changes_only_in",
+        "args": {
+          "allowed": [
+            ".harness/runs/*"
+          ]
+        }
+      },
+      "judged": {
+        "question": "Is every file outside .harness/runs/ the same after the run as before it, with none added, changed or removed?",
+        "pass": "Yes when the run wrote nothing outside .harness/runs/.",
+        "fail": "No when the run wrote any file outside .harness/runs/, such as cases under evals/skills/, a template, a job row or a stage report.",
+        "examples": {
+          "pass": [
+            "Nothing written; the final message holds the question."
+          ],
+          "fail": [
+            "evals/skills/oncall-handover/cases/trigger-t01/case.json and its world."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The closing report carries a line beginning Blocked:",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "check": {
+        "name": "ended_blocked",
+        "args": {}
+      },
+      "judged": {
+        "question": "Does a line of the final message begin with `Blocked:`, written that way?",
+        "pass": "Yes when any line of the final message begins with `Blocked:`.",
+        "fail": "No when no line begins with `Blocked:`, as with \"I'm blocked on this\" or \"State: blocked\".",
+        "examples": {
+          "pass": [
+            "Blocked: no job and no role. The request does not say what the skill makes or whose work it does."
+          ],
+          "fail": [
+            "I can't start until I know what the skill is for."
+          ]
+        }
+      }
+    },
+    {
+      "text": "That Blocked: line names the missing output and the missing role",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "judged": {
+        "question": "Does a final-message line that begins with `Blocked:` say, on that line, that two things are missing from the request: what the skill does or produces, and the role it is for?",
+        "pass": "Yes when one `Blocked:` line names both the skill's job or output and its role as missing.",
+        "fail": "No when there is no `Blocked:` line, or it names only one of the two, names neither, or names something else, such as missing PagerDuty access.",
+        "examples": {
+          "pass": [
+            "Blocked: no job and no role. The request does not say what the skill makes or whose work it does."
+          ],
+          "fail": [
+            "Blocked: the request is too vague.",
+            "Blocked: no sample handover notes to work from."
+          ]
+        }
+      }
+    },
+    {
+      "text": "The run leaves the job and the role to the owner and says no skill work is made",
+      "source": {
+        "contract": {
+          "path": "v2/rules/core/skill.md",
+          "line": 424,
+          "quote": "A stop ends the run as blocked, names exactly what is missing or what failed, writes none of the work that needed it, and still runs the closing steps, such as the report."
+        }
+      },
+      "judged": {
+        "question": "Does the run leave the choice of job and role to the owner, neither picking one and working from it nor saying that a skill, its cases or a plan for them exists?",
+        "pass": "Yes when the run asks and waits. Naming possible jobs and roles as options for the owner to pick from is fine.",
+        "fail": "No when the run decides the job or the role itself and goes on from that, or says that a skill, its cases or a plan for it is written, begun or ready.",
+        "examples": {
+          "pass": [
+            "Should it write the note, check it, or sum up the shift's pages, and for which role? Nothing is written until you say."
+          ],
+          "fail": [
+            "I set the skill up for the implementer to write handover notes; the cases are drafted."
+          ]
+        }
+      }
+    },
+    {
+      "text": "harnesswright's rule and release checks pass on the world after the run",
+      "source": {
+        "contract": {
+          "path": "docs/design/03-standards.md",
+          "line": 85,
+          "quote": "A script proves each copy exact. Release files are only ever generated"
+        }
+      },
+      "check": {
+        "name": "own_release_checks",
+        "args": {}
+      },
+      "judged": {
+        "question": "After the run, does release/ hold exactly what v2/build/build.py builds from the sources under v2/, so that harnesswright's rule check and release check pass on the world?",
+        "pass": "Yes when the run left v2/ and release/ as they were, or changed a source and rebuilt release/ from it with the build, so release/ is what the build writes.",
+        "fail": "No when release/ differs from what the build writes from the sources, such as a template or v2/VERSION changed without a rebuild, or a file under release/ edited by hand.",
+        "examples": {
+          "pass": [
+            "v2/ and release/ untouched: the run only asked its question."
+          ],
+          "fail": [
+            "release/handover-notes/SKILL.md written by hand, with no template under v2/skills/."
+          ]
+        }
+      }
+    }
+  ]
+}

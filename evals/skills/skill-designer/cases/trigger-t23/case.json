@@ -1,0 +1,34 @@
+{
+  "prompt": "flag-cleanup passed its round on both hosts this morning (evals/results/flag-cleanup.json). please put it in the skills list in AGENTS.md now so people can actually find it",
+  "kind": "trigger",
+  "should_trigger": true,
+  "split": "test",
+  "internal_world": {
+    "remove": [],
+    "jobs": [
+      "| flag-cleanup | implementer | flag-cleanup | flag-cleanup |"
+    ]
+  },
+  "index": {
+    "file": "AGENTS.md",
+    "after": "| Skill | Path | Use when |",
+    "row": "| {name} | [{path}]({path}) | {description} |"
+  },
+  "siblings": [
+    "claims-writer"
+  ],
+  "allow_words": {
+    "<prompt>": [
+      "evals"
+    ],
+    "evals": [
+      "evals"
+    ],
+    "evals/results": [
+      "evals"
+    ],
+    "evals/results/flag-cleanup.json": [
+      "evals"
+    ]
+  }
+}
